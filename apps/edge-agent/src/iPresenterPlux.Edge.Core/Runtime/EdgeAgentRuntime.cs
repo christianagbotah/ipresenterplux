@@ -33,6 +33,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly IAudioCaptureService? _audioCapture;
     private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
+    private SpeechRecognitionHealth? _latestAsrWorkerHealth;
     private readonly object _audioGate = new();
     private AudioInputDevice? _activeAudioInput;
     private AudioFrame? _lastAudioFrame;
@@ -138,6 +139,7 @@ public sealed class EdgeAgentRuntime : IDisposable
           while (!cancellationToken.IsCancellationRequested)
           {
             await RotateIfNeededAsync(identity, manager, cancellationToken).ConfigureAwait(false);
+            await ProbeSpeechRecognitionHealthAsync(cancellationToken).ConfigureAwait(false);
 
             var health = _healthSampler.Sample(
                 identity,
@@ -211,6 +213,43 @@ public sealed class EdgeAgentRuntime : IDisposable
         }
     }
 
+    private async Task ProbeSpeechRecognitionHealthAsync(CancellationToken cancellationToken)
+    {
+        if (_speechRecognitionEngine is null)
+        {
+            _latestAsrWorkerHealth = new SpeechRecognitionHealth("disabled");
+            return;
+        }
+        if (_speechRecognitionEngine is not ISpeechRecognitionHealthProbe probe)
+        {
+            _latestAsrWorkerHealth = new SpeechRecognitionHealth("unsupported");
+            return;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(2));
+        try
+        {
+            _latestAsrWorkerHealth = await probe.CheckHealthAsync(timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            _latestAsrWorkerHealth = new SpeechRecognitionHealth("offline");
+        }
+        catch (HttpRequestException)
+        {
+            _latestAsrWorkerHealth = new SpeechRecognitionHealth("offline");
+        }
+        catch
+        {
+            _latestAsrWorkerHealth = new SpeechRecognitionHealth("error");
+        }
+    }
+
     private async Task StopAudioAsync()
     {
         if (_audioCapture is null) return;
@@ -250,6 +289,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         lock (_audioGate) { input = _activeAudioInput; frame = _lastAudioFrame; level = _latestAudioLevelDb; }
         if (input is null) return null;
         var pipeline = _transcriptionPipeline;
+        var workerHealth = _latestAsrWorkerHealth;
         var lastRecognitionError = pipeline?.LastError;
         var lastPublishError = pipeline?.LastPublishError;
         var metadata = new Dictionary<string, string>
@@ -266,9 +306,18 @@ public sealed class EdgeAgentRuntime : IDisposable
             ["transcriptPublishedChunks"] = (pipeline?.PublishedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["transcriptPublishFailures"] = (pipeline?.PublishFailedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["asrConfigured"] = _speechRecognitionEngine is null ? "false" : "true",
+            ["asrWorkerStatus"] = workerHealth?.Status ?? (_speechRecognitionEngine is null ? "disabled" : "unknown"),
             ["asrStatus"] = pipeline?.HealthStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting"),
             ["transcriptPublishStatus"] = pipeline?.PublishStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting")
         };
+        if (!string.IsNullOrWhiteSpace(workerHealth?.Version))
+            metadata["asrWorkerVersion"] = workerHealth.Version!;
+        if (workerHealth?.ModelLoaded is { } modelLoaded)
+            metadata["asrWorkerModelLoaded"] = modelLoaded ? "true" : "false";
+        if (!string.IsNullOrWhiteSpace(workerHealth?.Engine))
+            metadata["asrWorkerEngine"] = workerHealth.Engine!;
+        if (!string.IsNullOrWhiteSpace(workerHealth?.Device))
+            metadata["asrWorkerDevice"] = workerHealth.Device!;
         if (pipeline?.LastSuccessAt is { } lastSuccessAt)
             metadata["transcriptionLastSuccessAt"] = lastSuccessAt.ToUniversalTime().ToString("O");
         if (!string.IsNullOrWhiteSpace(lastRecognitionError))

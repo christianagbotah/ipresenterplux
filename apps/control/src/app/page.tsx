@@ -88,6 +88,11 @@ type MediaSourceRow = {
   failed_chunks: string | null;
   published_chunks: string | null;
   publish_failures: string | null;
+  worker_status: string | null;
+  worker_version: string | null;
+  worker_model_loaded: string | null;
+  worker_engine: string | null;
+  worker_device: string | null;
   asr_status: string | null;
   publish_status: string | null;
   last_success_at: string | null;
@@ -165,7 +170,10 @@ async function dashboardData(userId: string) {
               metadata->>'transcriptionRecognizedChunks' as recognized_chunks,metadata->>'transcriptionSilentChunks' as silent_chunks,
               metadata->>'transcriptionFailedChunks' as failed_chunks,metadata->>'transcriptPublishedChunks' as published_chunks,
               metadata->>'transcriptPublishFailures' as publish_failures,
-              metadata->>'asrStatus' as asr_status,metadata->>'transcriptPublishStatus' as publish_status,
+              metadata->>'asrWorkerStatus' as worker_status,metadata->>'asrWorkerVersion' as worker_version,
+              metadata->>'asrWorkerModelLoaded' as worker_model_loaded,metadata->>'asrWorkerEngine' as worker_engine,
+              metadata->>'asrWorkerDevice' as worker_device,metadata->>'asrStatus' as asr_status,
+              metadata->>'transcriptPublishStatus' as publish_status,
               metadata->>'transcriptionLastSuccessAt' as last_success_at
        from media_sources where organization_id=$1
        order by case when source_type='audio_input' then 0 else 1 end,last_seen_at desc nulls last,name
@@ -469,6 +477,7 @@ export default async function Home() {
                                     <span>{source.sample_rate ? `${source.sample_rate} Hz` : "—"}{source.channels ? ` · ${source.channels} ch` : ""}</span>
                                   </div>
                                   <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/32">
+                                    <span>Worker <span className={source.worker_status === "offline" || source.worker_status === "error" ? "text-red-200/80" : source.worker_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.worker_status ?? "unknown"}</span></span>
                                     <span>ASR <span className={source.asr_status === "degraded" ? "text-amber-200/80" : source.asr_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.asr_status ?? "disabled"}</span></span>
                                     <span>Delivery <span className={source.publish_status === "degraded" ? "text-amber-200/80" : source.publish_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.publish_status ?? "disabled"}</span></span>
                                     <span>Speech {source.recognized_chunks ?? "0"}</span>
@@ -476,6 +485,9 @@ export default async function Home() {
                                     <span>Silent {source.silent_chunks ?? "0"}</span>
                                     {Number(source.dropped_frames ?? "0") > 0 ? <span className="text-amber-200/75">Dropped {source.dropped_frames}</span> : null}
                                   </div>
+                                  {source.worker_status === "ready" ? (
+                                    <div className="mt-1 text-[10px] text-white/25">{[source.worker_engine, source.worker_device, source.worker_version ? `v${source.worker_version}` : null, source.worker_model_loaded === "true" ? "model loaded" : "model idle"].filter(Boolean).join(" · ")}</div>
+                                  ) : null}
                                   {Number(source.failed_chunks ?? "0") > 0 ? (
                                     <div className="mt-1 text-[10px] text-amber-200/70">ASR failures: {source.failed_chunks}</div>
                                   ) : null}

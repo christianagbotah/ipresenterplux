@@ -51,6 +51,13 @@ public sealed record SpeechRecognitionResult(
     string? SpeakerId = null,
     double? Confidence = null);
 
+public sealed record SpeechRecognitionHealth(
+    string Status,
+    string? Version = null,
+    bool? ModelLoaded = null,
+    string? Engine = null,
+    string? Device = null);
+
 public sealed record SourceHealth(
     string SourceId,
     string Name,

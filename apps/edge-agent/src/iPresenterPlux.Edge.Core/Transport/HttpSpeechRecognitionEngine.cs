@@ -4,8 +4,16 @@ using iPresenterPlux.Edge.Core.Contracts;
 
 namespace iPresenterPlux.Edge.Core.Transport;
 
-public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeechRecognitionEngine
+public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeechRecognitionEngine, ISpeechRecognitionHealthProbe
 {
+    private sealed record WorkerHealthResponse(
+        bool Ok,
+        string? Version,
+        string? Engine,
+        string? Model,
+        bool ModelLoaded,
+        string? Device);
+
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
     public async Task<SpeechRecognitionResult> TranscribeAsync(
@@ -28,5 +36,34 @@ public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeech
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadFromJsonAsync<SpeechRecognitionResult>(cancellationToken: cancellationToken).ConfigureAwait(false);
         return result ?? throw new InvalidDataException("ASR worker returned an empty response.");
+    }
+
+    public async Task<SpeechRecognitionHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync("/health", cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+            return new SpeechRecognitionHealth("error");
+
+        var health = await response.Content.ReadFromJsonAsync<WorkerHealthResponse>(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (health is null || !health.Ok)
+            return new SpeechRecognitionHealth("error");
+
+        return new SpeechRecognitionHealth(
+            "ready",
+            SafeToken(health.Version, 32),
+            health.ModelLoaded,
+            SafeToken(health.Engine, 32),
+            SafeToken(health.Device, 32));
+    }
+
+    private static string? SafeToken(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        if (trimmed.Length > maxLength) trimmed = trimmed[..maxLength];
+        return trimmed.All(character => char.IsLetterOrDigit(character) || character is '.' or '-' or '_' or ' ')
+            ? trimmed
+            : null;
     }
 }

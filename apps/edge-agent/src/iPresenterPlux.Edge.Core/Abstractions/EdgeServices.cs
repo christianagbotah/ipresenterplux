@@ -21,6 +21,12 @@ public interface ISpeechRecognitionEngine
         CancellationToken cancellationToken = default);
 }
 
+public interface ISpeechRecognitionHealthProbe
+{
+    Task<SpeechRecognitionHealth> CheckHealthAsync(
+        CancellationToken cancellationToken = default);
+}
+
 public interface IControlPlaneTransport
 {
     bool IsConnected { get; }
