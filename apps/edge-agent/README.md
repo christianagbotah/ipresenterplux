@@ -127,3 +127,11 @@ propagate to the caller after state has committed. An injectable `TimeProvider`
 allows deterministic timestamp tests. Enrollment, queue and state semantics are
 shared on Windows and macOS; only vault, media and hardware primitives belong in
 platform adapters. None of these changes authorize automatic Program output.
+## Offline outbound event durability
+
+`FileOutboundEventQueue` is the dependency-free durable queue for the first desktop runtime. It stores transcript, health and media events in the platform host's per-user application-data directory and preserves enqueue order, claim leases, retries, acknowledgements and recent delivered-ID tombstones across normal process restarts. State updates are flushed to a same-directory temporary file before replacement so a process crash does not intentionally truncate the last complete state.
+
+The queue is deliberately a **single Edge-Agent writer**. Platform installers must protect its application-data directory with the logged-in user's normal OS file permissions. It is not a database and does not claim multi-process locking or power-loss journaling. If those requirements appear in field deployments, the `IOutboundEventQueue` contract allows a SQLite adapter without changing capture or transport code.
+
+The dispatcher provides at-least-once delivery. Control-plane ingestion must therefore remain idempotent/deduplicated. Scripture ingestion currently has a short duplicate window; a durable server-side Edge event receipt ledger is the next hardening step for generic event IDs.
+
