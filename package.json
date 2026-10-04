@@ -1,0 +1,13 @@
+{
+  "name": "ipresenterplux",
+  "version": "0.1.0",
+  "private": true,
+  "description": "iPresenterPlux — AI-native church presentation, broadcast, interpretation and engagement platform",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --dir apps/control dev",
+    "build": "pnpm --dir apps/control build",
+    "start": "pnpm --dir apps/control start",
+    "lint": "pnpm --dir apps/control lint"
+  }
+}
