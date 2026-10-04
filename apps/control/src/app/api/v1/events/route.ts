@@ -11,6 +11,9 @@ export async function GET(request: Request) {
   if (!session?.user?.id) {
     return new Response("Authentication required", { status: 401 });
   }
+  if (session?.user?.forcePasswordChange) {
+    return new Response("Password change required", { status: 403 });
+  }
 
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("serviceId");

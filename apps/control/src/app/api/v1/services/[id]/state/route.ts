@@ -20,6 +20,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
   }
+  if (session.user.forcePasswordChange) {
+    return NextResponse.json({ ok: false, error: "Password change required" }, { status: 403 });
+  }
 
   const { id } = await context.params;
 
@@ -96,10 +99,11 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       await client.query(
         `insert into audit_events
-          (organization_id, actor_type, action, entity_type, entity_id, details)
-         values ($1, 'operator', $2, 'service', $3, $4::jsonb)`,
+          (organization_id, actor_type, actor_id, action, entity_type, entity_id, details)
+         values ($1, 'operator', $2, $3, 'service', $4, $5::jsonb)`,
         [
           row.organization_id,
+          session.user.id,
           "service.state.changed",
           id,
           JSON.stringify({ title: row.title, from: row.status, to: state })
@@ -123,10 +127,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: "Invalid state", issues: error.issues }, { status: 400 });
     }
-
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Service transition failed" },
-      { status: 500 }
-    );
+    console.error("Service transition failed", error);
+    return NextResponse.json({ ok: false, error: "Service transition failed" }, { status: 500 });
   }
 }

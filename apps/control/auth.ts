@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
@@ -13,9 +12,7 @@ const credentialSchema = z.object({
 
 export const { auth, signIn, signOut, handlers } = NextAuth({
   ...authConfig,
-  secret:
-    process.env.AUTH_SECRET ??
-    crypto.createHash("sha256").update("ipresenterplux-auth-v1|" + (process.env.DATABASE_URL ?? "local")).digest("base64url"),
+  secret: process.env.AUTH_SECRET,
   session: {
     strategy: "jwt",
     maxAge: 12 * 60 * 60

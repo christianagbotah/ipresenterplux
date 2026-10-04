@@ -5,14 +5,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const result = await query<{ now: string; database: string }>(
-      "select now()::text as now, current_database() as database"
+    const result = await query<{ now: string }>(
+      "select now()::text as now"
     );
     return NextResponse.json({
       ok: true,
       product: "iPresenterPlux",
       version: "0.1.0",
-      database: { status: "healthy", name: result.rows[0].database },
+      database: { status: "healthy" },
       modules: {
         presentation: "foundation",
         scriptureAi: "foundation",
@@ -23,9 +23,9 @@ export async function GET() {
       },
       serverTime: result.rows[0].now
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
-      { ok: false, product: "iPresenterPlux", error: error instanceof Error ? error.message : "Health check failed" },
+      { ok: false, product: "iPresenterPlux", database: { status: "degraded" } },
       { status: 503 }
     );
   }

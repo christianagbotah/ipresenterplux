@@ -25,6 +25,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
+import { OutputControls } from "@/components/OutputControls";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { query } from "@/lib/db";
 
@@ -32,6 +33,7 @@ export const dynamic = "force-dynamic";
 
 type ServiceRow = {
   id: string;
+  organization_id: string;
   title: string;
   status: string;
   active_bible_version: string;
@@ -71,22 +73,52 @@ type IntegrationRow = {
   integration_type: string;
 };
 
-async function dashboardData() {
-  const [services, outputs, languages, detections, integrations] = await Promise.all([
-    query<ServiceRow>(
-      "select id, title, status, active_bible_version, auto_preview_threshold::text from services order by case when status='live' then 0 when status='ready' then 1 else 2 end, created_at desc limit 1"
-    ),
+async function dashboardData(userId: string) {
+  const services = await query<ServiceRow>(
+    `select s.id,s.organization_id::text,s.title,s.status,s.active_bible_version,s.auto_preview_threshold::text
+     from services s
+     where exists (
+       select 1 from user_organization_roles uor
+       where uor.user_id=$1 and uor.organization_id=s.organization_id
+     )
+     order by case when s.status='live' then 0 when s.status='ready' then 1 else 2 end,s.created_at desc
+     limit 1`,
+    [userId]
+  );
+
+  let organizationId = services.rows[0]?.organization_id;
+  if (!organizationId) {
+    const membership = await query<{ organization_id: string }>(
+      "select organization_id::text from user_organization_roles where user_id=$1 order by created_at limit 1",
+      [userId]
+    );
+    organizationId = membership.rows[0]?.organization_id;
+  }
+
+  if (!organizationId) {
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [] };
+  }
+
+  const [outputs, languages, detections, integrations] = await Promise.all([
     query<OutputRow>(
-      "select id, name, destination_type, enabled, status from output_destinations order by enabled desc, name"
+      "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
+      [organizationId]
     ),
     query<LanguageRow>(
-      "select id, language_code, language_name, channel_mode, enabled, listener_count from language_channels order by enabled desc, language_name"
+      "select id,language_code,language_name,channel_mode,enabled,listener_count from language_channels where organization_id=$1 order by enabled desc,language_name",
+      [organizationId]
     ),
     query<DetectionRow>(
-      "select id, scripture_reference, confidence::text, state, bible_version, source_text, detected_at::text from scripture_detections order by detected_at desc limit 8"
+      `select sd.id,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,sd.source_text,sd.detected_at::text
+       from scripture_detections sd
+       join services s on s.id=sd.service_id
+       where s.organization_id=$1
+       order by sd.detected_at desc limit 8`,
+      [organizationId]
     ),
     query<IntegrationRow>(
-      "select provider, status, integration_type from integrations order by provider"
+      "select provider,status,integration_type from integrations where organization_id=$1 order by provider",
+      [organizationId]
     )
   ]);
 
@@ -136,8 +168,9 @@ const nav = [
 export default async function Home() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.forcePasswordChange) redirect("/change-password");
 
-  const data = await dashboardData();
+  const data = await dashboardData(session.user.id);
   const service = data.service;
   const latest = data.detections[0];
   const previewDetection = data.detections.find((item) => item.state === "preview");
@@ -432,6 +465,7 @@ export default async function Home() {
                           <div className="mt-0.5 text-[10px] uppercase tracking-[.12em] text-white/28">{output.destination_type}</div>
                         </div>
                         <Pill status={output.status} />
+                        <OutputControls id={output.id} enabled={output.enabled} />
                       </div>
                     ))}
                   </div>
