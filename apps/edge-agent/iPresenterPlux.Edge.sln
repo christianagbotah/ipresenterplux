@@ -1,0 +1,36 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Core", "src\iPresenterPlux.Edge.Core\iPresenterPlux.Edge.Core.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743201}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Windows", "src\iPresenterPlux.Edge.Windows\iPresenterPlux.Edge.Windows.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743202}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.MacOS", "src\iPresenterPlux.Edge.MacOS\iPresenterPlux.Edge.MacOS.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743203}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Core.Tests", "tests\iPresenterPlux.Edge.Core.Tests\iPresenterPlux.Edge.Core.Tests.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743204}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{17D8840C-3E4B-4B55-A143-2C3542743201}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743201}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743201}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743201}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743202}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743202}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743202}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743202}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743203}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743203}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743203}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743203}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743204}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743204}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743204}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743204}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

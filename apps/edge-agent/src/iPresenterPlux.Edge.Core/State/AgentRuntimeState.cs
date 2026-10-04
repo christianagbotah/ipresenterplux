@@ -24,7 +24,14 @@ public sealed record AgentSnapshot(
 public sealed class AgentRuntimeState
 {
     private readonly object _gate = new();
-    private AgentSnapshot _snapshot = AgentSnapshot.Offline;
+    private readonly TimeProvider _clock;
+    private AgentSnapshot _snapshot;
+
+    public AgentRuntimeState(TimeProvider? clock = null)
+    {
+        _clock = clock ?? TimeProvider.System;
+        _snapshot = AgentSnapshot.Offline with { UpdatedAt = _clock.GetUtcNow() };
+    }
 
     public event EventHandler<AgentSnapshot>? Changed;
 
@@ -38,10 +45,18 @@ public sealed class AgentRuntimeState
 
     public void Update(Func<AgentSnapshot, AgentSnapshot> update)
     {
+        ArgumentNullException.ThrowIfNull(update);
         AgentSnapshot next;
         lock (_gate)
         {
-            next = update(_snapshot) with { UpdatedAt = DateTimeOffset.UtcNow };
+            var candidate = update(_snapshot);
+            ArgumentNullException.ThrowIfNull(candidate);
+            ArgumentNullException.ThrowIfNull(candidate.Sources);
+            next = candidate with
+            {
+                UpdatedAt = _clock.GetUtcNow(),
+                Sources = Array.AsReadOnly(candidate.Sources.ToArray())
+            };
             _snapshot = next;
         }
 

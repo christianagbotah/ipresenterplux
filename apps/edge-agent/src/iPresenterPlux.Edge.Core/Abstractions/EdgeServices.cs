@@ -31,10 +31,3 @@ public interface IPresentationOutput
     Task TakeLiveAsync(CancellationToken cancellationToken = default);
     Task ClearAsync(CancellationToken cancellationToken = default);
 }
-
-public interface ILocalServiceStore
-{
-    Task QueueTranscriptAsync(TranscriptSegment segment, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<TranscriptSegment>> ReadPendingTranscriptsAsync(CancellationToken cancellationToken = default);
-    Task MarkTranscriptDeliveredAsync(long sequence, CancellationToken cancellationToken = default);
-}
