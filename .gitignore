@@ -25,3 +25,4 @@ temp/
 .vscode/
 .idea/
 Thumbs.db
+.secrets/

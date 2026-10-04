@@ -10,9 +10,11 @@
     "db:migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.52.0",
     "next": "16.3.8",
+    "next-auth": "5.0.0-beta.32",
     "pg": "^8.23.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",

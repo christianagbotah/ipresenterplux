@@ -1,15 +1,36 @@
 import { createClient } from "redis";
 import { z } from "zod";
+import { auth } from "@auth";
+import { query } from "@/lib/db";
 import { serviceEventChannel } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return new Response("Authentication required", { status: 401 });
+  }
+
   const url = new URL(request.url);
   const serviceId = url.searchParams.get("serviceId");
 
   if (!serviceId || !z.string().uuid().safeParse(serviceId).success) {
     return new Response("Invalid serviceId", { status: 400 });
+  }
+
+  const access = await query<{ allowed: boolean }>(
+    `select exists(
+       select 1
+       from services s
+       join user_organization_roles ur on ur.organization_id=s.organization_id
+       where s.id=$1 and ur.user_id=$2
+     ) as allowed`,
+    [serviceId, session.user.id]
+  );
+
+  if (!access.rows[0]?.allowed) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   const encoder = new TextEncoder();

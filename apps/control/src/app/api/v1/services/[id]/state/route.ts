@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +16,11 @@ type RouteContext = {
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+  }
+
   const { id } = await context.params;
 
   if (!z.string().uuid().safeParse(id).success) {
@@ -43,6 +50,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
 
       const row = current.rows[0];
+      const allowed = await userHasAnyRole(session.user.id, row.organization_id, LIVE_OPERATOR_ROLES);
+      if (!allowed) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "You are not allowed to control this live service" }, { status: 403 });
+      }
 
       const updated = await client.query<{
         id: string;

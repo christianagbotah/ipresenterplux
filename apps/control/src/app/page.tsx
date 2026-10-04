@@ -19,10 +19,13 @@ import {
   Video,
   Wifi
 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { auth } from "@auth";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -131,6 +134,9 @@ const nav = [
 ] as const;
 
 export default async function Home() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
   const data = await dashboardData();
   const service = data.service;
   const latest = data.detections[0];
@@ -204,6 +210,11 @@ export default async function Home() {
                 <Wifi size={14} className="text-emerald-400" />
                 VPS online
               </div>
+              <div className="hidden text-right xl:block">
+                <div className="max-w-36 truncate text-xs font-semibold text-white/65">{session.user.name ?? session.user.email}</div>
+                <div className="text-[10px] uppercase tracking-[.12em] text-white/25">Authorized operator</div>
+              </div>
+              <LogoutButton />
               {service ? <ServiceControls serviceId={service.id} status={service.status} /> : null}
             </div>
           </header>

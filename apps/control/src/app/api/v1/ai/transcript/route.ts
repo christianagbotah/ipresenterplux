@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { auth } from "@auth";
 import { query } from "@/lib/db";
+import { INGEST_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { detectScriptureReferences } from "@/lib/scripture";
 import { publishServiceEvent } from "@/lib/realtime";
 
@@ -14,30 +16,41 @@ const inputSchema = z.object({
 
 type ServiceRow = {
   id: string;
+  organization_id: string;
   active_bible_version: string;
   auto_preview_threshold: string;
 };
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ ok: false, error: "Authentication required" }, { status: 401 });
+    }
+
     const payload = inputSchema.parse(await request.json());
     let service: ServiceRow | undefined;
 
     if (payload.serviceId) {
       const found = await query<ServiceRow>(
-        "select id, active_bible_version, auto_preview_threshold::text from services where id = $1 limit 1",
+        "select id, organization_id::text, active_bible_version, auto_preview_threshold::text from services where id = $1 limit 1",
         [payload.serviceId]
       );
       service = found.rows[0];
     } else {
       const found = await query<ServiceRow>(
-        "select id, active_bible_version, auto_preview_threshold::text from services where status in ('live','ready') order by case when status='live' then 0 else 1 end, created_at desc limit 1"
+        "select id, organization_id::text, active_bible_version, auto_preview_threshold::text from services where status in ('live','ready') order by case when status='live' then 0 else 1 end, created_at desc limit 1"
       );
       service = found.rows[0];
     }
 
     if (!service) {
       return NextResponse.json({ ok: false, error: "No active or ready service found" }, { status: 404 });
+    }
+
+    const allowed = await userHasAnyRole(session.user.id, service.organization_id, INGEST_ROLES);
+    if (!allowed) {
+      return NextResponse.json({ ok: false, error: "You are not allowed to ingest live transcript events" }, { status: 403 });
     }
 
     const matches = detectScriptureReferences(payload.text);
