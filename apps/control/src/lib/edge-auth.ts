@@ -27,6 +27,7 @@ export async function authenticateEdgeDevice(request: Request): Promise<EdgeDevi
   const tokenHash = hashToken(token);
   const found = await query<{
     credential_id: string;
+    replaces_credential_id: string | null;
     device_id: string;
     organization_id: string;
     campus_id: string | null;
@@ -34,6 +35,7 @@ export async function authenticateEdgeDevice(request: Request): Promise<EdgeDevi
     platform: string;
   }>(
     `select c.id::text as credential_id,
+            c.replaces_credential_id::text,
             d.id::text as device_id,
             d.organization_id::text,
             d.campus_id::text,
@@ -53,13 +55,22 @@ export async function authenticateEdgeDevice(request: Request): Promise<EdgeDevi
   if (!row) return null;
 
   const ip = requestIp(request);
-  await Promise.all([
-    query("update edge_device_credentials set last_used_at=now() where id=$1", [row.credential_id]),
+  const updates: Promise<unknown>[] = [
+    query("update edge_device_credentials set last_used_at=now(), recovery_envelope=null, recovery_expires_at=null where id=$1 and state='active'", [row.credential_id]),
     query(
       "update edge_devices set last_seen_at=now(), last_ip=$2::inet, updated_at=now() where id=$1",
       [row.device_id, ip]
     )
-  ]);
+  ];
+  if (row.replaces_credential_id) {
+    updates.push(
+      query(
+        "update edge_device_credentials set state='revoked', revoked_at=coalesce(revoked_at,now()) where id=$1 and state='rotation_required'",
+        [row.replaces_credential_id]
+      )
+    );
+  }
+  await Promise.all(updates);
 
   return {
     credentialId: row.credential_id,
