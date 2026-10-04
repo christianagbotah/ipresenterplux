@@ -1,0 +1,56 @@
+namespace iPresenterPlux.Edge.Core.Contracts;
+
+public sealed record AgentIdentity(
+    Guid DeviceId,
+    Guid OrganizationId,
+    Guid? CampusId,
+    string DeviceName,
+    string SoftwareVersion);
+
+public sealed record AudioInputDevice(
+    string Id,
+    string Name,
+    int Channels,
+    int SampleRate,
+    bool IsDefault);
+
+public sealed record AudioFrame(
+    ReadOnlyMemory<byte> Buffer,
+    int BytesRecorded,
+    int SampleRate,
+    int Channels,
+    int BitsPerSample,
+    DateTimeOffset CapturedAt);
+
+public sealed record TranscriptSegment(
+    Guid ServiceId,
+    long Sequence,
+    DateTimeOffset StartedAt,
+    string Text,
+    bool IsFinal,
+    string? SpeakerId = null,
+    string? Language = null);
+
+public sealed record SourceHealth(
+    string SourceId,
+    string Name,
+    string SourceType,
+    string Status,
+    double? LevelDb = null,
+    double? FramesPerSecond = null,
+    string? Detail = null);
+
+public sealed record AgentHeartbeat(
+    Guid DeviceId,
+    DateTimeOffset SentAt,
+    string SoftwareVersion,
+    string Status,
+    IReadOnlyList<SourceHealth> Sources,
+    IReadOnlyDictionary<string, object?> Capabilities);
+
+public sealed record ScriptureSuggestion(
+    Guid DetectionId,
+    string Reference,
+    string BibleVersion,
+    decimal Confidence,
+    string State);

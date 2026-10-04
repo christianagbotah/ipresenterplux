@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>iPresenterPlux.Edge.MacOS</RootNamespace>
+    <AssemblyName>iPresenterPlux.Edge.MacOS</AssemblyName>
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../iPresenterPlux.Edge.Core/iPresenterPlux.Edge.Core.csproj" />
+  </ItemGroup>
+</Project>
