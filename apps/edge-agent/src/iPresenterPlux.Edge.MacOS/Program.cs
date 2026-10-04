@@ -26,6 +26,7 @@ static async Task<int> RunAsync()
     await using var identityStore = new FileAgentIdentityStore(dataDirectory);
     await using var queue = new FileOutboundEventQueue(dataDirectory);
     using var credentialStore = new MacOSCredentialStore(nativeBridge);
+    await using var audioCapture = new MacOSAudioCaptureService(nativeBridge);
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
 
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
@@ -43,7 +44,8 @@ static async Task<int> RunAsync()
         identityStore,
         queue,
         capabilities,
-        new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode));
+        new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode),
+        audioCapture: audioCapture);
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };

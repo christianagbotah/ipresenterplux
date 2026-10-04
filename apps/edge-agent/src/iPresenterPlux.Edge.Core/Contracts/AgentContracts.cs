@@ -14,13 +14,20 @@ public sealed record AudioInputDevice(
     int SampleRate,
     bool IsDefault);
 
+public enum AudioSampleEncoding
+{
+    PcmInteger,
+    IeeeFloat
+}
+
 public sealed record AudioFrame(
     ReadOnlyMemory<byte> Buffer,
     int BytesRecorded,
     int SampleRate,
     int Channels,
     int BitsPerSample,
-    DateTimeOffset CapturedAt);
+    DateTimeOffset CapturedAt,
+    AudioSampleEncoding Encoding = AudioSampleEncoding.PcmInteger);
 
 public sealed record TranscriptSegment(
     Guid ServiceId,

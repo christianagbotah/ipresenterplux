@@ -151,3 +151,11 @@ The shared `EdgeAgentRuntime` rotates credentials three days before expiry, emit
 ## Recoverable enrollment and rotation
 
 The control plane keeps newly issued Edge credential material only as AES-256-GCM recovery ciphertext for a ten-minute handoff window. Enrollment recovery is bound to the exact consumed pairing record; rotation recovery is bound to the exact previous credential through `replaces_credential_id`. Retrying after a lost HTTP response returns the same new credential rather than minting another one. The first successful authentication with that new credential clears its recovery ciphertext and, for rotations, immediately revokes the old grace credential. This prevents a lost response or process restart from forcing a healthy device into re-pairing while still minimizing the period in which two credentials can authenticate.
+
+## Windows mixer/audio capture
+
+Windows audio input is implemented through stable `NAudio.Wasapi` 3.1.0 (MIT). `WindowsWasapiAudioCaptureService` enumerates active WASAPI capture endpoints, identifies the multimedia default, captures in event-driven shared mode with a 50 ms buffer, and copies every NAudio callback buffer before publishing `AudioFrame` because NAudio owns and reuses the callback memory. The shared frame contract now distinguishes integer PCM from IEEE float samples, and `AudioLevelMeter` computes RMS dB for 16/24/32-bit PCM and 32-bit float. This keeps mixer metering and later ASR normalization format-correct.
+
+## macOS mixer/audio capture
+
+The macOS Swift bridge API v3 now provides real system-default audio capture through `AVAudioEngine`. The bridge exposes only the device it can start reliably today, reports its AVFoundation identity and native sample rate/channel count, interleaves native Float32 or Int16 channel buffers, and calls the .NET host through a stable C callback. `MacOSAudioCaptureService` immediately copies the native callback buffer before raising the shared `AudioFrameCaptured` event. Arbitrary non-default macOS input switching is intentionally deferred until this baseline is compiled and exercised on macOS CI/hardware; users can select the desired church mixer as the macOS system input in the meantime.

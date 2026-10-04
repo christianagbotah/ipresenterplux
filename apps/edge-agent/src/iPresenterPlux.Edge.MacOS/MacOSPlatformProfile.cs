@@ -18,7 +18,7 @@ public static class MacOSPlatformProfile
                     "audio.capture",
                     "Mixer / microphone capture",
                     nativeReady && bridge.SupportsAudioCapture() ? "available" : "planned",
-                    "CoreAudio"),
+                    "AVAudioEngine default-input capture over native Swift bridge"),
                 new PlatformCapability(
                     "camera.capture",
                     "Camera capture",

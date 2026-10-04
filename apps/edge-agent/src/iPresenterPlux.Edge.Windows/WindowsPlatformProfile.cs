@@ -9,7 +9,7 @@ public static class WindowsPlatformProfile
         System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),
         new[]
         {
-            new PlatformCapability("audio.capture", "Mixer / microphone capture", "planned", "WASAPI shared/exclusive mode"),
+            new PlatformCapability("audio.capture", "Mixer / microphone capture", "available", "WASAPI event-driven capture via NAudio.Wasapi 3.1.0"),
             new PlatformCapability("screen.capture", "Screen / window capture", "planned", "Windows Graphics Capture"),
             new PlatformCapability("video.encode", "Hardware video encode", "planned", "Media Foundation / FFmpeg"),
             new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),

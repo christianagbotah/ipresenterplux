@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Runtime.InteropServices;
 
 namespace iPresenterPlux.Edge.MacOS;
@@ -45,6 +46,46 @@ public sealed class MacOSNativeMediaBridge
     {
         EnsureMacOS();
         return NativeMethods.IsAudioCaptureSupported() == 1;
+    }
+
+
+    public IReadOnlyList<MacOSAudioInput> ListAudioInputs()
+    {
+        EnsureMacOS();
+        var status = NativeMethods.AudioInputsJson(out var pointer, out var length);
+        if (status != 0) throw new InvalidOperationException($"macOS audio input discovery failed with status {status}.");
+        if (pointer == IntPtr.Zero || length <= 0)
+        {
+            if (pointer != IntPtr.Zero) NativeMethods.BufferFree(pointer, Math.Max(length, 0));
+            return Array.Empty<MacOSAudioInput>();
+        }
+        try
+        {
+            var bytes = new byte[length];
+            Marshal.Copy(pointer, bytes, 0, length);
+            return JsonSerializer.Deserialize<List<MacOSAudioInput>>(bytes, new JsonSerializerOptions(JsonSerializerDefaults.Web))
+                ?? Array.Empty<MacOSAudioInput>();
+        }
+        finally
+        {
+            NativeMethods.BufferFree(pointer, length);
+        }
+    }
+
+    public void StartAudioCapture(string deviceId, AudioFrameCallback callback)
+    {
+        EnsureMacOS();
+        ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
+        ArgumentNullException.ThrowIfNull(callback);
+        var status = NativeMethods.AudioStart(deviceId, callback);
+        if (status != 0) throw new InvalidOperationException($"macOS audio capture start failed with status {status}.");
+    }
+
+    public void StopAudioCapture()
+    {
+        EnsureMacOS();
+        var status = NativeMethods.AudioStop();
+        if (status != 0) throw new InvalidOperationException($"macOS audio capture stop failed with status {status}.");
     }
 
     public void WriteKeychainItem(string service, string account, byte[] value)
@@ -113,6 +154,12 @@ public sealed class MacOSNativeMediaBridge
         }
     }
 
+    public sealed record MacOSAudioInput(string Id, string Name, int Channels, int SampleRate, bool IsDefault);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void AudioFrameCallback(
+        IntPtr data, int length, int sampleRate, int channels, int bitsPerSample, int encoding, long capturedAtUnixMs);
+
     #pragma warning disable SYSLIB1054 // Swift bridge uses a stable C ABI with UTF-8/native buffers.
     private static class NativeMethods
     {
@@ -127,6 +174,20 @@ public sealed class MacOSNativeMediaBridge
 
         [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_is_audio_capture_supported")]
         internal static extern int IsAudioCaptureSupported();
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_audio_inputs_json", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int AudioInputsJson(out IntPtr value, out int length);
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_audio_start", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int AudioStart(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string deviceId,
+            AudioFrameCallback callback);
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_audio_stop", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int AudioStop();
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_buffer_free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void BufferFree(IntPtr value, int length);
 
         [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_keychain_write", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int KeychainWrite(

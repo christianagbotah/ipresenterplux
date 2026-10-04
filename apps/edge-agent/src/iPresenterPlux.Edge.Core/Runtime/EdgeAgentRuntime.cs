@@ -30,6 +30,11 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly TimeProvider _clock;
     private readonly EdgeHostHealthSampler _healthSampler;
     private readonly AgentRuntimeState _state;
+    private readonly IAudioCaptureService? _audioCapture;
+    private readonly object _audioGate = new();
+    private AudioInputDevice? _activeAudioInput;
+    private AudioFrame? _lastAudioFrame;
+    private double? _latestAudioLevelDb;
     private string? _pairingCode;
     private bool _disposed;
 
@@ -41,7 +46,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         IReadOnlyDictionary<string, string> capabilities,
         EdgeAgentRuntimeOptions options,
         TimeProvider? clock = null,
-        AgentRuntimeState? state = null)
+        AgentRuntimeState? state = null,
+        IAudioCaptureService? audioCapture = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -60,6 +66,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         _clock = clock ?? TimeProvider.System;
         _state = state ?? new AgentRuntimeState(_clock);
         _healthSampler = new EdgeHostHealthSampler(_clock);
+        _audioCapture = audioCapture;
+        if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
 
@@ -109,9 +117,12 @@ public sealed class EdgeAgentRuntime : IDisposable
             _identityStore);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting" });
+        await StartAudioAsync(cancellationToken).ConfigureAwait(false);
 
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
+          while (!cancellationToken.IsCancellationRequested)
+          {
             await RotateIfNeededAsync(identity, manager, cancellationToken).ConfigureAwait(false);
 
             var health = _healthSampler.Sample(
@@ -122,12 +133,124 @@ public sealed class EdgeAgentRuntime : IDisposable
                 OutboundEventFactory.Health(identity, health),
                 cancellationToken).ConfigureAwait(false);
 
+            var audioState = CurrentAudioTelemetry();
+            if (audioState is not null)
+            {
+                await _queue.EnqueueAsync(
+                    OutboundEventFactory.Media(identity, audioState),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
             var result = await dispatcher.FlushAsync(scope, 100, cancellationToken).ConfigureAwait(false);
             var connection = result.Retried > 0 ? "Degraded" : "Connected";
             _state.Update(snapshot => snapshot with { ConnectionStatus = connection });
 
             await Task.Delay(_options.EffectiveHeartbeatInterval, _clock, cancellationToken).ConfigureAwait(false);
+          }
         }
+        finally
+        {
+            await StopAudioAsync().ConfigureAwait(false);
+        }
+    }
+
+    private async Task StartAudioAsync(CancellationToken cancellationToken)
+    {
+        if (_audioCapture is null) return;
+        try
+        {
+            var inputs = await _audioCapture.ListInputsAsync(cancellationToken).ConfigureAwait(false);
+            var input = inputs.FirstOrDefault(item => item.IsDefault) ?? inputs.FirstOrDefault();
+            if (input is null)
+            {
+                _state.Update(snapshot => snapshot with { AudioStatus = "No input", ActiveAudioInput = null });
+                return;
+            }
+
+            await _audioCapture.StartAsync(input.Id, cancellationToken).ConfigureAwait(false);
+            lock (_audioGate) _activeAudioInput = input;
+            _state.Update(snapshot => snapshot with
+            {
+                AudioStatus = "Capturing",
+                ActiveAudioInput = input.Name,
+                Sources = UpsertAudioSource(snapshot.Sources, input, null, "ready")
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception error)
+        {
+            _state.Update(snapshot => snapshot with
+            {
+                AudioStatus = "Unavailable",
+                ActiveAudioInput = null,
+                Sources = snapshot.Sources
+            });
+            Console.Error.WriteLine($"Audio capture unavailable: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private async Task StopAudioAsync()
+    {
+        if (_audioCapture is null) return;
+        try { await _audioCapture.StopAsync(CancellationToken.None).ConfigureAwait(false); }
+        catch { /* shutdown must not be blocked by a disappearing device */ }
+        lock (_audioGate)
+        {
+            _activeAudioInput = null;
+            _lastAudioFrame = null;
+            _latestAudioLevelDb = null;
+        }
+        _state.Update(snapshot => snapshot with { AudioStatus = "Stopped", ActiveAudioInput = null });
+    }
+
+    private void OnAudioFrameCaptured(object? sender, AudioFrame frame)
+    {
+        var level = AudioLevelMeter.CalculateRmsDb(frame);
+        AudioInputDevice? input;
+        lock (_audioGate)
+        {
+            _lastAudioFrame = frame with { Buffer = ReadOnlyMemory<byte>.Empty, BytesRecorded = 0 };
+            _latestAudioLevelDb = level;
+            input = _activeAudioInput;
+        }
+        if (input is null) return;
+        _state.Update(snapshot => snapshot with
+        {
+            AudioStatus = "Capturing",
+            Sources = UpsertAudioSource(snapshot.Sources, input, level, "ready")
+        });
+    }
+
+    private MediaSourceState? CurrentAudioTelemetry()
+    {
+        AudioInputDevice? input; AudioFrame? frame; double? level;
+        lock (_audioGate) { input = _activeAudioInput; frame = _lastAudioFrame; level = _latestAudioLevelDb; }
+        if (input is null) return null;
+        var metadata = new Dictionary<string, string>
+        {
+            ["channels"] = (frame?.Channels ?? input.Channels).ToString(),
+            ["sampleRate"] = (frame?.SampleRate ?? input.SampleRate).ToString(),
+            ["levelDb"] = (level ?? -120d).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
+            ["default"] = input.IsDefault ? "true" : "false"
+        };
+        if (frame is not null)
+        {
+            metadata["bitsPerSample"] = frame.BitsPerSample.ToString();
+            metadata["encoding"] = frame.Encoding.ToString();
+        }
+        return new MediaSourceState(input.Id, input.Name, "audio_input", "ready", _clock.GetUtcNow(), metadata);
+    }
+
+    private static IReadOnlyList<SourceHealth> UpsertAudioSource(
+        IReadOnlyList<SourceHealth> sources, AudioInputDevice input, double? levelDb, string status)
+    {
+        var next = sources.Where(item => item.SourceId != input.Id).ToList();
+        next.Add(new SourceHealth(input.Id, input.Name, "audio_input", status, levelDb, null,
+            $"{input.SampleRate} Hz · {input.Channels} ch"));
+        return next.AsReadOnly();
     }
 
     private async Task RotateIfNeededAsync(
@@ -170,6 +293,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        if (_audioCapture is not null) _audioCapture.AudioFrameCaptured -= OnAudioFrameCaptured;
         _healthSampler.Dispose();
     }
 

@@ -7,7 +7,7 @@ import VideoToolbox
 
 @_cdecl("ipresenterplux_macos_bridge_api_version")
 public func bridgeApiVersion() -> Int32 {
-    2
+    3
 }
 
 @_cdecl("ipresenterplux_macos_is_screen_capture_supported")
@@ -141,3 +141,176 @@ public func keychainFree(_ bytes: UnsafeMutablePointer<UInt8>?, _ length: Int32)
 
 // Native capture sessions are intentionally added behind this stable C ABI.
 // .NET owns service orchestration; Swift owns macOS-only media and Keychain APIs.
+
+private struct EdgeAudioInputInfo: Codable {
+    let id: String
+    let name: String
+    let channels: Int32
+    let sampleRate: Int32
+    let isDefault: Bool
+}
+
+public typealias EdgeAudioFrameCallback = @convention(c) (
+    UnsafePointer<UInt8>?, Int32, Int32, Int32, Int32, Int32, Int64
+) -> Void
+
+private final class EdgeAudioEngineCapture: @unchecked Sendable {
+    let engine = AVAudioEngine()
+    private let callbackLock = NSLock()
+    private var callback: EdgeAudioFrameCallback?
+    var running = false
+
+    func start(callback: @escaping EdgeAudioFrameCallback) throws {
+        if running { return }
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw NSError(domain: "iPresenterPlux.Audio", code: 1)
+        }
+        callbackLock.lock()
+        self.callback = callback
+        callbackLock.unlock()
+        input.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self] buffer, _ in
+            self?.emit(buffer)
+        }
+        engine.prepare()
+        do {
+            try engine.start()
+            running = true
+        } catch {
+            input.removeTap(onBus: 0)
+            callbackLock.lock()
+            self.callback = nil
+            callbackLock.unlock()
+            throw error
+        }
+    }
+
+    func stop() {
+        guard running || callback != nil else { return }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        callbackLock.lock()
+        callback = nil
+        callbackLock.unlock()
+        running = false
+    }
+
+    private func emit(_ buffer: AVAudioPCMBuffer) {
+        callbackLock.lock()
+        let currentCallback = callback
+        callbackLock.unlock()
+        guard let callback = currentCallback, buffer.frameLength > 0 else { return }
+        let format = buffer.format
+        let channels = Int(format.channelCount)
+        let frames = Int(buffer.frameLength)
+        let sampleRate = Int32(format.sampleRate.rounded())
+        let capturedAt = Int64(Date().timeIntervalSince1970 * 1000.0)
+
+        if format.commonFormat == .pcmFormatFloat32, let channelData = buffer.floatChannelData {
+            var interleaved = [Float](repeating: 0, count: frames * channels)
+            for frame in 0..<frames {
+                for channel in 0..<channels {
+                    interleaved[frame * channels + channel] = channelData[channel][frame]
+                }
+            }
+            interleaved.withUnsafeBytes { raw in
+                callback(
+                    raw.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                    Int32(raw.count), sampleRate, Int32(channels), 32, 1, capturedAt
+                )
+            }
+            return
+        }
+
+        if format.commonFormat == .pcmFormatInt16, let channelData = buffer.int16ChannelData {
+            var interleaved = [Int16](repeating: 0, count: frames * channels)
+            for frame in 0..<frames {
+                for channel in 0..<channels {
+                    interleaved[frame * channels + channel] = channelData[channel][frame]
+                }
+            }
+            interleaved.withUnsafeBytes { raw in
+                callback(
+                    raw.baseAddress?.assumingMemoryBound(to: UInt8.self),
+                    Int32(raw.count), sampleRate, Int32(channels), 16, 0, capturedAt
+                )
+            }
+        }
+    }
+}
+
+private final class EdgeAudioCaptureRegistry: @unchecked Sendable {
+    static let shared = EdgeAudioCaptureRegistry()
+    let queue = DispatchQueue(label: "com.lightworldtech.ipresenterplux.edge.audio")
+    var capture: EdgeAudioEngineCapture?
+    private init() {}
+}
+
+@_cdecl("ipresenterplux_macos_audio_inputs_json")
+public func audioInputsJson(
+    _ outputBytes: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>?,
+    _ outputLength: UnsafeMutablePointer<Int32>?
+) -> Int32 {
+    guard let outputBytes, let outputLength else { return Int32(errSecParam) }
+    guard let device = AVCaptureDevice.default(for: .audio) else { return -1001 }
+
+    let engine = AVAudioEngine()
+    let format = engine.inputNode.outputFormat(forBus: 0)
+    guard format.sampleRate > 0, format.channelCount > 0 else { return -1002 }
+    let input = EdgeAudioInputInfo(
+        id: device.uniqueID,
+        name: device.localizedName,
+        channels: Int32(format.channelCount),
+        sampleRate: Int32(format.sampleRate.rounded()),
+        isDefault: true
+    )
+    guard let data = try? JSONEncoder().encode([input]), !data.isEmpty, data.count <= Int(Int32.max) else {
+        return -1003
+    }
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count)
+    data.copyBytes(to: buffer, count: data.count)
+    outputBytes.pointee = buffer
+    outputLength.pointee = Int32(data.count)
+    return 0
+}
+
+@_cdecl("ipresenterplux_macos_audio_start")
+public func audioStart(
+    _ deviceIdPointer: UnsafePointer<CChar>?,
+    _ callback: EdgeAudioFrameCallback?
+) -> Int32 {
+    guard let deviceId = stringFromUtf8(deviceIdPointer), let callback else { return -1010 }
+    guard let device = AVCaptureDevice.default(for: .audio), device.uniqueID == deviceId else { return -1011 }
+
+    let registry = EdgeAudioCaptureRegistry.shared
+    return registry.queue.sync {
+        if registry.capture?.running == true { return 0 }
+        let capture = EdgeAudioEngineCapture()
+        do {
+            try capture.start(callback: callback)
+            registry.capture = capture
+            return 0
+        } catch {
+            capture.stop()
+            return -1012
+        }
+    }
+}
+
+@_cdecl("ipresenterplux_macos_audio_stop")
+public func audioStop() -> Int32 {
+    let registry = EdgeAudioCaptureRegistry.shared
+    return registry.queue.sync {
+        registry.capture?.stop()
+        registry.capture = nil
+        return 0
+    }
+}
+
+@_cdecl("ipresenterplux_macos_buffer_free")
+public func bufferFree(_ bytes: UnsafeMutablePointer<UInt8>?, _ length: Int32) {
+    guard let bytes, length > 0 else { return }
+    for index in 0..<Int(length) { bytes[index] = 0 }
+    bytes.deallocate()
+}
