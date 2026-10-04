@@ -135,6 +135,41 @@ public sealed class FileOutboundEventQueueTests
     }
 
     [Fact]
+    public async Task FailedEnqueuePersistenceDoesNotPoisonCachedState()
+    {
+        var directory = CreateTempDirectory();
+        try
+        {
+            var outbound = Event(Guid.Parse("55555555-5555-5555-5555-555555555555"));
+            var tempPath = Path.Combine(directory, "outbound-events.json.tmp");
+
+            await using (var queue = new FileOutboundEventQueue(directory))
+            {
+                Directory.CreateDirectory(tempPath);
+                await Assert.ThrowsAnyAsync<Exception>(() =>
+                    queue.EnqueueAsync(outbound, CancellationToken.None));
+                Directory.Delete(tempPath);
+
+                await queue.EnqueueAsync(outbound, CancellationToken.None);
+            }
+
+            await using var reopened = new FileOutboundEventQueue(directory);
+            var deliveries = await reopened.ClaimAsync(
+                outbound.Scope,
+                10,
+                DateTimeOffset.Parse("2026-10-04T12:00:00Z"),
+                TimeSpan.FromMinutes(1),
+                CancellationToken.None);
+            Assert.Single(deliveries);
+            Assert.Equal(outbound.EventId, deliveries[0].Event.EventId);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task CompactionUsesDeliveryTimeNotOriginalEventTime()
     {
         var directory = CreateTempDirectory();

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using Xunit;
@@ -25,6 +26,86 @@ public sealed class SpeechAudioPipelineTests
     }
 
     [Fact]
+    public void SpeechGateTreatsDigitalSilenceAsMinus120Db()
+    {
+        Assert.Equal(-120d, AudioTranscriptionPipeline.CalculatePcm16RmsDb(new short[16_000]));
+    }
+
+    [Fact]
+    public void SpeechGateMeasuresHalfScaleSignalAboveDefaultSilenceFloor()
+    {
+        var samples = Enumerable.Repeat((short)16_384, 16_000).ToArray();
+        var level = AudioTranscriptionPipeline.CalculatePcm16RmsDb(samples);
+        Assert.InRange(level, -6.1, -5.9);
+        Assert.True(level > -50d);
+    }
+
+    [Fact]
+    public void SpeechGateKeepsShortAudiblePhraseInsideMostlySilentChunk()
+    {
+        var samples = new short[80_000];
+        var amplitude = (short)Math.Round(32768d * Math.Pow(10d, -45d / 20d));
+        Array.Fill(samples, amplitude, 0, 8_000);
+
+        Assert.True(AudioTranscriptionPipeline.CalculatePcm16RmsDb(samples) < -50d);
+        Assert.True(AudioTranscriptionPipeline.HasSpeechActivity(samples));
+    }
+
+    [Fact]
+    public void SpeechGateRejectsSingleShortEnergyBurst()
+    {
+        var samples = new short[80_000];
+        Array.Fill(samples, (short)8_192, 0, 3_200);
+
+        Assert.False(AudioTranscriptionPipeline.HasSpeechActivity(samples));
+    }
+
+    [Fact]
+    public void ChunkAccumulatorResetsTimelineAfterCaptureGap()
+    {
+        var accumulator = new SpeechChunkAccumulator();
+        var start = DateTimeOffset.Parse("2026-10-04T12:00:00Z");
+        Assert.Empty(accumulator.Append(new short[40_000], start));
+
+        var resumedAt = start.AddSeconds(10);
+        var chunks = accumulator.Append(new short[80_000], resumedAt);
+
+        Assert.Single(chunks);
+        Assert.Equal(resumedAt, chunks[0].StartedAt);
+    }
+
+    [Fact]
+    public async Task PublishRetryReusesStableEventId()
+    {
+        var seenIds = new List<Guid>();
+        var delivered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        await using var pipeline = new AudioTranscriptionPipeline(
+            new FixedSpeechEngine(),
+            (eventId, _, _) =>
+            {
+                lock (seenIds) seenIds.Add(eventId);
+                if (Interlocked.Increment(ref attempts) == 1)
+                    throw new IOException("simulated local queue failure");
+                delivered.TrySetResult();
+                return Task.CompletedTask;
+            });
+
+        var samples = Enumerable.Repeat((short)16_384, 80_000).ToArray();
+        var bytes = new byte[samples.Length * 2];
+        Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+        Assert.True(pipeline.TrySubmit(new AudioFrame(
+            bytes, bytes.Length, 16_000, 1, 16, DateTimeOffset.UtcNow.AddSeconds(5))));
+
+        await delivered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Guid[] ids;
+        lock (seenIds) ids = seenIds.ToArray();
+        Assert.Equal(2, ids.Length);
+        Assert.NotEqual(Guid.Empty, ids[0]);
+        Assert.Equal(ids[0], ids[1]);
+    }
+
+    [Fact]
     public void ChunkAccumulatorEmitsFiveSecondChunksWithContinuousTimestamps()
     {
         var accumulator = new SpeechChunkAccumulator();
@@ -36,5 +117,16 @@ public sealed class SpeechAudioPipelineTests
         Assert.Equal(start, second[0].StartedAt);
         Assert.Equal(start.AddSeconds(5), second[1].StartedAt);
         Assert.All(second, chunk => Assert.Equal(80_000, chunk.Samples.Length));
+    }
+
+    private sealed class FixedSpeechEngine : ISpeechRecognitionEngine
+    {
+        public Task<SpeechRecognitionResult> TranscribeAsync(
+            SpeechAudioChunk chunk,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(new SpeechRecognitionResult("John 3:16", "en", Confidence: 0.99));
+        }
     }
 }

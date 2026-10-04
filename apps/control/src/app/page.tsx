@@ -70,6 +70,29 @@ type DetectionRow = {
   detected_at: string;
 };
 
+
+type MediaSourceRow = {
+  id: string;
+  name: string;
+  source_type: string;
+  status: string;
+  last_seen_at: string | null;
+  level_db: string | null;
+  sample_rate: string | null;
+  channels: string | null;
+  bits_per_sample: string | null;
+  encoding: string | null;
+  dropped_frames: string | null;
+  recognized_chunks: string | null;
+  silent_chunks: string | null;
+  failed_chunks: string | null;
+  published_chunks: string | null;
+  publish_failures: string | null;
+  asr_status: string | null;
+  publish_status: string | null;
+  last_success_at: string | null;
+};
+
 type IntegrationRow = {
   provider: string;
   status: string;
@@ -99,10 +122,10 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [] };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [] };
   }
 
-  const [outputs, languages, detections, integrations] = await Promise.all([
+  const [outputs, languages, detections, integrations, mediaSources] = await Promise.all([
     query<OutputRow>(
       "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
       [organizationId]
@@ -132,6 +155,22 @@ async function dashboardData(userId: string) {
     query<IntegrationRow>(
       "select provider,status,integration_type from integrations where organization_id=$1 order by provider",
       [organizationId]
+    ),
+    query<MediaSourceRow>(
+      `select id::text,name,source_type,
+              case when last_seen_at is not null and last_seen_at < now()-interval '45 seconds' then 'offline' else status end as status,
+              last_seen_at::text,metadata->>'levelDb' as level_db,metadata->>'sampleRate' as sample_rate,
+              metadata->>'channels' as channels,metadata->>'bitsPerSample' as bits_per_sample,
+              metadata->>'encoding' as encoding,metadata->>'transcriptionDroppedFrames' as dropped_frames,
+              metadata->>'transcriptionRecognizedChunks' as recognized_chunks,metadata->>'transcriptionSilentChunks' as silent_chunks,
+              metadata->>'transcriptionFailedChunks' as failed_chunks,metadata->>'transcriptPublishedChunks' as published_chunks,
+              metadata->>'transcriptPublishFailures' as publish_failures,
+              metadata->>'asrStatus' as asr_status,metadata->>'transcriptPublishStatus' as publish_status,
+              metadata->>'transcriptionLastSuccessAt' as last_success_at
+       from media_sources where organization_id=$1
+       order by case when source_type='audio_input' then 0 else 1 end,last_seen_at desc nulls last,name
+       limit 6`,
+      [organizationId]
     )
   ]);
 
@@ -140,7 +179,8 @@ async function dashboardData(userId: string) {
     outputs: outputs.rows,
     languages: languages.rows,
     detections: detections.rows,
-    integrations: integrations.rows
+    integrations: integrations.rows,
+    mediaSources: mediaSources.rows
   };
 }
 
@@ -401,16 +441,65 @@ export default async function Home() {
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   <div className="ip-card p-4">
-                    <div className="mb-3 flex items-center gap-2 text-sm font-bold"><Camera size={16} /> Media Sources</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {["Camera 1", "Mixer", "Screen"].map((source, index) => (
-                        <div key={source} className="rounded-xl border border-white/[.06] bg-white/[.025] p-3">
-                          <div className="mb-5 h-16 rounded-lg bg-black/35" />
-                          <div className="text-xs font-semibold">{source}</div>
-                          <div className="mt-1 text-[10px] text-white/30">{index === 1 ? "Audio agent pending" : "Source pending"}</div>
-                        </div>
-                      ))}
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-sm font-bold"><Camera size={16} /> Media Sources</div>
+                      <span className="text-[10px] uppercase tracking-[.12em] text-white/25">Edge telemetry</span>
                     </div>
+                    {data.mediaSources.length ? (
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {data.mediaSources.map((source) => {
+                          const level = source.level_db === null ? null : Number(source.level_db);
+                          const levelWidth = level === null || !Number.isFinite(level) ? 0 : Math.max(0, Math.min(100, ((level + 60) / 60) * 100));
+                          const SourceIcon = source.source_type === "audio_input" ? AudioLines : Camera;
+                          return (
+                            <div key={source.id} className="rounded-xl border border-white/[.06] bg-white/[.025] p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/25 text-white/45"><SourceIcon size={15} /></div>
+                                <Pill status={source.status} />
+                              </div>
+                              <div className="mt-3 truncate text-xs font-semibold">{source.name}</div>
+                              <div className="mt-1 truncate text-[10px] uppercase tracking-[.1em] text-white/28">{source.source_type.replaceAll("_", " ")}</div>
+                              {source.source_type === "audio_input" ? (
+                                <>
+                                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.06]">
+                                    <div className="h-full rounded-full bg-emerald-400/70 transition-[width]" style={{ width: `${levelWidth}%` }} />
+                                  </div>
+                                  <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-white/32">
+                                    <span>{level === null || !Number.isFinite(level) ? "No level" : `${level.toFixed(1)} dB`}</span>
+                                    <span>{source.sample_rate ? `${source.sample_rate} Hz` : "—"}{source.channels ? ` · ${source.channels} ch` : ""}</span>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/32">
+                                    <span>ASR <span className={source.asr_status === "degraded" ? "text-amber-200/80" : source.asr_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.asr_status ?? "disabled"}</span></span>
+                                    <span>Delivery <span className={source.publish_status === "degraded" ? "text-amber-200/80" : source.publish_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.publish_status ?? "disabled"}</span></span>
+                                    <span>Speech {source.recognized_chunks ?? "0"}</span>
+                                    <span>Delivered {source.published_chunks ?? "0"}</span>
+                                    <span>Silent {source.silent_chunks ?? "0"}</span>
+                                    {Number(source.dropped_frames ?? "0") > 0 ? <span className="text-amber-200/75">Dropped {source.dropped_frames}</span> : null}
+                                  </div>
+                                  {Number(source.failed_chunks ?? "0") > 0 ? (
+                                    <div className="mt-1 text-[10px] text-amber-200/70">ASR failures: {source.failed_chunks}</div>
+                                  ) : null}
+                                  {Number(source.publish_failures ?? "0") > 0 ? (
+                                    <div className="mt-1 text-[10px] text-amber-200/70">Transcript delivery failures: {source.publish_failures}</div>
+                                  ) : null}
+                                  {source.last_success_at ? (
+                                    <div className="mt-1 text-[10px] text-white/25">Last ASR success {new Date(source.last_success_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <div className="mt-3 text-[10px] text-white/30">Last telemetry {source.last_seen_at ? new Date(source.last_seen_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "not received"}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-white/[.08] px-4 py-8 text-center">
+                        <AudioLines size={20} className="mx-auto text-white/20" />
+                        <div className="mt-3 text-xs font-semibold text-white/50">No Edge media telemetry yet</div>
+                        <div className="mt-1 text-[10px] leading-5 text-white/28">Pair a church computer and start its mixer/audio capture to populate this panel.</div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="ip-card p-4">

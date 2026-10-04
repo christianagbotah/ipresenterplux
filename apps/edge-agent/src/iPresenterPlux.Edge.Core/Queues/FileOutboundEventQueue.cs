@@ -61,8 +61,8 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
         try
         {
             ThrowIfDisposed();
-            var state = await LoadAsync(cancellationToken).ConfigureAwait(false);
-            var existing = state.Entries.FirstOrDefault(entry =>
+            var current = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var existing = current.Entries.FirstOrDefault(entry =>
                 entry.Value.Scope == outboundEvent.Scope && entry.Value.EventId == outboundEvent.EventId);
 
             if (existing is not null)
@@ -72,6 +72,7 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
                 return;
             }
 
+            var state = CloneState(current);
             state.Entries.Add(new StoredEntry { Value = outboundEvent });
             await SaveAsync(state, cancellationToken).ConfigureAwait(false);
         }
@@ -96,7 +97,8 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
         try
         {
             ThrowIfDisposed();
-            var state = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var current = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var state = CloneState(current);
             var leaseExpiresAt = now.Add(leaseDuration);
             var deliveries = new List<OutboundEventDelivery>(Math.Min(limit, state.Entries.Count));
 
@@ -141,7 +143,8 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
         try
         {
             ThrowIfDisposed();
-            var state = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var current = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var state = CloneState(current);
             var entry = FindCurrentClaim(state, scope, eventId, claimId, now);
             if (entry is null) return false;
 
@@ -174,7 +177,8 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
         try
         {
             ThrowIfDisposed();
-            var state = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var current = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var state = CloneState(current);
             var entry = FindCurrentClaim(state, scope, eventId, claimId, now);
             if (entry is null) return false;
 
@@ -199,7 +203,8 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
         try
         {
             ThrowIfDisposed();
-            var state = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var current = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            var state = CloneState(current);
             var before = state.Entries.Count;
             state.Entries.RemoveAll(entry =>
                 entry.Delivered && entry.DeliveredAt is not null && entry.DeliveredAt < deliveredBefore);
@@ -248,6 +253,19 @@ public sealed class FileOutboundEventQueue : IOutboundEventQueue, IAsyncDisposab
             throw new InvalidDataException("Outbound queue state is corrupted; it was not overwritten.", error);
         }
     }
+
+    private static QueueState CloneState(QueueState source) => new()
+    {
+        Entries = source.Entries.Select(entry => new StoredEntry
+        {
+            Value = entry.Value,
+            Delivered = entry.Delivered,
+            ClaimId = entry.ClaimId,
+            DueAt = entry.DueAt,
+            Attempts = entry.Attempts,
+            DeliveredAt = entry.DeliveredAt
+        }).ToList()
+    };
 
     private async Task SaveAsync(QueueState state, CancellationToken cancellationToken)
     {

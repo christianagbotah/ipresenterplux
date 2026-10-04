@@ -125,10 +125,10 @@ public sealed class EdgeAgentRuntime : IDisposable
         {
             _transcriptionPipeline = new AudioTranscriptionPipeline(
                 _speechRecognitionEngine,
-                async (segment, token) =>
+                async (eventId, segment, token) =>
                 {
                     await _queue.EnqueueAsync(
-                        OutboundEventFactory.Transcript(identity, segment), CancellationToken.None).ConfigureAwait(false);
+                        OutboundEventFactory.Transcript(identity, segment, eventId), CancellationToken.None).ConfigureAwait(false);
                 });
         }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
@@ -249,14 +249,32 @@ public sealed class EdgeAgentRuntime : IDisposable
         AudioInputDevice? input; AudioFrame? frame; double? level;
         lock (_audioGate) { input = _activeAudioInput; frame = _lastAudioFrame; level = _latestAudioLevelDb; }
         if (input is null) return null;
+        var pipeline = _transcriptionPipeline;
+        var lastRecognitionError = pipeline?.LastError;
+        var lastPublishError = pipeline?.LastPublishError;
         var metadata = new Dictionary<string, string>
         {
             ["channels"] = (frame?.Channels ?? input.Channels).ToString(),
             ["sampleRate"] = (frame?.SampleRate ?? input.SampleRate).ToString(),
             ["levelDb"] = (level ?? -120d).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
             ["default"] = input.IsDefault ? "true" : "false",
-            ["transcriptionDroppedFrames"] = (_transcriptionPipeline?.DroppedFrames ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["transcriptionDroppedFrames"] = (pipeline?.DroppedFrames ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptionRecognizedChunks"] = (pipeline?.RecognizedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptionSilentChunks"] = (pipeline?.SilentChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptionFailedChunks"] = (pipeline?.FailedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptionConsecutiveFailures"] = (pipeline?.ConsecutiveFailures ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptPublishedChunks"] = (pipeline?.PublishedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["transcriptPublishFailures"] = (pipeline?.PublishFailedChunks ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["asrConfigured"] = _speechRecognitionEngine is null ? "false" : "true",
+            ["asrStatus"] = pipeline?.HealthStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting"),
+            ["transcriptPublishStatus"] = pipeline?.PublishStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting")
         };
+        if (pipeline?.LastSuccessAt is { } lastSuccessAt)
+            metadata["transcriptionLastSuccessAt"] = lastSuccessAt.ToUniversalTime().ToString("O");
+        if (!string.IsNullOrWhiteSpace(lastRecognitionError))
+            metadata["transcriptionLastErrorCode"] = lastRecognitionError;
+        if (!string.IsNullOrWhiteSpace(lastPublishError))
+            metadata["transcriptPublishLastErrorCode"] = lastPublishError;
         if (frame is not null)
         {
             metadata["bitsPerSample"] = frame.BitsPerSample.ToString();
