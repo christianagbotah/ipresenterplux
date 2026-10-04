@@ -16,13 +16,14 @@ public sealed class HttpEdgeEventPublisher(
     private readonly AgentIdentity _identity = identity ?? throw new ArgumentNullException(nameof(identity));
     private readonly IDeviceCredentialStore _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
 
-    public Task PublishHealthAsync(EdgeDeviceHealth health, CancellationToken cancellationToken)
+    public Task PublishHealthAsync(Guid eventId, EdgeDeviceHealth health, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(health);
         return PostAsync(
             "/api/v1/edge/heartbeat",
             new
             {
+                eventId,
                 deviceId = _identity.DeviceId,
                 deviceName = health.DeviceName,
                 version = health.Version,
@@ -36,26 +37,29 @@ public sealed class HttpEdgeEventPublisher(
             cancellationToken);
     }
 
-    public Task PublishTranscriptAsync(TranscriptSegment segment, CancellationToken cancellationToken)
+    public Task PublishTranscriptAsync(Guid eventId, TranscriptSegment segment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(segment);
         return PostAsync(
             "/api/v1/edge/transcript",
             new
             {
+                eventId,
                 serviceId = segment.ServiceId,
+                startedAt = segment.StartedAt,
                 text = segment.Text
             },
             cancellationToken);
     }
 
-    public Task PublishMediaSourceStateAsync(MediaSourceState state, CancellationToken cancellationToken)
+    public Task PublishMediaSourceStateAsync(Guid eventId, MediaSourceState state, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(state);
         return PostAsync(
             "/api/v1/edge/media-source",
             new
             {
+                eventId,
                 sourceId = state.SourceId,
                 name = state.Name,
                 sourceType = state.SourceType,

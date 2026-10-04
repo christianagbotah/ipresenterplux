@@ -1,3 +1,4 @@
+import type { PoolClient, QueryResultRow } from "pg";
 import { query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
 import { detectScriptureReferences } from "@/lib/scripture";
@@ -13,6 +14,20 @@ export type ServiceContext = {
 export type TranscriptInput = {
   text: string;
   bibleVersion?: string;
+};
+
+type TranscriptResult = {
+  ok: true;
+  serviceId: string;
+  transcript: string;
+  detected: number;
+  inserted: Array<{
+    id: string;
+    scripture_reference: string;
+    confidence: string;
+    state: string;
+    detected_at: string;
+  }>;
 };
 
 export async function findServiceById(serviceId: string) {
@@ -38,69 +53,70 @@ export async function findActiveServiceForDevice(organizationId: string, campusI
   return found.rows[0];
 }
 
-export async function ingestTranscriptForService(service: ServiceContext, payload: TranscriptInput) {
+async function execute<T extends QueryResultRow>(
+  client: PoolClient | undefined,
+  text: string,
+  values: unknown[] = []
+) {
+  return client ? client.query<T>(text, values) : query<T>(text, values);
+}
+
+export async function publishTranscriptIngestResult(result: TranscriptResult) {
+  if (!result.inserted.length) return;
+  await publishServiceEvent(result.serviceId, "scripture.detected", {
+    detections: result.inserted.map((item) => ({
+      id: item.id,
+      reference: item.scripture_reference,
+      confidence: item.confidence,
+      state: item.state
+    }))
+  });
+}
+
+export async function ingestTranscriptForService(
+  service: ServiceContext,
+  payload: TranscriptInput,
+  client?: PoolClient
+): Promise<TranscriptResult> {
   const matches = detectScriptureReferences(payload.text);
-  const inserted = [];
+  const inserted: TranscriptResult["inserted"] = [];
 
   for (const match of matches) {
-    const duplicate = await query<{ id: string }>(
+    const duplicate = await execute<{ id: string }>(
+      client,
       "select id from scripture_detections where service_id=$1 and scripture_reference=$2 and detected_at > now() - interval '5 seconds' limit 1",
       [service.id, match.reference]
     );
     if (duplicate.rowCount) continue;
 
     const nextState = match.confidence >= Number(service.auto_preview_threshold) ? "preview" : "detected";
-
     if (nextState === "preview") {
-      await query(
+      await execute(
+        client,
         "update scripture_detections set state='detected' where service_id=$1 and state='preview'",
         [service.id]
       );
     }
 
-    const result = await query<{
-      id: string;
-      scripture_reference: string;
-      confidence: string;
-      state: string;
-      detected_at: string;
-    }>(
+    const result = await execute<TranscriptResult["inserted"][number]>(
+      client,
       `insert into scripture_detections
         (service_id,scripture_reference,book,chapter,verse_start,verse_end,bible_version,source_text,confidence,state)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
        returning id,scripture_reference,confidence::text,state,detected_at::text`,
-      [
-        service.id,
-        match.reference,
-        match.book,
-        match.chapter,
-        match.verseStart,
-        match.verseEnd ?? null,
-        payload.bibleVersion ?? service.active_bible_version,
-        payload.text,
-        match.confidence,
-        nextState
-      ]
+      [service.id,match.reference,match.book,match.chapter,match.verseStart,match.verseEnd ?? null,
+       payload.bibleVersion ?? service.active_bible_version,payload.text,match.confidence,nextState]
     );
     inserted.push(result.rows[0]);
   }
 
-  if (inserted.length) {
-    await publishServiceEvent(service.id, "scripture.detected", {
-      detections: inserted.map((item) => ({
-        id: item.id,
-        reference: item.scripture_reference,
-        confidence: item.confidence,
-        state: item.state
-      }))
-    });
-  }
-
-  return {
+  const result: TranscriptResult = {
     ok: true,
     serviceId: service.id,
     transcript: payload.text,
     detected: matches.length,
     inserted
   };
+  if (!client) await publishTranscriptIngestResult(result);
+  return result;
 }

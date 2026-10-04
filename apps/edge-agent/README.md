@@ -134,7 +134,7 @@ platform adapters. None of these changes authorize automatic Program output.
 
 The queue is deliberately a **single Edge-Agent writer**. Platform installers must protect its application-data directory with the logged-in user's normal OS file permissions. It is not a database and does not claim multi-process locking or power-loss journaling. If those requirements appear in field deployments, the `IOutboundEventQueue` contract allows a SQLite adapter without changing capture or transport code.
 
-The dispatcher provides at-least-once delivery. Control-plane ingestion must therefore remain idempotent/deduplicated. Scripture ingestion currently has a short duplicate window; a durable server-side Edge event receipt ledger is the next hardening step for generic event IDs.
+The dispatcher provides at-least-once delivery. Control-plane ingestion is now durably idempotent through `edge_event_receipts`: every transcript, health and media event carries its stable Edge event ID, and the receipt plus database effect commit in the same transaction. An identical retry is a successful no-op; reusing an event ID with different normalized content is rejected. Receipt rows are retained until an explicit future retention policy is introduced, so server deduplication does not expire before local queue tombstones.
 
 ## Protected device identity and credentials
 

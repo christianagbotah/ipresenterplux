@@ -79,11 +79,11 @@ public sealed class OutboundEventDispatcher(
         outboundEvent.Kind switch
         {
             OutboundEventKind.Transcript => _publisher.PublishTranscriptAsync(
-                Deserialize<TranscriptSegment>(outboundEvent), cancellationToken),
+                outboundEvent.EventId, Deserialize<TranscriptSegment>(outboundEvent), cancellationToken),
             OutboundEventKind.Health => _publisher.PublishHealthAsync(
-                Deserialize<EdgeDeviceHealth>(outboundEvent), cancellationToken),
+                outboundEvent.EventId, Deserialize<EdgeDeviceHealth>(outboundEvent), cancellationToken),
             OutboundEventKind.Media => _publisher.PublishMediaSourceStateAsync(
-                Deserialize<MediaSourceState>(outboundEvent), cancellationToken),
+                outboundEvent.EventId, Deserialize<MediaSourceState>(outboundEvent), cancellationToken),
             _ => throw new InvalidOperationException($"Unsupported outbound event kind: {outboundEvent.Kind}")
         };
 

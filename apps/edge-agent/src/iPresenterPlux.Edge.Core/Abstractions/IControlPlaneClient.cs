@@ -5,9 +5,9 @@ namespace iPresenterPlux.Edge.Core.Abstractions;
 
 public interface IEdgeEventPublisher
 {
-    Task PublishHealthAsync(EdgeDeviceHealth health, CancellationToken cancellationToken);
-    Task PublishTranscriptAsync(TranscriptSegment segment, CancellationToken cancellationToken);
-    Task PublishMediaSourceStateAsync(MediaSourceState state, CancellationToken cancellationToken);
+    Task PublishHealthAsync(Guid eventId, EdgeDeviceHealth health, CancellationToken cancellationToken);
+    Task PublishTranscriptAsync(Guid eventId, TranscriptSegment segment, CancellationToken cancellationToken);
+    Task PublishMediaSourceStateAsync(Guid eventId, MediaSourceState state, CancellationToken cancellationToken);
 }
 
 public interface IControlPlaneCommandStream

@@ -113,7 +113,7 @@ public sealed class OutboundEventDispatcherTests
         public List<TranscriptSegment> Transcripts { get; } = [];
         public List<MediaSourceState> Media { get; } = [];
 
-        public Task PublishHealthAsync(EdgeDeviceHealth health, CancellationToken cancellationToken)
+        public Task PublishHealthAsync(Guid eventId, EdgeDeviceHealth health, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfFailing();
@@ -121,7 +121,7 @@ public sealed class OutboundEventDispatcherTests
             return Task.CompletedTask;
         }
 
-        public Task PublishTranscriptAsync(TranscriptSegment segment, CancellationToken cancellationToken)
+        public Task PublishTranscriptAsync(Guid eventId, TranscriptSegment segment, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfFailing();
@@ -129,7 +129,7 @@ public sealed class OutboundEventDispatcherTests
             return Task.CompletedTask;
         }
 
-        public Task PublishMediaSourceStateAsync(MediaSourceState state, CancellationToken cancellationToken)
+        public Task PublishMediaSourceStateAsync(Guid eventId, MediaSourceState state, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfFailing();
