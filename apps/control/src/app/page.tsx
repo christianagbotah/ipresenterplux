@@ -20,6 +20,7 @@ import {
   Wifi
 } from "lucide-react";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
 import { query } from "@/lib/db";
@@ -143,7 +144,7 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen">
-      <AutoRefresh />
+      {service ? <RealtimeRefresh serviceId={service.id} /> : <AutoRefresh intervalMs={15_000} />}
 
       <div className="grid min-h-screen grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <aside className="sticky top-0 h-screen border-r border-white/[.07] bg-[#080b10]/95 px-3 py-4 backdrop-blur-xl xl:px-4">
@@ -473,7 +474,7 @@ export default async function Home() {
             <footer className="flex flex-wrap items-center justify-between gap-3 px-1 pb-2 text-[11px] text-white/25">
               <div className="flex items-center gap-2">
                 <CircleDot size={12} className="text-emerald-400" />
-                iPresenterPlux control plane · PostgreSQL connected · realtime refresh 2.5s
+                iPresenterPlux control plane · PostgreSQL + Redis connected · realtime event stream
               </div>
               <div>Foundation v0.1.0 · Africa/Accra</div>
             </footer>

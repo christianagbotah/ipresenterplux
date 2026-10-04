@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { publishServiceEvent } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
 
       await client.query("commit");
+      await publishServiceEvent(id, "service.state.changed", {
+        title: row.title,
+        from: row.status,
+        to: state
+      });
       return NextResponse.json({ ok: true, service: updated.rows[0] });
     } catch (error) {
       await client.query("rollback");

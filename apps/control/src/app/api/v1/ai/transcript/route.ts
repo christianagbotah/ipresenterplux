@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { query } from "@/lib/db";
 import { detectScriptureReferences } from "@/lib/scripture";
+import { publishServiceEvent } from "@/lib/realtime";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,17 @@ export async function POST(request: Request) {
         ]
       );
       inserted.push(result.rows[0]);
+    }
+
+    if (inserted.length) {
+      await publishServiceEvent(service.id, "scripture.detected", {
+        detections: inserted.map((item) => ({
+          id: item.id,
+          reference: item.scripture_reference,
+          confidence: item.confidence,
+          state: item.state
+        }))
+      });
     }
 
     return NextResponse.json({
