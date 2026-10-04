@@ -30,13 +30,26 @@ public sealed record AudioFrame(
     AudioSampleEncoding Encoding = AudioSampleEncoding.PcmInteger);
 
 public sealed record TranscriptSegment(
-    Guid ServiceId,
+    Guid? ServiceId,
     long Sequence,
     DateTimeOffset StartedAt,
     string Text,
     bool IsFinal,
     string? SpeakerId = null,
     string? Language = null);
+
+
+public sealed record SpeechAudioChunk(
+    ReadOnlyMemory<short> Samples,
+    int SampleRate,
+    DateTimeOffset StartedAt,
+    TimeSpan Duration);
+
+public sealed record SpeechRecognitionResult(
+    string Text,
+    string? Language = null,
+    string? SpeakerId = null,
+    double? Confidence = null);
 
 public sealed record SourceHealth(
     string SourceId,

@@ -31,6 +31,8 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly EdgeHostHealthSampler _healthSampler;
     private readonly AgentRuntimeState _state;
     private readonly IAudioCaptureService? _audioCapture;
+    private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
+    private AudioTranscriptionPipeline? _transcriptionPipeline;
     private readonly object _audioGate = new();
     private AudioInputDevice? _activeAudioInput;
     private AudioFrame? _lastAudioFrame;
@@ -47,7 +49,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         EdgeAgentRuntimeOptions options,
         TimeProvider? clock = null,
         AgentRuntimeState? state = null,
-        IAudioCaptureService? audioCapture = null)
+        IAudioCaptureService? audioCapture = null,
+        ISpeechRecognitionEngine? speechRecognitionEngine = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -67,6 +70,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _state = state ?? new AgentRuntimeState(_clock);
         _healthSampler = new EdgeHostHealthSampler(_clock);
         _audioCapture = audioCapture;
+        _speechRecognitionEngine = speechRecognitionEngine;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
@@ -117,6 +121,16 @@ public sealed class EdgeAgentRuntime : IDisposable
             _identityStore);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting" });
+        if (_audioCapture is not null && _speechRecognitionEngine is not null)
+        {
+            _transcriptionPipeline = new AudioTranscriptionPipeline(
+                _speechRecognitionEngine,
+                async (segment, token) =>
+                {
+                    await _queue.EnqueueAsync(
+                        OutboundEventFactory.Transcript(identity, segment), CancellationToken.None).ConfigureAwait(false);
+                });
+        }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
 
         try
@@ -151,6 +165,11 @@ public sealed class EdgeAgentRuntime : IDisposable
         finally
         {
             await StopAudioAsync().ConfigureAwait(false);
+            if (_transcriptionPipeline is not null)
+            {
+                await _transcriptionPipeline.DisposeAsync().ConfigureAwait(false);
+                _transcriptionPipeline = null;
+            }
         }
     }
 
@@ -208,6 +227,7 @@ public sealed class EdgeAgentRuntime : IDisposable
 
     private void OnAudioFrameCaptured(object? sender, AudioFrame frame)
     {
+        _transcriptionPipeline?.TrySubmit(frame);
         var level = AudioLevelMeter.CalculateRmsDb(frame);
         AudioInputDevice? input;
         lock (_audioGate)
@@ -234,7 +254,8 @@ public sealed class EdgeAgentRuntime : IDisposable
             ["channels"] = (frame?.Channels ?? input.Channels).ToString(),
             ["sampleRate"] = (frame?.SampleRate ?? input.SampleRate).ToString(),
             ["levelDb"] = (level ?? -120d).ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
-            ["default"] = input.IsDefault ? "true" : "false"
+            ["default"] = input.IsDefault ? "true" : "false",
+            ["transcriptionDroppedFrames"] = (_transcriptionPipeline?.DroppedFrames ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture)
         };
         if (frame is not null)
         {

@@ -1,3 +1,5 @@
+using iPresenterPlux.Edge.Core.Abstractions;
+using iPresenterPlux.Edge.Core.Transport;
 using iPresenterPlux.Edge.Core.Queues;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.Security;
@@ -28,6 +30,8 @@ static async Task<int> RunAsync()
     using var credentialStore = new MacOSCredentialStore(nativeBridge);
     await using var audioCapture = new MacOSAudioCaptureService(nativeBridge);
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
+    using var asrHttp = CreateAsrHttpClient();
+    ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
 
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
@@ -45,7 +49,8 @@ static async Task<int> RunAsync()
         queue,
         capabilities,
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode),
-        audioCapture: audioCapture);
+        audioCapture: audioCapture,
+        speechRecognitionEngine: speechRecognition);
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };
@@ -82,4 +87,24 @@ static string? ReadSecret(string prompt)
     }
     Console.WriteLine();
     return chars.Count == 0 ? null : new string(chars.ToArray()).Trim();
+}
+
+static HttpClient? CreateAsrHttpClient()
+{
+    var value = Environment.GetEnvironmentVariable("IPRESENTERPLUX_ASR_URL");
+    if (string.IsNullOrWhiteSpace(value)) return null;
+    if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+        (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+    {
+        throw new InvalidOperationException("IPRESENTERPLUX_ASR_URL must be an absolute HTTP(S) URL.");
+    }
+    if (uri.Scheme != Uri.UriSchemeHttps && !uri.IsLoopback)
+        throw new InvalidOperationException("Remote ASR workers must use HTTPS; plain HTTP is allowed only for loopback workers.");
+
+    var token = Environment.GetEnvironmentVariable("IPRESENTERPLUX_ASR_TOKEN");
+    Environment.SetEnvironmentVariable("IPRESENTERPLUX_ASR_TOKEN", null);
+    var client = new HttpClient { BaseAddress = uri, Timeout = TimeSpan.FromSeconds(45) };
+    if (!string.IsNullOrWhiteSpace(token))
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token.Trim());
+    return client;
 }

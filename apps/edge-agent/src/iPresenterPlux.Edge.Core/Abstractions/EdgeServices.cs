@@ -13,6 +13,14 @@ public interface IAudioCaptureService : IAsyncDisposable
     Task StopAsync(CancellationToken cancellationToken = default);
 }
 
+
+public interface ISpeechRecognitionEngine
+{
+    Task<SpeechRecognitionResult> TranscribeAsync(
+        SpeechAudioChunk chunk,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IControlPlaneTransport
 {
     bool IsConnected { get; }

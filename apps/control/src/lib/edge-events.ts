@@ -30,18 +30,35 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-function payloadHash(payload: unknown) {
+export function edgeEventPayloadHash(payload: unknown) {
   return crypto
     .createHash("sha256")
     .update(JSON.stringify(canonicalize(payload)))
     .digest("hex");
 }
 
+export async function inspectExistingEdgeEvent(
+  client: PoolClient,
+  input: Pick<ReceiptInput, "deviceId" | "eventId" | "eventKind" | "payload">
+): Promise<"missing" | "duplicate" | "conflict"> {
+  const hash = edgeEventPayloadHash(input.payload);
+  const existing = await client.query<{ event_kind: string; payload_hash: string }>(
+    `select event_kind,payload_hash
+     from edge_event_receipts
+     where edge_device_id=$1 and event_id=$2
+     for update`,
+    [input.deviceId, input.eventId]
+  );
+  const row = existing.rows[0];
+  if (!row) return "missing";
+  return row.event_kind === input.eventKind && row.payload_hash === hash ? "duplicate" : "conflict";
+}
+
 export async function registerEdgeEvent(
   client: PoolClient,
   input: ReceiptInput
 ): Promise<EdgeEventReceiptResult> {
-  const hash = payloadHash(input.payload);
+  const hash = edgeEventPayloadHash(input.payload);
   const inserted = await client.query(
     `insert into edge_event_receipts
       (edge_device_id,event_id,organization_id,event_kind,service_id,occurred_at,payload_hash)
