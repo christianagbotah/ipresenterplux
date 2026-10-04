@@ -84,7 +84,7 @@ export default async function LivePage({
               ) as passage_text
        from scripture_detections sd
        where sd.service_id=$1 and sd.state='live'
-       order by sd.detected_at desc
+       order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc
        limit 1`,
       [service.id]
     ),

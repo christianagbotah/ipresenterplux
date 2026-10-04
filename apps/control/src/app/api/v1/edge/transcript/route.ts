@@ -62,6 +62,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: "Service is outside this Edge device scope" }, { status: 403 });
       }
 
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [service.id]);
+
       const receipt = await registerEdgeEvent(client, {
         deviceId: device.deviceId,
         organizationId: device.organizationId,

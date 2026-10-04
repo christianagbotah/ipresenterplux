@@ -37,27 +37,37 @@ export async function PATCH(request: Request, context: RouteContext) {
     try {
       await client.query("begin");
 
+      const scope = await client.query<{ id: string; organization_id: string }>(
+        "select id::text,organization_id::text from services where id=$1",
+        [id]
+      );
+      if (!scope.rowCount) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "Service not found" }, { status: 404 });
+      }
+
+      const allowed = await userHasAnyRole(session.user.id, scope.rows[0].organization_id, LIVE_OPERATOR_ROLES);
+      if (!allowed) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "You are not allowed to control this live service" }, { status: 403 });
+      }
+
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [scope.rows[0].id]);
+
       const current = await client.query<{
         id: string;
         organization_id: string;
         title: string;
         status: string;
       }>(
-        "select id, organization_id, title, status from services where id=$1 for update",
+        "select id::text,organization_id::text,title,status from services where id=$1 for update",
         [id]
       );
-
       if (!current.rowCount) {
         await client.query("rollback");
         return NextResponse.json({ ok: false, error: "Service not found" }, { status: 404 });
       }
-
       const row = current.rows[0];
-      const allowed = await userHasAnyRole(session.user.id, row.organization_id, LIVE_OPERATOR_ROLES);
-      if (!allowed) {
-        await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "You are not allowed to control this live service" }, { status: 403 });
-      }
 
       const updated = await client.query<{
         id: string;

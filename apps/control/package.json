@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "node scripts/migrate.mjs"
+    "db:migrate": "node scripts/migrate.mjs",
+    "test:scripture": "node scripts/scripture-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

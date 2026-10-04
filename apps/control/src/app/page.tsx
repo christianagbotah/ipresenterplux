@@ -154,7 +154,7 @@ async function dashboardData(userId: string) {
        from scripture_detections sd
        join services s on s.id=sd.service_id
        where s.organization_id=$1
-       order by sd.detected_at desc limit 8`,
+       order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc limit 8`,
       [organizationId]
     ),
     query<IntegrationRow>(

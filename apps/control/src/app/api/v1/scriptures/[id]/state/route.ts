@@ -37,32 +37,51 @@ export async function PATCH(request: Request, context: RouteContext) {
     try {
       await client.query("begin");
 
+      const scope = await client.query<{ service_id: string; organization_id: string }>(
+        `select sd.service_id::text,s.organization_id::text
+         from scripture_detections sd
+         join services s on s.id=sd.service_id
+         where sd.id=$1`,
+        [id]
+      );
+      if (!scope.rowCount) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "Scripture detection not found" }, { status: 404 });
+      }
+
+      const allowed = await userHasAnyRole(session.user.id, scope.rows[0].organization_id, LIVE_OPERATOR_ROLES);
+      if (!allowed) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "You are not allowed to control live scripture output" }, { status: 403 });
+      }
+
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [scope.rows[0].service_id]);
+
       const target = await client.query<{
         id: string;
         service_id: string;
         scripture_reference: string;
         organization_id: string;
         state: string;
+        book: string;
+        chapter: number;
+        verse_start: number | null;
+        verse_end: number | null;
+        bible_version: string;
       }>(
-        `select sd.id, sd.service_id, sd.scripture_reference, sd.state, s.organization_id
+        `select sd.id::text,sd.service_id::text,sd.scripture_reference,sd.state,s.organization_id::text,
+                sd.book,sd.chapter,sd.verse_start,sd.verse_end,sd.bible_version
          from scripture_detections sd
-         join services s on s.id = sd.service_id
-         where sd.id = $1
+         join services s on s.id=sd.service_id
+         where sd.id=$1 and sd.service_id=$2
          for update of sd`,
-        [id]
+        [id, scope.rows[0].service_id]
       );
-
       if (!target.rowCount) {
         await client.query("rollback");
         return NextResponse.json({ ok: false, error: "Scripture detection not found" }, { status: 404 });
       }
-
       const row = target.rows[0];
-      const allowed = await userHasAnyRole(session.user.id, row.organization_id, LIVE_OPERATOR_ROLES);
-      if (!allowed) {
-        await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "You are not allowed to control live scripture output" }, { status: 403 });
-      }
 
       if (state === "preview") {
         await client.query(
@@ -79,6 +98,23 @@ export async function PATCH(request: Request, context: RouteContext) {
         await client.query(
           "update scripture_detections set state='detected' where service_id=$1 and state='preview' and id<>$2",
           [row.service_id, id]
+        );
+      }
+
+      const hasValidContextRange = Number.isInteger(row.chapter) && row.chapter > 0
+        && row.verse_start !== null && Number.isInteger(row.verse_start) && row.verse_start > 0
+        && (row.verse_end === null || (Number.isInteger(row.verse_end) && row.verse_end >= row.verse_start));
+
+      if ((state === "preview" || state === "live") && hasValidContextRange) {
+        await client.query(
+          `insert into service_scripture_context
+            (service_id,book,chapter,verse_start,verse_end,bible_version,source_observed_at,source_ordinal,updated_at)
+           values ($1,$2,$3,$4,$5,$6,now(),0,now())
+           on conflict (service_id) do update set
+             book=excluded.book,chapter=excluded.chapter,verse_start=excluded.verse_start,verse_end=excluded.verse_end,
+             bible_version=excluded.bible_version,source_observed_at=excluded.source_observed_at,
+             source_ordinal=0,updated_at=now()`,
+          [row.service_id,row.book,row.chapter,row.verse_start,row.verse_end,row.bible_version]
         );
       }
 
