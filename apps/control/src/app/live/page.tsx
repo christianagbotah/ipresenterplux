@@ -1,6 +1,7 @@
 import { Radio } from "lucide-react";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { LiveAudience } from "@/components/audience/LiveAudience";
+import { AudienceRealtimeRefresh } from "@/components/audience/AudienceRealtimeRefresh";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ type ServiceRow = {
 type ScriptureRow = {
   scripture_reference: string;
   source_text: string | null;
+  passage_text: string | null;
 };
 
 type LanguageRow = {
@@ -69,7 +71,21 @@ export default async function LivePage({
 
   const [scriptures, languageRows] = await Promise.all([
     query<ScriptureRow>(
-      "select scripture_reference,source_text from scripture_detections where service_id=$1 and state='live' order by detected_at desc limit 1",
+      `select sd.scripture_reference,sd.source_text,
+              (
+                select string_agg(bv.text, ' ' order by bv.verse)
+                from bible_books bb
+                join bible_verses bv
+                  on bv.version_id=bb.version_id and bv.book_code=bb.book_code
+                where bb.version_id=sd.bible_version
+                  and lower(bb.canonical_name)=lower(sd.book)
+                  and bv.chapter=sd.chapter
+                  and bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start)
+              ) as passage_text
+       from scripture_detections sd
+       where sd.service_id=$1 and sd.state='live'
+       order by sd.detected_at desc
+       limit 1`,
       [service.id]
     ),
     query<LanguageRow>(
@@ -90,10 +106,11 @@ export default async function LivePage({
 
   return (
     <>
-      <AutoRefresh intervalMs={5000} />
+      <AudienceRealtimeRefresh serviceId={service.id} />
       <LiveAudience
         serviceTitle={service.title}
         scriptureReference={scripture?.scripture_reference ?? null}
+        scriptureText={scripture?.passage_text ?? null}
         transcript={scripture?.source_text ?? null}
         languages={languageRows.rows.map((row) => ({
           id: row.id,

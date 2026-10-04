@@ -42,7 +42,7 @@ export async function authenticateEdgeDevice(request: Request): Promise<EdgeDevi
      from edge_device_credentials c
      join edge_devices d on d.id=c.edge_device_id
      where c.credential_hash=$1
-       and c.state='active'
+       and c.state in ('active','rotation_required')
        and c.expires_at > now()
        and d.status='active'
      limit 1`,

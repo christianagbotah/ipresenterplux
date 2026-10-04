@@ -26,6 +26,7 @@ import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
 import { OutputControls } from "@/components/OutputControls";
+import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { query } from "@/lib/db";
 
@@ -64,6 +65,7 @@ type DetectionRow = {
   state: string;
   bible_version: string;
   source_text: string | null;
+  passage_text: string | null;
   detected_at: string;
 };
 
@@ -109,7 +111,17 @@ async function dashboardData(userId: string) {
       [organizationId]
     ),
     query<DetectionRow>(
-      `select sd.id,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,sd.source_text,sd.detected_at::text
+      `select sd.id,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,sd.source_text,sd.detected_at::text,
+              (
+                select string_agg(bv.text, ' ' order by bv.verse)
+                from bible_books bb
+                join bible_verses bv
+                  on bv.version_id=bb.version_id and bv.book_code=bb.book_code
+                where bb.version_id=sd.bible_version
+                  and lower(bb.canonical_name)=lower(sd.book)
+                  and bv.chapter=sd.chapter
+                  and bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start)
+              ) as passage_text
        from scripture_detections sd
        join services s on s.id=sd.service_id
        where s.organization_id=$1
@@ -324,7 +336,10 @@ export default async function Home() {
                           <div>
                             <div className="text-[10px] font-semibold uppercase tracking-[.3em] text-[#d7a94a]">Preview Scripture</div>
                             <div className="mt-3 text-2xl font-black tracking-tight">{previewDetection.scripture_reference}</div>
-                            <div className="mt-1 text-xs text-white/45">{previewDetection.bible_version} · awaiting operator approval</div>
+                            {previewDetection.passage_text ? (
+                              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/70">{previewDetection.passage_text}</p>
+                            ) : null}
+                            <div className="mt-2 text-xs text-white/45">{previewDetection.bible_version} · awaiting operator approval</div>
                           </div>
                         ) : (
                           <div className="text-sm text-white/25">Nothing queued for preview</div>
@@ -347,7 +362,10 @@ export default async function Home() {
                           <div>
                             <div className="text-[10px] font-semibold uppercase tracking-[.3em] text-red-300">Program Scripture</div>
                             <div className="mt-3 text-2xl font-black tracking-tight">{liveDetection.scripture_reference}</div>
-                            <div className="mt-1 text-xs text-white/45">{liveDetection.bible_version} · live output state</div>
+                            {liveDetection.passage_text ? (
+                              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-white/75">{liveDetection.passage_text}</p>
+                            ) : null}
+                            <div className="mt-2 text-xs text-white/45">{liveDetection.bible_version} · live output state</div>
                           </div>
                         ) : (
                           <div className="text-sm text-white/20">Program output</div>
@@ -424,6 +442,9 @@ export default async function Home() {
                               </div>
                               <div className="mt-2 text-2xl font-black">{actionableDetection.scripture_reference}</div>
                               <div className="mt-1 text-xs text-white/40">{actionableDetection.bible_version}</div>
+                              {actionableDetection.passage_text ? (
+                                <p className="mt-3 text-xs leading-5 text-white/55">{actionableDetection.passage_text}</p>
+                              ) : null}
                             </div>
                             <div className="rounded-xl bg-emerald-400/10 px-2.5 py-2 text-sm font-extrabold text-emerald-300">
                               {Number(actionableDetection.confidence).toFixed(0)}%
@@ -439,6 +460,9 @@ export default async function Home() {
                         <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-red-300">Currently live</div>
                         <div className="mt-2 text-xl font-black">{liveDetection.scripture_reference}</div>
                         <div className="mt-1 text-xs text-white/35">{liveDetection.bible_version}</div>
+                        {liveDetection.passage_text ? (
+                          <p className="mt-3 text-xs leading-5 text-white/50">{liveDetection.passage_text}</p>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-white/[.08] p-5 text-center text-xs leading-5 text-white/35">
@@ -494,6 +518,8 @@ export default async function Home() {
                 </div>
               </div>
             </section>
+
+            {service ? <AudienceAccessCard serviceId={service.id} /> : null}
 
             <section className="ip-card overflow-hidden">
               <div className="flex items-center justify-between border-b border-white/[.07] px-4 py-4">

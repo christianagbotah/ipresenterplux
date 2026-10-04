@@ -22,6 +22,7 @@ type LanguageChannel = {
 type Props = {
   serviceTitle: string;
   scriptureReference: string | null;
+  scriptureText: string | null;
   transcript: string | null;
   languages: LanguageChannel[];
 };
@@ -29,6 +30,7 @@ type Props = {
 export function LiveAudience({
   serviceTitle,
   scriptureReference,
+  scriptureText,
   transcript,
   languages
 }: Props) {
@@ -147,7 +149,14 @@ export function LiveAudience({
               <div className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Current scripture</div>
             </div>
             {scriptureReference ? (
-              <div className="text-2xl font-black tracking-tight">{scriptureReference}</div>
+              <div>
+                <div className="text-2xl font-black tracking-tight">{scriptureReference}</div>
+                {scriptureText ? (
+                  <p className="mt-3 text-sm leading-6 text-white/62">{scriptureText}</p>
+                ) : (
+                  <p className="mt-3 text-xs text-white/28">Scripture text is loading from the selected Bible version.</p>
+                )}
+              </div>
             ) : (
               <div className="text-sm text-white/30">No scripture is currently live.</div>
             )}
