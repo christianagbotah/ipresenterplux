@@ -3,11 +3,19 @@ using iPresenterPlux.Edge.Core.Models;
 
 namespace iPresenterPlux.Edge.Core.Abstractions;
 
-public interface IControlPlaneClient
+public interface IEdgeEventPublisher
 {
     Task PublishHealthAsync(EdgeDeviceHealth health, CancellationToken cancellationToken);
     Task PublishTranscriptAsync(TranscriptSegment segment, CancellationToken cancellationToken);
     Task PublishMediaSourceStateAsync(MediaSourceState state, CancellationToken cancellationToken);
+}
+
+public interface IControlPlaneCommandStream
+{
     IAsyncEnumerable<ControlCommand> ReceiveCommandsAsync(CancellationToken cancellationToken);
     Task AcknowledgeCommandAsync(ControlCommandResult result, CancellationToken cancellationToken);
+}
+
+public interface IControlPlaneClient : IEdgeEventPublisher, IControlPlaneCommandStream
+{
 }
