@@ -56,7 +56,8 @@ export function detectScriptureReferences(input: string): ScriptureDetection[] {
     const verseEnd = match[4] ? Number(match[4]) : undefined;
     if (chapter < 1 || chapter > 150 || verseStart < 1 || verseStart > 176) continue;
 
-    const reference = book + " " + chapter + ":" + verseStart + (verseEnd ? "-" + verseEnd : "");
+    const displayBook = book === "Psalms" ? "Psalm" : book;
+    const reference = displayBook + " " + chapter + ":" + verseStart + (verseEnd ? "-" + verseEnd : "");
     detections.push({ book, chapter, verseStart, verseEnd, reference, confidence: 98 });
   }
 

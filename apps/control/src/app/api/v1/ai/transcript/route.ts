@@ -14,6 +14,7 @@ const inputSchema = z.object({
 type ServiceRow = {
   id: string;
   active_bible_version: string;
+  auto_preview_threshold: string;
 };
 
 export async function POST(request: Request) {
@@ -23,13 +24,13 @@ export async function POST(request: Request) {
 
     if (payload.serviceId) {
       const found = await query<ServiceRow>(
-        "select id, active_bible_version from services where id = $1 limit 1",
+        "select id, active_bible_version, auto_preview_threshold::text from services where id = $1 limit 1",
         [payload.serviceId]
       );
       service = found.rows[0];
     } else {
       const found = await query<ServiceRow>(
-        "select id, active_bible_version from services where status in ('live','ready') order by case when status='live' then 0 else 1 end, created_at desc limit 1"
+        "select id, active_bible_version, auto_preview_threshold::text from services where status in ('live','ready') order by case when status='live' then 0 else 1 end, created_at desc limit 1"
       );
       service = found.rows[0];
     }
@@ -48,13 +49,24 @@ export async function POST(request: Request) {
       );
       if (duplicate.rowCount) continue;
 
+      const nextState =
+        match.confidence >= Number(service.auto_preview_threshold) ? "preview" : "detected";
+
+      if (nextState === "preview") {
+        await query(
+          "update scripture_detections set state='detected' where service_id=$1 and state='preview'",
+          [service.id]
+        );
+      }
+
       const result = await query<{
         id: string;
         scripture_reference: string;
         confidence: string;
+        state: string;
         detected_at: string;
       }>(
-        "insert into scripture_detections (service_id, scripture_reference, book, chapter, verse_start, verse_end, bible_version, source_text, confidence) values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id, scripture_reference, confidence::text, detected_at::text",
+        "insert into scripture_detections (service_id, scripture_reference, book, chapter, verse_start, verse_end, bible_version, source_text, confidence, state) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id, scripture_reference, confidence::text, state, detected_at::text",
         [
           service.id,
           match.reference,
@@ -64,7 +76,8 @@ export async function POST(request: Request) {
           match.verseEnd ?? null,
           payload.bibleVersion ?? service.active_bible_version,
           payload.text,
-          match.confidence
+          match.confidence,
+          nextState
         ]
       );
       inserted.push(result.rows[0]);

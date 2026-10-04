@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   MonitorPlay,
   Music2,
-  Radio,
   Settings2,
   Sparkles,
   Users,
@@ -21,6 +20,8 @@ import {
   Wifi
 } from "lucide-react";
 import { AutoRefresh } from "@/components/AutoRefresh";
+import { ScriptureControls } from "@/components/ScriptureControls";
+import { ServiceControls } from "@/components/ServiceControls";
 import { query } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -132,6 +133,10 @@ export default async function Home() {
   const data = await dashboardData();
   const service = data.service;
   const latest = data.detections[0];
+  const previewDetection = data.detections.find((item) => item.state === "preview");
+  const liveDetection = data.detections.find((item) => item.state === "live");
+  const actionableDetection = previewDetection ?? data.detections.find((item) => item.state === "detected");
+  const transcriptContext = actionableDetection ?? liveDetection ?? latest;
   const activeOutputs = data.outputs.filter((item) => item.enabled).length;
   const activeLanguages = data.languages.filter((item) => item.enabled).length;
   const listeners = data.languages.reduce((total, item) => total + item.listener_count, 0);
@@ -198,13 +203,7 @@ export default async function Home() {
                 <Wifi size={14} className="text-emerald-400" />
                 VPS online
               </div>
-              <button className="rounded-xl border border-white/[.08] bg-white/[.035] px-4 py-2.5 text-xs font-semibold text-white/75">
-                Prepare
-              </button>
-              <button className="flex items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-xs font-extrabold text-white shadow-[0_10px_35px_rgba(239,68,68,.22)]">
-                <Radio size={15} />
-                GO LIVE
-              </button>
+              {service ? <ServiceControls serviceId={service.id} status={service.status} /> : null}
             </div>
           </header>
 
@@ -251,7 +250,7 @@ export default async function Home() {
                             <div className="truncate text-sm font-semibold">{item.scripture_reference}</div>
                             <span className="text-[10px] font-bold text-emerald-300">{Number(item.confidence).toFixed(0)}%</span>
                           </div>
-                          <div className="mt-1 truncate text-[11px] text-white/38">{item.bible_version} · AI scripture detection</div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-white/38"><span>{item.bible_version} · AI scripture detection</span><span className="uppercase tracking-[.12em] text-white/25">{item.state}</span></div>
                         </div>
                       </div>
                     </div>
@@ -276,11 +275,11 @@ export default async function Home() {
                     </div>
                     <div className="ip-grid aspect-video p-5">
                       <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/[.08] bg-black/35 text-center">
-                        {latest ? (
+                        {previewDetection ? (
                           <div>
-                            <div className="text-[10px] font-semibold uppercase tracking-[.3em] text-[#d7a94a]">Detected Scripture</div>
-                            <div className="mt-3 text-2xl font-black tracking-tight">{latest.scripture_reference}</div>
-                            <div className="mt-1 text-xs text-white/45">{latest.bible_version} · awaiting operator approval</div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[.3em] text-[#d7a94a]">Preview Scripture</div>
+                            <div className="mt-3 text-2xl font-black tracking-tight">{previewDetection.scripture_reference}</div>
+                            <div className="mt-1 text-xs text-white/45">{previewDetection.bible_version} · awaiting operator approval</div>
                           </div>
                         ) : (
                           <div className="text-sm text-white/25">Nothing queued for preview</div>
@@ -292,14 +291,22 @@ export default async function Home() {
                   <div className="ip-card overflow-hidden">
                     <div className="flex items-center justify-between border-b border-white/[.07] px-4 py-3">
                       <div className="text-xs font-bold uppercase tracking-[.13em] text-white/45">Program</div>
-                      <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.15em] text-white/30">
-                        <span className="h-2 w-2 rounded-full bg-white/20" />
-                        Off air
+                      <div className={"flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.15em] " + (liveDetection ? "text-red-300" : "text-white/30")}>
+                        <span className={"h-2 w-2 rounded-full " + (liveDetection ? "bg-red-400" : "bg-white/20")} />
+                        {liveDetection ? "Live" : "No scripture live"}
                       </div>
                     </div>
                     <div className="ip-grid aspect-video p-5">
-                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/[.08] bg-black/60">
-                        <div className="text-sm text-white/20">Program output</div>
+                      <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-white/[.08] bg-black/60 text-center">
+                        {liveDetection ? (
+                          <div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[.3em] text-red-300">Program Scripture</div>
+                            <div className="mt-3 text-2xl font-black tracking-tight">{liveDetection.scripture_reference}</div>
+                            <div className="mt-1 text-xs text-white/45">{liveDetection.bible_version} · live output state</div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-white/20">Program output</div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -318,7 +325,7 @@ export default async function Home() {
                   </div>
                   <div className="rounded-xl border border-white/[.06] bg-black/20 p-4">
                     <p className="min-h-16 text-sm leading-6 text-white/55">
-                      {latest?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
+                      {transcriptContext?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -362,29 +369,35 @@ export default async function Home() {
                     <Sparkles size={17} className="text-[#e5b85c]" />
                   </div>
                   <div className="p-4">
-                    {latest ? (
+                    {actionableDetection ? (
                       <>
                         <div className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.06] p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div>
-                              <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#d7a94a]">Detected</div>
-                              <div className="mt-2 text-2xl font-black">{latest.scripture_reference}</div>
-                              <div className="mt-1 text-xs text-white/40">{latest.bible_version}</div>
+                              <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#d7a94a]">
+                                {actionableDetection.state === "preview" ? "In Preview" : "Detected"}
+                              </div>
+                              <div className="mt-2 text-2xl font-black">{actionableDetection.scripture_reference}</div>
+                              <div className="mt-1 text-xs text-white/40">{actionableDetection.bible_version}</div>
                             </div>
                             <div className="rounded-xl bg-emerald-400/10 px-2.5 py-2 text-sm font-extrabold text-emerald-300">
-                              {Number(latest.confidence).toFixed(0)}%
+                              {Number(actionableDetection.confidence).toFixed(0)}%
                             </div>
                           </div>
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button className="rounded-xl border border-white/[.08] bg-white/[.04] px-3 py-2.5 text-xs font-bold text-white/75">Preview</button>
-                          <button className="rounded-xl bg-[#d7a94a] px-3 py-2.5 text-xs font-black text-[#161109]">Send Live</button>
+                        <div className="mt-3">
+                          <ScriptureControls id={actionableDetection.id} currentState={actionableDetection.state} />
                         </div>
-                        <button className="mt-2 w-full rounded-xl px-3 py-2 text-xs font-medium text-white/35 hover:bg-white/[.03]">Dismiss detection</button>
                       </>
+                    ) : liveDetection ? (
+                      <div className="rounded-xl border border-red-400/15 bg-red-400/[.05] p-5 text-center">
+                        <div className="text-[10px] font-semibold uppercase tracking-[.2em] text-red-300">Currently live</div>
+                        <div className="mt-2 text-xl font-black">{liveDetection.scripture_reference}</div>
+                        <div className="mt-1 text-xs text-white/35">{liveDetection.bible_version}</div>
+                      </div>
                     ) : (
                       <div className="rounded-xl border border-dashed border-white/[.08] p-5 text-center text-xs leading-5 text-white/35">
-                        No scripture detected yet. The transcript API is ready for the desktop audio agent.
+                        No actionable scripture detected yet. The transcript API is ready for the desktop audio agent.
                       </div>
                     )}
                   </div>
