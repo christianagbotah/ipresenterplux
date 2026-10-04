@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipresenterplux-asr"
+version = "0.1.0"
+description = "Local speech-recognition worker for iPresenterPlux Edge"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = [
+  "fastapi==0.142.2",
+  "uvicorn[standard]==0.54.0",
+]
+
+[project.optional-dependencies]
+local-whisper = [
+  "faster-whisper==1.2.1",
+  "numpy>=1.26,<3",
+]
+dev = [
+  "httpx>=0.28,<1",
+  "pytest>=8.4,<10",
+]
+
+[project.scripts]
+ipresenterplux-asr = "ipresenter_asr.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ipresenter_asr"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

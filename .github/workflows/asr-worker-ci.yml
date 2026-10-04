@@ -1,0 +1,34 @@
+name: ASR Worker CI
+
+on:
+  push:
+    paths:
+      - "apps/asr-worker/**"
+      - ".github/workflows/asr-worker-ci.yml"
+  pull_request:
+    paths:
+      - "apps/asr-worker/**"
+      - ".github/workflows/asr-worker-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/asr-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/asr-worker/pyproject.toml
+      - name: Install API shell and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install ".[dev]"
+      - name: Compile worker sources
+        run: python -m compileall -q ipresenter_asr tests
+      - name: Run worker contract tests
+        run: python -m pytest
