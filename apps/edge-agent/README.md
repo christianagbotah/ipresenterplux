@@ -73,9 +73,10 @@ by CI; .NET is intentionally not installed on the VPS.
 
 `IDeviceEnrollmentClient` describes one-time, short-lived pairing-code exchange,
 rotation and revocation. The control plane assigns the existing `AgentIdentity`,
-including organization and optional campus. No server endpoints or credential
-vault implementations are included. Pairing codes and credential material must
-never be logged, serialized into diagnostics, or retained in event queues.
+including organization and optional campus. The control plane now exposes pairing, enrollment, rotation and revocation endpoints,
+and the desktop adapters use Windows Credential Manager or macOS Keychain for secret
+material. Pairing codes and credential material must never be logged, serialized into
+diagnostics, or retained in event queues.
 Sensitive wrappers redact their `ToString`; that does not make arbitrary JSON
 serialization safe.
 
@@ -107,14 +108,14 @@ under the same scoped ID is rejected. Delivery is at least once: a receiver must
 deduplicate by organization/device/event ID and the sender must acknowledge only
 after confirmed acceptance. A lost response can result in repeat delivery.
 
-`InMemoryOutboundEventQueue` is a synchronized reference implementation for tests
-and prototyping. It is not restart-safe, has no capacity limit, and retains
-acknowledged entries as deduplication tombstones. Before production use, supply a
-durable adapter (for example SQLite) with transactional claims, persisted attempts,
-leases/retry times and tombstones, and an explicit retention/capacity policy.
-Queue failures must not interrupt local presentation or recording. Transport
-implementations must carry the envelope ID through delivery; the existing direct
-publish contracts alone do not provide receiver deduplication.
+`InMemoryOutboundEventQueue` remains the synchronized reference implementation for
+tests and prototyping. `FileOutboundEventQueue` is the first restart-safe production
+adapter and persists attempts, leases, retry times, acknowledgements and recent
+tombstones using atomic file replacement. It is intentionally single-process; a
+future SQLite adapter can replace it if field deployments require multi-process
+locking or stronger power-loss journaling. Queue failures must never interrupt local
+presentation or recording. Transport delivery carries at-least-once semantics, so
+the control plane must deduplicate stable Edge event IDs.
 
 ### Runtime state parity
 
@@ -135,3 +136,8 @@ The queue is deliberately a **single Edge-Agent writer**. Platform installers mu
 
 The dispatcher provides at-least-once delivery. Control-plane ingestion must therefore remain idempotent/deduplicated. Scripture ingestion currently has a short duplicate window; a durable server-side Edge event receipt ledger is the next hardening step for generic event IDs.
 
+## Protected device identity and credentials
+
+`DeviceEnrollmentManager` owns the shared enroll → rotate → revoke state machine. A successful enrollment persists only non-secret `AgentIdentity` metadata to `FileAgentIdentityStore`; secret bearer material is committed through `IDeviceCredentialStore`. Rotation validates the returned tenant/device and replacement chain before compare-and-swap persistence, and the control plane keeps the prior credential usable only for its short rotation grace window. Revocation replaces local secret material with a metadata-only tombstone.
+
+Windows uses Generic Credentials in Windows Credential Manager scoped by organization/device. macOS uses a Generic Password item in Keychain with `AfterFirstUnlockThisDeviceOnly`, so credentials do not migrate to another Mac. Both adapters zero temporary managed/native buffers where practical. These stores assume the production host enforces one running Edge Agent instance per user profile; multi-process compare-and-swap is not claimed.
