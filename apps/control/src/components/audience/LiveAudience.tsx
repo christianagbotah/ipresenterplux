@@ -25,6 +25,7 @@ type Props = {
   scriptureText: string | null;
   transcript: string | null;
   transcriptLanguage: string | null;
+  translations: Record<string, string>;
   languages: LanguageChannel[];
 };
 
@@ -34,6 +35,7 @@ export function LiveAudience({
   scriptureText,
   transcript,
   transcriptLanguage,
+  translations,
   languages
 }: Props) {
   const fallbackChannelId = languages[0]?.id ?? "";
@@ -58,6 +60,11 @@ export function LiveAudience({
     window.localStorage.setItem("ipresenterplux-language", id);
     window.dispatchEvent(new Event("ipresenterplux-language-change"));
   }
+
+  const sourceSelected = selected?.mode === "original"
+    || Boolean(transcriptLanguage && selected?.code === transcriptLanguage);
+  const selectedTranslation = selected ? translations[selected.id] ?? null : null;
+  const captionText = sourceSelected ? transcript : selectedTranslation;
 
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
@@ -170,9 +177,10 @@ export function LiveAudience({
               <div className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Live captions</div>
             </div>
             <p className="text-sm leading-6 text-white/55">
-              {selected?.mode === "original" || (transcriptLanguage && selected?.code === transcriptLanguage)
-                ? transcript ?? "Waiting for the next spoken segment…"
-                : "Translated captions will appear here when the translation worker is connected."}
+              {captionText
+                ?? (sourceSelected
+                  ? "Waiting for the next spoken segment…"
+                  : "Translation is being prepared for this language…")}
             </p>
             {transcriptLanguage ? (
               <div className="mt-3 text-[10px] uppercase tracking-[.12em] text-white/24">

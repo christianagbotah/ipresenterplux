@@ -23,9 +23,11 @@ const quoteUrl = await transpiledDataUrl(
 );
 const windowUrl = await transpiledDataUrl(new URL("../src/lib/transcript-window.ts", import.meta.url));
 const receiptUrl = await transpiledDataUrl(new URL("../src/lib/transcript-receipt.ts", import.meta.url));
+const translationUrl = await transpiledDataUrl(new URL("../src/lib/translation-jobs.ts", import.meta.url));
 const { matchScriptureQuote } = await import(quoteUrl);
 const { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } = await import(windowUrl);
 const { buildTranscriptReceiptPayload } = await import(receiptUrl);
+const { enqueueTranslationJobs } = await import(translationUrl);
 
 const legacyReceipt = {
   serviceId: null,
@@ -45,22 +47,64 @@ const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 await client.query("begin");
 try {
-  const service = await client.query("select id::text from services order by created_at limit 1");
+  const service = await client.query("select id::text,organization_id::text from services order by created_at limit 1");
   assert.ok(service.rows[0]?.id, "Expected at least one service");
   const serviceId = service.rows[0].id;
+  const organizationId = service.rows[0].organization_id;
   const firstAt = new Date("2099-01-01T10:00:00Z");
   const secondAt = new Date("2099-01-01T10:00:05Z");
 
-  await recordTranscriptSegment(client, serviceId, "For God so loved the world", firstAt, {
+  const firstSegmentId = await recordTranscriptSegment(client, serviceId, "For God so loved the world", firstAt, {
     sourceLanguage: "en",
     speakerId: "speaker-1",
     asrConfidence: 0.93
   });
-  await recordTranscriptSegment(client, serviceId, "that he gave his only born Son", secondAt, {
+  const secondSegmentId = await recordTranscriptSegment(client, serviceId, "that he gave his only born Son", secondAt, {
     sourceLanguage: "en",
     speakerId: "speaker-1",
     asrConfidence: 0.95
   });
+  assert.ok(firstSegmentId);
+  assert.ok(secondSegmentId);
+
+  const expectedEnglishTargets = await client.query(
+    `select count(*)::int as count
+     from language_channels
+     where organization_id=$1 and enabled=true
+       and channel_mode in ('translation_text','translation_audio')
+       and lower(language_code) <> 'en'`,
+    [organizationId]
+  );
+  const queuedEnglish = await enqueueTranslationJobs(client, secondSegmentId, organizationId, "en");
+  assert.equal(queuedEnglish.length, expectedEnglishTargets.rows[0].count);
+  assert.ok(queuedEnglish.every((job) => ["translation_text", "translation_audio"].includes(job.channel_mode)));
+  assert.equal((await enqueueTranslationJobs(client, secondSegmentId, organizationId, "en")).length, 0);
+
+  const frenchSegmentId = await recordTranscriptSegment(
+    client,
+    serviceId,
+    "Bonjour à tous",
+    new Date("2099-01-01T09:58:00Z"),
+    { sourceLanguage: "fr", asrConfidence: 0.91 }
+  );
+  assert.ok(frenchSegmentId);
+  const queuedFrench = await enqueueTranslationJobs(client, frenchSegmentId, organizationId, "fr");
+  assert.ok(queuedFrench.every((job) => job.target_language_code.toLowerCase() !== "fr"));
+
+  if (queuedEnglish[0]) {
+    await client.query(
+      `update transcript_translation_jobs
+       set status='succeeded',translated_text='Translated test caption',provider='selftest',completed_at=now(),updated_at=now()
+       where id=$1`,
+      [queuedEnglish[0].id]
+    );
+    const translated = await client.query(
+      "select status,translated_text from transcript_translation_jobs where id=$1",
+      [queuedEnglish[0].id]
+    );
+    assert.equal(translated.rows[0]?.status, "succeeded");
+    assert.equal(translated.rows[0]?.translated_text, "Translated test caption");
+  }
 
   const metadataRow = await client.query(
     `select source_language,speaker_id,asr_confidence
@@ -108,7 +152,7 @@ try {
   );
   assert.equal(await recentlyDetectedQuote(client, serviceId, "John 3:16", new Date("2099-01-01T10:00:10Z")), true);
 
-  console.log("Transcript window self-test passed (receipt compatibility, metadata, ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
+  console.log("Transcript window self-test passed (receipt compatibility, metadata, translation queue, ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
 } finally {
   await client.query("rollback");
   await client.end();

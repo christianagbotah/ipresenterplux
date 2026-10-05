@@ -10,7 +10,8 @@ const publicRefreshEvents = new Set([
   "service.state.changed",
   "language.channel.changed",
   "audience.program.changed",
-  "transcript.updated"
+  "transcript.updated",
+  "translation.completed"
 ]);
 
 export async function GET(request: Request) {

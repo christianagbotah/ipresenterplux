@@ -30,10 +30,11 @@ export async function recordTranscriptSegment(
 ) {
   const cleanText = text.trim();
   if (!cleanText) return;
-  await client.query(
+  const inserted = await client.query<{ id: string }>(
     `insert into transcript_segments
       (service_id,text,source_observed_at,source_language,speaker_id,asr_confidence)
-     values ($1,$2,$3,$4,$5,$6)`,
+     values ($1,$2,$3,$4,$5,$6)
+     returning id::text`,
     [
       serviceId,
       cleanText,
@@ -43,6 +44,7 @@ export async function recordTranscriptSegment(
       metadata.asrConfidence ?? null
     ]
   );
+  return inserted.rows[0]?.id ?? null;
 }
 
 export async function recentTranscriptQuoteWindow(

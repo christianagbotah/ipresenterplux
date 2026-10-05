@@ -27,8 +27,10 @@ type LanguageRow = {
 };
 
 type TranscriptRow = {
+  id: string;
   text: string;
   source_language: string | null;
+  translations: Record<string, string>;
 };
 
 function WaitingCard({ needsLink = false }: { needsLink?: boolean }) {
@@ -106,12 +108,22 @@ export default async function LivePage({
       [service.organization_id]
     ),
     query<TranscriptRow>(
-      `select text,source_language
-       from transcript_segments
-       where service_id=$1
-       order by source_observed_at desc,created_at desc,id desc
+      `select ts.id::text,ts.text,ts.source_language,
+              coalesce((
+                select jsonb_object_agg(j.language_channel_id::text,j.translated_text)
+                from transcript_translation_jobs j
+                join language_channels lc on lc.id=j.language_channel_id
+                where j.transcript_segment_id=ts.id
+                  and j.status='succeeded'
+                  and j.translated_text is not null
+                  and lc.enabled=true
+                  and lc.organization_id=$2
+              ),'{}'::jsonb) as translations
+       from transcript_segments ts
+       where ts.service_id=$1
+       order by ts.source_observed_at desc,ts.created_at desc,ts.id desc
        limit 1`,
-      [service.id]
+      [service.id, service.organization_id]
     )
   ]);
 
@@ -127,6 +139,7 @@ export default async function LivePage({
         scriptureText={scripture?.passage_text ?? null}
         transcript={transcript?.text ?? null}
         transcriptLanguage={transcript?.source_language ?? null}
+        translations={transcript?.translations ?? {}}
         languages={languageRows.rows.map((row) => ({
           id: row.id,
           code: row.language_code,

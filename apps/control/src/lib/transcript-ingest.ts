@@ -3,6 +3,7 @@ import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
+import { enqueueTranslationJobs } from "@/lib/translation-jobs";
 import {
   detectContextualScriptureIntent,
   detectScriptureReferences,
@@ -34,6 +35,7 @@ type TranscriptResult = {
   serviceId: string;
   transcript: string;
   detected: number;
+  translationJobsQueued: number;
   inserted: Array<{
     id: string;
     scripture_reference: string;
@@ -289,7 +291,8 @@ async function resolveContextualReference(
 
 export async function publishTranscriptIngestResult(result: TranscriptResult) {
   await publishServiceEvent(result.serviceId, "transcript.updated", {
-    detected: result.detected
+    detected: result.detected,
+    translationJobsQueued: result.translationJobsQueued
   });
 
   if (!result.inserted.length) return;
@@ -310,7 +313,7 @@ export async function ingestTranscriptForService(
   client?: PoolClient
 ): Promise<TranscriptResult> {
   if (!payload.text.trim()) {
-    return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, inserted: [] };
+    return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, translationJobsQueued: 0, inserted: [] };
   }
 
   if (!client) {
@@ -334,11 +337,14 @@ export async function ingestTranscriptForService(
   const parsedObservedAt = payload.startedAt ? new Date(payload.startedAt) : new Date();
   const observedAt = Number.isFinite(parsedObservedAt.getTime()) ? parsedObservedAt : new Date();
   const latestTranscriptBefore = await latestTranscriptObservedAt(client, service.id);
-  await recordTranscriptSegment(client, service.id, payload.text, observedAt, {
+  const transcriptSegmentId = await recordTranscriptSegment(client, service.id, payload.text, observedAt, {
     sourceLanguage: payload.language ?? null,
     speakerId: payload.speakerId ?? null,
     asrConfidence: payload.confidence ?? null
   });
+  const translationJobs = transcriptSegmentId
+    ? await enqueueTranslationJobs(client, transcriptSegmentId, service.organization_id, payload.language ?? null)
+    : [];
   const cursorBeforeIngest = await currentScriptureContext(client, service.id);
   const cursorObservedAt = cursorBeforeIngest ? new Date(cursorBeforeIngest.source_observed_at) : null;
   const cursorObservedMs = cursorObservedAt?.getTime() ?? null;
@@ -415,6 +421,7 @@ export async function ingestTranscriptForService(
     serviceId: service.id,
     transcript: payload.text,
     detected: matches.length,
+    translationJobsQueued: translationJobs.length,
     inserted
   };
   return result;
