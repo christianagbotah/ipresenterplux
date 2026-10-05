@@ -14,6 +14,7 @@ public static class WindowsPlatformProfile
             new PlatformCapability("video.encode", "Hardware video encode", "planned", "Media Foundation / FFmpeg"),
             new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),
             new PlatformCapability("display.program", "Program display", "available", "Offline local renderer with managed Edge/Chrome kiosk output"),
+            new PlatformCapability("recording.local", "Local audio recording", "available", "Segmented crash-resilient WAV from WASAPI mixer input"),
             new PlatformCapability("obs.vmix", "OBS / vMix integration", "planned", "NDI, WebSocket and local adapters"),
             new PlatformCapability("atem.ptz", "ATEM / PTZ control", "planned", "Vendor/network adapters"),
         });

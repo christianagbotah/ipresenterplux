@@ -49,6 +49,7 @@ static async Task<int> RunAsync()
     using var asrHttp = CreateAsrHttpClient();
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
     await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
+    await using var recordingService = new LocalAudioRecordingService(dataDirectory);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -86,7 +87,8 @@ static async Task<int> RunAsync()
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
         speechRecognitionEngine: speechRecognition,
-        mediaOutput: mediaOutput);
+        mediaOutput: mediaOutput,
+        recordingService: recordingService);
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };

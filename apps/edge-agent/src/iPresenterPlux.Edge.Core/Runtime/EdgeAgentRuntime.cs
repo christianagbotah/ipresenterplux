@@ -35,6 +35,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly IAudioCaptureService? _audioCapture;
     private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
     private readonly IMediaOutputService? _mediaOutput;
+    private readonly ILocalRecordingService? _recordingService;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
     private SpeechRecognitionHealth? _latestAsrWorkerHealth;
     private readonly object _audioGate = new();
@@ -55,7 +56,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         AgentRuntimeState? state = null,
         IAudioCaptureService? audioCapture = null,
         ISpeechRecognitionEngine? speechRecognitionEngine = null,
-        IMediaOutputService? mediaOutput = null)
+        IMediaOutputService? mediaOutput = null,
+        ILocalRecordingService? recordingService = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -77,6 +79,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _audioCapture = audioCapture;
         _speechRecognitionEngine = speechRecognitionEngine;
         _mediaOutput = mediaOutput;
+        _recordingService = recordingService;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
@@ -128,7 +131,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         var assignmentClient = new HttpEdgeAssignmentClient(_httpClient, identity, _credentialStore);
         var commandClient = new HttpEdgeCommandClient(_httpClient, identity, _credentialStore, _clock);
         var presentationClient = new HttpPresentationContentClient(_httpClient, identity, _credentialStore, _clock);
-        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, presentationClient, _clock);
+        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, presentationClient, _recordingService, _clock);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
@@ -243,6 +246,8 @@ public sealed class EdgeAgentRuntime : IDisposable
 
             if (_mediaOutput is IServiceScopedMediaOutput scopedOutput)
                 await scopedOutput.SetActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
+            if (_recordingService is not null)
+                await _recordingService.HandleActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             _transcriptionPipeline?.SetServiceId(nextServiceId);
             _state.Update(snapshot => snapshot with
             {
@@ -321,6 +326,7 @@ public sealed class EdgeAgentRuntime : IDisposable
 
     private void OnAudioFrameCaptured(object? sender, AudioFrame frame)
     {
+        _recordingService?.TrySubmit(frame);
         _transcriptionPipeline?.TrySubmit(frame);
         var level = AudioLevelMeter.CalculateRmsDb(frame);
         AudioInputDevice? input;
@@ -365,6 +371,14 @@ public sealed class EdgeAgentRuntime : IDisposable
             ["asrStatus"] = pipeline?.HealthStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting"),
             ["transcriptPublishStatus"] = pipeline?.PublishStatus ?? (_speechRecognitionEngine is null ? "disabled" : "starting")
         };
+        if (_recordingService is not null)
+        {
+            var recording = _recordingService.Status;
+            metadata["recordingStatus"] = recording.IsRecording ? "recording" : "idle";
+            metadata["recordingDroppedFrames"] = recording.DroppedFrames.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (!string.IsNullOrWhiteSpace(recording.RecordingId)) metadata["recordingId"] = recording.RecordingId!;
+            if (!string.IsNullOrWhiteSpace(recording.ErrorCode)) metadata["recordingErrorCode"] = recording.ErrorCode!;
+        }
         if (!string.IsNullOrWhiteSpace(workerHealth?.Version))
             metadata["asrWorkerVersion"] = workerHealth.Version!;
         if (workerHealth?.ModelLoaded is { } modelLoaded)

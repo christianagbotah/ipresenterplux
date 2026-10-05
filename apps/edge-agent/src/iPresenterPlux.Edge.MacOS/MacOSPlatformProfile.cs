@@ -32,6 +32,7 @@ public static class MacOSPlatformProfile
                 new PlatformCapability("video.encode", "Hardware video encode", "planned", "VideoToolbox / FFmpeg"),
                 new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),
                 new PlatformCapability("display.program", "Program display", "available", "Offline local renderer with managed Chromium kiosk output"),
+                new PlatformCapability("recording.local", "Local audio recording", "available", "Segmented crash-resilient WAV from CoreAudio mixer input"),
                 new PlatformCapability("atem.ptz", "ATEM / PTZ control", "planned", "Vendor/network adapters"),
             });
     }

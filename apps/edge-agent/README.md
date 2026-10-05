@@ -193,3 +193,11 @@ Interactive Windows and macOS launches automatically try to open the local Progr
 - `IPRESENTERPLUX_PROGRAM_SIZE` — optional `width,height`; requires a position.
 
 Windows searches common Microsoft Edge and Google Chrome install locations. macOS searches Google Chrome, Microsoft Edge, Brave and Chromium under `/Applications`. The kiosk uses its own browser profile inside the Edge data directory so an already-open personal browser session cannot absorb the projector process. If no supported Chromium browser is found, the Edge host keeps the renderer alive and prints the loopback Program URL for manual opening instead of failing the service.
+
+## Offline local audio recording
+
+The Edge host now includes a local mixer recorder that is independent of cloud connectivity and external streaming destinations. `recording.start` and `recording.stop` control commands operate on the currently assigned service; if the authoritative service assignment changes, the active recording is finalized automatically before the Edge runtime switches services.
+
+Captured mixer frames are written off the realtime audio callback through a bounded channel. The recorder preserves the native capture format in WAV (PCM 16/24/32-bit or IEEE Float32), rotates at 1.5 GB per segment to remain safely below classic RIFF limits, and checkpoints WAV header sizes every 2 MB so an unexpected process/power loss leaves a substantially recoverable file. A slow disk drops recording frames rather than blocking the audio capture/ASR callback, and the dropped-frame count is included in Edge telemetry.
+
+Recordings are stored under the Edge application-data directory in `recordings/YYYY/MM/DD/<service-id>/<recording-id>/`. Each session contains `audio-001.wav` (and additional segments when needed) plus an atomic `recording.json` manifest with service, timestamps, segment names, frame counts and an allowlisted error code. Local recording continues through Internet loss once started; cloud reconnection is not required to finish the file.

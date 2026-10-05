@@ -70,6 +70,29 @@ public sealed class ControlCommandProcessorTests
     }
 
     [Fact]
+    public async Task RecordingCommandsUseLocalRecorderWithoutMediaOutput()
+    {
+        var serviceId = Guid.NewGuid();
+        var state = new AgentRuntimeState();
+        state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ServiceMode = "live" });
+        var recorder = new FakeRecordingService();
+        var processor = new ControlCommandProcessor(state, recordingService: recorder);
+
+        var start = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "recording.start", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+        var stop = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "recording.stop", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+
+        Assert.True(start.Success);
+        Assert.StartsWith("recording_started:", start.ResultingState);
+        Assert.True(stop.Success);
+        Assert.Equal(1, recorder.StartCount);
+        Assert.Equal(1, recorder.StopCount);
+    }
+
+    [Fact]
     public async Task HealthQueryWorksWithoutMediaOutput()
     {
         var state = new AgentRuntimeState();
@@ -93,6 +116,31 @@ public sealed class ControlCommandProcessorTests
             Assert.Equal(item.ItemId, itemId);
             return Task.FromResult(item);
         }
+    }
+
+
+    private sealed class FakeRecordingService : ILocalRecordingService
+    {
+        private readonly Guid _recordingId = Guid.NewGuid();
+        private LocalRecordingStatus _status = new(false, null, null, null, null, 0, 0, null);
+        public int StartCount { get; private set; }
+        public int StopCount { get; private set; }
+        public LocalRecordingStatus Status => _status;
+        public Task<LocalRecordingStatus> StartAsync(Guid serviceId, CancellationToken cancellationToken)
+        {
+            StartCount++;
+            _status = new(true, serviceId, _recordingId.ToString("N"), "/recording", DateTimeOffset.UtcNow, 0, 0, null);
+            return Task.FromResult(_status);
+        }
+        public Task<LocalRecordingStatus> StopAsync(CancellationToken cancellationToken)
+        {
+            StopCount++;
+            _status = _status with { IsRecording = false };
+            return Task.FromResult(_status);
+        }
+        public Task HandleActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public bool TrySubmit(AudioFrame frame) => _status.IsRecording;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class FakeMediaOutput : IMediaOutputService
