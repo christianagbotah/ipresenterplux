@@ -29,6 +29,22 @@ type DeviceRow = {
   credential_state: string | null;
   credential_expires_at: string | null;
   pairing_expires_at: string | null;
+  capabilities: Record<string, string>;
+  last_health: {
+    status?: string;
+    observedAt?: string;
+    cpuPercent?: number;
+    memoryPercent?: number;
+    uplinkMbps?: number | null;
+  } | null;
+  active_service_id: string | null;
+  active_service_title: string | null;
+  command_type: string | null;
+  command_state: string | null;
+  command_issued_at: string | null;
+  command_completed_at: string | null;
+  command_resulting_state: string | null;
+  command_error_code: string | null;
 };
 
 export default async function EdgeDevicesPage() {
@@ -69,9 +85,15 @@ export default async function EdgeDevicesPage() {
       `select d.id::text,d.name,d.platform,d.status,d.campus_id::text,c.name as campus_name,
               d.software_version,d.last_seen_at::text,d.created_at::text,
               cred.state as credential_state,cred.expires_at::text as credential_expires_at,
-              pairing.expires_at::text as pairing_expires_at
+              pairing.expires_at::text as pairing_expires_at,
+              d.capabilities,d.metadata->'lastHealth' as last_health,
+              d.active_service_id::text,s.title as active_service_title,
+              cmd.command_type,cmd.state as command_state,cmd.issued_at::text as command_issued_at,
+              cmd.completed_at::text as command_completed_at,cmd.resulting_state as command_resulting_state,
+              cmd.error_code as command_error_code
        from edge_devices d
        left join campuses c on c.id=d.campus_id
+       left join services s on s.id=d.active_service_id
        left join lateral (
          select state,expires_at
          from edge_device_credentials ec
@@ -86,6 +108,13 @@ export default async function EdgeDevicesPage() {
          order by p.created_at desc
          limit 1
        ) pairing on true
+       left join lateral (
+         select command_type,state,issued_at,completed_at,resulting_state,error_code
+         from edge_control_commands ecc
+         where ecc.edge_device_id=d.id
+         order by ecc.issued_at desc,ecc.id desc
+         limit 1
+       ) cmd on true
        where d.organization_id=$1
        order by case d.status when 'active' then 0 when 'pending' then 1 when 'offline' then 2 else 3 end,
                 d.name`,
@@ -133,7 +162,19 @@ export default async function EdgeDevicesPage() {
             createdAt: device.created_at,
             credentialState: device.credential_state,
             credentialExpiresAt: device.credential_expires_at,
-            pairingExpiresAt: device.pairing_expires_at
+            pairingExpiresAt: device.pairing_expires_at,
+            capabilities: device.capabilities ?? {},
+            lastHealth: device.last_health,
+            activeServiceId: device.active_service_id,
+            activeServiceTitle: device.active_service_title,
+            recentCommand: device.command_type ? {
+              type: device.command_type,
+              state: device.command_state ?? "unknown",
+              issuedAt: device.command_issued_at,
+              completedAt: device.command_completed_at,
+              resultingState: device.command_resulting_state,
+              errorCode: device.command_error_code
+            } : null
           }))}
           canManage={canManage}
         />

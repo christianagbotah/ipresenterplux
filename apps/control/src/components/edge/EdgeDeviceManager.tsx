@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -31,6 +31,24 @@ type Device = {
   credentialState: string | null;
   credentialExpiresAt: string | null;
   pairingExpiresAt: string | null;
+  capabilities: Record<string, string>;
+  lastHealth: {
+    status?: string;
+    observedAt?: string;
+    cpuPercent?: number;
+    memoryPercent?: number;
+    uplinkMbps?: number | null;
+  } | null;
+  activeServiceId: string | null;
+  activeServiceTitle: string | null;
+  recentCommand: {
+    type: string;
+    state: string;
+    issuedAt: string | null;
+    completedAt: string | null;
+    resultingState: string | null;
+    errorCode: string | null;
+  } | null;
 };
 
 type PairingResult = { deviceId: string; pairingCode: string; expiresAt: string };
@@ -58,6 +76,17 @@ function timeLabel(value: string | null) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+function commandStateClass(state: string) {
+  if (state === "succeeded") return "border-emerald-400/20 bg-emerald-400/10 text-emerald-200";
+  if (state === "failed" || state === "expired") return "border-red-400/20 bg-red-400/10 text-red-200";
+  if (state === "delivered") return "border-sky-400/20 bg-sky-400/10 text-sky-200";
+  return "border-amber-400/20 bg-amber-400/10 text-amber-100";
+}
+
+function metric(value: number | null | undefined, suffix = "%") {
+  return typeof value === "number" && Number.isFinite(value) ? `${value.toFixed(value >= 10 ? 0 : 1)}${suffix}` : "—";
+}
+
 export function EdgeDeviceManager({ organizationId, organizationName, campuses, devices, canManage }: Props) {
   const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
@@ -69,6 +98,12 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
   const [pairing, setPairing] = useState<PairingResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<Device | null>(null);
+
+  useEffect(() => {
+    if (!devices.length) return;
+    const timer = window.setInterval(() => router.refresh(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [devices.length, router]);
 
   const counts = useMemo(() => {
     const online = devices.filter((device) => liveState(device).online).length;
@@ -198,6 +233,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between gap-4"><span className="text-white/30">Agent</span><span className="font-semibold text-white/60">{device.softwareVersion ?? "Not enrolled"}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-white/30">Credential</span><span className="font-semibold capitalize text-white/60">{device.credentialState ?? "none"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-white/30">Service</span><span className="max-w-[180px] truncate font-semibold text-white/60">{device.activeServiceTitle ?? "Unassigned"}</span></div>
                     <div className="flex justify-between gap-4"><span className="text-white/30">Expires</span><span className="font-semibold text-white/60">{timeLabel(device.credentialExpiresAt)}</span></div>
                     {device.pairingExpiresAt ? <div className="text-[10px] text-amber-200/70">Pairing code pending until {timeLabel(device.pairingExpiresAt)}</div> : null}
                   </div>
@@ -212,6 +248,29 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                       </button>
                     </div>
                   ) : null}
+
+                  <div className="rounded-xl border border-white/[.06] bg-black/15 p-3 lg:col-span-4">
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+                      <span className="font-bold uppercase tracking-[.12em] text-white/28">Diagnostics</span>
+                      <span className="text-white/38">CPU <b className="ml-1 text-white/65">{metric(device.lastHealth?.cpuPercent)}</b></span>
+                      <span className="text-white/38">Memory <b className="ml-1 text-white/65">{metric(device.lastHealth?.memoryPercent)}</b></span>
+                      <span className="text-white/38">Uplink <b className="ml-1 text-white/65">{metric(device.lastHealth?.uplinkMbps, " Mbps")}</b></span>
+                      <span className="text-white/38">Capabilities <b className="ml-1 text-white/65">{Object.keys(device.capabilities).length}</b></span>
+                      {device.lastHealth?.observedAt ? <span className="text-white/28">sampled {timeLabel(device.lastHealth.observedAt)}</span> : null}
+                    </div>
+                    {device.recentCommand ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[.05] pt-2 text-[11px]">
+                        <span className="text-white/30">Last command</span>
+                        <code className="font-semibold text-white/65">{device.recentCommand.type}</code>
+                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
+                        {device.recentCommand.resultingState ? <span className="text-white/38">{device.recentCommand.resultingState}</span> : null}
+                        {device.recentCommand.errorCode ? <span className="text-red-200/65">{device.recentCommand.errorCode}</span> : null}
+                        <span className="ml-auto text-white/25">{timeLabel(device.recentCommand.completedAt ?? device.recentCommand.issuedAt)}</span>
+                      </div>
+                    ) : (
+                      <div className="mt-2 border-t border-white/[.05] pt-2 text-[11px] text-white/25">No control commands have been issued to this device.</div>
+                    )}
+                  </div>
                 </div>
               );
             })}
