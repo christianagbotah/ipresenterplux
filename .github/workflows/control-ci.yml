@@ -1,0 +1,96 @@
+name: Control Portal CI
+
+on:
+  push:
+    paths:
+      - "apps/control/**"
+      - "package.json"
+      - ".github/workflows/control-ci.yml"
+  pull_request:
+    paths:
+      - "apps/control/**"
+      - "package.json"
+      - ".github/workflows/control-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ipresenterplux_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ipresenterplux_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/control
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/ipresenterplux_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      AUTH_SECRET: ci-only-not-a-production-secret-please-replace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/control/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Create CI environment file
+        run: |
+          cat > .env.local <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          REDIS_URL=${REDIS_URL}
+          AUTH_SECRET=${AUTH_SECRET}
+          EOF
+      - name: Migrate CI database
+        run: pnpm db:migrate
+      - name: Seed compact public-domain Bible fixture
+        run: |
+          psql "$DATABASE_URL" <<'SQL'
+          INSERT INTO bible_versions
+            (id,name,abbreviation,language_code,license_kind,source_url,source_revision,local_enabled)
+          VALUES
+            ('WEBP','World English Bible','WEBP','en','public_domain','https://ebible.org/details.php?id=engwebp','ci-fixture',true)
+          ON CONFLICT (id) DO NOTHING;
+
+          INSERT INTO bible_books(version_id,book_code,canonical_name,book_order,testament)
+          VALUES
+            ('WEBP','GEN','Genesis',1,'OT'),
+            ('WEBP','JOH','John',43,'NT')
+          ON CONFLICT (version_id,book_code) DO NOTHING;
+
+          INSERT INTO bible_verses(version_id,book_code,chapter,verse,text)
+          VALUES
+            ('WEBP','GEN',1,1,'In the beginning, God created the heavens and the earth.'),
+            ('WEBP','JOH',3,16,'For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.'),
+            ('WEBP','JOH',3,17,'For God didn''t send his Son into the world to judge the world, but that the world should be saved through him.')
+          ON CONFLICT (version_id,book_code,chapter,verse) DO UPDATE SET text=EXCLUDED.text;
+
+          UPDATE services SET active_bible_version='WEBP';
+          SQL
+      - name: Lint
+        run: pnpm lint
+      - name: Scripture parser self-test
+        run: pnpm test:scripture
+      - name: Scripture quote integration self-test
+        run: pnpm test:scripture-quote
+      - name: Transcript and translation integration self-test
+        run: pnpm test:transcript-window
+      - name: Production build
+        run: pnpm build
