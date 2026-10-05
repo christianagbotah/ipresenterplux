@@ -64,7 +64,7 @@ public sealed class MacOSNativeMediaBridge
             var bytes = new byte[length];
             Marshal.Copy(pointer, bytes, 0, length);
             return JsonSerializer.Deserialize<List<MacOSAudioInput>>(bytes, new JsonSerializerOptions(JsonSerializerDefaults.Web))
-                ?? Array.Empty<MacOSAudioInput>();
+                ?? new List<MacOSAudioInput>();
         }
         finally
         {
