@@ -1,6 +1,7 @@
 name: ASR Worker CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "apps/asr-worker/**"
