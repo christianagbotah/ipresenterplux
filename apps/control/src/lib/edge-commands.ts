@@ -3,6 +3,7 @@ import { LIVE_OPERATOR_ROLES, STREAM_OPERATOR_ROLES } from "@/lib/rbac";
 export const EDGE_COMMAND_TYPES = [
   "preview.prepare",
   "program.take",
+  "program.show",
   "program.clear",
   "output.start",
   "output.stop",

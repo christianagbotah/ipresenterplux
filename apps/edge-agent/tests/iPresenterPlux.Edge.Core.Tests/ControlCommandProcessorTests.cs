@@ -28,6 +28,25 @@ public sealed class ControlCommandProcessorTests
     }
 
     [Fact]
+    public async Task ProgramShowPreparesItemThenTakesItLive()
+    {
+        var serviceId = Guid.NewGuid();
+        var state = new AgentRuntimeState();
+        state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ServiceMode = "live" });
+        var output = new FakeMediaOutput();
+        var processor = new ControlCommandProcessor(state, output);
+        var command = new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "program.show", DateTimeOffset.UtcNow,
+            new Dictionary<string, string> { ["itemId"] = "scripture-42" });
+
+        var result = await processor.ProcessAsync(command, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("scripture-42", output.LastPreviewItemId);
+        Assert.Equal(1, output.TakeCount);
+    }
+
+    [Fact]
     public async Task RejectsCommandForAnotherServiceWithoutTouchingOutput()
     {
         var state = new AgentRuntimeState();
@@ -66,9 +85,10 @@ public sealed class ControlCommandProcessorTests
     {
         public int ClearCount { get; private set; }
         public int TakeCount { get; private set; }
+        public string? LastPreviewItemId { get; private set; }
         public Task StartProgramOutputAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task StopProgramOutputAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task SetPreviewAsync(string itemId, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SetPreviewAsync(string itemId, CancellationToken cancellationToken) { LastPreviewItemId = itemId; return Task.CompletedTask; }
         public Task TakePreviewToProgramAsync(CancellationToken cancellationToken) { TakeCount++; return Task.CompletedTask; }
         public Task ClearProgramAsync(CancellationToken cancellationToken) { ClearCount++; return Task.CompletedTask; }
     }

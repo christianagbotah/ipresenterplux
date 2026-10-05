@@ -43,6 +43,12 @@ public sealed class ControlCommandProcessor(
                 case "program.take":
                     await _mediaOutput.TakePreviewToProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, "program_live");
+                case "program.show":
+                    if (!command.Arguments.TryGetValue("itemId", out var liveItemId) || string.IsNullOrWhiteSpace(liveItemId))
+                        return Failure(command, "item_id_required");
+                    await _mediaOutput.SetPreviewAsync(liveItemId, cancellationToken).ConfigureAwait(false);
+                    await _mediaOutput.TakePreviewToProgramAsync(cancellationToken).ConfigureAwait(false);
+                    return Success(command, "program_live");
                 case "program.clear":
                     await _mediaOutput.ClearProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, "program_clear");

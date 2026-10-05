@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { enqueueServiceEdgeCommand } from "@/lib/edge-command-dispatch";
 import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 
@@ -128,6 +129,35 @@ export async function PATCH(request: Request, context: RouteContext) {
         [id, state]
       );
 
+      let edgeCommandsQueued = 0;
+      if (state === "preview") {
+        edgeCommandsQueued = await enqueueServiceEdgeCommand(client, {
+          organizationId: row.organization_id,
+          serviceId: row.service_id,
+          type: "preview.prepare",
+          arguments: { itemId: id },
+          issuedBy: session.user.id,
+          source: "scripture.state.preview"
+        });
+      } else if (state === "live") {
+        edgeCommandsQueued = await enqueueServiceEdgeCommand(client, {
+          organizationId: row.organization_id,
+          serviceId: row.service_id,
+          type: "program.show",
+          arguments: { itemId: id },
+          issuedBy: session.user.id,
+          source: "scripture.state.live"
+        });
+      } else if (row.state === "live") {
+        edgeCommandsQueued = await enqueueServiceEdgeCommand(client, {
+          organizationId: row.organization_id,
+          serviceId: row.service_id,
+          type: "program.clear",
+          issuedBy: session.user.id,
+          source: "scripture.state.clear"
+        });
+      }
+
       await client.query(
         `insert into audit_events
           (organization_id, actor_type, actor_id, action, entity_type, entity_id, details)
@@ -150,9 +180,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         id,
         reference: row.scripture_reference,
         from: row.state,
-        to: state
+        to: state,
+        edgeCommandsQueued
       });
-      return NextResponse.json({ ok: true, scripture: updated.rows[0] });
+      return NextResponse.json({ ok: true, scripture: updated.rows[0], edgeCommandsQueued });
     } catch (error) {
       await client.query("rollback");
       throw error;
