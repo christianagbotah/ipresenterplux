@@ -17,6 +17,11 @@ static async Task<int> RunAsync()
         Console.Error.WriteLine("IPRESENTERPLUX_CONTROL_URL must be an absolute HTTP(S) URL.");
         return 2;
     }
+    if (controlUrl.Scheme != Uri.UriSchemeHttps && !controlUrl.IsLoopback)
+    {
+        Console.Error.WriteLine("Remote control planes must use HTTPS; plain HTTP is allowed only for loopback development.");
+        return 2;
+    }
 
     var dataDirectory = Environment.GetEnvironmentVariable("IPRESENTERPLUX_DATA_DIR");
     if (string.IsNullOrWhiteSpace(dataDirectory))

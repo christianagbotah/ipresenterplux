@@ -317,7 +317,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                     <button onClick={copyCode} className="mx-auto mt-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.04] px-3 py-2 text-xs font-bold text-white/60 hover:text-white">{copied ? <Check size={13} /> : <Clipboard size={13} />}{copied ? "Copied" : "Copy code"}</button>
                   </div>
                   <div className="rounded-xl border border-white/[.06] bg-black/20 p-4 text-xs leading-6 text-white/45">
-                    Open iPresenterPlux Edge on <b className="text-white/70">{name}</b>, enter this code, and keep the Control URL set to this iPresenterPlux server. The long-lived credential returned after pairing is stored only in the computer&apos;s OS credential vault.
+                    Open iPresenterPlux Edge on <b className="text-white/70">{name}</b>, enter this code, and set the Control URL to this iPresenterPlux server. The long-lived credential returned after pairing is stored only in the computer&apos;s OS credential vault.
                   </div>
                   <button onClick={() => setFormOpen(false)} className="h-11 w-full rounded-xl border border-white/[.08] bg-white/[.04] text-sm font-bold text-white/65 hover:bg-white/[.07]">Done</button>
                 </div>
