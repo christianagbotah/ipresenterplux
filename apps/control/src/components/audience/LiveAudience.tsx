@@ -182,6 +182,11 @@ export function LiveAudience({
                   ? "Waiting for the next spoken segment…"
                   : "Translation is being prepared for this language…")}
             </p>
+            {selected?.mode === "translation_audio" ? (
+              <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[10px] leading-4 text-white/30">
+                Translated captions are prepared first. Live interpreted audio will activate when the TTS/audio worker is connected.
+              </div>
+            ) : null}
             {transcriptLanguage ? (
               <div className="mt-3 text-[10px] uppercase tracking-[.12em] text-white/24">
                 Source language · {transcriptLanguage}
