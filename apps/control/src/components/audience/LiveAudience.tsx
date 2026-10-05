@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { LiveTranslatedAudio } from "@/components/audience/LiveTranslatedAudio";
 import {
   BookOpen,
   Captions,
@@ -22,6 +23,7 @@ type LanguageChannel = {
 type SpeechSynthesisState = "pending" | "processing" | "succeeded" | "failed";
 
 type Props = {
+  serviceId: string;
   serviceTitle: string;
   scriptureReference: string | null;
   scriptureText: string | null;
@@ -33,6 +35,7 @@ type Props = {
 };
 
 export function LiveAudience({
+  serviceId,
   serviceTitle,
   scriptureReference,
   scriptureText,
@@ -77,7 +80,7 @@ export function LiveAudience({
       : synthesisState === "processing"
         ? "Translated audio is being synthesized."
         : synthesisState === "succeeded"
-          ? "Translated audio is ready. Secure playback will activate when the audio delivery route is connected."
+          ? "Translated audio is ready for playback."
           : synthesisState === "failed"
             ? "Translated audio generation needs operator attention."
             : "Translated audio is queued for synthesis.";
@@ -202,6 +205,9 @@ export function LiveAudience({
               <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[10px] leading-4 text-white/30">
                 {audioStatusText}
               </div>
+            ) : null}
+            {selected?.mode === "translation_audio" && selected.id && !sourceSelected ? (
+              <LiveTranslatedAudio key={`${serviceId}:${selected.id}`} serviceId={serviceId} channelId={selected.id} />
             ) : null}
             {transcriptLanguage ? (
               <div className="mt-3 text-[10px] uppercase tracking-[.12em] text-white/24">

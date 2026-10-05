@@ -146,6 +146,7 @@ export default async function LivePage({
     <>
       <AudienceRealtimeRefresh serviceId={service.id} />
       <LiveAudience
+        serviceId={service.id}
         serviceTitle={service.title}
         scriptureReference={scripture?.scripture_reference ?? null}
         scriptureText={scripture?.passage_text ?? null}

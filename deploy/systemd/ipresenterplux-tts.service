@@ -1,0 +1,38 @@
+[Unit]
+Description=iPresenterPlux TTS Worker
+After=network-online.target ipresenterplux.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lightworld
+Group=lightworld
+WorkingDirectory=/home/lightworld/webapps/ipresenterplux/apps/tts-worker
+Environment=PYTHONUNBUFFERED=1
+Environment=IPRESENTERPLUX_TTS_CONTROL_URL=http://127.0.0.1:3011
+Environment=IPRESENTERPLUX_TTS_WORKER_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.secrets/tts-worker-token.txt
+Environment=IPRESENTERPLUX_TTS_WORKER_ID=tts-worker-vps-1
+Environment=IPRESENTERPLUX_TTS_PROVIDER=disabled
+Environment=IPRESENTERPLUX_TTS_STATUS_PATH=/home/lightworld/webapps/ipresenterplux/apps/tts-worker/runtime/status.json
+Environment=IPRESENTERPLUX_TTS_STORAGE_DIR=/home/lightworld/webapps/ipresenterplux/storage
+ExecStart=/home/lightworld/webapps/ipresenterplux/apps/tts-worker/.venv/bin/ipresenterplux-tts
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/lightworld/webapps/ipresenterplux/apps/tts-worker/runtime /home/lightworld/webapps/ipresenterplux/storage
+ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets/tts-worker-token.txt
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

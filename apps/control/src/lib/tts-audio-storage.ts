@@ -1,4 +1,4 @@
-import { open, stat } from "node:fs/promises";
+import { open, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 const MAX_TTS_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -34,16 +34,24 @@ function hasValidMagic(extension: string, header: Buffer) {
   return false;
 }
 
-export async function verifyStoredTtsAsset(
+type StoredAsset = {
+  assetKey: string;
+  contentType: string;
+  size: number;
+  fullPath: string;
+};
+
+async function inspectStoredTtsAsset(
   assetKey: string,
   jobId: string,
-  leaseToken: string,
-  contentType: string
-) {
+  contentType: string,
+  leaseToken?: string
+): Promise<StoredAsset | null> {
   const matched = ASSET_KEY_PATTERN.exec(assetKey);
   if (!matched) return null;
   if (matched[1].toLowerCase() !== jobId.toLowerCase()) return null;
-  if (matched[2].toLowerCase() !== leaseToken.toLowerCase()) return null;
+  if (leaseToken && matched[2].toLowerCase() !== leaseToken.toLowerCase()) return null;
+
   const extension = matched[3].toLowerCase();
   if (expectedContentType(extension) !== contentType) return null;
 
@@ -69,5 +77,32 @@ export async function verifyStoredTtsAsset(
     await handle.close();
   }
 
-  return { assetKey, contentType, size: info.size };
+  return { assetKey, contentType, size: info.size, fullPath };
+}
+
+export async function verifyStoredTtsAsset(
+  assetKey: string,
+  jobId: string,
+  leaseToken: string,
+  contentType: string
+) {
+  const asset = await inspectStoredTtsAsset(assetKey, jobId, contentType, leaseToken);
+  return asset ? { assetKey: asset.assetKey, contentType: asset.contentType, size: asset.size } : null;
+}
+
+export async function readStoredTtsAsset(
+  assetKey: string,
+  jobId: string,
+  contentType: string
+) {
+  const asset = await inspectStoredTtsAsset(assetKey, jobId, contentType);
+  if (!asset) return null;
+
+  try {
+    const data = await readFile(/* turbopackIgnore: true */ asset.fullPath);
+    if (data.length !== asset.size) return null;
+    return { data, contentType: asset.contentType, size: asset.size };
+  } catch {
+    return null;
+  }
 }

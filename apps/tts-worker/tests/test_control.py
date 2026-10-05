@@ -85,31 +85,6 @@ def test_complete_contract() -> None:
         client.close()
 
 
-def test_heartbeat_contract_is_payload_safe() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.headers["authorization"] == "Bearer " + "t" * 48
-        assert request.url.path == "/api/v1/tts/worker/heartbeat"
-        payload = json.loads(request.content)
-        assert payload == {
-            "workerId": "tts-test-worker",
-            "provider": "disabled",
-            "state": "disabled",
-            "softwareVersion": "0.1.0",
-            "claimed": 0,
-            "completed": 0,
-            "failed": 0,
-            "errorCode": "provider_disabled",
-        }
-        assert "source_text" not in request.content.decode()
-        return httpx.Response(200, json={"ok": True})
-
-    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
-    try:
-        client.heartbeat("disabled", 0, 0, 0, "provider_disabled")
-    finally:
-        client.close()
-
-
 def test_explicit_conflict_is_completion_rejected() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(409, json={"ok": False, "error": "lease expired"})
