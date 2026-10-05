@@ -48,6 +48,7 @@ static async Task<int> RunAsync()
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
     using var asrHttp = CreateAsrHttpClient();
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
+    await using var mediaOutput = await CreateProgramOutputAsync();
 
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
@@ -66,7 +67,8 @@ static async Task<int> RunAsync()
         capabilities,
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
-        speechRecognitionEngine: speechRecognition);
+        speechRecognitionEngine: speechRecognition,
+        mediaOutput: mediaOutput);
 
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };
@@ -103,6 +105,32 @@ static string? ReadSecret(string prompt)
     }
     Console.WriteLine();
     return chars.Count == 0 ? null : new string(chars.ToArray()).Trim();
+}
+
+static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync()
+{
+    const int defaultPort = 49321;
+    var port = defaultPort;
+    var configured = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PROGRAM_PORT");
+    if (!string.IsNullOrWhiteSpace(configured) &&
+        (!int.TryParse(configured, out port) || port is < 1024 or > 65535))
+    {
+        Console.Error.WriteLine($"Invalid IPRESENTERPLUX_PROGRAM_PORT; using {defaultPort}.");
+        port = defaultPort;
+    }
+
+    var output = new LocalWebProgramOutputService(port);
+    try
+    {
+        await output.StartProgramOutputAsync(CancellationToken.None);
+        Console.WriteLine($"Local Preview: {output.PreviewUri}");
+        Console.WriteLine($"Local Program: {output.ProgramUri}");
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"Local Program renderer unavailable: {error.GetType().Name}: {error.Message}");
+    }
+    return output;
 }
 
 static HttpClient? CreateAsrHttpClient()
