@@ -1,6 +1,7 @@
 import type { PoolClient, QueryResultRow } from "pg";
 import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
+import { matchScriptureQuote } from "@/lib/scripture-quote";
 import {
   detectContextualScriptureIntent,
   detectScriptureReferences,
@@ -34,6 +35,7 @@ type TranscriptResult = {
     scripture_reference: string;
     confidence: string;
     state: string;
+    detection_method: string;
     detected_at: string;
   }>;
 };
@@ -212,6 +214,7 @@ function contextualDetection(book: string, chapter: number, verseStart: number, 
     verseEnd,
     reference: scriptureReference(book, chapter, verseStart, verseEnd),
     confidence: 96,
+    detectionMethod: "context",
   };
 }
 
@@ -287,7 +290,8 @@ export async function publishTranscriptIngestResult(result: TranscriptResult) {
       id: item.id,
       reference: item.scripture_reference,
       confidence: item.confidence,
-      state: item.state
+      state: item.state,
+      method: item.detection_method
     }))
   });
 }
@@ -338,6 +342,11 @@ export async function ingestTranscriptForService(
     }
   }
 
+  if (matches.length === 0 && !explicitAttempt && contextualIntent === null && hasLocalBible) {
+    const quoteMatch = await matchScriptureQuote(client, bibleVersion, payload.text);
+    if (quoteMatch) matches = [quoteMatch];
+  }
+
   const inserted: TranscriptResult["inserted"] = [];
   for (const [ordinal, match] of matches.entries()) {
     const observedMs = observedAt.getTime();
@@ -359,11 +368,11 @@ export async function ingestTranscriptForService(
     const result = await execute<TranscriptResult["inserted"][number]>(
       client,
       `insert into scripture_detections
-        (service_id,scripture_reference,book,chapter,verse_start,verse_end,bible_version,source_text,confidence,state,source_observed_at,source_ordinal)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       returning id,scripture_reference,confidence::text,state,detected_at::text`,
+        (service_id,scripture_reference,book,chapter,verse_start,verse_end,bible_version,source_text,confidence,state,detection_method,source_observed_at,source_ordinal)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       returning id,scripture_reference,confidence::text,state,detection_method,detected_at::text`,
       [service.id,match.reference,match.book,match.chapter,match.verseStart,match.verseEnd ?? null,
-       bibleVersion,payload.text,match.confidence,nextState,observedAt,ordinal]
+       bibleVersion,payload.text,match.confidence,nextState,match.detectionMethod,observedAt,ordinal]
     );
     inserted.push(result.rows[0]);
     await updateScriptureContext(client, service.id, match, bibleVersion, observedAt, ordinal);

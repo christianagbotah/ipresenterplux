@@ -65,6 +65,7 @@ type DetectionRow = {
   confidence: string;
   state: string;
   bible_version: string;
+  detection_method: string;
   source_text: string | null;
   passage_text: string | null;
   detected_at: string;
@@ -140,7 +141,7 @@ async function dashboardData(userId: string) {
       [organizationId]
     ),
     query<DetectionRow>(
-      `select sd.id,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,sd.source_text,sd.detected_at::text,
+      `select sd.id,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,sd.detection_method,sd.source_text,sd.detected_at::text,
               (
                 select string_agg(bv.text, ' ' order by bv.verse)
                 from bible_books bb
@@ -356,7 +357,7 @@ export default async function Home() {
                             <div className="truncate text-sm font-semibold">{item.scripture_reference}</div>
                             <span className="text-[10px] font-bold text-emerald-300">{Number(item.confidence).toFixed(0)}%</span>
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-[11px] text-white/38"><span>{item.bible_version} · AI scripture detection</span><span className="uppercase tracking-[.12em] text-white/25">{item.state}</span></div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-white/38"><span>{item.bible_version} · {item.detection_method === "quote" ? "Quote match" : item.detection_method === "context" ? "Context navigation" : item.detection_method === "reference" ? "Reference detection" : "Historical detection"}</span><span className="uppercase tracking-[.12em] text-white/25">{item.state}</span></div>
                         </div>
                       </div>
                     </div>

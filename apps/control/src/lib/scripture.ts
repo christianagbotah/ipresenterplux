@@ -39,6 +39,7 @@ export type ScriptureDetection = {
   verseEnd?: number;
   reference: string;
   confidence: number;
+  detectionMethod: "reference" | "context" | "quote";
 };
 
 export type ContextualScriptureIntent =
@@ -173,6 +174,7 @@ export function detectScriptureReferences(input: string): ScriptureDetection[] {
       verseEnd,
       reference: scriptureReference(book, chapter, verseStart, verseEnd),
       confidence: 98,
+      detectionMethod: "reference",
     });
   }
 
