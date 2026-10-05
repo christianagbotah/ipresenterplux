@@ -24,10 +24,12 @@ const quoteUrl = await transpiledDataUrl(
 const windowUrl = await transpiledDataUrl(new URL("../src/lib/transcript-window.ts", import.meta.url));
 const receiptUrl = await transpiledDataUrl(new URL("../src/lib/transcript-receipt.ts", import.meta.url));
 const translationUrl = await transpiledDataUrl(new URL("../src/lib/translation-jobs.ts", import.meta.url));
+const workerUrl = await transpiledDataUrl(new URL("../src/lib/translation-worker.ts", import.meta.url));
 const { matchScriptureQuote } = await import(quoteUrl);
 const { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } = await import(windowUrl);
 const { buildTranscriptReceiptPayload } = await import(receiptUrl);
 const { enqueueTranslationJobs } = await import(translationUrl);
+const { claimTranslationJobs, completeTranslationJob, failTranslationJob } = await import(workerUrl);
 
 const legacyReceipt = {
   serviceId: null,
@@ -106,6 +108,46 @@ try {
     assert.equal(translated.rows[0]?.translated_text, "Translated test caption");
   }
 
+  // Isolate this rollback-only worker test from any real queue rows that may already be claimable.
+  await client.query(
+    "update transcript_translation_jobs set next_attempt_at='2200-01-01T00:00:00Z' where status in ('pending','failed')"
+  );
+  await client.query(
+    "update transcript_translation_jobs set lease_expires_at='2200-01-01T00:00:00Z' where status='processing'"
+  );
+
+  const workerSegmentId = await recordTranscriptSegment(
+    client,
+    serviceId,
+    "Worker lease test transcript",
+    new Date("1900-01-01T00:00:00Z"),
+    { sourceLanguage: "en", asrConfidence: 0.99 }
+  );
+  assert.ok(workerSegmentId);
+  const workerJobs = await enqueueTranslationJobs(client, workerSegmentId, organizationId, "en");
+  assert.ok(workerJobs.length > 0);
+  const firstClaim = await claimTranslationJobs(client, "selftest-worker-a", 1, 15);
+  assert.equal(firstClaim.length, 1);
+  assert.equal(firstClaim[0].transcript_segment_id, workerSegmentId);
+  const firstLease = firstClaim[0].lease_token;
+  const failed = await failTranslationJob(client, firstClaim[0].id, firstLease, "selftest_retry");
+  assert.equal(failed?.retry_scheduled, true);
+  assert.equal(await completeTranslationJob(client, firstClaim[0].id, firstLease, "must not save", "selftest"), null);
+  await client.query("update transcript_translation_jobs set next_attempt_at=now()-interval '1 second' where id=$1", [firstClaim[0].id]);
+  const secondClaim = await claimTranslationJobs(client, "selftest-worker-b", 1, 15);
+  assert.equal(secondClaim.length, 1);
+  assert.equal(secondClaim[0].id, firstClaim[0].id);
+  assert.notEqual(secondClaim[0].lease_token, firstLease);
+  const completedWorker = await completeTranslationJob(
+    client,
+    secondClaim[0].id,
+    secondClaim[0].lease_token,
+    "Worker translated result",
+    "selftest-provider"
+  );
+  assert.equal(completedWorker?.id, firstClaim[0].id);
+  assert.equal(await completeTranslationJob(client, secondClaim[0].id, secondClaim[0].lease_token, "duplicate", "selftest-provider"), null);
+
   const metadataRow = await client.query(
     `select source_language,speaker_id,asr_confidence
      from transcript_segments
@@ -152,7 +194,7 @@ try {
   );
   assert.equal(await recentlyDetectedQuote(client, serviceId, "John 3:16", new Date("2099-01-01T10:00:10Z")), true);
 
-  console.log("Transcript window self-test passed (receipt compatibility, metadata, translation queue, ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
+  console.log("Transcript window self-test passed (receipt compatibility, metadata, translation queue, worker leases/retry, ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
 } finally {
   await client.query("rollback");
   await client.end();
