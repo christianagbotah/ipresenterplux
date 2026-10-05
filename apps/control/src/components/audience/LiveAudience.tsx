@@ -24,6 +24,7 @@ type Props = {
   scriptureReference: string | null;
   scriptureText: string | null;
   transcript: string | null;
+  transcriptLanguage: string | null;
   languages: LanguageChannel[];
 };
 
@@ -32,6 +33,7 @@ export function LiveAudience({
   scriptureReference,
   scriptureText,
   transcript,
+  transcriptLanguage,
   languages
 }: Props) {
   const fallbackChannelId = languages[0]?.id ?? "";
@@ -168,10 +170,15 @@ export function LiveAudience({
               <div className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Live captions</div>
             </div>
             <p className="text-sm leading-6 text-white/55">
-              {selected?.code === "en"
+              {selected?.mode === "original" || (transcriptLanguage && selected?.code === transcriptLanguage)
                 ? transcript ?? "Waiting for the next spoken segment…"
                 : "Translated captions will appear here when the translation worker is connected."}
             </p>
+            {transcriptLanguage ? (
+              <div className="mt-3 text-[10px] uppercase tracking-[.12em] text-white/24">
+                Source language · {transcriptLanguage}
+              </div>
+            ) : null}
           </div>
         </section>
 

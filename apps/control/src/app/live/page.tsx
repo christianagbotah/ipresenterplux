@@ -26,6 +26,11 @@ type LanguageRow = {
   listener_count: number;
 };
 
+type TranscriptRow = {
+  text: string;
+  source_language: string | null;
+};
+
 function WaitingCard({ needsLink = false }: { needsLink?: boolean }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#07090d] px-4 text-white">
@@ -69,7 +74,7 @@ export default async function LivePage({
   const service = services.rows[0];
   if (!service) return <WaitingCard />;
 
-  const [scriptures, languageRows] = await Promise.all([
+  const [scriptures, languageRows, transcriptRows] = await Promise.all([
     query<ScriptureRow>(
       `select sd.scripture_reference,sd.source_text,
               (
@@ -99,10 +104,19 @@ export default async function LivePage({
          else 3
        end, language_name`,
       [service.organization_id]
+    ),
+    query<TranscriptRow>(
+      `select text,source_language
+       from transcript_segments
+       where service_id=$1
+       order by source_observed_at desc,created_at desc,id desc
+       limit 1`,
+      [service.id]
     )
   ]);
 
   const scripture = scriptures.rows[0];
+  const transcript = transcriptRows.rows[0];
 
   return (
     <>
@@ -111,7 +125,8 @@ export default async function LivePage({
         serviceTitle={service.title}
         scriptureReference={scripture?.scripture_reference ?? null}
         scriptureText={scripture?.passage_text ?? null}
-        transcript={scripture?.source_text ?? null}
+        transcript={transcript?.text ?? null}
+        transcriptLanguage={transcript?.source_language ?? null}
         languages={languageRows.rows.map((row) => ({
           id: row.id,
           code: row.language_code,
