@@ -95,6 +95,8 @@ type MediaSourceRow = {
   worker_model_loaded: string | null;
   worker_engine: string | null;
   worker_device: string | null;
+  worker_diarization: string | null;
+  worker_diarization_ready: string | null;
   asr_status: string | null;
   publish_status: string | null;
   last_success_at: string | null;
@@ -205,7 +207,8 @@ async function dashboardData(userId: string) {
               metadata->>'transcriptPublishFailures' as publish_failures,
               metadata->>'asrWorkerStatus' as worker_status,metadata->>'asrWorkerVersion' as worker_version,
               metadata->>'asrWorkerModelLoaded' as worker_model_loaded,metadata->>'asrWorkerEngine' as worker_engine,
-              metadata->>'asrWorkerDevice' as worker_device,metadata->>'asrStatus' as asr_status,
+              metadata->>'asrWorkerDevice' as worker_device,metadata->>'asrWorkerDiarization' as worker_diarization,
+              metadata->>'asrWorkerDiarizationReady' as worker_diarization_ready,metadata->>'asrStatus' as asr_status,
               metadata->>'transcriptPublishStatus' as publish_status,
               metadata->>'transcriptionLastSuccessAt' as last_success_at
        from media_sources where organization_id=$1
@@ -583,6 +586,7 @@ export default async function Home() {
                                     <span>Worker <span className={source.worker_status === "offline" || source.worker_status === "error" ? "text-red-200/80" : source.worker_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.worker_status ?? "unknown"}</span></span>
                                     <span>ASR <span className={source.asr_status === "degraded" ? "text-amber-200/80" : source.asr_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.asr_status ?? "disabled"}</span></span>
                                     <span>Delivery <span className={source.publish_status === "degraded" ? "text-amber-200/80" : source.publish_status === "ready" ? "text-emerald-200/80" : "text-white/45"}>{source.publish_status ?? "disabled"}</span></span>
+                                    <span>Diarization <span className={source.worker_diarization_ready === "true" ? "text-emerald-200/80" : source.worker_diarization === "disabled" ? "text-white/35" : "text-amber-200/80"}>{source.worker_diarization ?? "unknown"}</span></span>
                                     <span>Speech {source.recognized_chunks ?? "0"}</span>
                                     <span>Delivered {source.published_chunks ?? "0"}</span>
                                     <span>Silent {source.silent_chunks ?? "0"}</span>

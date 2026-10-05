@@ -12,7 +12,9 @@ public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeech
         string? Engine,
         string? Model,
         bool ModelLoaded,
-        string? Device);
+        string? Device,
+        string? Diarization,
+        bool DiarizationReady);
 
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
 
@@ -54,7 +56,9 @@ public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeech
             SafeToken(health.Version, 32),
             health.ModelLoaded,
             SafeToken(health.Engine, 32),
-            SafeToken(health.Device, 32));
+            SafeToken(health.Device, 32),
+            SafeToken(health.Diarization, 32),
+            health.DiarizationReady);
     }
 
     private static string? SafeToken(string? value, int maxLength)

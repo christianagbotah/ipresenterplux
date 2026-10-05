@@ -318,6 +318,10 @@ public sealed class EdgeAgentRuntime : IDisposable
             metadata["asrWorkerEngine"] = workerHealth.Engine!;
         if (!string.IsNullOrWhiteSpace(workerHealth?.Device))
             metadata["asrWorkerDevice"] = workerHealth.Device!;
+        if (!string.IsNullOrWhiteSpace(workerHealth?.Diarization))
+            metadata["asrWorkerDiarization"] = workerHealth.Diarization!;
+        if (workerHealth?.DiarizationReady is { } diarizationReady)
+            metadata["asrWorkerDiarizationReady"] = diarizationReady ? "true" : "false";
         if (pipeline?.LastSuccessAt is { } lastSuccessAt)
             metadata["transcriptionLastSuccessAt"] = lastSuccessAt.ToUniversalTime().ToString("O");
         if (!string.IsNullOrWhiteSpace(lastRecognitionError))

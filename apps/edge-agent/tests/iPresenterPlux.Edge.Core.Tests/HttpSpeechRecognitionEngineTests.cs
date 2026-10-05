@@ -11,7 +11,7 @@ public sealed class HttpSpeechRecognitionEngineTests
     public async Task HealthProbeMapsHealthyWorkerWithoutExposingModelPath()
     {
         using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK,
-            """{"ok":true,"version":"0.1.0","engine":"faster-whisper","model":"/private/models/small","modelLoaded":false,"device":"cpu"}""")))
+            """{"ok":true,"version":"0.1.0","engine":"faster-whisper","model":"/private/models/small","modelLoaded":false,"device":"cpu","diarization":"disabled","diarizationReady":false}""")))
         {
             BaseAddress = new Uri("http://127.0.0.1:8765")
         };
@@ -24,6 +24,8 @@ public sealed class HttpSpeechRecognitionEngineTests
         Assert.Equal("faster-whisper", health.Engine);
         Assert.Equal("cpu", health.Device);
         Assert.False(health.ModelLoaded);
+        Assert.Equal("disabled", health.Diarization);
+        Assert.False(health.DiarizationReady);
     }
 
     [Fact]

@@ -58,7 +58,9 @@ public sealed record SpeechRecognitionHealth(
     string? Version = null,
     bool? ModelLoaded = null,
     string? Engine = null,
-    string? Device = null);
+    string? Device = null,
+    string? Diarization = null,
+    bool? DiarizationReady = null);
 
 public sealed record SourceHealth(
     string SourceId,
