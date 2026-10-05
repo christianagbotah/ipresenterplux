@@ -13,7 +13,8 @@
     "test:transcript-window": "node scripts/transcript-window-selftest.mjs",
     "test:translation-worker": "node scripts/translation-worker-selftest.mjs",
     "test:speech-synthesis": "node scripts/speech-synthesis-selftest.mjs",
-    "test:tts-worker": "node scripts/tts-worker-selftest.mjs"
+    "test:tts-worker": "node scripts/tts-worker-selftest.mjs",
+    "test:voice-consent": "node scripts/voice-consent-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

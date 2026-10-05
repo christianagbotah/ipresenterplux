@@ -333,7 +333,7 @@ export default async function Home() {
           </nav>
 
           <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">
-            <Link href="/settings/devices" className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-3 text-white/45 hover:text-white xl:justify-start">
+            <Link href="/settings" className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-3 text-white/45 hover:text-white xl:justify-start">
               <Settings2 size={18} />
               <span className="hidden text-sm xl:inline">Settings</span>
             </Link>

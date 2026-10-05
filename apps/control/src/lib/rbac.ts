@@ -9,6 +9,7 @@ export const LIVE_OPERATOR_ROLES = [
 ] as const;
 
 export const DEVICE_ADMIN_ROLES = ["owner", "admin"] as const;
+export const VOICE_ADMIN_ROLES = ["owner", "admin"] as const;
 
 export const INGEST_ROLES = [
   "owner",

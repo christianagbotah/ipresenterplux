@@ -99,7 +99,7 @@ export default async function EdgeDevicesPage() {
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link
-              href="/"
+              href="/settings"
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/50 transition hover:bg-white/[.06] hover:text-white"
               aria-label="Back to Control Room"
             >
