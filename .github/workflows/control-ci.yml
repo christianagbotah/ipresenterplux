@@ -1,6 +1,7 @@
 name: Control Portal CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "apps/control/**"

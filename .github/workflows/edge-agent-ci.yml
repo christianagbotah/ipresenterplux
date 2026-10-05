@@ -1,6 +1,7 @@
 name: Edge Agent CI
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "apps/edge-agent/**"
