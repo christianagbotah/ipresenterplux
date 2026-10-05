@@ -236,15 +236,15 @@ function Pill({ status }: { status: string }) {
 }
 
 const nav = [
-  ["Control Room", LayoutDashboard],
-  ["Scripture", BookOpen],
-  ["Songs & Media", Music2],
-  ["Cameras", Camera],
-  ["AI Director", Bot],
-  ["Translations", Languages],
-  ["Streaming", RadioTower],
-  ["Audience", Users],
-  ["Archive", Video]
+  ["Control Room", LayoutDashboard, null],
+  ["Scripture", BookOpen, null],
+  ["Songs & Media", Music2, null],
+  ["Cameras", Camera, null],
+  ["AI Director", Bot, null],
+  ["Translations", Languages, "/translations"],
+  ["Streaming", RadioTower, null],
+  ["Audience", Users, null],
+  ["Archive", Video, null]
 ] as const;
 
 export default async function Home() {
@@ -280,20 +280,15 @@ export default async function Home() {
           </div>
 
           <nav className="space-y-1">
-            {nav.map(([label, Icon], index) => (
-              <button
-                key={label}
-                className={
-                  "group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-3 text-left transition xl:justify-start " +
-                  (index === 0
-                    ? "border border-[#d7a94a]/20 bg-[#d7a94a]/10 text-[#f2c765]"
-                    : "text-white/45 hover:bg-white/[.04] hover:text-white/80")
-                }
-              >
-                <Icon size={18} />
-                <span className="hidden text-sm font-medium xl:inline">{label}</span>
-              </button>
-            ))}
+            {nav.map(([label, Icon, href], index) => {
+              const className =
+                "group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-3 text-left transition xl:justify-start " +
+                (index === 0
+                  ? "border border-[#d7a94a]/20 bg-[#d7a94a]/10 text-[#f2c765]"
+                  : "text-white/45 hover:bg-white/[.04] hover:text-white/80");
+              const content = <><Icon size={18} /><span className="hidden text-sm font-medium xl:inline">{label}</span></>;
+              return href ? <Link key={label} href={href} className={className}>{content}</Link> : <button key={label} className={className}>{content}</button>;
+            })}
           </nav>
 
           <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">

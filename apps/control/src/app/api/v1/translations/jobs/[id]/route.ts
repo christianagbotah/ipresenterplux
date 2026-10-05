@@ -100,7 +100,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       }>(
         `update transcript_translation_jobs
          set status='succeeded',translated_text=$2,provider=$3,error_code=null,
-             attempts=attempts+1,completed_at=now(),updated_at=now()
+             worker_id=null,lease_token=null,lease_expires_at=null,next_attempt_at=null,
+             completed_at=clock_timestamp(),updated_at=clock_timestamp()
          where id=$1
          returning id::text,status,language_channel_id::text,target_language_code,channel_mode,
                    translated_text,provider,completed_at::text`,
