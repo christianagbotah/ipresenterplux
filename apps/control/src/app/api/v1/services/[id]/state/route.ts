@@ -37,8 +37,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     try {
       await client.query("begin");
 
-      const scope = await client.query<{ id: string; organization_id: string }>(
-        "select id::text,organization_id::text from services where id=$1",
+      const scope = await client.query<{ id: string; organization_id: string; campus_id: string | null }>(
+        "select id::text,organization_id::text,campus_id::text from services where id=$1",
         [id]
       );
       if (!scope.rowCount) {
@@ -52,7 +52,28 @@ export async function PATCH(request: Request, context: RouteContext) {
         return NextResponse.json({ ok: false, error: "You are not allowed to control this live service" }, { status: 403 });
       }
 
+      const serviceScopeKey = `edge-service:${scope.rows[0].organization_id}:${scope.rows[0].campus_id ?? "none"}`;
+      await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [serviceScopeKey]);
       await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [scope.rows[0].id]);
+
+      if (state === "live") {
+        const conflict = await client.query<{ id: string; title: string }>(
+          `select id::text,title
+           from services
+           where organization_id=$1
+             and campus_id is not distinct from $2::uuid
+             and status='live' and id<>$3
+           limit 1`,
+          [scope.rows[0].organization_id, scope.rows[0].campus_id, id]
+        );
+        if (conflict.rowCount) {
+          await client.query("rollback");
+          return NextResponse.json(
+            { ok: false, error: `Another service is already live in this campus: ${conflict.rows[0].title}` },
+            { status: 409 }
+          );
+        }
+      }
 
       const current = await client.query<{
         id: string;
@@ -94,6 +115,39 @@ export async function PATCH(request: Request, context: RouteContext) {
         [id, state]
       );
 
+      let assignedEdgeDevices = 0;
+      if (state === "live") {
+        const assigned = await client.query(
+          `update edge_devices
+           set active_service_id=$1,updated_at=clock_timestamp()
+           where organization_id=$2
+             and campus_id is not distinct from $3::uuid
+             and status='active'
+             and active_service_id is distinct from $1`,
+          [id, row.organization_id, scope.rows[0].campus_id]
+        );
+        assignedEdgeDevices = assigned.rowCount ?? 0;
+      } else if (state === "ready") {
+        const assigned = await client.query(
+          `update edge_devices
+           set active_service_id=$1,updated_at=clock_timestamp()
+           where organization_id=$2
+             and campus_id is not distinct from $3::uuid
+             and status='active'
+             and active_service_id is null`,
+          [id, row.organization_id, scope.rows[0].campus_id]
+        );
+        assignedEdgeDevices = assigned.rowCount ?? 0;
+      } else if (state === "ended") {
+        const cleared = await client.query(
+          `update edge_devices
+           set active_service_id=null,updated_at=clock_timestamp()
+           where organization_id=$2 and active_service_id=$1`,
+          [id, row.organization_id]
+        );
+        assignedEdgeDevices = -(cleared.rowCount ?? 0);
+      }
+
       if (state === "ended") {
         await client.query("delete from service_speaker_overrides where service_id=$1", [id]);
         await client.query(
@@ -117,7 +171,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           session.user.id,
           "service.state.changed",
           id,
-          JSON.stringify({ title: row.title, from: row.status, to: state })
+          JSON.stringify({
+            title: row.title,
+            from: row.status,
+            to: state,
+            edgeDevicesAssigned: assignedEdgeDevices > 0 ? assignedEdgeDevices : 0,
+            edgeDevicesCleared: assignedEdgeDevices < 0 ? -assignedEdgeDevices : 0
+          })
         ]
       );
 
@@ -127,7 +187,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         from: row.status,
         to: state
       });
-      return NextResponse.json({ ok: true, service: updated.rows[0] });
+      return NextResponse.json({
+        ok: true,
+        service: updated.rows[0],
+        edgeDevicesAssigned: assignedEdgeDevices > 0 ? assignedEdgeDevices : 0,
+        edgeDevicesCleared: assignedEdgeDevices < 0 ? -assignedEdgeDevices : 0
+      });
     } catch (error) {
       await client.query("rollback");
       throw error;

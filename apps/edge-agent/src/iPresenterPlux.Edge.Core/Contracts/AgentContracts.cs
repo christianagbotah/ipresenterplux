@@ -80,6 +80,11 @@ public sealed record AgentHeartbeat(
     IReadOnlyList<SourceHealth> Sources,
     IReadOnlyDictionary<string, object?> Capabilities);
 
+public sealed record EdgeServiceAssignment(
+    Guid ServiceId,
+    string Title,
+    string Status);
+
 public sealed record ScriptureSuggestion(
     Guid DetectionId,
     string Reference,

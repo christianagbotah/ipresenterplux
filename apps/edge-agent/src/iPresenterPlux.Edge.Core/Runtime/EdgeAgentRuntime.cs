@@ -121,8 +121,10 @@ public sealed class EdgeAgentRuntime : IDisposable
             new HttpDeviceEnrollmentClient(_httpClient),
             _credentialStore,
             _identityStore);
+        var assignmentClient = new HttpEdgeAssignmentClient(_httpClient, identity, _credentialStore);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
+        await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
         if (_audioCapture is not null && _speechRecognitionEngine is not null)
         {
             _transcriptionPipeline = new AudioTranscriptionPipeline(
@@ -132,7 +134,7 @@ public sealed class EdgeAgentRuntime : IDisposable
                     await _queue.EnqueueAsync(
                         OutboundEventFactory.Transcript(identity, segment, eventId), CancellationToken.None).ConfigureAwait(false);
                 },
-                serviceId: _options.ActiveServiceId);
+                serviceId: _state.Snapshot.ActiveServiceId);
         }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
 
@@ -141,6 +143,7 @@ public sealed class EdgeAgentRuntime : IDisposable
           while (!cancellationToken.IsCancellationRequested)
           {
             await RotateIfNeededAsync(identity, manager, cancellationToken).ConfigureAwait(false);
+            await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
             await ProbeSpeechRecognitionHealthAsync(cancellationToken).ConfigureAwait(false);
 
             var health = _healthSampler.Sample(
@@ -212,6 +215,42 @@ public sealed class EdgeAgentRuntime : IDisposable
                 Sources = snapshot.Sources
             });
             Console.Error.WriteLine($"Audio capture unavailable: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private async Task RefreshServiceAssignmentAsync(
+        HttpEdgeAssignmentClient assignmentClient,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var assignment = await assignmentClient.GetAsync(cancellationToken).ConfigureAwait(false);
+            var nextServiceId = assignment?.ServiceId;
+            var previousServiceId = _state.Snapshot.ActiveServiceId;
+            if (previousServiceId == nextServiceId) return;
+
+            _transcriptionPipeline?.SetServiceId(nextServiceId);
+            _state.Update(snapshot => snapshot with
+            {
+                ActiveServiceId = nextServiceId,
+                ServiceMode = assignment?.Status ?? "Pre-service"
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (HttpRequestException)
+        {
+            _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+        }
+        catch (TaskCanceledException)
+        {
+            _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+        }
+        catch (InvalidDataException)
+        {
+            _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
         }
     }
 

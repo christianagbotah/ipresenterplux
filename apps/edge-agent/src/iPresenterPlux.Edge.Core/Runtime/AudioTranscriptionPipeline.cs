@@ -14,11 +14,12 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
     private readonly Func<Guid, TranscriptSegment, CancellationToken, Task> _publish;
     private readonly StreamingPcm16Normalizer _normalizer = new();
     private readonly SpeechChunkAccumulator _chunks = new();
-    private readonly Channel<AudioFrame> _frames;
+    private readonly Channel<ScopedAudioFrame> _frames;
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _worker;
     private readonly double _silenceThresholdDb;
-    private readonly Guid? _serviceId;
+    private readonly object _serviceGate = new();
+    private Guid? _serviceId;
     private long _sequence;
     private long _droppedFrames;
     private long _recognizedChunks;
@@ -46,7 +47,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(silenceThresholdDb));
         _silenceThresholdDb = silenceThresholdDb;
         _serviceId = serviceId;
-        _frames = Channel.CreateBounded<AudioFrame>(new BoundedChannelOptions(frameCapacity)
+        _frames = Channel.CreateBounded<ScopedAudioFrame>(new BoundedChannelOptions(frameCapacity)
         {
             SingleReader = true,
             SingleWriter = false,
@@ -86,10 +87,26 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
         PublishedChunks > 0 ? "ready" :
         "starting";
 
+    public Guid? ServiceId
+    {
+        get { lock (_serviceGate) return _serviceId; }
+    }
+
+    public void SetServiceId(Guid? serviceId)
+    {
+        lock (_serviceGate)
+        {
+            if (_serviceId == serviceId) return;
+            _serviceId = serviceId;
+        }
+    }
+
     public bool TrySubmit(AudioFrame frame)
     {
         ArgumentNullException.ThrowIfNull(frame);
-        if (_frames.Writer.TryWrite(frame)) return true;
+        Guid? serviceId;
+        lock (_serviceGate) serviceId = _serviceId;
+        if (_frames.Writer.TryWrite(new ScopedAudioFrame(frame, serviceId))) return true;
         Interlocked.Increment(ref _droppedFrames);
         return false;
     }
@@ -98,8 +115,26 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
     {
         try
         {
-            await foreach (var frame in _frames.Reader.ReadAllAsync(_stop.Token).ConfigureAwait(false))
+            Guid? processingServiceId = null;
+            var processingServiceInitialized = false;
+            await foreach (var scopedFrame in _frames.Reader.ReadAllAsync(_stop.Token).ConfigureAwait(false))
             {
+                Guid? currentServiceId;
+                lock (_serviceGate) currentServiceId = _serviceId;
+                if (scopedFrame.ServiceId != currentServiceId)
+                {
+                    Interlocked.Increment(ref _droppedFrames);
+                    continue;
+                }
+                if (!processingServiceInitialized || processingServiceId != scopedFrame.ServiceId)
+                {
+                    _chunks.Reset();
+                    _normalizer.Reset();
+                    processingServiceId = scopedFrame.ServiceId;
+                    processingServiceInitialized = true;
+                }
+
+                var frame = scopedFrame.Frame;
                 var normalized = _normalizer.Process(frame);
                 if (normalized.Length == 0) continue;
 
@@ -108,8 +143,11 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
                 var frameDuration = TimeSpan.FromSeconds(
                     inputFrames / (double)Math.Max(1, frame.SampleRate));
                 var frameStart = frame.CapturedAt - frameDuration;
+                var readyChunks = _chunks.Append(normalized, frameStart)
+                    .Select(chunk => chunk with { ServiceId = scopedFrame.ServiceId })
+                    .ToArray();
 
-                foreach (var chunk in _chunks.Append(normalized, frameStart))
+                foreach (var chunk in readyChunks)
                 {
                     if (!HasSpeechActivity(
                             chunk.Samples.Span,
@@ -125,7 +163,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
                     SpeechRecognitionResult result;
                     try
                     {
-                        result = await _engine.TranscribeAsync(chunk with { ServiceId = _serviceId }, _stop.Token).ConfigureAwait(false);
+                        result = await _engine.TranscribeAsync(chunk, _stop.Token).ConfigureAwait(false);
                         Interlocked.Exchange(ref _consecutiveFailures, 0);
                         Volatile.Write(ref _lastError, null);
                         Interlocked.Exchange(
@@ -150,8 +188,10 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
                     if (string.IsNullOrWhiteSpace(result.Text)) continue;
 
                     Interlocked.Increment(ref _recognizedChunks);
+                    if (chunk.ServiceId is null) continue;
+
                     var segment = new TranscriptSegment(
-                        _serviceId,
+                        chunk.ServiceId,
                         Interlocked.Increment(ref _sequence),
                         chunk.StartedAt,
                         result.Text.Trim(),
@@ -204,6 +244,8 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
         Volatile.Write(ref _lastPublishError, ClassifyPublishError(lastError));
         return false;
     }
+
+    private sealed record ScopedAudioFrame(AudioFrame Frame, Guid? ServiceId);
 
     private static string ClassifyRecognitionError(Exception error) => error switch
     {

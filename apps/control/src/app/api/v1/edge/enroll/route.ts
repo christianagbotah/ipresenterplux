@@ -88,7 +88,20 @@ export async function POST(request: Request) {
       );
       await client.query("update device_pairing_codes set consumed_at=now() where id=$1", [row.pairing_id]);
       await client.query(
-        `update edge_devices set status='active',software_version=$2,last_seen_at=now(),last_ip=$3::inet,updated_at=now() where id=$1`,
+        `update edge_devices d
+         set status='active',software_version=$2,last_seen_at=now(),last_ip=$3::inet,
+             active_service_id=(
+               select s.id
+               from services s
+               where s.organization_id=d.organization_id
+                 and s.campus_id is not distinct from d.campus_id
+                 and s.status in ('live','ready')
+               order by case s.status when 'live' then 0 else 1 end,
+                        s.updated_at desc,s.id desc
+               limit 1
+             ),
+             updated_at=now()
+         where d.id=$1`,
         [row.device_id, payload.softwareVersion, ip]);
       await client.query(
         `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
