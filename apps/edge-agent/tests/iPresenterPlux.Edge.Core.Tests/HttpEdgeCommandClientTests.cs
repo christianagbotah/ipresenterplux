@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Transport;
@@ -24,8 +25,22 @@ public sealed class HttpEdgeCommandClientTests
             if (request.Method == HttpMethod.Get)
             {
                 Assert.Equal("/api/v1/edge/commands", request.RequestUri?.AbsolutePath);
-                return Json(HttpStatusCode.OK,
-                    $$"""{"ok":true,"deviceId":"{{identity.DeviceId:D}}","commands":[{"commandId":"{{commandId:D}}","serviceId":"{{serviceId:D}}","type":"program.clear","issuedAt":"2026-10-05T20:00:00Z","arguments":{}}]}""");
+                return Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+                {
+                    ok = true,
+                    deviceId = identity.DeviceId.ToString("D"),
+                    commands = new[]
+                    {
+                        new
+                        {
+                            commandId = commandId.ToString("D"),
+                            serviceId = serviceId.ToString("D"),
+                            type = "program.clear",
+                            issuedAt = "2026-10-05T20:00:00Z",
+                            arguments = new Dictionary<string, string>()
+                        }
+                    }
+                }));
             }
 
             Assert.Equal(HttpMethod.Post, request.Method);

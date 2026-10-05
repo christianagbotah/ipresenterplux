@@ -91,6 +91,7 @@ public sealed class OutboundEventDispatcherTests
     {
         var identity = Identity();
         var state = new MediaSourceState(
+            null,
             "camera-main",
             "Main Camera",
             "camera",
