@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 from datetime import datetime, timezone
+from uuid import UUID
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -40,7 +41,7 @@ def create_app(
 ) -> FastAPI:
     resolved = settings or load_settings()
     resolved_engine = engine or WhisperEngine(resolved)
-    resolved_diarizer = diarizer or create_diarizer(resolved.diarization_provider)
+    resolved_diarizer = diarizer or create_diarizer(resolved)
     app = FastAPI(
         title="iPresenterPlux ASR Worker",
         version=__version__,
@@ -75,6 +76,7 @@ def create_app(
         x_ipresenter_sample_rate: str | None = Header(default=None),
         x_ipresenter_audio_format: str | None = Header(default=None),
         x_ipresenter_started_at: str | None = Header(default=None),
+        x_ipresenter_service_id: str | None = Header(default=None),
     ) -> TranscriptionResponse:
         require_token(authorization)
         content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
@@ -93,6 +95,13 @@ def create_app(
                 datetime.fromisoformat(x_ipresenter_started_at.replace("Z", "+00:00"))
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail="Invalid audio start timestamp") from exc
+
+        session_id = None
+        if x_ipresenter_service_id:
+            try:
+                session_id = str(UUID(x_ipresenter_service_id))
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Invalid service id") from exc
 
         length = request.headers.get("content-length")
         if length:
@@ -117,8 +126,12 @@ def create_app(
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
         speaker_id = None
-        if result.text:
-            speaker_id = await resolved_diarizer.identify_pcm16(body, result)
+        if result.text and session_id:
+            try:
+                speaker_id = await resolved_diarizer.identify_pcm16(body, result, session_id)
+            except Exception:
+                # Speaker intelligence must never make a successful ASR result fail.
+                speaker_id = None
 
         return TranscriptionResponse(
             text=result.text,

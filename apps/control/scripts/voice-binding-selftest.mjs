@@ -23,8 +23,7 @@ try {
      from organizations o
      join campuses c on c.organization_id=o.id
      join user_organization_roles uor on uor.organization_id=o.id and uor.role_id in ('owner','admin')
-     order by o.created_at,c.created_at
-     limit 1`
+     order by o.created_at,c.created_at limit 1`
   );
   assert.ok(base.rows[0]?.organization_id, "Expected organization/campus/admin");
   const { organization_id: organizationId, campus_id: campusId, user_id: userId } = base.rows[0];
@@ -37,80 +36,87 @@ try {
   );
   assert.ok(channel.rows[0]?.id, "Expected translation_audio channel");
 
-  const service = await client.query(
-    `insert into services(organization_id,campus_id,title,status,active_bible_version,started_at)
-     values ($1,$2,'Voice binding self-test','live','WEBP',clock_timestamp()) returning id::text`,
-    [organizationId, campusId]
-  );
-  const segment = await client.query(
-    `insert into transcript_segments(service_id,text,source_observed_at,source_language,speaker_id)
-     values ($1,'Voice binding test',clock_timestamp(),'en','speaker-selftest') returning id::text`,
-    [service.rows[0].id]
-  );
-  const translation = await client.query(
-    `insert into transcript_translation_jobs
-      (transcript_segment_id,language_channel_id,target_language_code,channel_mode,status,translated_text,provider,completed_at)
-     values ($1,$2,$3,'translation_audio','succeeded','Bonjour test','selftest',clock_timestamp())
-     returning id::text`,
-    [segment.rows[0].id, channel.rows[0].id, channel.rows[0].language_code]
-  );
-  const translationJobId = translation.rows[0].id;
+  async function createService(title) {
+    const service = await client.query(
+      `insert into services(organization_id,campus_id,title,status,active_bible_version,started_at)
+       values ($1,$2,$3,'live','WEBP',clock_timestamp()) returning id::text`,
+      [organizationId, campusId, title]
+    );
+    return service.rows[0].id;
+  }
 
-  const generic = await enqueueSpeechSynthesisJob(client, translationJobId);
-  assert.equal(generic?.voice_profile_id, null, "No bound consented profile must use generic voice");
+  async function createAudioTranslation(serviceId, text) {
+    const segment = await client.query(
+      `insert into transcript_segments
+        (service_id,text,source_observed_at,source_language,speaker_id,speaker_source)
+       values ($1,$2,clock_timestamp(),'en','speaker-001','asr') returning id::text`,
+      [serviceId, text]
+    );
+    const translation = await client.query(
+      `insert into transcript_translation_jobs
+        (transcript_segment_id,language_channel_id,target_language_code,channel_mode,status,translated_text,provider,completed_at)
+       values ($1,$2,$3,'translation_audio','succeeded',$4,'selftest',clock_timestamp())
+       returning id::text`,
+      [segment.rows[0].id, channel.rows[0].id, channel.rows[0].language_code, `Bonjour ${text}`]
+    );
+    return translation.rows[0].id;
+  }
+
+  const serviceA = await createService("Voice binding service A");
+  const serviceB = await createService("Voice binding service B");
+  const translationA = await createAudioTranslation(serviceA, "service A");
+  const translationB = await createAudioTranslation(serviceB, "service B");
 
   const profile = await client.query(
     `insert into voice_profiles
       (organization_id,display_name,source_speaker_id,consent_status,consented_at,
        consent_method,consent_reference,consent_recorded_by,provider,provider_voice_id,created_by)
-     values ($1,'Voice binding self-test','speaker-selftest','consented',clock_timestamp(),
-             'written','SELFTEST-BIND-CONSENT',$2,'google','fr-FR-Custom-SelfTest',$2)
+     values ($1,'Consented service voice',null,'consented',clock_timestamp(),
+             'written','SELFTEST-SERVICE-BIND',$2,'google','fr-FR-Custom-SelfTest',$2)
      returning id::text`,
     [organizationId, userId]
   );
   const profileId = profile.rows[0].id;
 
-  await client.query("savepoint duplicate_speaker");
-  let duplicateBlocked = false;
-  try {
-    await client.query(
-      `insert into voice_profiles(organization_id,display_name,source_speaker_id,consent_status,created_by)
-       values ($1,'Duplicate speaker','SPEAKER-SELFTEST','pending',$2)`,
-      [organizationId, userId]
-    );
-  } catch {
-    duplicateBlocked = true;
-    await client.query("rollback to savepoint duplicate_speaker");
-  }
-  assert.equal(duplicateBlocked, true, "A second active profile must not claim the same speaker ID");
+  const genericA = await enqueueSpeechSynthesisJob(client, translationA);
+  assert.equal(genericA?.voice_profile_id, null,
+    "An ASR label must not select an organization-wide voice without a service binding");
 
-  const personalized = await enqueueSpeechSynthesisJob(client, translationJobId);
-  assert.equal(personalized?.voice_profile_id, profileId, "Matching consented/bound speaker must select personalized voice");
-  assert.equal(personalized?.status, "pending", "Voice revision change must requeue synthesis");
+  await client.query(
+    `insert into service_speaker_voice_bindings
+      (service_id,organization_id,speaker_id,voice_profile_id,set_by)
+     values ($1,$2,'speaker-001',$3,$4)`,
+    [serviceA, organizationId, profileId, userId]
+  );
+  const personalizedA = await enqueueSpeechSynthesisJob(client, translationA);
+  assert.equal(personalizedA?.voice_profile_id, profileId,
+    "A service-scoped ASR binding must select the consented provider voice");
+  assert.equal(personalizedA?.status, "pending",
+    "Changing from generic to personalized voice must regenerate audio");
+
+  const genericB = await enqueueSpeechSynthesisJob(client, translationB);
+  assert.equal(genericB?.voice_profile_id, null,
+    "The same anonymous speaker label in another service must remain generic");
 
   await client.query(
     `update speech_synthesis_jobs
-     set status='succeeded',provider='selftest',audio_storage_key='audio/selftest.wav',
+     set status='succeeded',provider='selftest',audio_storage_key='tts/00000000-0000-4000-8000-000000000001.wav',
          audio_content_type='audio/wav',duration_ms=1000,completed_at=clock_timestamp()
      where id=$1`,
-    [personalized.id]
+    [personalizedA.id]
   );
-
   await client.query(
-    `update voice_profiles
-     set consent_status='revoked',revoked_at=clock_timestamp(),revoked_by=$2,
-         revocation_reason='Self-test revoke',provider=null,provider_voice_id=null,updated_at=clock_timestamp()
-     where id=$1`,
-    [profileId, userId]
+    `delete from service_speaker_voice_bindings
+     where service_id=$1 and lower(speaker_id)='speaker-001'`,
+    [serviceA]
   );
-  const afterRevoke = await enqueueSpeechSynthesisJob(client, translationJobId);
-  assert.equal(afterRevoke?.voice_profile_id, null, "Revoked profile must fall back to generic voice");
-  assert.equal(afterRevoke?.status, "pending", "Revocation changes voice revision and must invalidate old audio");
-
+  const unboundA = await enqueueSpeechSynthesisJob(client, translationA);
+  assert.equal(unboundA?.voice_profile_id, null, "Removing the service binding must fall back to generic voice");
+  assert.equal(unboundA?.status, "pending", "Removing a voice binding must invalidate personalized audio");
   const reset = await client.query(
     `select audio_storage_key,audio_content_type,duration_ms,provider,lease_token
      from speech_synthesis_jobs where id=$1`,
-    [afterRevoke.id]
+    [unboundA.id]
   );
   assert.equal(reset.rows[0].audio_storage_key, null);
   assert.equal(reset.rows[0].audio_content_type, null);
@@ -118,14 +124,7 @@ try {
   assert.equal(reset.rows[0].provider, null);
   assert.equal(reset.rows[0].lease_token, null);
 
-  const replacement = await client.query(
-    `insert into voice_profiles(organization_id,display_name,source_speaker_id,consent_status,created_by)
-     values ($1,'Replacement pending','speaker-selftest','pending',$2) returning id::text`,
-    [organizationId, userId]
-  );
-  assert.ok(replacement.rows[0]?.id, "Revoked profile must not permanently reserve speaker ID");
-
-  console.log("Voice binding self-test passed (generic fallback, unique active speaker, consented match, revision reset, revoke fallback).");
+  console.log("Voice binding self-test passed (no global anonymous match, service-local consented binding, cross-service isolation, generic fallback). ");
 } finally {
   await client.query("rollback");
   await client.end();

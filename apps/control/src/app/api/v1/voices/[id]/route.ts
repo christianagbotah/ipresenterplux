@@ -45,12 +45,11 @@ async function resetSynthesisJobsForVoice(
   client: PoolClient,
   organizationId: string,
   profileId: string,
-  sourceSpeakerId: string,
   useProfile: boolean
 ) {
   return client.query(
     `update speech_synthesis_jobs sj
-     set voice_profile_id=case when $4::boolean then $2::uuid else null end,
+     set voice_profile_id=case when $3::boolean then $2::uuid else null end,
          status='pending',provider=null,audio_storage_key=null,audio_content_type=null,duration_ms=null,
          error_code=null,attempts=0,worker_id=null,lease_token=null,lease_expires_at=null,
          next_attempt_at=null,claimed_at=null,completed_at=null,updated_at=clock_timestamp()
@@ -60,11 +59,31 @@ async function resetSynthesisJobsForVoice(
      where sj.translation_job_id=tj.id
        and sj.organization_id=$1
        and s.status in ('live','ready')
-       and ts.speaker_id is not null
-       and lower(ts.speaker_id)=lower($3)
        and tj.status='succeeded' and tj.channel_mode='translation_audio'
+       and (
+         (
+           ts.speaker_source='asr' and ts.speaker_id is not null
+           and exists (
+             select 1 from service_speaker_voice_bindings b
+             where b.service_id=ts.service_id
+               and b.organization_id=$1
+               and b.voice_profile_id=$2
+               and lower(b.speaker_id)=lower(ts.speaker_id)
+           )
+         )
+         or
+         (
+           ts.speaker_source='operator_override'
+           and exists (
+             select 1 from service_speaker_overrides so
+             where so.service_id=ts.service_id
+               and so.organization_id=$1
+               and so.voice_profile_id=$2
+           )
+         )
+       )
      returning s.id::text as service_id`,
-    [organizationId, profileId, sourceSpeakerId, useProfile]
+    [organizationId, profileId, useProfile]
   );
 }
 
@@ -147,10 +166,6 @@ export async function PATCH(request: Request, context: RouteContext) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "Provider voices require active speaker consent" }, { status: 409 });
         }
-        if (!profile.source_speaker_id) {
-          await client.query("rollback");
-          return NextResponse.json({ ok: false, error: "A speaker ID is required before binding a personalized voice" }, { status: 409 });
-        }
         await client.query(
           `update voice_profiles
            set provider=$3,provider_voice_id=$4,updated_at=clock_timestamp()
@@ -161,7 +176,6 @@ export async function PATCH(request: Request, context: RouteContext) {
           client,
           payload.organizationId,
           id,
-          profile.source_speaker_id,
           true
         );
         await client.query(
@@ -181,7 +195,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
 
       if (payload.action === "unbind_provider") {
-        if (profile.consent_status !== "consented" || !profile.provider_voice_id || !profile.source_speaker_id) {
+        if (profile.consent_status !== "consented" || !profile.provider_voice_id) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "No active personalized provider voice is bound" }, { status: 409 });
         }
@@ -195,7 +209,6 @@ export async function PATCH(request: Request, context: RouteContext) {
           client,
           payload.organizationId,
           id,
-          profile.source_speaker_id,
           false
         );
         await client.query(
@@ -223,6 +236,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
       const overriddenServices = await client.query<{ service_id: string }>(
         `delete from service_speaker_overrides
+         where organization_id=$1 and voice_profile_id=$2
+         returning service_id::text`,
+        [payload.organizationId, id]
+      );
+      const boundServices = await client.query<{ service_id: string }>(
+        `delete from service_speaker_voice_bindings
          where organization_id=$1 and voice_profile_id=$2
          returning service_id::text`,
         [payload.organizationId, id]
@@ -256,7 +275,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         ]
       );
       await client.query("commit");
-      await publishTtsRefreshes([...affectedServices.rows, ...overriddenServices.rows], "voice_consent_revoked");
+      await publishTtsRefreshes(
+        [...affectedServices.rows, ...overriddenServices.rows, ...boundServices.rows],
+        "voice_consent_revoked"
+      );
       return NextResponse.json({ ok: true, state: "revoked", invalidatedSynthesisJobs: invalidated.rowCount ?? 0 });
     } catch (error) {
       await client.query("rollback");

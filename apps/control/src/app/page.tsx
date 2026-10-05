@@ -27,6 +27,7 @@ import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
 import { ActiveSpeakerControl } from "@/components/ActiveSpeakerControl";
+import { SpeakerVoiceBindings } from "@/components/SpeakerVoiceBindings";
 import { OutputControls } from "@/components/OutputControls";
 import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -124,6 +125,19 @@ type SpeakerProfileRow = {
   active: boolean;
 };
 
+type DetectedSpeakerRow = {
+  speaker_id: string;
+  last_seen_at: string;
+  voice_profile_id: string | null;
+  voice_name: string | null;
+};
+
+type SyntheticVoiceRow = {
+  id: string;
+  display_name: string;
+  provider: string;
+};
+
 type TranslationWorkerRow = {
   worker_id: string;
   provider: string;
@@ -161,8 +175,17 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [] };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [], detectedSpeakers: [], syntheticVoices: [], voiceAdmin: false };
   }
+
+  const voiceAdminResult = await query<{ allowed: boolean }>(
+    `select exists(
+       select 1 from user_organization_roles
+       where user_id=$1 and organization_id=$2 and role_id = any($3::text[])
+     ) as allowed`,
+    [userId, organizationId, ["owner", "admin"]]
+  );
+  const voiceAdmin = Boolean(voiceAdminResult.rows[0]?.allowed);
 
   const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers, ttsWorkers, speakerProfiles] = await Promise.all([
     query<OutputRow>(
@@ -258,6 +281,34 @@ async function dashboardData(userId: string) {
     )
   ]);
 
+  const serviceId = services.rows[0]?.id ?? null;
+  const detectedSpeakers = serviceId ? await query<DetectedSpeakerRow>(
+    `select recent.speaker_id,recent.last_seen_at::text,b.voice_profile_id::text,vp.display_name as voice_name
+     from (
+       select distinct on (lower(ts.speaker_id))
+              lower(ts.speaker_id) as speaker_id,ts.source_observed_at as last_seen_at
+       from transcript_segments ts
+       where ts.service_id=$1 and ts.speaker_source='asr' and ts.speaker_id is not null
+       order by lower(ts.speaker_id),ts.source_observed_at desc,ts.created_at desc,ts.id desc
+     ) recent
+     left join service_speaker_voice_bindings b
+       on b.service_id=$1 and lower(b.speaker_id)=recent.speaker_id
+     left join voice_profiles vp
+       on vp.id=b.voice_profile_id and vp.organization_id=b.organization_id
+     order by recent.last_seen_at desc,recent.speaker_id
+     limit 12`,
+    [serviceId]
+  ) : { rows: [] as DetectedSpeakerRow[] };
+  const syntheticVoices = voiceAdmin ? await query<SyntheticVoiceRow>(
+    `select id::text,display_name,provider
+     from voice_profiles
+     where organization_id=$1
+       and consent_status='consented' and consented_at is not null and revoked_at is null
+       and provider is not null and provider_voice_id is not null
+     order by display_name,id`,
+    [organizationId]
+  ) : { rows: [] as SyntheticVoiceRow[] };
+
   return {
     service: services.rows[0],
     outputs: outputs.rows,
@@ -268,7 +319,10 @@ async function dashboardData(userId: string) {
     transcript: transcripts.rows[0],
     translationWorker: translationWorkers.rows[0],
     ttsWorker: ttsWorkers.rows[0],
-    speakerProfiles: speakerProfiles.rows
+    speakerProfiles: speakerProfiles.rows,
+    detectedSpeakers: voiceAdmin ? detectedSpeakers.rows : [],
+    syntheticVoices: syntheticVoices.rows,
+    voiceAdmin
   };
 }
 
@@ -520,7 +574,7 @@ export default async function Home() {
                     </div>
                   </div>
                   {data.service ? (
-                    <div className="mb-3">
+                    <div className="mb-3 space-y-2">
                       <ActiveSpeakerControl
                         serviceId={data.service.id}
                         serviceStatus={data.service.status}
@@ -531,6 +585,23 @@ export default async function Home() {
                           active: profile.active
                         }))}
                       />
+                      {data.voiceAdmin ? (
+                        <SpeakerVoiceBindings
+                          serviceId={data.service.id}
+                          serviceStatus={data.service.status}
+                          speakers={data.detectedSpeakers.map((speaker) => ({
+                            speakerId: speaker.speaker_id,
+                            lastSeenAt: speaker.last_seen_at,
+                            voiceProfileId: speaker.voice_profile_id,
+                            voiceName: speaker.voice_name
+                          }))}
+                          profiles={data.syntheticVoices.map((profile) => ({
+                            id: profile.id,
+                            name: profile.display_name,
+                            provider: profile.provider
+                          }))}
+                        />
+                      ) : null}
                     </div>
                   ) : null}
                   <div className="rounded-xl border border-white/[.06] bg-black/20 p-4">

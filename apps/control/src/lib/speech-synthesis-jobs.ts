@@ -20,6 +20,17 @@ export async function enqueueSpeechSynthesisJob(
   client: PoolClient,
   translationJobId: string
 ) {
+  const service = await client.query<{ service_id: string }>(
+    `select ts.service_id::text
+     from transcript_translation_jobs j
+     join transcript_segments ts on ts.id=j.transcript_segment_id
+     where j.id=$1`,
+    [translationJobId]
+  );
+  const serviceId = service.rows[0]?.service_id;
+  if (!serviceId) return null;
+  await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [serviceId]);
+
   const source = await client.query<{
     organization_id: string;
     language_channel_id: string;
@@ -37,17 +48,30 @@ export async function enqueueSpeechSynthesisJob(
       and lc.organization_id=s.organization_id
      left join lateral (
        select vp.id
-       from voice_profiles vp
-       where ts.speaker_id is not null
-         and vp.organization_id=s.organization_id
-         and vp.source_speaker_id is not null
-         and lower(vp.source_speaker_id)=lower(ts.speaker_id)
-         and vp.consent_status='consented'
+       from (
+         select b.voice_profile_id,0 as priority
+         from service_speaker_voice_bindings b
+         where ts.speaker_source='asr'
+           and ts.speaker_id is not null
+           and b.service_id=ts.service_id
+           and b.organization_id=s.organization_id
+           and lower(b.speaker_id)=lower(ts.speaker_id)
+         union all
+         select so.voice_profile_id,1 as priority
+         from service_speaker_overrides so
+         where ts.speaker_source='operator_override'
+           and so.service_id=ts.service_id
+           and so.organization_id=s.organization_id
+       ) candidate
+       join voice_profiles vp
+         on vp.id=candidate.voice_profile_id
+        and vp.organization_id=s.organization_id
+       where vp.consent_status='consented'
          and vp.consented_at is not null
          and vp.revoked_at is null
          and vp.provider is not null
          and vp.provider_voice_id is not null
-       order by vp.consented_at desc,vp.id desc
+       order by candidate.priority,vp.consented_at desc,vp.id desc
        limit 1
      ) matched_voice on true
      where j.id=$1
@@ -62,6 +86,20 @@ export async function enqueueSpeechSynthesisJob(
   );
   const row = source.rows[0];
   if (!row) return null;
+
+  if (row.voice_profile_id) {
+    const activeVoice = await client.query(
+      `select id
+       from voice_profiles
+       where id=$1 and organization_id=$2
+         and consent_status='consented'
+         and consented_at is not null and revoked_at is null
+         and provider is not null and provider_voice_id is not null
+       for update`,
+      [row.voice_profile_id, row.organization_id]
+    );
+    if (!activeVoice.rowCount) row.voice_profile_id = null;
+  }
 
   const hash = textHash(row.translated_text);
   const result = await client.query<SpeechSynthesisJobSummary>(

@@ -113,10 +113,6 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
 
   async function bindProviderVoice(profile: VoiceProfile) {
     const voiceId = providerVoiceId[profile.id]?.trim() ?? "";
-    if (!profile.sourceSpeakerId) {
-      setError("A speaker ID is required before a personalized voice can be bound.");
-      return;
-    }
     if (voiceId.length < 3) {
       setError("Enter the provider voice ID that was enrolled outside iPresenterPlux.");
       return;
@@ -226,8 +222,8 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
             <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required minLength={2} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none focus:border-[#d7a94a]/40" placeholder="Pastor / interpreter name" />
           </label>
           <label className="block">
-            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/35">Speaker ID · optional</span>
-            <input value={sourceSpeakerId} onChange={(event) => setSourceSpeakerId(event.target.value)} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none focus:border-[#d7a94a]/40" placeholder="ASR/diarization label later" />
+            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/35">Manual fallback tag · optional</span>
+            <input value={sourceSpeakerId} onChange={(event) => setSourceSpeakerId(event.target.value)} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none focus:border-[#d7a94a]/40" placeholder="Stable operator tag, e.g. pastor-main" />
           </label>
           <button disabled={busy?.id === "new"} className="rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-black disabled:opacity-45">
             {busy?.id === "new" ? "Creating…" : "Create pending profile"}
@@ -289,7 +285,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                       <div className="mt-2">Method: {profile.consentMethod?.replaceAll("_", " ")}</div>
                       <div>Reference: {profile.consentReference}</div>
                       <div>Recorded: {formatDate(profile.consentedAt)}</div>
-                      <div className="mt-2 text-white/28">Speaker match: {profile.sourceSpeakerId ?? "not configured"}</div>
+                      <div className="mt-2 text-white/28">Manual fallback tag: {profile.sourceSpeakerId ?? "not configured"}</div>
                     </div>
                     <div className="rounded-xl border border-[#d7a94a]/14 bg-[#d7a94a]/[.035] p-4">
                       <div className="text-xs font-bold text-[#efc76e]">Personalized provider voice</div>
@@ -298,16 +294,14 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                           <div className="mt-2 break-all text-[11px] leading-5 text-white/45">{profile.provider ?? "provider"} · {profile.providerVoiceId}</div>
                           <button type="button" disabled={waiting} onClick={() => void unbindProviderVoice(profile)} className="mt-3 rounded-lg border border-white/[.08] bg-white/[.035] px-3 py-2 text-[10px] font-bold text-white/55 disabled:opacity-45">Unbind voice</button>
                         </>
-                      ) : profile.sourceSpeakerId ? (
+                      ) : (
                         <>
-                          <div className="mt-2 text-[10px] leading-4 text-white/30">Bind only a voice ID already enrolled with Google under the speaker&apos;s explicit consent. iPresenterPlux does not enroll or clone it here.</div>
+                          <div className="mt-2 text-[10px] leading-4 text-white/30">Bind only a voice ID already enrolled with Google under this person&apos;s explicit consent. Detected ASR speaker labels are assigned separately per live service in the Control Room.</div>
                           <div className="mt-3 flex gap-2">
                             <input value={providerVoiceId[profile.id] ?? ""} onChange={(event) => setProviderVoiceId((current) => ({ ...current, [profile.id]: event.target.value }))} maxLength={128} className="min-w-0 flex-1 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm" placeholder="Google provider voice ID" />
                             <button type="button" disabled={waiting} onClick={() => void bindProviderVoice(profile)} className="rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-3 text-[10px] font-bold text-[#efc76e] disabled:opacity-45">Bind</button>
                           </div>
                         </>
-                      ) : (
-                        <div className="mt-2 text-[10px] leading-4 text-amber-100/55">This profile has no speaker ID, so automatic speaker-to-voice matching is disabled. Create a new pending profile with the diarization speaker ID before provider binding.</div>
                       )}
                     </div>
                     <div className="rounded-xl border border-red-300/12 bg-red-300/[.035] p-4">

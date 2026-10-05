@@ -23,6 +23,17 @@ static async Task<int> RunAsync()
     var deviceName = Environment.GetEnvironmentVariable("IPRESENTERPLUX_DEVICE_NAME");
     if (string.IsNullOrWhiteSpace(deviceName)) deviceName = Environment.MachineName;
     var softwareVersion = typeof(MacOSPlatformProfile).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
+    Guid? activeServiceId = null;
+    var serviceIdText = Environment.GetEnvironmentVariable("IPRESENTERPLUX_SERVICE_ID");
+    if (!string.IsNullOrWhiteSpace(serviceIdText))
+    {
+        if (!Guid.TryParse(serviceIdText, out var parsedServiceId))
+        {
+            Console.Error.WriteLine("IPRESENTERPLUX_SERVICE_ID must be a valid UUID.");
+            return 2;
+        }
+        activeServiceId = parsedServiceId;
+    }
 
     var nativeBridge = new MacOSNativeMediaBridge();
     await using var identityStore = new FileAgentIdentityStore(dataDirectory);
@@ -48,7 +59,7 @@ static async Task<int> RunAsync()
         identityStore,
         queue,
         capabilities,
-        new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode),
+        new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
         speechRecognitionEngine: speechRecognition);
 

@@ -33,6 +33,8 @@ public sealed class HttpSpeechRecognitionEngine(HttpClient httpClient) : ISpeech
         content.Headers.Add("X-IPresenter-Sample-Rate", chunk.SampleRate.ToString(System.Globalization.CultureInfo.InvariantCulture));
         content.Headers.Add("X-IPresenter-Audio-Format", "pcm_s16le_mono");
         content.Headers.Add("X-IPresenter-Started-At", chunk.StartedAt.ToUniversalTime().ToString("O"));
+        if (chunk.ServiceId is { } serviceId)
+            content.Headers.Add("X-IPresenter-Service-Id", serviceId.ToString("D"));
 
         using var response = await _httpClient.PostAsync("/v1/transcribe", content, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();

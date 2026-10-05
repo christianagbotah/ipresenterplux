@@ -106,6 +106,33 @@ public sealed class SpeechAudioPipelineTests
     }
 
     [Fact]
+    public async Task ServiceScopeFlowsThroughRecognitionAndPublishedTranscript()
+    {
+        var serviceId = Guid.Parse("00000000-0000-4000-8000-000000000003");
+        var engine = new ScopeCapturingSpeechEngine();
+        var published = new TaskCompletionSource<TranscriptSegment>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var pipeline = new AudioTranscriptionPipeline(
+            engine,
+            (_, segment, _) =>
+            {
+                published.TrySetResult(segment);
+                return Task.CompletedTask;
+            },
+            serviceId: serviceId);
+
+        var samples = Enumerable.Repeat((short)16_384, 80_000).ToArray();
+        var bytes = new byte[samples.Length * 2];
+        Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+        Assert.True(pipeline.TrySubmit(new AudioFrame(
+            bytes, bytes.Length, 16_000, 1, 16, DateTimeOffset.UtcNow.AddSeconds(5))));
+
+        var seenByEngine = await engine.SeenServiceId.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var segment = await published.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(serviceId, seenByEngine);
+        Assert.Equal(serviceId, segment.ServiceId);
+    }
+
+    [Fact]
     public void ChunkAccumulatorEmitsFiveSecondChunksWithContinuousTimestamps()
     {
         var accumulator = new SpeechChunkAccumulator();
@@ -117,6 +144,21 @@ public sealed class SpeechAudioPipelineTests
         Assert.Equal(start, second[0].StartedAt);
         Assert.Equal(start.AddSeconds(5), second[1].StartedAt);
         Assert.All(second, chunk => Assert.Equal(80_000, chunk.Samples.Length));
+    }
+
+    private sealed class ScopeCapturingSpeechEngine : ISpeechRecognitionEngine
+    {
+        public TaskCompletionSource<Guid?> SeenServiceId { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<SpeechRecognitionResult> TranscribeAsync(
+            SpeechAudioChunk chunk,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SeenServiceId.TrySetResult(chunk.ServiceId);
+            return Task.FromResult(new SpeechRecognitionResult("Welcome church", "en", "speaker-001", 0.9));
+        }
     }
 
     private sealed class FixedSpeechEngine : ISpeechRecognitionEngine

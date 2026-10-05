@@ -18,6 +18,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _worker;
     private readonly double _silenceThresholdDb;
+    private readonly Guid? _serviceId;
     private long _sequence;
     private long _droppedFrames;
     private long _recognizedChunks;
@@ -35,7 +36,8 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
         ISpeechRecognitionEngine engine,
         Func<Guid, TranscriptSegment, CancellationToken, Task> publish,
         int frameCapacity = 256,
-        double silenceThresholdDb = DefaultSilenceThresholdDb)
+        double silenceThresholdDb = DefaultSilenceThresholdDb,
+        Guid? serviceId = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _publish = publish ?? throw new ArgumentNullException(nameof(publish));
@@ -43,6 +45,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
         if (!double.IsFinite(silenceThresholdDb) || silenceThresholdDb is < -120d or > 0d)
             throw new ArgumentOutOfRangeException(nameof(silenceThresholdDb));
         _silenceThresholdDb = silenceThresholdDb;
+        _serviceId = serviceId;
         _frames = Channel.CreateBounded<AudioFrame>(new BoundedChannelOptions(frameCapacity)
         {
             SingleReader = true,
@@ -122,7 +125,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
                     SpeechRecognitionResult result;
                     try
                     {
-                        result = await _engine.TranscribeAsync(chunk, _stop.Token).ConfigureAwait(false);
+                        result = await _engine.TranscribeAsync(chunk with { ServiceId = _serviceId }, _stop.Token).ConfigureAwait(false);
                         Interlocked.Exchange(ref _consecutiveFailures, 0);
                         Volatile.Write(ref _lastError, null);
                         Interlocked.Exchange(
@@ -148,7 +151,7 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
 
                     Interlocked.Increment(ref _recognizedChunks);
                     var segment = new TranscriptSegment(
-                        null,
+                        _serviceId,
                         Interlocked.Increment(ref _sequence),
                         chunk.StartedAt,
                         result.Text.Trim(),

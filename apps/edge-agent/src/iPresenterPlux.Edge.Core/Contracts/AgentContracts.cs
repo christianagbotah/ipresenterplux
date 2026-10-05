@@ -45,7 +45,8 @@ public sealed record SpeechAudioChunk(
     ReadOnlyMemory<short> Samples,
     int SampleRate,
     DateTimeOffset StartedAt,
-    TimeSpan Duration);
+    TimeSpan Duration,
+    Guid? ServiceId = null);
 
 public sealed record SpeechRecognitionResult(
     string Text,

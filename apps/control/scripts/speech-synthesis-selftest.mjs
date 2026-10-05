@@ -42,8 +42,8 @@ try {
     [organizationId, campusId]
   );
   const segment = await client.query(
-    `insert into transcript_segments(service_id,text,source_observed_at,source_language,speaker_id)
-     values ($1,'Synthesis self-test transcript',clock_timestamp(),'en','speech-selftest') returning id::text`,
+    `insert into transcript_segments(service_id,text,source_observed_at,source_language,speaker_id,speaker_source)
+     values ($1,'Synthesis self-test transcript',clock_timestamp(),'en','speaker-001','asr') returning id::text`,
     [service.rows[0].id]
   );
   const translation = await client.query(
@@ -101,15 +101,20 @@ try {
     `insert into voice_profiles
       (organization_id,display_name,source_speaker_id,consent_status,consented_at,consent_method,consent_reference,
        consent_recorded_by,provider,provider_voice_id,created_by)
-     values ($1,'Consented speaker','speech-selftest','consented',clock_timestamp(),'written','SELFTEST-CONSENT',
+     values ($1,'Consented speaker',null,'consented',clock_timestamp(),'written','SELFTEST-CONSENT',
              $2,'google','voice-consented',$2)
      returning id::text`,
     [organizationId, userId]
   );
   await client.query(
-    "update speech_synthesis_jobs set voice_profile_id=$2 where id=$1",
-    [queued.id, profile.rows[0].id]
+    `insert into service_speaker_voice_bindings
+      (service_id,organization_id,speaker_id,voice_profile_id,set_by)
+     values ($1,$2,'speaker-001',$3,$4)`,
+    [service.rows[0].id, organizationId, profile.rows[0].id, userId]
   );
+  const bound = await enqueueSpeechSynthesisJob(client, translationJobId);
+  assert.equal(bound?.voice_profile_id, profile.rows[0].id, "Service-scoped consented voice must be selected");
+  assert.equal(bound?.status, "pending", "Binding a personalized voice must invalidate prior generic audio");
 
   await client.query(
     "update transcript_translation_jobs set translated_text='Bonjour corrigé',updated_at=clock_timestamp() where id=$1",

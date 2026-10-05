@@ -26,6 +26,14 @@ def _int_env(name: str, default: int, minimum: int, maximum: int) -> int:
     return value
 
 
+def _float_env(name: str, default: float, minimum: float, maximum: float) -> float:
+    raw = os.getenv(name)
+    value = default if raw is None else float(raw)
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
+
+
 def is_loopback_host(host: str) -> bool:
     value = host.strip().lower()
     if value == "localhost":
@@ -51,6 +59,10 @@ class Settings:
     max_audio_bytes: int
     diarization_provider: str = "disabled"
     sample_rate: int = 16_000
+    diarization_model_dir: Path | None = None
+    diarization_similarity_threshold: float = 0.72
+    diarization_max_speakers: int = 12
+    diarization_session_ttl_seconds: int = 6 * 60 * 60
 
     @property
     def remote_bind(self) -> bool:
@@ -70,9 +82,17 @@ def load_settings() -> Settings:
     model_dir = Path(model_dir_raw).expanduser().resolve() if model_dir_raw else None
     language = os.getenv("IPRESENTERPLUX_ASR_LANGUAGE")
     language = language.strip() if language and language.strip() else None
+
     diarization_provider = os.getenv("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER", "disabled").strip().lower()
-    if diarization_provider not in {"disabled"}:
-        raise ValueError("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER currently supports only disabled")
+    if diarization_provider not in {"disabled", "speechbrain_ecapa"}:
+        raise ValueError("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER must be disabled or speechbrain_ecapa")
+    diarization_model_raw = os.getenv("IPRESENTERPLUX_ASR_DIARIZATION_MODEL_DIR")
+    diarization_model_dir = Path(diarization_model_raw).expanduser().resolve() if diarization_model_raw else None
+    if diarization_provider == "speechbrain_ecapa":
+        if diarization_model_dir is None or not diarization_model_dir.is_dir():
+            raise ValueError("SpeechBrain diarization requires a local model directory via IPRESENTERPLUX_ASR_DIARIZATION_MODEL_DIR")
+        if not (diarization_model_dir / "hyperparams.yaml").is_file():
+            raise ValueError("SpeechBrain diarization model directory must contain hyperparams.yaml")
 
     return Settings(
         host=host,
@@ -87,4 +107,12 @@ def load_settings() -> Settings:
         beam_size=_int_env("IPRESENTERPLUX_ASR_BEAM_SIZE", 3, 1, 10),
         max_audio_bytes=_int_env("IPRESENTERPLUX_ASR_MAX_AUDIO_BYTES", 1_000_000, 32_000, 8_000_000),
         diarization_provider=diarization_provider,
+        diarization_model_dir=diarization_model_dir,
+        diarization_similarity_threshold=_float_env(
+            "IPRESENTERPLUX_ASR_DIARIZATION_SIMILARITY", 0.72, 0.40, 0.95
+        ),
+        diarization_max_speakers=_int_env("IPRESENTERPLUX_ASR_DIARIZATION_MAX_SPEAKERS", 12, 1, 64),
+        diarization_session_ttl_seconds=_int_env(
+            "IPRESENTERPLUX_ASR_DIARIZATION_SESSION_TTL_SECONDS", 6 * 60 * 60, 60, 24 * 60 * 60
+        ),
     )

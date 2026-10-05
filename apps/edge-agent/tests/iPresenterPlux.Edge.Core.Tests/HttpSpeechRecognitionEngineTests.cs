@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Transport;
 using Xunit;
 
@@ -60,6 +61,34 @@ public sealed class HttpSpeechRecognitionEngineTests
         Assert.Equal("faster-whisper", health.Engine);
         Assert.Null(health.Device);
         Assert.True(health.ModelLoaded);
+    }
+
+    [Fact]
+    public async Task TranscriptionCarriesServiceScopeHeader()
+    {
+        var serviceId = Guid.Parse("00000000-0000-4000-8000-000000000003");
+        using var http = new HttpClient(new StubHandler(request =>
+        {
+            Assert.True(request.Headers.TryGetValues("X-IPresenter-Service-Id", out var values));
+            Assert.Equal(serviceId.ToString("D"), Assert.Single(values));
+            return Json(HttpStatusCode.OK,
+                """{"text":"Welcome church","language":"en","speakerId":"speaker-001","confidence":0.9}""");
+        }))
+        {
+            BaseAddress = new Uri("http://127.0.0.1:8765")
+        };
+        var engine = new HttpSpeechRecognitionEngine(http);
+        var chunk = new SpeechAudioChunk(
+            new short[] { 1, 2, 3, 4 },
+            16_000,
+            DateTimeOffset.Parse("2026-10-05T10:00:00Z"),
+            TimeSpan.FromMilliseconds(1),
+            serviceId);
+
+        var result = await engine.TranscribeAsync(chunk);
+
+        Assert.Equal("Welcome church", result.Text);
+        Assert.Equal("speaker-001", result.SpeakerId);
     }
 
     private static HttpResponseMessage Json(HttpStatusCode status, string body) => new(status)

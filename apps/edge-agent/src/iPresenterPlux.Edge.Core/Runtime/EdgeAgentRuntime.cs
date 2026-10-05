@@ -10,6 +10,7 @@ public sealed record EdgeAgentRuntimeOptions(
     string DeviceName,
     string SoftwareVersion,
     string? PairingCode = null,
+    Guid? ActiveServiceId = null,
     TimeSpan? HeartbeatInterval = null,
     TimeSpan? RotationWindow = null)
 {
@@ -121,7 +122,7 @@ public sealed class EdgeAgentRuntime : IDisposable
             _credentialStore,
             _identityStore);
 
-        _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting" });
+        _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         if (_audioCapture is not null && _speechRecognitionEngine is not null)
         {
             _transcriptionPipeline = new AudioTranscriptionPipeline(
@@ -130,7 +131,8 @@ public sealed class EdgeAgentRuntime : IDisposable
                 {
                     await _queue.EnqueueAsync(
                         OutboundEventFactory.Transcript(identity, segment, eventId), CancellationToken.None).ConfigureAwait(false);
-                });
+                },
+                serviceId: _options.ActiveServiceId);
         }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
 

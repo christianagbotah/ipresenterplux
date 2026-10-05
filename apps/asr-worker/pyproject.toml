@@ -19,6 +19,10 @@ local-whisper = [
   "faster-whisper==1.2.1",
   "numpy>=1.26,<3",
 ]
+speaker-diarization = [
+  "speechbrain==1.1.1",
+  "numpy>=1.26,<3",
+]
 dev = [
   "httpx>=0.28,<1",
   "pytest>=8.4,<10",
