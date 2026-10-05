@@ -3,7 +3,7 @@ import path from "node:path";
 
 const MAX_TTS_AUDIO_BYTES = 10 * 1024 * 1024;
 const UUID = "[0-9a-f-]{36}";
-const ASSET_KEY_PATTERN = new RegExp(`^tts/(${UUID})/(${UUID})\\.(mp3|wav|ogg)$`, "i");
+const ASSET_KEY_PATTERN = new RegExp(`^tts/(${UUID})/(${UUID})\.(mp3|wav|ogg)$`, "i");
 const DEFAULT_TTS_AUDIO_STORAGE_DIR = "/home/lightworld/webapps/ipresenterplux/storage";
 
 function storageRoot() {
