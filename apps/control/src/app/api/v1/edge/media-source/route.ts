@@ -7,6 +7,7 @@ import { publishServiceEvent } from "@/lib/realtime";
 
 const schema = z.object({
   eventId: z.string().uuid(),
+  serviceId: z.string().uuid().nullable().default(null),
   sourceId: z.string().trim().min(1).max(160),
   name: z.string().trim().min(1).max(160),
   sourceType: z.string().trim().min(1).max(80),
@@ -57,8 +58,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: "Media source name is owned by another Edge device" }, { status: 409 });
       }
       const active = await client.query<{ id: string }>(
-        `select id from services where organization_id=$1 and status in ('live','ready')
-         order by case when status='live' then 0 else 1 end,created_at desc limit 1`, [device.organizationId]);
+        `select d.active_service_id::text as id
+           from edge_devices d
+           join services s on s.id=d.active_service_id
+          where d.id=$1
+            and s.organization_id=d.organization_id
+            and (s.campus_id is not distinct from d.campus_id)
+            and s.status in ('live','ready')
+            and ($2::uuid is null or d.active_service_id=$2::uuid)
+          limit 1`,
+        [device.deviceId, payload.serviceId]
+      );
+      if (payload.serviceId && !active.rows[0]) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "Media source service is not assigned to this Edge device" }, { status: 409 });
+      }
       activeServiceId = active.rows[0]?.id;
       await client.query("commit");
       if (activeServiceId) await publishServiceEvent(activeServiceId, "media.source.status", { sourceId: payload.sourceId, name: payload.name, status: payload.status });

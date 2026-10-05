@@ -78,6 +78,7 @@ public sealed class HttpEdgeEventPublisher(
             new
             {
                 eventId,
+                serviceId = state.ServiceId,
                 sourceId = state.SourceId,
                 name = state.Name,
                 sourceType = state.SourceType,

@@ -375,7 +375,7 @@ public sealed class EdgeAgentRuntime : IDisposable
             metadata["bitsPerSample"] = frame.BitsPerSample.ToString();
             metadata["encoding"] = frame.Encoding.ToString();
         }
-        return new MediaSourceState(input.Id, input.Name, "audio_input", "ready", _clock.GetUtcNow(), metadata);
+        return new MediaSourceState(_state.Snapshot.ActiveServiceId, input.Id, input.Name, "audio_input", "ready", _clock.GetUtcNow(), metadata);
     }
 
     private static IReadOnlyList<SourceHealth> UpsertAudioSource(
