@@ -88,8 +88,8 @@ export async function GET(request: Request) {
     );
     rows = latest.rows.reverse();
   } else {
-    const cursor = await query<{ completed_at: string; id: string }>(
-      `select sj.completed_at::text,sj.id::text
+    const cursor = await query<{ source_observed_at: string; id: string }>(
+      `select ts.source_observed_at::text,sj.id::text
        ${baseReadySql}
          and sj.id=$3
        limit 1`,
@@ -101,10 +101,10 @@ export async function GET(request: Request) {
     const next = await query<QueueRow>(
       `select sj.id::text,ts.source_observed_at::text,sj.duration_ms
        ${baseReadySql}
-         and (sj.completed_at,sj.id) > ($3::timestamptz,$4::uuid)
-       order by sj.completed_at asc,sj.id asc
+         and (ts.source_observed_at,sj.id) > ($3::timestamptz,$4::uuid)
+       order by ts.source_observed_at asc,sj.id asc
        limit 20`,
-      [serviceId, channelId, cursor.rows[0].completed_at, cursor.rows[0].id]
+      [serviceId, channelId, cursor.rows[0].source_observed_at, cursor.rows[0].id]
     );
     rows = next.rows;
   }

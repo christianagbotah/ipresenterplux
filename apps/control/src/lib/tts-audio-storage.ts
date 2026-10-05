@@ -83,11 +83,35 @@ async function inspectStoredTtsAsset(
 export async function verifyStoredTtsAsset(
   assetKey: string,
   jobId: string,
-  leaseToken: string,
-  contentType: string
+  contentType: string,
+  leaseToken?: string
 ) {
   const asset = await inspectStoredTtsAsset(assetKey, jobId, contentType, leaseToken);
   return asset ? { assetKey: asset.assetKey, contentType: asset.contentType, size: asset.size } : null;
+}
+
+export async function readStoredTtsAssetRange(
+  assetKey: string,
+  jobId: string,
+  contentType: string,
+  start: number,
+  end: number
+) {
+  const asset = await inspectStoredTtsAsset(assetKey, jobId, contentType);
+  if (!asset || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end < start || end >= asset.size) {
+    return null;
+  }
+
+  const length = end - start + 1;
+  const handle = await open(/* turbopackIgnore: true */ asset.fullPath, "r");
+  try {
+    const data = Buffer.allocUnsafe(length);
+    const { bytesRead } = await handle.read(data, 0, length, start);
+    if (bytesRead !== length) return null;
+    return { data, contentType: asset.contentType, size: asset.size, start, end };
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function readStoredTtsAsset(

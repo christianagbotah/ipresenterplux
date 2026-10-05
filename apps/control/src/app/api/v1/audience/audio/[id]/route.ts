@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { query } from "@/lib/db";
-import { readStoredTtsAsset } from "@/lib/tts-audio-storage";
+import { readStoredTtsAsset, readStoredTtsAssetRange, verifyStoredTtsAsset } from "@/lib/tts-audio-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -67,19 +67,69 @@ export async function GET(request: Request, context: RouteContext) {
   const row = result.rows[0];
   if (!row) return new Response("Audio not found", { status: 404 });
 
-  const asset = await readStoredTtsAsset(row.audio_storage_key, row.id, row.audio_content_type);
+  const metadata = await verifyStoredTtsAsset(row.audio_storage_key, row.id, row.audio_content_type);
+  if (!metadata) return new Response("Audio not available", { status: 404 });
+
+  const baseHeaders = {
+    "Content-Type": metadata.contentType,
+    "Cache-Control": "private, no-store, max-age=0",
+    Pragma: "no-cache",
+    "X-Content-Type-Options": "nosniff",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Content-Disposition": "inline",
+    "Accept-Ranges": "bytes"
+  };
+
+  const range = request.headers.get("range")?.trim();
+  if (!range) {
+    const asset = await readStoredTtsAsset(row.audio_storage_key, row.id, row.audio_content_type);
+    if (!asset) return new Response("Audio not available", { status: 404 });
+    return new Response(new Uint8Array(asset.data), {
+      status: 200,
+      headers: { ...baseHeaders, "Content-Length": String(asset.size) }
+    });
+  }
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+  if (!match) {
+    return new Response(null, { status: 416, headers: { ...baseHeaders, "Content-Range": `bytes */${metadata.size}` } });
+  }
+
+  let start: number;
+  let end: number;
+  const startText = match[1];
+  const endText = match[2];
+  if (!startText && !endText) {
+    return new Response(null, { status: 416, headers: { ...baseHeaders, "Content-Range": `bytes */${metadata.size}` } });
+  }
+  if (!startText) {
+    const suffix = Number(endText);
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) {
+      return new Response(null, { status: 416, headers: { ...baseHeaders, "Content-Range": `bytes */${metadata.size}` } });
+    }
+    start = Math.max(0, metadata.size - suffix);
+    end = metadata.size - 1;
+  } else {
+    start = Number(startText);
+    if (!Number.isSafeInteger(start) || start < 0 || start >= metadata.size) {
+      return new Response(null, { status: 416, headers: { ...baseHeaders, "Content-Range": `bytes */${metadata.size}` } });
+    }
+    end = endText ? Number(endText) : metadata.size - 1;
+    if (!Number.isSafeInteger(end) || end < start) {
+      return new Response(null, { status: 416, headers: { ...baseHeaders, "Content-Range": `bytes */${metadata.size}` } });
+    }
+    end = Math.min(end, metadata.size - 1);
+  }
+
+  const asset = await readStoredTtsAssetRange(row.audio_storage_key, row.id, row.audio_content_type, start, end);
   if (!asset) return new Response("Audio not available", { status: 404 });
 
   return new Response(new Uint8Array(asset.data), {
-    status: 200,
+    status: 206,
     headers: {
-      "Content-Type": asset.contentType,
-      "Content-Length": String(asset.size),
-      "Cache-Control": "private, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Content-Type-Options": "nosniff",
-      "Cross-Origin-Resource-Policy": "same-origin",
-      "Content-Disposition": "inline"
+      ...baseHeaders,
+      "Content-Length": String(asset.data.length),
+      "Content-Range": `bytes ${asset.start}-${asset.end}/${asset.size}`
     }
   });
 }
