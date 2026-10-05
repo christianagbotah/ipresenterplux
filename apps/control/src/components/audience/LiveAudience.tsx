@@ -19,6 +19,8 @@ type LanguageChannel = {
   listeners: number;
 };
 
+type SpeechSynthesisState = "pending" | "processing" | "succeeded" | "failed";
+
 type Props = {
   serviceTitle: string;
   scriptureReference: string | null;
@@ -26,6 +28,7 @@ type Props = {
   transcript: string | null;
   transcriptLanguage: string | null;
   translations: Record<string, string>;
+  speechSynthesis: Record<string, SpeechSynthesisState>;
   languages: LanguageChannel[];
 };
 
@@ -36,6 +39,7 @@ export function LiveAudience({
   transcript,
   transcriptLanguage,
   translations,
+  speechSynthesis,
   languages
 }: Props) {
   const fallbackChannelId = languages[0]?.id ?? "";
@@ -64,7 +68,19 @@ export function LiveAudience({
   const sourceSelected = selected?.mode === "original"
     || Boolean(transcriptLanguage && selected?.code === transcriptLanguage);
   const selectedTranslation = selected ? translations[selected.id] ?? null : null;
+  const synthesisState = selected ? speechSynthesis[selected.id] ?? null : null;
   const captionText = sourceSelected ? transcript : selectedTranslation;
+  const audioStatusText = selected?.mode !== "translation_audio"
+    ? null
+    : !selectedTranslation
+      ? "Translation text is still being prepared."
+      : synthesisState === "processing"
+        ? "Translated audio is being synthesized."
+        : synthesisState === "succeeded"
+          ? "Translated audio is ready. Secure playback will activate when the audio delivery route is connected."
+          : synthesisState === "failed"
+            ? "Translated audio generation needs operator attention."
+            : "Translated audio is queued for synthesis.";
 
   return (
     <main className="min-h-screen bg-[#07090d] text-white">
@@ -182,9 +198,9 @@ export function LiveAudience({
                   ? "Waiting for the next spoken segment…"
                   : "Translation is being prepared for this language…")}
             </p>
-            {selected?.mode === "translation_audio" ? (
+            {audioStatusText ? (
               <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[10px] leading-4 text-white/30">
-                Translated captions are prepared first. Live interpreted audio will activate when the TTS/audio worker is connected.
+                {audioStatusText}
               </div>
             ) : null}
             {transcriptLanguage ? (
