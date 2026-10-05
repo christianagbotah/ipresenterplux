@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { publishServiceEvent } from "@/lib/realtime";
 import { VOICE_ADMIN_ROLES, userHasAnyRole } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +105,15 @@ export async function PATCH(request: Request, context: RouteContext) {
          where id=$1 and organization_id=$2`,
         [id, payload.organizationId, session.user.id, payload.reason]
       );
+      const affectedServices = await client.query<{ service_id: string }>(
+        `select distinct ts.service_id::text
+         from speech_synthesis_jobs sj
+         join transcript_translation_jobs tj on tj.id=sj.translation_job_id
+         join transcript_segments ts on ts.id=tj.transcript_segment_id
+         where sj.organization_id=$1 and sj.voice_profile_id=$2
+           and sj.status in ('pending','processing','failed','succeeded')`,
+        [payload.organizationId, id]
+      );
       const invalidated = await client.query(
         `update speech_synthesis_jobs
          set status='failed',error_code='voice_consent_revoked',worker_id=null,lease_token=null,
@@ -123,6 +133,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         ]
       );
       await client.query("commit");
+      await Promise.allSettled(
+        affectedServices.rows.map((row) =>
+          publishServiceEvent(row.service_id, "tts.failed", { reason: "voice_consent_revoked" })
+        )
+      );
       return NextResponse.json({ ok: true, state: "revoked", invalidatedSynthesisJobs: invalidated.rowCount ?? 0 });
     } catch (error) {
       await client.query("rollback");
