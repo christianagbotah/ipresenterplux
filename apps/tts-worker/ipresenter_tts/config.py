@@ -67,6 +67,7 @@ class Settings:
     request_timeout_seconds: float
     provider_timeout_seconds: float
     storage_dir: Path
+    google_voice_name: str | None = None
 
     @property
     def enabled(self) -> bool:
@@ -79,8 +80,15 @@ def load_settings() -> Settings:
         raise ValueError("IPRESENTERPLUX_TTS_WORKER_ID is invalid")
 
     provider = os.getenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled").strip().lower()
-    if provider not in {"disabled"}:
-        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER currently supports only disabled")
+    if provider not in {"disabled", "google"}:
+        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled or google")
+
+    google_voice_name = os.getenv("IPRESENTERPLUX_TTS_GOOGLE_VOICE", "").strip() or None
+    if google_voice_name is not None:
+        if len(google_voice_name) > 128 or not all(c.isalnum() or c in "._:-" for c in google_voice_name):
+            raise ValueError("IPRESENTERPLUX_TTS_GOOGLE_VOICE is invalid")
+    if provider == "google" and google_voice_name is None:
+        raise ValueError("IPRESENTERPLUX_TTS_GOOGLE_VOICE is required when Google TTS is enabled")
 
     lease_seconds = _int_env("IPRESENTERPLUX_TTS_LEASE_SECONDS", 45, 15, 120)
     provider_timeout = _float_env("IPRESENTERPLUX_TTS_PROVIDER_TIMEOUT_SECONDS", 15.0, 1.0, 110.0)
@@ -97,4 +105,5 @@ def load_settings() -> Settings:
         request_timeout_seconds=_float_env("IPRESENTERPLUX_TTS_HTTP_TIMEOUT_SECONDS", 10.0, 1.0, 60.0),
         provider_timeout_seconds=provider_timeout,
         storage_dir=_storage_dir(),
+        google_voice_name=google_voice_name,
     )

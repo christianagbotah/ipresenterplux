@@ -46,7 +46,8 @@ def _wav_duration_ms(audio: bytes) -> int:
 class GoogleCloudTtsProvider:
     name = "google"
 
-    def __init__(self) -> None:
+    def __init__(self, default_voice_name: str | None = None) -> None:
+        self._default_voice_name = default_voice_name
         self._client: Any | None = None
         self._module: Any | None = None
         self._load_error = False
@@ -80,9 +81,13 @@ class GoogleCloudTtsProvider:
                 raise TtsProviderError("voice_provider_mismatch")
             voice = texttospeech.VoiceSelectionParams(language_code=locale, name=job.provider_voice_id)
         else:
+            if not self._default_voice_name:
+                raise TtsProviderError("voice_not_configured")
+            if not self._default_voice_name.lower().startswith(locale.lower() + "-"):
+                raise TtsProviderError("voice_language_mismatch")
             voice = texttospeech.VoiceSelectionParams(
                 language_code=locale,
-                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL,
+                name=self._default_voice_name,
             )
         try:
             response = client.synthesize_speech(

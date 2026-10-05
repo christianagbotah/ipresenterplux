@@ -20,7 +20,7 @@ def main() -> None:
 
     settings = load_settings()
     control = ControlPlaneClient(settings)
-    provider = create_provider(settings.provider)
+    provider = create_provider(settings.provider, settings.google_voice_name)
     store = AudioStore(settings.storage_dir)
     status_path = Path(os.getenv("IPRESENTERPLUX_TTS_STATUS_PATH", "runtime/status.json"))
     runner = TtsRunner(settings, control, provider, store, status_path)

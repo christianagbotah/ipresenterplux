@@ -34,3 +34,7 @@ IPRESENTERPLUX_TTS_PROVIDER=disabled
 ```
 
 Do not enable a provider until its credentials, target-language support, voice policy, and production audio quality have been reviewed.
+
+## Optional Google Cloud TTS
+
+Google support is shipped as an optional dependency (`.[google]`) and is never enabled automatically. Set `IPRESENTERPLUX_TTS_PROVIDER=google` only together with Google application credentials and an explicit `IPRESENTERPLUX_TTS_GOOGLE_VOICE` (for the current French channel, an `fr-FR-*` voice). The production service remains `disabled` until deliberately changed.
