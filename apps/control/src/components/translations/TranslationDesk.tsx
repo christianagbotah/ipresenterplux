@@ -18,6 +18,9 @@ type TranslationJob = {
   attempts: number;
   source_observed_at: string;
   error_code: string | null;
+  synthesis_status: "pending" | "processing" | "succeeded" | "failed" | null;
+  synthesis_provider: string | null;
+  synthesis_error_code: string | null;
 };
 
 type JobStatus = TranslationJob["status"];
@@ -38,6 +41,15 @@ function statusIcon(status: TranslationJob["status"]) {
   if (status === "failed") return TriangleAlert;
   if (status === "processing") return LoaderCircle;
   return Clock3;
+}
+
+function audioStatus(job: TranslationJob) {
+  if (job.channel_mode !== "translation_audio") return null;
+  if (job.status !== "succeeded" && !job.synthesis_status) return { label: "Audio waits for translated text", tone: "text-white/30" };
+  if (job.synthesis_status === "succeeded") return { label: "Audio asset ready", tone: "text-emerald-300/80" };
+  if (job.synthesis_status === "processing") return { label: "Audio synthesis processing", tone: "text-amber-200/80" };
+  if (job.synthesis_status === "failed") return { label: `Audio failed${job.synthesis_error_code ? ` · ${job.synthesis_error_code}` : ""}`, tone: "text-red-200/80" };
+  return { label: "Audio synthesis pending", tone: "text-[#e5b85c]/80" };
 }
 
 export function TranslationDesk({ jobs, serviceTitle, counts, status, page, totalPages }: Props) {
@@ -115,13 +127,14 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
           {jobs.length ? jobs.map((job) => {
             const value = drafts[job.id] ?? job.translated_text ?? "";
             const processing = job.status === "processing";
+            const audio = audioStatus(job);
             return (
               <article key={job.id} className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#efc76e]">{job.language_name}</span>
                     <span className="text-[10px] uppercase tracking-[.12em] text-white/28">{job.target_language_code}</span>
-                    {job.channel_mode === "translation_audio" ? <span className="flex items-center gap-1 text-[10px] text-white/30"><Volume2 size={11} /> text first · audio later</span> : null}
+                    {audio ? <span className={`flex items-center gap-1 text-[10px] ${audio.tone}`}><Volume2 size={11} /> {audio.label}</span> : null}
                   </div>
                   <p className="mt-4 text-sm leading-6 text-white/72">{job.source_text}</p>
                   <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/28">
@@ -130,6 +143,7 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
                     <span>Attempts {job.attempts}</span>
                     {job.provider ? <span>Provider {job.provider}</span> : null}
                     {job.error_code ? <span className="text-amber-200/70">{job.error_code}</span> : null}
+                    {job.synthesis_provider ? <span>Audio provider {job.synthesis_provider}</span> : null}
                   </div>
                 </div>
 

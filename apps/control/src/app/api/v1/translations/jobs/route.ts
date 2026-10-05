@@ -57,17 +57,22 @@ export async function GET(request: Request) {
       source_observed_at: string;
       created_at: string;
       error_code: string | null;
+      synthesis_status: string | null;
+      synthesis_provider: string | null;
+      synthesis_error_code: string | null;
     }>(
       `select j.id::text,s.organization_id::text,j.transcript_segment_id::text,
               s.id::text as service_id,s.title as service_title,
               ts.text as source_text,ts.source_language,
               j.language_channel_id::text,j.target_language_code,lc.language_name,j.channel_mode,
               j.status,j.translated_text,j.provider,j.attempts,
-              ts.source_observed_at::text,j.created_at::text,j.error_code
+              ts.source_observed_at::text,j.created_at::text,j.error_code,
+              sj.status as synthesis_status,sj.provider as synthesis_provider,sj.error_code as synthesis_error_code
        from transcript_translation_jobs j
        join transcript_segments ts on ts.id=j.transcript_segment_id
        join services s on s.id=ts.service_id
        join language_channels lc on lc.id=j.language_channel_id
+       left join speech_synthesis_jobs sj on sj.translation_job_id=j.id
        where j.status=$2
          and lc.organization_id=s.organization_id
          and ($3::uuid is null or s.id=$3::uuid)
