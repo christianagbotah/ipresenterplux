@@ -34,6 +34,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly AgentRuntimeState _state;
     private readonly IAudioCaptureService? _audioCapture;
     private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
+    private readonly IMediaOutputService? _mediaOutput;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
     private SpeechRecognitionHealth? _latestAsrWorkerHealth;
     private readonly object _audioGate = new();
@@ -53,7 +54,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         TimeProvider? clock = null,
         AgentRuntimeState? state = null,
         IAudioCaptureService? audioCapture = null,
-        ISpeechRecognitionEngine? speechRecognitionEngine = null)
+        ISpeechRecognitionEngine? speechRecognitionEngine = null,
+        IMediaOutputService? mediaOutput = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -74,6 +76,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _healthSampler = new EdgeHostHealthSampler(_clock);
         _audioCapture = audioCapture;
         _speechRecognitionEngine = speechRecognitionEngine;
+        _mediaOutput = mediaOutput;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
@@ -123,6 +126,8 @@ public sealed class EdgeAgentRuntime : IDisposable
             _credentialStore,
             _identityStore);
         var assignmentClient = new HttpEdgeAssignmentClient(_httpClient, identity, _credentialStore);
+        var commandClient = new HttpEdgeCommandClient(_httpClient, identity, _credentialStore, _clock);
+        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, _clock);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
@@ -138,6 +143,8 @@ public sealed class EdgeAgentRuntime : IDisposable
                 serviceId: _state.Snapshot.ActiveServiceId);
         }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
+        using var commandCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var commandTask = RunCommandLoopAsync(commandClient, commandProcessor, commandCts.Token);
 
         try
         {
@@ -172,6 +179,9 @@ public sealed class EdgeAgentRuntime : IDisposable
         }
         finally
         {
+            commandCts.Cancel();
+            try { await commandTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) when (commandCts.IsCancellationRequested) { }
             await StopAudioAsync().ConfigureAwait(false);
             if (_transcriptionPipeline is not null)
             {
@@ -385,6 +395,52 @@ public sealed class EdgeAgentRuntime : IDisposable
         next.Add(new SourceHealth(input.Id, input.Name, "audio_input", status, levelDb, null,
             $"{input.SampleRate} Hz · {input.Channels} ch"));
         return next.AsReadOnly();
+    }
+
+    private async Task RunCommandLoopAsync(
+        HttpEdgeCommandClient client,
+        ControlCommandProcessor processor,
+        CancellationToken cancellationToken)
+    {
+        var completed = new Dictionary<string, ControlCommandResult>(StringComparer.Ordinal);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await foreach (var command in client.ReceiveCommandsAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    if (!completed.TryGetValue(command.CommandId, out var result))
+                    {
+                        result = await processor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
+                        completed[command.CommandId] = result;
+                        if (completed.Count > 1000) completed.Remove(completed.Keys.First());
+                    }
+                    await client.AcknowledgeCommandAsync(result, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (HttpRequestException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+            catch (TaskCanceledException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+            catch (InvalidDataException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+            catch (InvalidOperationException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(2), _clock, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task RotateIfNeededAsync(

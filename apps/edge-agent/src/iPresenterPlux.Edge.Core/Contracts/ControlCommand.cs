@@ -2,7 +2,7 @@ namespace iPresenterPlux.Edge.Core.Contracts;
 
 public sealed record ControlCommand(
     string CommandId,
-    string ServiceId,
+    string? ServiceId,
     string Type,
     DateTimeOffset IssuedAt,
     IReadOnlyDictionary<string, string> Arguments);

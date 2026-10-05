@@ -171,3 +171,11 @@ Recognition/network exceptions no longer terminate the transcription worker. The
 ## Local ASR worker supervision
 
 When the configured speech engine supports `ISpeechRecognitionHealthProbe`, the shared Edge runtime probes the local worker once per heartbeat with a two-second budget. Worker reachability is independent from inference health and transcript persistence: telemetry reports `Worker`, `ASR`, and `Delivery` separately. A dead or hung worker therefore becomes `offline` without blocking mixer capture, presentation, recording, heartbeat delivery, or queued events. The health adapter exports only bounded safe tokens (worker version, engine, device class and model-loaded state); configured model paths and arbitrary worker diagnostics are never forwarded to the control plane.
+
+## Authenticated control-command channel
+
+The control plane now persists operator-issued Edge commands in `edge_control_commands` and delivers them only to the enrolled target device using its bearer credential. Commands are tenant/device scoped, expire automatically, retain a stable command ID across redelivery, and require an authoritative Edge acknowledgement. Issuance and completion are written to the organization audit trail.
+
+`HttpEdgeCommandClient` implements the shared `IControlPlaneCommandStream` contract. The first transport is credential-authenticated HTTP polling so the command semantics are testable and restart-safe at the server before a later WebSocket/gRPC transport replaces the wire mechanism. `EdgeAgentRuntime` runs the receiver independently of heartbeat/transcript delivery; command-channel network failures mark connectivity degraded without stopping local presentation or audio capture.
+
+`ControlCommandProcessor` enforces the currently assigned service before executing service-scoped commands. `health.query` works without an output adapter. Preview/Program/output commands execute only when an `IMediaOutputService` implementation is injected; unsupported recording/stream/scene/language commands fail closed until their local adapters exist. During one agent process, repeated delivery of the same command ID reuses the prior result rather than re-executing it. A durable local completed-command journal must be added before non-idempotent hardware/media mutations are enabled for production.
