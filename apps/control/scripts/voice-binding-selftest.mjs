@@ -39,7 +39,7 @@ try {
   async function createService(title) {
     const service = await client.query(
       `insert into services(organization_id,campus_id,title,status,active_bible_version,started_at)
-       values ($1,$2,$3,'live','WEBP',clock_timestamp()) returning id::text`,
+       values ($1,$2,$3,'ready','WEBP',clock_timestamp()) returning id::text`,
       [organizationId, campusId, title]
     );
     return service.rows[0].id;
