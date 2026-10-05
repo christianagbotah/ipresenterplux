@@ -57,6 +57,7 @@ class FakeControl:
         self.claims = 0
         self.completed: list[tuple[str, str, str]] = []
         self.failed: list[tuple[str, str]] = []
+        self.heartbeats: list[tuple[str, int, int, int, str | None]] = []
 
     def claim(self) -> list[TtsJob]:
         self.claims += 1
@@ -69,6 +70,9 @@ class FakeControl:
 
     def fail(self, item: TtsJob, error_code: str) -> None:
         self.failed.append((item.id, error_code))
+
+    def heartbeat(self, state: str, claimed: int, completed: int, failed: int, error_code: str | None) -> None:
+        self.heartbeats.append((state, claimed, completed, failed, error_code))
 
 
 class FakeProvider:
@@ -121,6 +125,7 @@ def test_disabled_worker_never_claims(tmp_path: Path) -> None:
     status = json.loads((tmp_path / "status.json").read_text())
     assert status["state"] == "disabled"
     assert "Bonjour church" not in (tmp_path / "status.json").read_text()
+    assert control.heartbeats[-1] == ("disabled", 0, 0, 0, "provider_disabled")
 
 
 def test_success_stores_lease_scoped_asset_and_completes(tmp_path: Path) -> None:
@@ -130,6 +135,7 @@ def test_success_stores_lease_scoped_asset_and_completes(tmp_path: Path) -> None
     assert control.completed == [(JOB_ID, f"tts/{JOB_ID}/{LEASE}.wav", "fake")]
     assert asset_path(tmp_path).exists()
     assert asset_path(tmp_path).stat().st_mode & 0o077 == 0
+    assert control.heartbeats[-1] == ("ready", 1, 1, 0, None)
 
 
 def test_provider_failure_reports_safe_code(tmp_path: Path) -> None:
@@ -138,6 +144,7 @@ def test_provider_failure_reports_safe_code(tmp_path: Path) -> None:
     assert result.failed == 1
     assert control.failed == [(JOB_ID, "provider_request_failed")]
     assert "Bonjour church" not in (tmp_path / "status.json").read_text()
+    assert control.heartbeats[-1] == ("degraded", 1, 0, 1, "provider_request_failed")
 
 
 def test_explicit_completion_rejection_removes_asset(tmp_path: Path) -> None:

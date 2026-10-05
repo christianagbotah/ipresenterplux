@@ -125,6 +125,8 @@ type TranslationWorkerRow = {
   observed_at: string;
 };
 
+type TtsWorkerRow = TranslationWorkerRow;
+
 async function dashboardData(userId: string) {
   const services = await query<ServiceRow>(
     `select s.id,s.organization_id::text,s.title,s.status,s.active_bible_version,s.auto_preview_threshold::text
@@ -148,10 +150,10 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined };
   }
 
-  const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers] = await Promise.all([
+  const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers, ttsWorkers] = await Promise.all([
     query<OutputRow>(
       "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
       [organizationId]
@@ -219,6 +221,14 @@ async function dashboardData(userId: string) {
        from translation_worker_status
        order by observed_at desc,worker_id
        limit 1`
+    ),
+    query<TtsWorkerRow>(
+      `select worker_id,provider,
+              case when observed_at < clock_timestamp()-interval '20 seconds' then 'offline' else state end as state,
+              software_version,claimed_count,completed_count,failed_count,error_code,observed_at::text
+       from tts_worker_status
+       order by observed_at desc,worker_id
+       limit 1`
     )
   ]);
 
@@ -230,7 +240,8 @@ async function dashboardData(userId: string) {
     integrations: integrations.rows,
     mediaSources: mediaSources.rows,
     transcript: transcripts.rows[0],
-    translationWorker: translationWorkers.rows[0]
+    translationWorker: translationWorkers.rows[0],
+    ttsWorker: ttsWorkers.rows[0]
   };
 }
 
@@ -284,9 +295,14 @@ export default async function Home() {
   const activeLanguages = data.languages.filter((item) => item.enabled).length;
   const listeners = data.languages.reduce((total, item) => total + item.listener_count, 0);
   const translationWorkerState = data.translationWorker?.state ?? "offline";
-  const translationWorkerNote = data.translationWorker
-    ? `Translator ${translationWorkerState} · ${data.translationWorker.provider} · ${listeners} connected listeners`
-    : `Translator offline · ${listeners} connected listeners`;
+  const ttsWorkerState = data.ttsWorker?.state ?? "offline";
+  const hasAudioTranslation = data.languages.some((item) => item.enabled && item.channel_mode === "translation_audio");
+  const languageEngineState = translationWorkerState === "offline" || translationWorkerState === "degraded"
+    ? translationWorkerState
+    : hasAudioTranslation && ["offline", "degraded", "disabled"].includes(ttsWorkerState)
+      ? "warning"
+      : translationWorkerState;
+  const languageEngineNote = `Text ${translationWorkerState} · Audio ${ttsWorkerState} · ${listeners} connected listeners`;
 
   return (
     <main className="min-h-screen">
@@ -360,7 +376,7 @@ export default async function Home() {
                 ["Presentation Engine", "Ready", "Preview + Program", MonitorPlay, "ready"],
                 ["Scripture Intelligence", data.detections.length ? "Listening" : "Armed", String(data.detections.length) + " recent detections", Sparkles, "ready"],
                 ["Broadcast Router", activeOutputs + " outputs", "RTMP · WebRTC · NDI", RadioTower, activeOutputs ? "ready" : "disconnected"],
-                ["Language Engine", activeLanguages + " channels", translationWorkerNote, Languages, translationWorkerState]
+                ["Language Engine", activeLanguages + " channels", languageEngineNote, Languages, languageEngineState]
               ].map(([label, value, note, Icon, status]) => (
                 <div key={String(label)} className="ip-card p-4">
                   <div className="mb-4 flex items-start justify-between">
