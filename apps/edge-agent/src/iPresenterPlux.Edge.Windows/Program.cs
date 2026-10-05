@@ -51,6 +51,23 @@ static async Task<int> RunAsync()
     await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
+    ProgramDisplayConfiguration displayConfiguration;
+    try
+    {
+        displayConfiguration = ProgramDisplayConfiguration.FromEnvironment(Environment.UserInteractive);
+    }
+    catch (InvalidOperationException error)
+    {
+        Console.Error.WriteLine(error.Message);
+        return 2;
+    }
+    await using var programDisplay = WindowsProgramDisplay.Create(dataDirectory, displayConfiguration.BrowserPath);
+    if (displayConfiguration.AutoOpen && mediaOutput.Snapshot.OutputRunning)
+    {
+        var opened = await programDisplay.LaunchAsync(mediaOutput.ProgramUri, displayConfiguration.Placement, CancellationToken.None);
+        if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
+    }
+
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
     if (await identityStore.ReadAsync(CancellationToken.None) is null && string.IsNullOrWhiteSpace(pairingCode) && Environment.UserInteractive)

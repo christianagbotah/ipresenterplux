@@ -31,7 +31,7 @@ public static class MacOSPlatformProfile
                     "ScreenCaptureKit"),
                 new PlatformCapability("video.encode", "Hardware video encode", "planned", "VideoToolbox / FFmpeg"),
                 new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),
-                new PlatformCapability("display.program", "Program / Stage displays", "planned", "AppKit / Metal"),
+                new PlatformCapability("display.program", "Program display", "available", "Offline local renderer with managed Chromium kiosk output"),
                 new PlatformCapability("atem.ptz", "ATEM / PTZ control", "planned", "Vendor/network adapters"),
             });
     }

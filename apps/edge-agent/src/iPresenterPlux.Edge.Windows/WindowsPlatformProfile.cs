@@ -13,7 +13,7 @@ public static class WindowsPlatformProfile
             new PlatformCapability("screen.capture", "Screen / window capture", "planned", "Windows Graphics Capture"),
             new PlatformCapability("video.encode", "Hardware video encode", "planned", "Media Foundation / FFmpeg"),
             new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),
-            new PlatformCapability("display.program", "Program / Stage displays", "planned", "Direct3D / native windows"),
+            new PlatformCapability("display.program", "Program display", "available", "Offline local renderer with managed Edge/Chrome kiosk output"),
             new PlatformCapability("obs.vmix", "OBS / vMix integration", "planned", "NDI, WebSocket and local adapters"),
             new PlatformCapability("atem.ptz", "ATEM / PTZ control", "planned", "Vendor/network adapters"),
         });

@@ -179,3 +179,17 @@ The control plane now persists operator-issued Edge commands in `edge_control_co
 `HttpEdgeCommandClient` implements the shared `IControlPlaneCommandStream` contract. The first transport is credential-authenticated HTTP polling so the command semantics are testable and restart-safe at the server before a later WebSocket/gRPC transport replaces the wire mechanism. `EdgeAgentRuntime` runs the receiver independently of heartbeat/transcript delivery; command-channel network failures mark connectivity degraded without stopping local presentation or audio capture.
 
 `ControlCommandProcessor` enforces the currently assigned service before executing service-scoped commands. `health.query` works without an output adapter. Preview/Program/output commands execute only when an `IMediaOutputService` implementation is injected; unsupported recording/stream/scene/language commands fail closed until their local adapters exist. During one agent process, repeated delivery of the same command ID reuses the prior result rather than re-executing it. A durable local completed-command journal must be added before non-idempotent hardware/media mutations are enabled for production.
+
+## Local Program output and projector kiosk
+
+The Edge host now owns a dependency-free local Preview/Program renderer. By default it listens only on loopback at `http://127.0.0.1:49321`; it is never exposed on the church LAN. Preview and Program content is persisted atomically under the normal Edge application-data directory so the last live scripture can recover after an Edge restart or an Internet outage. When the control plane later reports a different or empty service assignment, stale content from the old service is cleared before new commands are accepted.
+
+Interactive Windows and macOS launches automatically try to open the local Program URL in a dedicated Chromium-family kiosk session. Background/service hosts do not auto-open a display unless explicitly enabled. Supported configuration:
+
+- `IPRESENTERPLUX_PROGRAM_PORT` — loopback renderer port, default `49321`.
+- `IPRESENTERPLUX_PROGRAM_AUTO_OPEN` — `true/false`, `yes/no`, `on/off`, or `1/0`.
+- `IPRESENTERPLUX_PROGRAM_BROWSER_PATH` — optional absolute Edge/Chrome/Chromium/Brave executable override.
+- `IPRESENTERPLUX_PROGRAM_POSITION` — optional `x,y` projector origin; negative coordinates are allowed for displays left/above the primary monitor.
+- `IPRESENTERPLUX_PROGRAM_SIZE` — optional `width,height`; requires a position.
+
+Windows searches common Microsoft Edge and Google Chrome install locations. macOS searches Google Chrome, Microsoft Edge, Brave and Chromium under `/Applications`. The kiosk uses its own browser profile inside the Edge data directory so an already-open personal browser session cannot absorb the projector process. If no supported Chromium browser is found, the Edge host keeps the renderer alive and prints the loopback Program URL for manual opening instead of failing the service.
