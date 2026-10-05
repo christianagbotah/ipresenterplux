@@ -54,6 +54,15 @@ try {
   );
   assert.equal(splitAcrossChunks?.reference, "John 3:16");
 
+  const crossVerse = await matchScriptureQuote(
+    client,
+    "WEBP",
+    "whoever believes in him should not perish but have eternal life for God didn't send his Son into the world to judge the world but that the world should be saved through him"
+  );
+  assert.equal(crossVerse?.reference, "John 3:16-17");
+  assert.equal(crossVerse?.verseEnd, 17);
+  assert.ok((crossVerse?.confidence ?? 0) >= 90);
+
   const unrelated = await matchScriptureQuote(
     client,
     "WEBP",
@@ -67,7 +76,7 @@ try {
   const oversized = await matchScriptureQuote(client, "WEBP", "word ".repeat(300));
   assert.equal(oversized, null);
 
-  console.log("Scripture quote self-test passed (4 positive + 3 rejection cases).");
+  console.log("Scripture quote self-test passed (5 positive + 3 rejection cases, including cross-verse matching).");
 } finally {
   await client.query("rollback");
   await client.end();
