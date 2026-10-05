@@ -162,14 +162,14 @@ try {
   const wav = Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WAVEfmt "), Buffer.alloc(16)]);
   const wavKey = `tts/${jobId}/${leaseToken}.wav`;
   await writeFile(path.join(tempRoot, wavKey), wav);
-  const valid = await verifyStoredTtsAsset(wavKey, jobId, leaseToken, "audio/wav");
+  const valid = await verifyStoredTtsAsset(wavKey, jobId, "audio/wav", leaseToken);
   assert.ok(valid?.size > 0);
-  assert.equal(await verifyStoredTtsAsset(wavKey, "00000000-0000-4000-8000-000000000778", leaseToken, "audio/wav"), null);
-  assert.equal(await verifyStoredTtsAsset(wavKey, jobId, "00000000-0000-4000-8000-000000000889", "audio/wav"), null);
-  assert.equal(await verifyStoredTtsAsset(wavKey, jobId, leaseToken, "audio/mpeg"), null);
+  assert.equal(await verifyStoredTtsAsset(wavKey, "00000000-0000-4000-8000-000000000778", "audio/wav", leaseToken), null);
+  assert.equal(await verifyStoredTtsAsset(wavKey, jobId, "audio/wav", "00000000-0000-4000-8000-000000000889"), null);
+  assert.equal(await verifyStoredTtsAsset(wavKey, jobId, "audio/mpeg", leaseToken), null);
   const mp3Key = `tts/${jobId}/${leaseToken}.mp3`;
   await writeFile(path.join(tempRoot, mp3Key), Buffer.from("not-an-mp3"));
-  assert.equal(await verifyStoredTtsAsset(mp3Key, jobId, leaseToken, "audio/mpeg"), null);
+  assert.equal(await verifyStoredTtsAsset(mp3Key, jobId, "audio/mpeg", leaseToken), null);
   console.log("TTS storage self-test passed (path binding, content type, magic bytes).");
 } finally {
   await rm(tempRoot, { recursive: true, force: true });
