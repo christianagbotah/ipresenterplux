@@ -127,7 +127,8 @@ public sealed class EdgeAgentRuntime : IDisposable
             _identityStore);
         var assignmentClient = new HttpEdgeAssignmentClient(_httpClient, identity, _credentialStore);
         var commandClient = new HttpEdgeCommandClient(_httpClient, identity, _credentialStore, _clock);
-        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, _clock);
+        var presentationClient = new HttpPresentationContentClient(_httpClient, identity, _credentialStore, _clock);
+        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, presentationClient, _clock);
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);

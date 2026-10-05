@@ -34,15 +34,20 @@ public sealed class ControlCommandProcessorTests
         var state = new AgentRuntimeState();
         state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ServiceMode = "live" });
         var output = new FakeMediaOutput();
-        var processor = new ControlCommandProcessor(state, output);
+        var itemId = Guid.NewGuid().ToString("D");
+        var content = new FakeContentProvider(new PresentationRenderItem(
+            itemId, serviceId, "scripture", "John 3:16", "For God so loved the world", "KJV",
+            new Dictionary<string, string>()));
+        var processor = new ControlCommandProcessor(state, output, content);
         var command = new ControlCommand(
             Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "program.show", DateTimeOffset.UtcNow,
-            new Dictionary<string, string> { ["itemId"] = "scripture-42" });
+            new Dictionary<string, string> { ["itemId"] = itemId });
 
         var result = await processor.ProcessAsync(command, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal("scripture-42", output.LastPreviewItemId);
+        Assert.Equal(itemId, output.LastPreviewItem?.ItemId);
+        Assert.Equal("John 3:16", output.LastPreviewItem?.Title);
         Assert.Equal(1, output.TakeCount);
     }
 
@@ -81,14 +86,23 @@ public sealed class ControlCommandProcessorTests
         Assert.Contains("audio=Capturing", result.ResultingState);
     }
 
+    private sealed class FakeContentProvider(PresentationRenderItem item) : IPresentationContentProvider
+    {
+        public Task<PresentationRenderItem> GetAsync(string itemId, CancellationToken cancellationToken)
+        {
+            Assert.Equal(item.ItemId, itemId);
+            return Task.FromResult(item);
+        }
+    }
+
     private sealed class FakeMediaOutput : IMediaOutputService
     {
         public int ClearCount { get; private set; }
         public int TakeCount { get; private set; }
-        public string? LastPreviewItemId { get; private set; }
+        public PresentationRenderItem? LastPreviewItem { get; private set; }
         public Task StartProgramOutputAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task StopProgramOutputAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task SetPreviewAsync(string itemId, CancellationToken cancellationToken) { LastPreviewItemId = itemId; return Task.CompletedTask; }
+        public Task SetPreviewAsync(PresentationRenderItem item, CancellationToken cancellationToken) { LastPreviewItem = item; return Task.CompletedTask; }
         public Task TakePreviewToProgramAsync(CancellationToken cancellationToken) { TakeCount++; return Task.CompletedTask; }
         public Task ClearProgramAsync(CancellationToken cancellationToken) { ClearCount++; return Task.CompletedTask; }
     }
