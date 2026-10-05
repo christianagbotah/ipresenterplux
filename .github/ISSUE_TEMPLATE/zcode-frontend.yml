@@ -1,0 +1,49 @@
+name: ZCode frontend work
+about: Create a scoped frontend/UI/UX task for the ZCode agent queue
+title: "[ZCode] "
+labels:
+  - agent:zcode
+  - status:ready
+  - area:frontend
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ZCode tasks must stay within repository guardrails. Read `AGENTS.md` before implementation and never push directly to `main`.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What operator/user outcome should improve?
+      placeholder: Describe the desired product outcome, not only CSS changes.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and files
+      description: Pages/components expected to change and anything explicitly out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Include behavior, responsive states, accessibility, error feedback, and validation expectations.
+      placeholder: |
+        - At 1280x800...
+        - At 390px / 200% zoom...
+        - Keyboard-only...
+        - pnpm --dir apps/control lint
+        - pnpm --dir apps/control build
+    validations:
+      required: true
+  - type: textarea
+    id: protected
+    attributes:
+      label: Protected contracts / constraints
+      description: State any API, DB, Edge, security, RBAC, audit, or offline behaviors that must not change.
+      value: |
+        Do not change API/database/Edge/native/security contracts unless explicitly authorized here. Preserve authentication, RBAC, audit, tenant boundaries, human-approved live control, and offline-first behavior.
+    validations:
+      required: true
