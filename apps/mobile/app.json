@@ -7,8 +7,26 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.lightworldtech.ipresenterplux" },
-    "android": { "package": "com.lightworldtech.ipresenterplux", "adaptiveIcon": { "backgroundColor": "#080b10", "foregroundImage": "./assets/android-icon-foreground.png", "backgroundImage": "./assets/android-icon-background.png", "monochromeImage": "./assets/android-icon-monochrome.png" }, "predictiveBackGestureEnabled": true },
-    "web": { "favicon": "./assets/favicon.png" }
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lightworldtech.ipresenterplux"
+    },
+    "android": {
+      "package": "com.lightworldtech.ipresenterplux",
+      "adaptiveIcon": {
+        "backgroundColor": "#080b10",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-video",
+      "expo-audio"
+    ]
   }
 }

@@ -1,4 +1,5 @@
 import { StatusBar } from "expo-status-bar";
+import { useVideoPlayer, VideoView } from "expo-video";
 import * as Linking from "expo-linking";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -13,6 +14,10 @@ export default function App() {
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const player = useVideoPlayer(
+    data ? API + "/media/hls/service/" + data.service.id + "/index.m3u8" : null,
+    (instance) => { instance.loop = false; if (data) instance.play(); }
+  );
 
   useEffect(() => {
     Linking.getInitialURL().then((url) => {
@@ -54,6 +59,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}><StatusBar style="light" /><ScrollView contentContainerStyle={styles.content}>
       <View><Text style={styles.brand}>LIVE</Text><Text style={styles.title}>{data.service.title}</Text><Text style={styles.live}>● LIVE</Text></View>
+      <View style={styles.videoCard}><VideoView player={player} style={styles.video} allowsPictureInPicture nativeControls contentFit="contain" /></View>
       <View style={styles.card}><Text style={styles.label}>Listen in your language</Text><ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {data.languages.map((item) => <Pressable key={item.id} onPress={() => setSelected(item.id)} style={[styles.lang, item.id === channel?.id && styles.langActive]}>
           <Text style={styles.langText}>{item.name}</Text><Text style={styles.langMode}>{item.mode.replaceAll("_", " ")}</Text>
@@ -73,7 +79,7 @@ const styles = StyleSheet.create({
   brand:{color:"#e5b85c",fontSize:12,fontWeight:"900",letterSpacing:2}, title:{color:"#fff",fontSize:28,fontWeight:"900",marginTop:8},
   muted:{color:"#87909f",fontSize:14,lineHeight:22,marginTop:12}, input:{marginTop:24,borderWidth:1,borderColor:"#29303c",backgroundColor:"#0d121a",borderRadius:14,padding:15,color:"#fff",fontSize:14},
   button:{marginTop:12,backgroundColor:"#d7a94a",borderRadius:14,padding:15,alignItems:"center"}, buttonText:{color:"#111",fontWeight:"900"}, error:{color:"#fca5a5",marginTop:12,fontSize:13},
-  live:{color:"#f87171",fontSize:11,fontWeight:"900",marginTop:8}, card:{backgroundColor:"#0d121a",borderWidth:1,borderColor:"#1d2530",borderRadius:20,padding:16},
+  live:{color:"#f87171",fontSize:11,fontWeight:"900",marginTop:8}, videoCard:{backgroundColor:"#000",borderWidth:1,borderColor:"#1d2530",borderRadius:20,overflow:"hidden"}, video:{width:"100%",height:210}, card:{backgroundColor:"#0d121a",borderWidth:1,borderColor:"#1d2530",borderRadius:20,padding:16},
   label:{color:"#8d96a5",fontSize:11,fontWeight:"900",letterSpacing:1.2,textTransform:"uppercase",marginBottom:12}, lang:{borderWidth:1,borderColor:"#252d38",borderRadius:12,padding:12,marginRight:8,minWidth:130},
   langActive:{borderColor:"#d7a94a",backgroundColor:"#d7a94a18"}, langText:{color:"#fff",fontWeight:"800",fontSize:12}, langMode:{color:"#667080",fontSize:9,textTransform:"uppercase",marginTop:5},
   scripture:{color:"#fff",fontSize:23,fontWeight:"900"}, body:{color:"#b6bfcc",fontSize:14,lineHeight:22,marginTop:8}, caption:{color:"#fff",fontSize:18,lineHeight:28},
