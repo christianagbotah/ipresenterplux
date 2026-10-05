@@ -4,6 +4,7 @@ import { publishServiceEvent } from "@/lib/realtime";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
 import { enqueueTranslationJobs } from "@/lib/translation-jobs";
+import { resolveSpeakerAttribution } from "@/lib/speaker-attribution";
 import {
   detectContextualScriptureIntent,
   detectScriptureReferences,
@@ -337,9 +338,11 @@ export async function ingestTranscriptForService(
   const parsedObservedAt = payload.startedAt ? new Date(payload.startedAt) : new Date();
   const observedAt = Number.isFinite(parsedObservedAt.getTime()) ? parsedObservedAt : new Date();
   const latestTranscriptBefore = await latestTranscriptObservedAt(client, service.id);
+  const speaker = await resolveSpeakerAttribution(client, service.id, service.organization_id, payload.speakerId);
   const transcriptSegmentId = await recordTranscriptSegment(client, service.id, payload.text, observedAt, {
     sourceLanguage: payload.language ?? null,
-    speakerId: payload.speakerId ?? null,
+    speakerId: speaker.speakerId,
+    speakerSource: speaker.speakerSource,
     asrConfidence: payload.confidence ?? null
   });
   const translationJobs = transcriptSegmentId

@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 export type TranscriptSegmentMetadata = {
   sourceLanguage?: string | null;
   speakerId?: string | null;
+  speakerSource?: "unknown" | "asr" | "operator_override";
   asrConfidence?: number | null;
 };
 
@@ -32,8 +33,8 @@ export async function recordTranscriptSegment(
   if (!cleanText) return;
   const inserted = await client.query<{ id: string }>(
     `insert into transcript_segments
-      (service_id,text,source_observed_at,source_language,speaker_id,asr_confidence)
-     values ($1,$2,$3,$4,$5,$6)
+      (service_id,text,source_observed_at,source_language,speaker_id,speaker_source,asr_confidence)
+     values ($1,$2,$3,$4,$5,$6,$7)
      returning id::text`,
     [
       serviceId,
@@ -41,6 +42,7 @@ export async function recordTranscriptSegment(
       observedAt,
       metadata.sourceLanguage ?? null,
       metadata.speakerId ?? null,
+      metadata.speakerSource ?? (metadata.speakerId ? "asr" : "unknown"),
       metadata.asrConfidence ?? null
     ]
   );

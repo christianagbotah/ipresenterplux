@@ -221,6 +221,12 @@ export async function PATCH(request: Request, context: RouteContext) {
          where id=$1 and organization_id=$2`,
         [id, payload.organizationId, session.user.id, payload.reason]
       );
+      const overriddenServices = await client.query<{ service_id: string }>(
+        `delete from service_speaker_overrides
+         where organization_id=$1 and voice_profile_id=$2
+         returning service_id::text`,
+        [payload.organizationId, id]
+      );
       const affectedServices = await client.query<{ service_id: string }>(
         `select distinct ts.service_id::text
          from speech_synthesis_jobs sj
@@ -250,7 +256,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         ]
       );
       await client.query("commit");
-      await publishTtsRefreshes(affectedServices.rows, "voice_consent_revoked");
+      await publishTtsRefreshes([...affectedServices.rows, ...overriddenServices.rows], "voice_consent_revoked");
       return NextResponse.json({ ok: true, state: "revoked", invalidatedSynthesisJobs: invalidated.rowCount ?? 0 });
     } catch (error) {
       await client.query("rollback");

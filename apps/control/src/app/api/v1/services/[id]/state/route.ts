@@ -95,6 +95,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
 
       if (state === "ended") {
+        await client.query("delete from service_speaker_overrides where service_id=$1", [id]);
         await client.query(
           `update scripture_detections
            set state = case

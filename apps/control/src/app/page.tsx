@@ -26,6 +26,7 @@ import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureControls } from "@/components/ScriptureControls";
 import { ServiceControls } from "@/components/ServiceControls";
+import { ActiveSpeakerControl } from "@/components/ActiveSpeakerControl";
 import { OutputControls } from "@/components/OutputControls";
 import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
@@ -110,7 +111,15 @@ type TranscriptSegmentRow = {
   source_observed_at: string;
   source_language: string | null;
   speaker_id: string | null;
+  speaker_source: "unknown" | "asr" | "operator_override";
   asr_confidence: number | null;
+};
+
+type SpeakerProfileRow = {
+  id: string;
+  display_name: string;
+  source_speaker_id: string;
+  active: boolean;
 };
 
 type TranslationWorkerRow = {
@@ -150,10 +159,10 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [] };
   }
 
-  const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers, ttsWorkers] = await Promise.all([
+  const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers, ttsWorkers, speakerProfiles] = await Promise.all([
     query<OutputRow>(
       "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
       [organizationId]
@@ -205,7 +214,7 @@ async function dashboardData(userId: string) {
       [organizationId]
     ),
     query<TranscriptSegmentRow>(
-      `select ts.text,ts.source_observed_at::text,ts.source_language,ts.speaker_id,ts.asr_confidence
+      `select ts.text,ts.source_observed_at::text,ts.source_language,ts.speaker_id,ts.speaker_source,ts.asr_confidence
        from transcript_segments ts
        join services s on s.id=ts.service_id
        where s.organization_id=$1
@@ -229,6 +238,20 @@ async function dashboardData(userId: string) {
        from tts_worker_status
        order by observed_at desc,worker_id
        limit 1`
+    ),
+    query<SpeakerProfileRow>(
+      `select vp.id::text,vp.display_name,vp.source_speaker_id,
+              (so.voice_profile_id is not null) as active
+       from voice_profiles vp
+       left join service_speaker_overrides so
+         on so.voice_profile_id=vp.id and so.organization_id=vp.organization_id
+        and so.service_id=$2::uuid
+       where vp.organization_id=$1
+         and vp.consent_status='consented'
+         and vp.consented_at is not null and vp.revoked_at is null
+         and vp.source_speaker_id is not null and length(btrim(vp.source_speaker_id)) > 0
+       order by active desc,vp.display_name,vp.id`,
+      [organizationId, services.rows[0]?.id ?? null]
     )
   ]);
 
@@ -241,7 +264,8 @@ async function dashboardData(userId: string) {
     mediaSources: mediaSources.rows,
     transcript: transcripts.rows[0],
     translationWorker: translationWorkers.rows[0],
-    ttsWorker: ttsWorkers.rows[0]
+    ttsWorker: ttsWorkers.rows[0],
+    speakerProfiles: speakerProfiles.rows
   };
 }
 
@@ -492,6 +516,20 @@ export default async function Home() {
                       Pipeline armed
                     </div>
                   </div>
+                  {data.service ? (
+                    <div className="mb-3">
+                      <ActiveSpeakerControl
+                        serviceId={data.service.id}
+                        serviceStatus={data.service.status}
+                        profiles={data.speakerProfiles.map((profile) => ({
+                          id: profile.id,
+                          name: profile.display_name,
+                          speakerId: profile.source_speaker_id,
+                          active: profile.active
+                        }))}
+                      />
+                    </div>
+                  ) : null}
                   <div className="rounded-xl border border-white/[.06] bg-black/20 p-4">
                     <p className="min-h-16 text-sm leading-6 text-white/55">
                       {data.transcript?.text ?? transcriptContext?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
@@ -499,7 +537,8 @@ export default async function Home() {
                     {data.transcript ? (
                       <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[.12em] text-white/30">
                         {data.transcript.source_language ? <span>Language {data.transcript.source_language}</span> : null}
-                        {data.transcript.speaker_id ? <span>Speaker {data.transcript.speaker_id}</span> : null}
+                        {data.transcript.speaker_id ? <span>Speaker {data.transcript.speaker_id}</span> : <span>Speaker unknown</span>}
+                        {data.transcript.speaker_source !== "unknown" ? <span>{data.transcript.speaker_source === "asr" ? "ASR speaker" : "Operator speaker"}</span> : null}
                         {data.transcript.asr_confidence !== null ? <span>ASR {Math.round(data.transcript.asr_confidence * 100)}%</span> : null}
                       </div>
                     ) : null}
