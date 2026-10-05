@@ -4,6 +4,7 @@ import { auth } from "@auth";
 import { db } from "@/lib/db";
 import { TRANSLATION_OPERATOR_ROLES } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
+import { enqueueSpeechSynthesisJob } from "@/lib/speech-synthesis-jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         [id, translatedText, provider]
       );
 
+      const synthesisJob = await enqueueSpeechSynthesisJob(client, id);
+
       await client.query(
         `insert into audit_events
           (organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
@@ -120,7 +123,8 @@ export async function PATCH(request: Request, context: RouteContext) {
             from: row.status,
             targetLanguageCode: row.target_language_code,
             channelMode: row.channel_mode,
-            provider
+            provider,
+            speechSynthesisQueued: Boolean(synthesisJob)
           })
         ]
       );

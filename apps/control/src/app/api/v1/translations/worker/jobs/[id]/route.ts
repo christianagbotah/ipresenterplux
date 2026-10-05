@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
+import { enqueueSpeechSynthesisJob } from "@/lib/speech-synthesis-jobs";
 import { authenticateTranslationWorker } from "@/lib/translation-worker-auth";
 import { completeTranslationJob, failTranslationJob } from "@/lib/translation-worker";
 
@@ -52,6 +53,8 @@ export async function PATCH(request: Request, context: RouteContext) {
           return NextResponse.json({ ok: false, error: "Translation job lease is no longer active" }, { status: 409 });
         }
 
+        const synthesisJob = await enqueueSpeechSynthesisJob(client, id);
+
         await client.query(
           `insert into audit_events
             (organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
@@ -63,7 +66,8 @@ export async function PATCH(request: Request, context: RouteContext) {
             JSON.stringify({
               targetLanguageCode: result.target_language_code,
               channelMode: result.channel_mode,
-              provider: payload.provider
+              provider: payload.provider,
+              speechSynthesisQueued: Boolean(synthesisJob)
             })
           ]
         );
