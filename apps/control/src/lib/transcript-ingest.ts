@@ -2,6 +2,7 @@ import type { PoolClient, QueryResultRow } from "pg";
 import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
+import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
 import {
   detectContextualScriptureIntent,
   detectScriptureReferences,
@@ -284,6 +285,10 @@ async function resolveContextualReference(
 }
 
 export async function publishTranscriptIngestResult(result: TranscriptResult) {
+  await publishServiceEvent(result.serviceId, "transcript.updated", {
+    detected: result.detected
+  });
+
   if (!result.inserted.length) return;
   await publishServiceEvent(result.serviceId, "scripture.detected", {
     detections: result.inserted.map((item) => ({
@@ -301,6 +306,10 @@ export async function ingestTranscriptForService(
   payload: TranscriptInput,
   client?: PoolClient
 ): Promise<TranscriptResult> {
+  if (!payload.text.trim()) {
+    return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, inserted: [] };
+  }
+
   if (!client) {
     const ownedClient = await db.connect();
     try {
@@ -321,6 +330,8 @@ export async function ingestTranscriptForService(
   const bibleVersion = payload.bibleVersion ?? service.active_bible_version;
   const parsedObservedAt = payload.startedAt ? new Date(payload.startedAt) : new Date();
   const observedAt = Number.isFinite(parsedObservedAt.getTime()) ? parsedObservedAt : new Date();
+  const latestTranscriptBefore = await latestTranscriptObservedAt(client, service.id);
+  await recordTranscriptSegment(client, service.id, payload.text, observedAt);
   const cursorBeforeIngest = await currentScriptureContext(client, service.id);
   const cursorObservedAt = cursorBeforeIngest ? new Date(cursorBeforeIngest.source_observed_at) : null;
   const cursorObservedMs = cursorObservedAt?.getTime() ?? null;
@@ -343,17 +354,29 @@ export async function ingestTranscriptForService(
   }
 
   if (matches.length === 0 && !explicitAttempt && contextualIntent === null && hasLocalBible) {
-    const quoteMatch = await matchScriptureQuote(client, bibleVersion, payload.text);
+    let quoteMatch = await matchScriptureQuote(client, bibleVersion, payload.text);
+    if (!quoteMatch) {
+      const windowText = await recentTranscriptQuoteWindow(client, service.id, observedAt);
+      if (windowText && windowText !== payload.text.trim()) {
+        quoteMatch = await matchScriptureQuote(client, bibleVersion, windowText);
+      }
+    }
+    if (quoteMatch && await recentlyDetectedQuote(client, service.id, quoteMatch.reference, observedAt)) {
+      quoteMatch = null;
+    }
     if (quoteMatch) matches = [quoteMatch];
   }
 
   const inserted: TranscriptResult["inserted"] = [];
   for (const [ordinal, match] of matches.entries()) {
     const observedMs = observedAt.getTime();
-    const staleForPreview = cursorBeforeIngest !== undefined && cursorObservedMs !== null && (
+    const latestTranscriptMs = latestTranscriptBefore ? new Date(latestTranscriptBefore).getTime() : null;
+    const staleByTranscript = latestTranscriptMs !== null && observedMs < latestTranscriptMs;
+    const staleByCursor = cursorBeforeIngest !== undefined && cursorObservedMs !== null && (
       observedMs < cursorObservedMs ||
       (observedMs === cursorObservedMs && ordinal < cursorBeforeIngest.source_ordinal)
     );
+    const staleForPreview = staleByTranscript || staleByCursor;
     const nextState = !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
       ? "preview"
       : "detected";
@@ -372,10 +395,12 @@ export async function ingestTranscriptForService(
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        returning id,scripture_reference,confidence::text,state,detection_method,detected_at::text`,
       [service.id,match.reference,match.book,match.chapter,match.verseStart,match.verseEnd ?? null,
-       bibleVersion,payload.text,match.confidence,nextState,match.detectionMethod,observedAt,ordinal]
+       bibleVersion,match.matchedSourceText ?? payload.text,match.confidence,nextState,match.detectionMethod,observedAt,ordinal]
     );
     inserted.push(result.rows[0]);
-    await updateScriptureContext(client, service.id, match, bibleVersion, observedAt, ordinal);
+    if (!staleForPreview) {
+      await updateScriptureContext(client, service.id, match, bibleVersion, observedAt, ordinal);
+    }
   }
 
   const result: TranscriptResult = {

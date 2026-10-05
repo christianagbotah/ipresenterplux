@@ -40,6 +40,7 @@ export type ScriptureDetection = {
   reference: string;
   confidence: number;
   detectionMethod: "reference" | "context" | "quote";
+  matchedSourceText?: string;
 };
 
 export type ContextualScriptureIntent =

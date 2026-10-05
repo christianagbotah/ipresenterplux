@@ -3,6 +3,7 @@ import { scriptureReference, type ScriptureDetection } from "@/lib/scripture";
 
 const MIN_QUOTE_WORDS = 5;
 const MIN_QUOTE_CHARACTERS = 24;
+const MAX_QUOTE_CHARACTERS = 1_200;
 const CANDIDATE_WORD_SIMILARITY = 0.38;
 const MIN_ACCEPTED_WORD_SIMILARITY = 0.70;
 const MIN_RUNNER_UP_MARGIN = 0.12;
@@ -43,7 +44,7 @@ export async function matchScriptureQuote(
 ): Promise<ScriptureDetection | null> {
   const quote = normalizeScriptureQuote(transcript);
   const words = quote.match(/[\p{L}\p{N}']+/gu) ?? [];
-  if (words.length < MIN_QUOTE_WORDS || quote.length < MIN_QUOTE_CHARACTERS) return null;
+  if (words.length < MIN_QUOTE_WORDS || quote.length < MIN_QUOTE_CHARACTERS || quote.length > MAX_QUOTE_CHARACTERS) return null;
 
   await client.query("select set_config($1,$2,true)", [
     "pg_trgm.word_similarity_threshold",
@@ -82,6 +83,7 @@ export async function matchScriptureQuote(
     verseStart: top.verse,
     reference: scriptureReference(top.book, top.chapter, top.verse),
     confidence: quoteConfidence(score, margin),
-    detectionMethod: "quote"
+    detectionMethod: "quote",
+    matchedSourceText: transcript
   };
 }

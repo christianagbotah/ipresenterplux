@@ -105,6 +105,11 @@ type IntegrationRow = {
   integration_type: string;
 };
 
+type TranscriptSegmentRow = {
+  text: string;
+  source_observed_at: string;
+};
+
 async function dashboardData(userId: string) {
   const services = await query<ServiceRow>(
     `select s.id,s.organization_id::text,s.title,s.status,s.active_bible_version,s.auto_preview_threshold::text
@@ -128,10 +133,10 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [] };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined };
   }
 
-  const [outputs, languages, detections, integrations, mediaSources] = await Promise.all([
+  const [outputs, languages, detections, integrations, mediaSources, transcripts] = await Promise.all([
     query<OutputRow>(
       "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
       [organizationId]
@@ -155,8 +160,9 @@ async function dashboardData(userId: string) {
        from scripture_detections sd
        join services s on s.id=sd.service_id
        where s.organization_id=$1
+         and ($2::uuid is null or sd.service_id=$2::uuid)
        order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc limit 8`,
-      [organizationId]
+      [organizationId, services.rows[0]?.id ?? null]
     ),
     query<IntegrationRow>(
       "select provider,status,integration_type from integrations where organization_id=$1 order by provider",
@@ -180,6 +186,16 @@ async function dashboardData(userId: string) {
        order by case when source_type='audio_input' then 0 else 1 end,last_seen_at desc nulls last,name
        limit 6`,
       [organizationId]
+    ),
+    query<TranscriptSegmentRow>(
+      `select ts.text,ts.source_observed_at::text
+       from transcript_segments ts
+       join services s on s.id=ts.service_id
+       where s.organization_id=$1
+         and ($2::uuid is null or ts.service_id=$2::uuid)
+       order by ts.source_observed_at desc,ts.created_at desc,ts.id desc
+       limit 1`,
+      [organizationId, services.rows[0]?.id ?? null]
     )
   ]);
 
@@ -189,7 +205,8 @@ async function dashboardData(userId: string) {
     languages: languages.rows,
     detections: detections.rows,
     integrations: integrations.rows,
-    mediaSources: mediaSources.rows
+    mediaSources: mediaSources.rows,
+    transcript: transcripts.rows[0]
   };
 }
 
@@ -438,7 +455,7 @@ export default async function Home() {
                   </div>
                   <div className="rounded-xl border border-white/[.06] bg-black/20 p-4">
                     <p className="min-h-16 text-sm leading-6 text-white/55">
-                      {transcriptContext?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
+                      {data.transcript?.text ?? transcriptContext?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">

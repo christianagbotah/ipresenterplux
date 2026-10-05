@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
   serviceId: z.string().uuid().optional(),
-  text: z.string().min(1).max(10_000),
+  text: z.string().trim().min(1).max(10_000),
   bibleVersion: z.string().min(2).max(40).optional()
 });
 

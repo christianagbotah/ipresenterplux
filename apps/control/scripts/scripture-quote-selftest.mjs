@@ -47,6 +47,13 @@ try {
   );
   assert.equal(genesis?.reference, "Genesis 1:1");
 
+  const splitAcrossChunks = await matchScriptureQuote(
+    client,
+    "WEBP",
+    "For God so loved the world that he gave his only born Son"
+  );
+  assert.equal(splitAcrossChunks?.reference, "John 3:16");
+
   const unrelated = await matchScriptureQuote(
     client,
     "WEBP",
@@ -57,7 +64,10 @@ try {
   const tooShort = await matchScriptureQuote(client, "WEBP", "God loved the world");
   assert.equal(tooShort, null);
 
-  console.log("Scripture quote self-test passed (3 positive + 2 rejection cases).");
+  const oversized = await matchScriptureQuote(client, "WEBP", "word ".repeat(300));
+  assert.equal(oversized, null);
+
+  console.log("Scripture quote self-test passed (4 positive + 3 rejection cases).");
 } finally {
   await client.query("rollback");
   await client.end();
