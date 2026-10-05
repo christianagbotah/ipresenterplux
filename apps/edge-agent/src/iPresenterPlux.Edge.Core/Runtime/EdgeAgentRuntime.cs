@@ -241,6 +241,8 @@ public sealed class EdgeAgentRuntime : IDisposable
             var previousServiceId = _state.Snapshot.ActiveServiceId;
             if (previousServiceId == nextServiceId) return;
 
+            if (_mediaOutput is IServiceScopedMediaOutput scopedOutput)
+                await scopedOutput.SetActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             _transcriptionPipeline?.SetServiceId(nextServiceId);
             _state.Update(snapshot => snapshot with
             {

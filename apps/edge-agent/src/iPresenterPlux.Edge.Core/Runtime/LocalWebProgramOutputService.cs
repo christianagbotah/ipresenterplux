@@ -11,23 +11,27 @@ public sealed record LocalProgramSnapshot(
     PresentationRenderItem? Preview,
     PresentationRenderItem? Program);
 
-public sealed class LocalWebProgramOutputService : IMediaOutputService, IAsyncDisposable
+public sealed class LocalWebProgramOutputService : IMediaOutputService, IServiceScopedMediaOutput, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private readonly object _gate = new();
     private readonly HttpListener _listener = new();
     private readonly int _port;
+    private readonly FileProgramStateStore? _stateStore;
+    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
     private CancellationTokenSource? _serverCts;
     private Task? _serverTask;
     private PresentationRenderItem? _preview;
     private PresentationRenderItem? _program;
     private bool _running;
+    private bool _persistenceHealthy = true;
     private bool _disposed;
 
-    public LocalWebProgramOutputService(int port = 49321)
+    public LocalWebProgramOutputService(int port = 49321, FileProgramStateStore? stateStore = null)
     {
         if (port is < 1024 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
         _port = port;
+        _stateStore = stateStore;
     }
 
     public Uri ProgramUri => new($"http://127.0.0.1:{_port}/program");
@@ -36,6 +40,36 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IAsyncDi
     public LocalProgramSnapshot Snapshot
     {
         get { lock (_gate) return new LocalProgramSnapshot(_running, _preview, _program); }
+    }
+
+    public Guid? LastKnownServiceId
+    {
+        get { lock (_gate) return _program?.ServiceId ?? _preview?.ServiceId; }
+    }
+
+    public bool PersistenceHealthy
+    {
+        get { lock (_gate) return _persistenceHealthy; }
+    }
+
+    public async Task RestoreAsync(CancellationToken cancellationToken)
+    {
+        if (_stateStore is null) return;
+        try
+        {
+            var state = await _stateStore.ReadAsync(cancellationToken).ConfigureAwait(false);
+            if (state is null) return;
+            lock (_gate)
+            {
+                _preview = state.Preview;
+                _program = state.Program;
+                _persistenceHealthy = true;
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            lock (_gate) _persistenceHealthy = false;
+        }
     }
 
     public Task StartProgramOutputAsync(CancellationToken cancellationToken)
@@ -79,27 +113,61 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IAsyncDi
         cts?.Dispose();
     }
 
-    public Task SetPreviewAsync(PresentationRenderItem item, CancellationToken cancellationToken)
+    public async Task SetPreviewAsync(PresentationRenderItem item, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(item);
         lock (_gate) _preview = item;
-        return Task.CompletedTask;
+        await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public Task TakePreviewToProgramAsync(CancellationToken cancellationToken)
+    public async Task TakePreviewToProgramAsync(CancellationToken cancellationToken)
     {
         lock (_gate)
         {
             if (_preview is null) throw new InvalidOperationException("No presentation item is prepared in Preview.");
             _program = _preview;
         }
-        return Task.CompletedTask;
+        await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public Task ClearProgramAsync(CancellationToken cancellationToken)
+    public async Task ClearProgramAsync(CancellationToken cancellationToken)
     {
         lock (_gate) _program = null;
-        return Task.CompletedTask;
+        await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken)
+    {
+        var mutated = false;
+        lock (_gate)
+        {
+            if (_preview is not null && _preview.ServiceId != serviceId) { _preview = null; mutated = true; }
+            if (_program is not null && _program.ServiceId != serviceId) { _program = null; mutated = true; }
+        }
+        if (mutated) await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private PersistedProgramState PersistentSnapshot() => new(1, _preview, _program);
+
+    private async Task SaveCurrentStateAsync(CancellationToken cancellationToken)
+    {
+        if (_stateStore is null) return;
+        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            PersistedProgramState state;
+            lock (_gate) state = PersistentSnapshot();
+            try
+            {
+                await _stateStore.SaveAsync(state, cancellationToken).ConfigureAwait(false);
+                lock (_gate) _persistenceHealthy = true;
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                lock (_gate) _persistenceHealthy = false;
+            }
+        }
+        finally { _persistenceGate.Release(); }
     }
 
     private async Task ServeAsync(CancellationToken cancellationToken)
@@ -176,5 +244,6 @@ refresh();setInterval(refresh,250);
         _disposed = true;
         await StopProgramOutputAsync(CancellationToken.None).ConfigureAwait(false);
         _listener.Close();
+        _persistenceGate.Dispose();
     }
 }

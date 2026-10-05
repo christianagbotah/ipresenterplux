@@ -48,7 +48,8 @@ static async Task<int> RunAsync()
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
     using var asrHttp = CreateAsrHttpClient();
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
-    await using var mediaOutput = await CreateProgramOutputAsync();
+    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
+    activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
@@ -107,7 +108,7 @@ static string? ReadSecret(string prompt)
     return chars.Count == 0 ? null : new string(chars.ToArray()).Trim();
 }
 
-static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync()
+static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(string dataDirectory)
 {
     const int defaultPort = 49321;
     var port = defaultPort;
@@ -119,9 +120,10 @@ static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync()
         port = defaultPort;
     }
 
-    var output = new LocalWebProgramOutputService(port);
+    var output = new LocalWebProgramOutputService(port, new FileProgramStateStore(dataDirectory));
     try
     {
+        await output.RestoreAsync(CancellationToken.None);
         await output.StartProgramOutputAsync(CancellationToken.None);
         Console.WriteLine($"Local Preview: {output.PreviewUri}");
         Console.WriteLine($"Local Program: {output.ProgramUri}");
