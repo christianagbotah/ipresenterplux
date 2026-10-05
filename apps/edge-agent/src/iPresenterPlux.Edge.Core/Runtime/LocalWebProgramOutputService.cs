@@ -224,15 +224,15 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         response.Close();
     }
 
-    private static string RenderPage(string view) => $$"""
+    private static string RenderPage(string view) => $$$"""
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>iPresenterPlux {{view}}</title><style>
+<title>iPresenterPlux {{{view}}}</title><style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05070a;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
 #stage{box-sizing:border-box;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:7vw;background:radial-gradient(circle at 50% 45%,#151b24 0,#070a0f 55%,#020304 100%)}
 #mode{font-size:1.4vw;letter-spacing:.35em;text-transform:uppercase;color:#d7a94a;font-weight:800}#title{font-size:5vw;line-height:1.05;margin:1.5vw 0 0;font-weight:900}#body{max-width:82vw;font-size:2.25vw;line-height:1.45;margin:2vw 0 0;color:#f5f7fa;white-space:pre-wrap}#footer{font-size:1.35vw;margin-top:2vw;color:#aeb6c2;font-weight:700;letter-spacing:.08em}.empty{opacity:.28}
-</style></head><body><main id="stage"><div id="mode">{{view}}</div><h1 id="title" class="empty">Waiting for iPresenterPlux</h1><div id="body"></div><div id="footer"></div></main>
+</style></head><body><main id="stage"><div id="mode">{{{view}}}</div><h1 id="title" class="empty">Waiting for iPresenterPlux</h1><div id="body"></div><div id="footer"></div></main>
 <script>
-const view={{JsonSerializer.Serialize(view)}};const title=document.getElementById('title'),body=document.getElementById('body'),footer=document.getElementById('footer');
+const view={{{JsonSerializer.Serialize(view)}}};const title=document.getElementById('title'),body=document.getElementById('body'),footer=document.getElementById('footer');
 async function refresh(){try{const r=await fetch('/api/state/'+view,{cache:'no-store'});const p=await r.json();const i=p.item;if(!i){title.textContent='';body.textContent='';footer.textContent='';title.classList.add('empty');return;}title.classList.remove('empty');title.textContent=i.title||'';body.textContent=i.body||'';footer.textContent=i.footer||'';}catch{}}
 refresh();setInterval(refresh,250);
 </script></body></html>
