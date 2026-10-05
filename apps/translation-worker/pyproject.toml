@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipresenterplux-translation"
+version = "0.1.0"
+description = "Leased live-translation worker for iPresenterPlux"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = [
+  "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+google = [
+  "google-cloud-translate==3.28.0",
+]
+dev = [
+  "pytest>=8.4,<10",
+]
+
+[project.scripts]
+ipresenterplux-translation = "ipresenter_translation.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ipresenter_translation"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
