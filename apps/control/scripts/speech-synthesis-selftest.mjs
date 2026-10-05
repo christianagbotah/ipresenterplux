@@ -19,12 +19,14 @@ await client.connect();
 await client.query("begin");
 try {
   const base = await client.query(
-    `select o.id::text as organization_id,c.id::text as campus_id
-     from organizations o join campuses c on c.organization_id=o.id
+    `select o.id::text as organization_id,c.id::text as campus_id,uor.user_id::text as user_id
+     from organizations o
+     join campuses c on c.organization_id=o.id
+     join user_organization_roles uor on uor.organization_id=o.id and uor.role_id in ('owner','admin')
      order by o.created_at,c.created_at limit 1`
   );
-  assert.ok(base.rows[0]?.organization_id, "Expected an organization/campus");
-  const { organization_id: organizationId, campus_id: campusId } = base.rows[0];
+  assert.ok(base.rows[0]?.organization_id, "Expected an organization/campus/admin");
+  const { organization_id: organizationId, campus_id: campusId, user_id: userId } = base.rows[0];
 
   const audioChannel = await client.query(
     `select id::text,language_code from language_channels
@@ -40,8 +42,8 @@ try {
     [organizationId, campusId]
   );
   const segment = await client.query(
-    `insert into transcript_segments(service_id,text,source_observed_at,source_language)
-     values ($1,'Synthesis self-test transcript',clock_timestamp(),'en') returning id::text`,
+    `insert into transcript_segments(service_id,text,source_observed_at,source_language,speaker_id)
+     values ($1,'Synthesis self-test transcript',clock_timestamp(),'en','speech-selftest') returning id::text`,
     [service.rows[0].id]
   );
   const translation = await client.query(
@@ -86,7 +88,7 @@ try {
   try {
     await client.query(
       `insert into voice_profiles(organization_id,display_name,consent_status,provider,provider_voice_id)
-       values ($1,'Unsafe voice','pending','selftest','voice-unsafe')`,
+       values ($1,'Unsafe voice','pending','google','voice-unsafe')`,
       [organizationId]
     );
   } catch {
@@ -97,10 +99,12 @@ try {
 
   const profile = await client.query(
     `insert into voice_profiles
-      (organization_id,display_name,consent_status,consented_at,provider,provider_voice_id)
-     values ($1,'Consented speaker','consented',clock_timestamp(),'selftest','voice-consented')
+      (organization_id,display_name,source_speaker_id,consent_status,consented_at,consent_method,consent_reference,
+       consent_recorded_by,provider,provider_voice_id,created_by)
+     values ($1,'Consented speaker','speech-selftest','consented',clock_timestamp(),'written','SELFTEST-CONSENT',
+             $2,'google','voice-consented',$2)
      returning id::text`,
-    [organizationId]
+    [organizationId, userId]
   );
   await client.query(
     "update speech_synthesis_jobs set voice_profile_id=$2 where id=$1",
