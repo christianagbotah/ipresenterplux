@@ -12,7 +12,7 @@ const successSchema = z.object({
   outcome: z.literal("succeeded"),
   leaseToken: z.string().uuid(),
   provider: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9._:-]+$/),
-  audioAssetKey: z.string().trim().min(1).max(160).regex(/^tts\/[0-9a-f-]{36}\.(?:mp3|wav|ogg)$/i),
+  audioAssetKey: z.string().trim().min(1).max(220).regex(/^tts\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(?:mp3|wav|ogg)$/i),
   audioContentType: z.enum(["audio/mpeg", "audio/wav", "audio/ogg"]),
   durationMs: z.number().int().min(1).max(600_000)
 });
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     const payload = bodySchema.parse(await request.json());
     if (payload.outcome === "succeeded") {
-      const asset = await verifyStoredTtsAsset(payload.audioAssetKey, id, payload.audioContentType);
+      const asset = await verifyStoredTtsAsset(payload.audioAssetKey, id, payload.leaseToken, payload.audioContentType);
       if (!asset) {
         return NextResponse.json({ ok: false, error: "TTS audio asset could not be verified" }, { status: 400 });
       }

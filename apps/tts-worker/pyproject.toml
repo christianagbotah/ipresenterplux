@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ipresenterplux-tts"
+version = "0.1.0"
+description = "Leased speech-synthesis worker for iPresenterPlux"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = [
+  "httpx>=0.28,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<10",
+]
+
+[project.scripts]
+ipresenterplux-tts = "ipresenter_tts.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ipresenter_tts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

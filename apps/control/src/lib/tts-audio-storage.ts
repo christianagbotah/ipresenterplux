@@ -2,7 +2,8 @@ import { open, stat } from "node:fs/promises";
 import path from "node:path";
 
 const MAX_TTS_AUDIO_BYTES = 10 * 1024 * 1024;
-const ASSET_KEY_PATTERN = /^tts\/([0-9a-f-]{36})\.(mp3|wav|ogg)$/i;
+const UUID = "[0-9a-f-]{36}";
+const ASSET_KEY_PATTERN = new RegExp(`^tts/(${UUID})/(${UUID})\\.(mp3|wav|ogg)$`, "i");
 const DEFAULT_TTS_AUDIO_STORAGE_DIR = "/home/lightworld/webapps/ipresenterplux/storage";
 
 function storageRoot() {
@@ -36,11 +37,14 @@ function hasValidMagic(extension: string, header: Buffer) {
 export async function verifyStoredTtsAsset(
   assetKey: string,
   jobId: string,
+  leaseToken: string,
   contentType: string
 ) {
   const matched = ASSET_KEY_PATTERN.exec(assetKey);
-  if (!matched || matched[1].toLowerCase() !== jobId.toLowerCase()) return null;
-  const extension = matched[2].toLowerCase();
+  if (!matched) return null;
+  if (matched[1].toLowerCase() !== jobId.toLowerCase()) return null;
+  if (matched[2].toLowerCase() !== leaseToken.toLowerCase()) return null;
+  const extension = matched[3].toLowerCase();
   if (expectedContentType(extension) !== contentType) return null;
 
   const root = storageRoot();
