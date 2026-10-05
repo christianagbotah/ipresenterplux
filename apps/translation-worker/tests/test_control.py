@@ -42,3 +42,28 @@ def test_claim_contract_and_auth_header() -> None:
         assert jobs[0].source_text == "Hello"
     finally:
         client.close()
+
+
+def test_heartbeat_contract_is_payload_safe() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.headers["authorization"] == "Bearer " + "t" * 48
+        assert request.url.path == "/api/v1/translations/worker/heartbeat"
+        payload = json.loads(request.content)
+        assert payload == {
+            "workerId": "test-worker",
+            "provider": "google",
+            "state": "degraded",
+            "softwareVersion": "0.1.0",
+            "claimed": 1,
+            "completed": 0,
+            "failed": 1,
+            "errorCode": "provider_timeout",
+        }
+        assert "source_text" not in request.content.decode()
+        return httpx.Response(200, json={"ok": True})
+
+    client = ControlPlaneClient(settings(), transport=httpx.MockTransport(handler))
+    try:
+        client.heartbeat("degraded", 1, 0, 1, "provider_timeout")
+    finally:
+        client.close()

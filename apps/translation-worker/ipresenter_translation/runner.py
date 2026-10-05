@@ -19,6 +19,7 @@ class WorkerControl(Protocol):
     def claim(self) -> list[TranslationJob]: ...
     def complete(self, job: TranslationJob, translated_text: str, provider: str) -> None: ...
     def fail(self, job: TranslationJob, error_code: str) -> None: ...
+    def heartbeat(self, state: str, claimed: int, completed: int, failed: int, error_code: str | None) -> None: ...
 
 
 @dataclass(slots=True)
@@ -192,8 +193,6 @@ class TranslationRunner:
             pass
 
     def _write_status(self, state: str, result: CycleResult) -> None:
-        if self._status_path is None:
-            return
         payload = {
             "state": state,
             "provider": self._settings.provider,
@@ -204,7 +203,15 @@ class TranslationRunner:
             "errorCode": result.error_code,
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
-        self._status_path.parent.mkdir(parents=True, exist_ok=True)
-        temp = self._status_path.with_suffix(self._status_path.suffix + ".tmp")
-        temp.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
-        os.replace(temp, self._status_path)
+        if self._status_path is not None:
+            self._status_path.parent.mkdir(parents=True, exist_ok=True)
+            temp = self._status_path.with_suffix(self._status_path.suffix + ".tmp")
+            temp.write_text(json.dumps(payload, separators=(",", ":")) + "\n", encoding="utf-8")
+            os.replace(temp, self._status_path)
+        try:
+            self._control.heartbeat(
+                state, result.claimed, result.completed, result.failed, result.error_code
+            )
+        except Exception:
+            # Heartbeat telemetry must never make translation processing fail.
+            pass

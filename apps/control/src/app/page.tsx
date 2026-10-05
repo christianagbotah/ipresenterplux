@@ -113,6 +113,18 @@ type TranscriptSegmentRow = {
   asr_confidence: number | null;
 };
 
+type TranslationWorkerRow = {
+  worker_id: string;
+  provider: string;
+  state: string;
+  software_version: string | null;
+  claimed_count: number;
+  completed_count: number;
+  failed_count: number;
+  error_code: string | null;
+  observed_at: string;
+};
+
 async function dashboardData(userId: string) {
   const services = await query<ServiceRow>(
     `select s.id,s.organization_id::text,s.title,s.status,s.active_bible_version,s.auto_preview_threshold::text
@@ -136,10 +148,10 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined };
   }
 
-  const [outputs, languages, detections, integrations, mediaSources, transcripts] = await Promise.all([
+  const [outputs, languages, detections, integrations, mediaSources, transcripts, translationWorkers] = await Promise.all([
     query<OutputRow>(
       "select id,name,destination_type,enabled,status from output_destinations where organization_id=$1 order by enabled desc,name",
       [organizationId]
@@ -199,6 +211,14 @@ async function dashboardData(userId: string) {
        order by ts.source_observed_at desc,ts.created_at desc,ts.id desc
        limit 1`,
       [organizationId, services.rows[0]?.id ?? null]
+    ),
+    query<TranslationWorkerRow>(
+      `select worker_id,provider,
+              case when observed_at < clock_timestamp()-interval '20 seconds' then 'offline' else state end as state,
+              software_version,claimed_count,completed_count,failed_count,error_code,observed_at::text
+       from translation_worker_status
+       order by observed_at desc,worker_id
+       limit 1`
     )
   ]);
 
@@ -209,7 +229,8 @@ async function dashboardData(userId: string) {
     detections: detections.rows,
     integrations: integrations.rows,
     mediaSources: mediaSources.rows,
-    transcript: transcripts.rows[0]
+    transcript: transcripts.rows[0],
+    translationWorker: translationWorkers.rows[0]
   };
 }
 
@@ -217,10 +238,10 @@ function stateClass(status: string) {
   if (["ready", "live", "connected", "configured"].includes(status)) {
     return "border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
   }
-  if (["warning", "connecting"].includes(status)) {
+  if (["warning", "connecting", "degraded"].includes(status)) {
     return "border-amber-400/20 bg-amber-400/10 text-amber-300";
   }
-  if (["error"].includes(status)) {
+  if (["error", "offline"].includes(status)) {
     return "border-red-400/20 bg-red-400/10 text-red-300";
   }
   return "border-white/10 bg-white/[.04] text-white/55";
@@ -262,6 +283,10 @@ export default async function Home() {
   const activeOutputs = data.outputs.filter((item) => item.enabled).length;
   const activeLanguages = data.languages.filter((item) => item.enabled).length;
   const listeners = data.languages.reduce((total, item) => total + item.listener_count, 0);
+  const translationWorkerState = data.translationWorker?.state ?? "offline";
+  const translationWorkerNote = data.translationWorker
+    ? `Translator ${translationWorkerState} · ${data.translationWorker.provider} · ${listeners} connected listeners`
+    : `Translator offline · ${listeners} connected listeners`;
 
   return (
     <main className="min-h-screen">
@@ -335,7 +360,7 @@ export default async function Home() {
                 ["Presentation Engine", "Ready", "Preview + Program", MonitorPlay, "ready"],
                 ["Scripture Intelligence", data.detections.length ? "Listening" : "Armed", String(data.detections.length) + " recent detections", Sparkles, "ready"],
                 ["Broadcast Router", activeOutputs + " outputs", "RTMP · WebRTC · NDI", RadioTower, activeOutputs ? "ready" : "disconnected"],
-                ["Language Engine", activeLanguages + " channels", listeners + " connected listeners", Languages, "ready"]
+                ["Language Engine", activeLanguages + " channels", translationWorkerNote, Languages, translationWorkerState]
               ].map(([label, value, note, Icon, status]) => (
                 <div key={String(label)} className="ip-card p-4">
                   <div className="mb-4 flex items-start justify-between">

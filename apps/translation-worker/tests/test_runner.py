@@ -21,6 +21,7 @@ class FakeControl:
         self.claims = 0
         self.completed: list[tuple[str, str, str]] = []
         self.failed: list[tuple[str, str]] = []
+        self.heartbeats: list[tuple[str, int, int, int, str | None]] = []
 
     def claim(self) -> list[TranslationJob]:
         self.claims += 1
@@ -31,6 +32,9 @@ class FakeControl:
 
     def fail(self, job: TranslationJob, error_code: str) -> None:
         self.failed.append((job.id, error_code))
+
+    def heartbeat(self, state: str, claimed: int, completed: int, failed: int, error_code: str | None) -> None:
+        self.heartbeats.append((state, claimed, completed, failed, error_code))
 
 
 class FakeProvider:
@@ -72,6 +76,7 @@ def test_disabled_worker_never_claims(tmp_path: Path) -> None:
     assert result.claimed == 0
     assert control.claims == 0
     assert json.loads(status.read_text())["state"] == "disabled"
+    assert control.heartbeats[-1] == ("disabled", 0, 0, 0, "provider_disabled")
 
 
 def test_success_completes_leased_job(tmp_path: Path) -> None:
@@ -79,6 +84,7 @@ def test_success_completes_leased_job(tmp_path: Path) -> None:
     result = TranslationRunner(settings("google"), control, FakeProvider(), tmp_path / "status.json").run_once()
     assert result.completed == 1
     assert control.completed == [("job-1", "translated:Hello church", "fake")]
+    assert control.heartbeats[-1] == ("ready", 1, 1, 0, None)
 
 
 def test_provider_failure_reports_safe_code(tmp_path: Path) -> None:

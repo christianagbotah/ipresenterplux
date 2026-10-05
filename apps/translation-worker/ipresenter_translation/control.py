@@ -4,6 +4,7 @@ from typing import Any
 
 import httpx
 
+from . import __version__
 from .config import Settings
 from .models import TranslationJob
 
@@ -53,6 +54,29 @@ class ControlPlaneClient:
         response = self._client.patch(
             f"/api/v1/translations/worker/jobs/{job.id}",
             json={"outcome": "failed", "leaseToken": job.lease_token, "errorCode": error_code},
+        )
+        response.raise_for_status()
+
+    def heartbeat(
+        self,
+        state: str,
+        claimed: int,
+        completed: int,
+        failed: int,
+        error_code: str | None,
+    ) -> None:
+        response = self._client.post(
+            "/api/v1/translations/worker/heartbeat",
+            json={
+                "workerId": self._settings.worker_id,
+                "provider": self._settings.provider,
+                "state": state,
+                "softwareVersion": __version__,
+                "claimed": claimed,
+                "completed": completed,
+                "failed": failed,
+                "errorCode": error_code,
+            },
         )
         response.raise_for_status()
 
