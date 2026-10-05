@@ -1,5 +1,6 @@
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
+using iPresenterPlux.Edge.Core.Models;
 using iPresenterPlux.Edge.Core.Queues;
 using iPresenterPlux.Edge.Core.State;
 using iPresenterPlux.Edge.Core.Transport;

@@ -75,7 +75,15 @@ public sealed class OutboundEventDispatcherTests
 
         Assert.Equal(new OutboundDispatchResult(1, 1, 0), second);
         Assert.Single(publisher.Health);
-        Assert.Equal(health, publisher.Health[0]);
+        Assert.Equal(health.DeviceId, publisher.Health[0].DeviceId);
+        Assert.Equal(health.DeviceName, publisher.Health[0].DeviceName);
+        Assert.Equal(health.Version, publisher.Health[0].Version);
+        Assert.Equal(health.Status, publisher.Health[0].Status);
+        Assert.Equal(health.ObservedAt, publisher.Health[0].ObservedAt);
+        Assert.Equal(health.CpuPercent, publisher.Health[0].CpuPercent);
+        Assert.Equal(health.MemoryPercent, publisher.Health[0].MemoryPercent);
+        Assert.Equal(health.UplinkMbps, publisher.Health[0].UplinkMbps);
+        Assert.Equal(health.Capabilities, publisher.Health[0].Capabilities);
     }
 
     [Fact]

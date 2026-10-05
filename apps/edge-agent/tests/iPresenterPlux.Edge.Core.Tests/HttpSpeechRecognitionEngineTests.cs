@@ -69,8 +69,9 @@ public sealed class HttpSpeechRecognitionEngineTests
         var serviceId = Guid.Parse("00000000-0000-4000-8000-000000000003");
         using var http = new HttpClient(new StubHandler(request =>
         {
-            Assert.True(request.Headers.TryGetValues("X-IPresenter-Service-Id", out var values));
-            Assert.Equal(serviceId.ToString("D"), Assert.Single(values));
+            var values = request.Content?.Headers.GetValues("X-IPresenter-Service-Id").ToArray();
+            Assert.NotNull(values);
+            Assert.Equal(serviceId.ToString("D"), Assert.Single(values!));
             return Json(HttpStatusCode.OK,
                 """{"text":"Welcome church","language":"en","speakerId":"speaker-001","confidence":0.9}""");
         }))

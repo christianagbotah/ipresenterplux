@@ -89,7 +89,8 @@ public sealed class SpeechAudioPipelineTests
                     throw new IOException("simulated local queue failure");
                 delivered.TrySetResult();
                 return Task.CompletedTask;
-            });
+            },
+            serviceId: Guid.Parse("00000000-0000-4000-8000-000000000003"));
 
         var samples = Enumerable.Repeat((short)16_384, 80_000).ToArray();
         var bytes = new byte[samples.Length * 2];
