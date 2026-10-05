@@ -2,14 +2,13 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { LiveTranslatedAudio } from "@/components/audience/LiveTranslatedAudio";
+import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import {
   BookOpen,
   Captions,
   Headphones,
   Languages,
-  Maximize2,
   Radio,
-  Volume2
 } from "lucide-react";
 
 type LanguageChannel = {
@@ -102,23 +101,7 @@ export function LiveAudience({
 
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-4 sm:py-6">
         <section className="overflow-hidden rounded-[22px] border border-white/[.08] bg-[#0d121a]">
-          <div className="relative aspect-video bg-black">
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(circle_at_center,rgba(215,169,74,.08),transparent_45%)]">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/[.08] bg-white/[.04] text-white/25">
-                <Volume2 size={22} />
-              </div>
-              <div className="mt-4 text-sm font-semibold text-white/55">Live video gateway</div>
-              <div className="mt-1 text-xs text-white/25">WebRTC program feed will appear here</div>
-            </div>
-
-            <button
-              type="button"
-              className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[.08] bg-black/50 text-white/60"
-              aria-label="Full screen"
-            >
-              <Maximize2 size={15} />
-            </button>
-          </div>
+          <LiveProgramVideo serviceId={serviceId} />
 
           <div className="flex items-center justify-between gap-3 border-t border-white/[.06] px-4 py-3">
             <div className="min-w-0">
