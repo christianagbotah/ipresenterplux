@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { sanitizeCommandError } from "@/lib/edge-commands";
+import { publishServiceEvent } from "@/lib/realtime";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -29,9 +30,9 @@ export async function POST(request: Request, context: RouteContext) {
       await client.query("begin");
       const found = await client.query<{
         organization_id: string; edge_device_id: string; command_type: string; state: string;
-        resulting_state: string | null; error_code: string | null;
+        resulting_state: string | null; error_code: string | null; service_id: string | null;
       }>(
-        `select organization_id::text,edge_device_id::text,command_type,state,resulting_state,error_code
+        `select organization_id::text,edge_device_id::text,command_type,state,resulting_state,error_code,service_id::text
          from edge_control_commands where id=$1 for update`,
         [id]
       );
@@ -59,6 +60,17 @@ export async function POST(request: Request, context: RouteContext) {
         [device.organizationId, device.deviceId, id, JSON.stringify({ type: command.command_type, success: payload.success, resultingState: payload.resultingState, errorCode })]
       );
       await client.query("commit");
+      // Publication is best-effort and must follow the committed result and audit record.
+      if (command.service_id) {
+        await publishServiceEvent(command.service_id, "edge.command.completed", {
+          commandId: id,
+          commandType: command.command_type,
+          state: targetState,
+          resultingState: payload.resultingState,
+          errorCode,
+          edgeDeviceId: device.deviceId
+        });
+      }
       return NextResponse.json({ ok: true, duplicate: false, commandId: id, state: targetState });
     } catch (error) {
       await client.query("rollback");
