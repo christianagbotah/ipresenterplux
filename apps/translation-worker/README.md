@@ -27,7 +27,7 @@ No provider package, model, or credential is downloaded automatically by the wor
 
 Required:
 
-- `IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN`
+- `IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN` **or** `IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE` (mode 600 recommended; token file is preferred for systemd)
 
 Optional:
 

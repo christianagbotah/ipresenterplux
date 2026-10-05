@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlparse
 
 
@@ -47,10 +48,24 @@ class Settings:
         return self.provider != "disabled"
 
 
+def _worker_token() -> str:
+    inline = os.environ.pop("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", "").strip()
+    token_file = os.getenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", "").strip()
+    if inline and token_file:
+        raise ValueError("Configure only one translation worker token source")
+    if token_file:
+        path = Path(token_file).expanduser().resolve()
+        mode = path.stat().st_mode & 0o777
+        if mode & 0o077:
+            raise ValueError("Translation worker token file must not be group/world accessible")
+        inline = path.read_text(encoding="utf-8").strip()
+    if len(inline) < 32 or len(inline) > 256:
+        raise ValueError("Translation worker token must contain 32 to 256 characters")
+    return inline
+
+
 def load_settings() -> Settings:
-    token = os.environ.pop("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", "").strip()
-    if len(token) < 32 or len(token) > 256:
-        raise ValueError("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN must contain 32 to 256 characters")
+    token = _worker_token()
 
     worker_id = os.getenv("IPRESENTERPLUX_TRANSLATION_WORKER_ID", "translation-worker-1").strip()
     if not worker_id or len(worker_id) > 64 or not all(c.isalnum() or c in "._:-" for c in worker_id):

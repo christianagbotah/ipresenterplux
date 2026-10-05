@@ -26,3 +26,23 @@ def test_worker_token_is_removed_from_environment(monkeypatch: pytest.MonkeyPatc
     assert len(settings.worker_token) >= 32
     import os
     assert "IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN" not in os.environ
+
+
+def test_secure_token_file_is_supported(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    token_file = tmp_path / "worker.token"
+    token_file.write_text("z" * 48)
+    token_file.chmod(0o600)
+    monkeypatch.delenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", raising=False)
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", str(token_file))
+    settings = load_settings()
+    assert settings.worker_token == "z" * 48
+
+
+def test_insecure_token_file_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    token_file = tmp_path / "worker.token"
+    token_file.write_text("z" * 48)
+    token_file.chmod(0o644)
+    monkeypatch.delenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", raising=False)
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", str(token_file))
+    with pytest.raises(ValueError, match="group/world"):
+        load_settings()
