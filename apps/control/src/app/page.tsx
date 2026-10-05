@@ -108,6 +108,9 @@ type IntegrationRow = {
 type TranscriptSegmentRow = {
   text: string;
   source_observed_at: string;
+  source_language: string | null;
+  speaker_id: string | null;
+  asr_confidence: number | null;
 };
 
 async function dashboardData(userId: string) {
@@ -188,7 +191,7 @@ async function dashboardData(userId: string) {
       [organizationId]
     ),
     query<TranscriptSegmentRow>(
-      `select ts.text,ts.source_observed_at::text
+      `select ts.text,ts.source_observed_at::text,ts.source_language,ts.speaker_id,ts.asr_confidence
        from transcript_segments ts
        join services s on s.id=ts.service_id
        where s.organization_id=$1
@@ -457,6 +460,13 @@ export default async function Home() {
                     <p className="min-h-16 text-sm leading-6 text-white/55">
                       {data.transcript?.text ?? transcriptContext?.source_text ?? "Waiting for the first transcript chunk from the Windows audio agent…"}
                     </p>
+                    {data.transcript ? (
+                      <div className="mt-3 flex flex-wrap gap-2 text-[10px] uppercase tracking-[.12em] text-white/30">
+                        {data.transcript.source_language ? <span>Language {data.transcript.source_language}</span> : null}
+                        {data.transcript.speaker_id ? <span>Speaker {data.transcript.speaker_id}</span> : null}
+                        {data.transcript.asr_confidence !== null ? <span>ASR {Math.round(data.transcript.asr_confidence * 100)}%</span> : null}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {["Scripture AI", "Captions", "Speaker context", "Translation router", "Sermon archive"].map((item) => (

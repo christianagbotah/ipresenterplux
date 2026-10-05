@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
 const inputSchema = z.object({
   serviceId: z.string().uuid().optional(),
   text: z.string().trim().min(1).max(10_000),
-  bibleVersion: z.string().min(2).max(40).optional()
+  bibleVersion: z.string().min(2).max(40).optional(),
+  language: z.string().trim().min(2).max(35).regex(/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/).nullish(),
+  speakerId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9._:-]+$/).nullish(),
+  confidence: z.number().min(0).max(1).nullish()
 });
 
 export async function POST(request: Request) {

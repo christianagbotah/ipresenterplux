@@ -154,7 +154,9 @@ public sealed class AudioTranscriptionPipeline : IAsyncDisposable
                         result.Text.Trim(),
                         true,
                         result.SpeakerId,
-                        result.Language);
+                        result.Language,
+                        result.Confidence,
+                        2);
 
                     var outboundEventId = Guid.NewGuid();
                     if (await TryPublishAsync(outboundEventId, segment).ConfigureAwait(false))

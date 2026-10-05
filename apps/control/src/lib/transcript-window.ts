@@ -1,5 +1,11 @@
 import type { PoolClient } from "pg";
 
+export type TranscriptSegmentMetadata = {
+  sourceLanguage?: string | null;
+  speakerId?: string | null;
+  asrConfidence?: number | null;
+};
+
 export async function latestTranscriptObservedAt(
   client: PoolClient,
   serviceId: string
@@ -19,14 +25,23 @@ export async function recordTranscriptSegment(
   client: PoolClient,
   serviceId: string,
   text: string,
-  observedAt: Date
+  observedAt: Date,
+  metadata: TranscriptSegmentMetadata = {}
 ) {
   const cleanText = text.trim();
   if (!cleanText) return;
   await client.query(
-    `insert into transcript_segments(service_id,text,source_observed_at)
-     values ($1,$2,$3)`,
-    [serviceId, cleanText, observedAt]
+    `insert into transcript_segments
+      (service_id,text,source_observed_at,source_language,speaker_id,asr_confidence)
+     values ($1,$2,$3,$4,$5,$6)`,
+    [
+      serviceId,
+      cleanText,
+      observedAt,
+      metadata.sourceLanguage ?? null,
+      metadata.speakerId ?? null,
+      metadata.asrConfidence ?? null
+    ]
   );
 }
 

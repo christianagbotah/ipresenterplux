@@ -40,6 +40,24 @@ public sealed class HttpEdgeEventPublisher(
     public Task PublishTranscriptAsync(Guid eventId, TranscriptSegment segment, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(segment);
+        if (segment.WireVersion == 2)
+        {
+            return PostAsync(
+                "/api/v1/edge/transcript",
+                new
+                {
+                    eventId,
+                    serviceId = segment.ServiceId,
+                    startedAt = segment.StartedAt,
+                    text = segment.Text,
+                    wireVersion = 2,
+                    language = segment.Language,
+                    speakerId = segment.SpeakerId,
+                    confidence = segment.Confidence
+                },
+                cancellationToken);
+        }
+
         return PostAsync(
             "/api/v1/edge/transcript",
             new

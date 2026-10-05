@@ -36,7 +36,9 @@ public sealed record TranscriptSegment(
     string Text,
     bool IsFinal,
     string? SpeakerId = null,
-    string? Language = null);
+    string? Language = null,
+    double? Confidence = null,
+    int? WireVersion = null);
 
 
 public sealed record SpeechAudioChunk(

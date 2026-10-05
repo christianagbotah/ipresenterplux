@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { inspectExistingEdgeEvent, registerEdgeEvent } from "@/lib/edge-events";
+import { buildTranscriptReceiptPayload } from "@/lib/transcript-receipt";
 import {
   findActiveServiceForDevice,
   findServiceById,
@@ -17,7 +18,20 @@ const inputSchema = z.object({
   serviceId: z.string().uuid().nullish(),
   startedAt: z.string().datetime(),
   text: z.string().trim().min(1).max(10_000),
-  bibleVersion: z.string().min(2).max(40).optional()
+  bibleVersion: z.string().min(2).max(40).optional(),
+  wireVersion: z.literal(2).optional(),
+  language: z.string().trim().min(2).max(35).regex(/^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/).nullish(),
+  speakerId: z.string().trim().min(1).max(128).regex(/^[A-Za-z0-9._:-]+$/).nullish(),
+  confidence: z.number().min(0).max(1).nullish()
+}).superRefine((value, context) => {
+  const hasMetadata = value.language != null || value.speakerId != null || value.confidence != null;
+  if (hasMetadata && value.wireVersion !== 2) {
+    context.addIssue({
+      code: "custom",
+      path: ["wireVersion"],
+      message: "Transcript metadata requires wireVersion 2"
+    });
+  }
 });
 
 export async function POST(request: Request) {
@@ -26,12 +40,7 @@ export async function POST(request: Request) {
     if (!device) return NextResponse.json({ ok: false, error: "Device authentication required" }, { status: 401 });
 
     const payload = inputSchema.parse(await request.json());
-    const receiptPayload = {
-      serviceId: payload.serviceId ?? null,
-      startedAt: payload.startedAt,
-      text: payload.text,
-      bibleVersion: payload.bibleVersion ?? null
-    };
+    const receiptPayload = buildTranscriptReceiptPayload(payload);
     const client = await db.connect();
     try {
       await client.query("begin");

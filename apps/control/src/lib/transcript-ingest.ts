@@ -24,6 +24,9 @@ export type TranscriptInput = {
   text: string;
   bibleVersion?: string;
   startedAt?: string;
+  language?: string | null;
+  speakerId?: string | null;
+  confidence?: number | null;
 };
 
 type TranscriptResult = {
@@ -331,7 +334,11 @@ export async function ingestTranscriptForService(
   const parsedObservedAt = payload.startedAt ? new Date(payload.startedAt) : new Date();
   const observedAt = Number.isFinite(parsedObservedAt.getTime()) ? parsedObservedAt : new Date();
   const latestTranscriptBefore = await latestTranscriptObservedAt(client, service.id);
-  await recordTranscriptSegment(client, service.id, payload.text, observedAt);
+  await recordTranscriptSegment(client, service.id, payload.text, observedAt, {
+    sourceLanguage: payload.language ?? null,
+    speakerId: payload.speakerId ?? null,
+    asrConfidence: payload.confidence ?? null
+  });
   const cursorBeforeIngest = await currentScriptureContext(client, service.id);
   const cursorObservedAt = cursorBeforeIngest ? new Date(cursorBeforeIngest.source_observed_at) : null;
   const cursorObservedMs = cursorObservedAt?.getTime() ?? null;

@@ -22,8 +22,24 @@ const quoteUrl = await transpiledDataUrl(
   [["@/lib/scripture", scriptureUrl]]
 );
 const windowUrl = await transpiledDataUrl(new URL("../src/lib/transcript-window.ts", import.meta.url));
+const receiptUrl = await transpiledDataUrl(new URL("../src/lib/transcript-receipt.ts", import.meta.url));
 const { matchScriptureQuote } = await import(quoteUrl);
 const { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } = await import(windowUrl);
+const { buildTranscriptReceiptPayload } = await import(receiptUrl);
+
+const legacyReceipt = {
+  serviceId: null,
+  startedAt: "2099-01-01T10:00:00.000Z",
+  text: "For God so loved the world",
+  bibleVersion: null
+};
+assert.deepEqual(buildTranscriptReceiptPayload(legacyReceipt), legacyReceipt);
+assert.deepEqual(buildTranscriptReceiptPayload({ ...legacyReceipt, language: "en", speakerId: "speaker-1" }), legacyReceipt);
+assert.deepEqual(buildTranscriptReceiptPayload({ ...legacyReceipt, wireVersion: 2, language: null, speakerId: null, confidence: null }), { ...legacyReceipt, wireVersion: 2 });
+assert.deepEqual(
+  buildTranscriptReceiptPayload({ ...legacyReceipt, wireVersion: 2, language: "en", speakerId: "speaker-1", confidence: 0.93 }),
+  { ...legacyReceipt, wireVersion: 2, language: "en", speakerId: "speaker-1", confidence: 0.93 }
+);
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
@@ -35,8 +51,26 @@ try {
   const firstAt = new Date("2099-01-01T10:00:00Z");
   const secondAt = new Date("2099-01-01T10:00:05Z");
 
-  await recordTranscriptSegment(client, serviceId, "For God so loved the world", firstAt);
-  await recordTranscriptSegment(client, serviceId, "that he gave his only born Son", secondAt);
+  await recordTranscriptSegment(client, serviceId, "For God so loved the world", firstAt, {
+    sourceLanguage: "en",
+    speakerId: "speaker-1",
+    asrConfidence: 0.93
+  });
+  await recordTranscriptSegment(client, serviceId, "that he gave his only born Son", secondAt, {
+    sourceLanguage: "en",
+    speakerId: "speaker-1",
+    asrConfidence: 0.95
+  });
+
+  const metadataRow = await client.query(
+    `select source_language,speaker_id,asr_confidence
+     from transcript_segments
+     where service_id=$1 and source_observed_at=$2`,
+    [serviceId, secondAt]
+  );
+  assert.equal(metadataRow.rows[0]?.source_language, "en");
+  assert.equal(metadataRow.rows[0]?.speaker_id, "speaker-1");
+  assert.equal(Number(metadataRow.rows[0]?.asr_confidence), 0.95);
 
   const windowText = await recentTranscriptQuoteWindow(client, serviceId, secondAt);
   assert.equal(windowText, "For God so loved the world that he gave his only born Son");
@@ -74,7 +108,7 @@ try {
   );
   assert.equal(await recentlyDetectedQuote(client, serviceId, "John 3:16", new Date("2099-01-01T10:00:10Z")), true);
 
-  console.log("Transcript window self-test passed (ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
+  console.log("Transcript window self-test passed (receipt compatibility, metadata, ordered assembly, quote match, blank skip, stale watermark, quote dedupe).");
 } finally {
   await client.query("rollback");
   await client.end();
