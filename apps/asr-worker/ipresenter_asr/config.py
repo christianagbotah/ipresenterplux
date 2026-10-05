@@ -49,6 +49,7 @@ class Settings:
     language: str | None
     beam_size: int
     max_audio_bytes: int
+    diarization_provider: str = "disabled"
     sample_rate: int = 16_000
 
     @property
@@ -69,6 +70,9 @@ def load_settings() -> Settings:
     model_dir = Path(model_dir_raw).expanduser().resolve() if model_dir_raw else None
     language = os.getenv("IPRESENTERPLUX_ASR_LANGUAGE")
     language = language.strip() if language and language.strip() else None
+    diarization_provider = os.getenv("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER", "disabled").strip().lower()
+    if diarization_provider not in {"disabled"}:
+        raise ValueError("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER currently supports only disabled")
 
     return Settings(
         host=host,
@@ -82,4 +86,5 @@ def load_settings() -> Settings:
         language=language,
         beam_size=_int_env("IPRESENTERPLUX_ASR_BEAM_SIZE", 3, 1, 10),
         max_audio_bytes=_int_env("IPRESENTERPLUX_ASR_MAX_AUDIO_BYTES", 1_000_000, 32_000, 8_000_000),
+        diarization_provider=diarization_provider,
     )

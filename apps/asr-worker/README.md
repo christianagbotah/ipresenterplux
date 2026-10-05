@@ -42,6 +42,7 @@ The local inference extra pins the official `faster-whisper` 1.2.1 release. Inst
 | `IPRESENTERPLUX_ASR_LANGUAGE` | auto | Optional fixed language code |
 | `IPRESENTERPLUX_ASR_BEAM_SIZE` | `3` | Beam size, 1–10 |
 | `IPRESENTERPLUX_ASR_MAX_AUDIO_BYTES` | `1000000` | Maximum request body |
+| `IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER` | `disabled` | Speaker diarization provider. Only `disabled` is approved in this build; no model is downloaded automatically. |
 
 Start with:
 
@@ -64,3 +65,7 @@ IPRESENTERPLUX_ASR_URL=http://127.0.0.1:8765
 - `X-IPresenter-Started-At: <ISO-8601>`
 
 The model is loaded lazily on the first valid transcription request. If the optional inference dependencies/model are absent, the worker returns HTTP 503 rather than attempting an unexpected download.
+
+## Speaker attribution
+
+The ASR response already carries an optional `speakerId`. Diarization is provider-pluggable but **disabled by default** in this build. When disabled, the worker returns no speaker ID and the control plane may use its audited active-speaker operator fallback. When a future approved diarizer is enabled, its real speaker ID takes precedence automatically. No diarization model is downloaded or activated by this worker today.

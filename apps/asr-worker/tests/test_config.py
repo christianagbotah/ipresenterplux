@@ -24,3 +24,9 @@ def test_token_is_removed_from_environment(monkeypatch: pytest.MonkeyPatch) -> N
     settings = load_settings()
     assert settings.token == "secret-worker-token"
     assert "IPRESENTERPLUX_ASR_TOKEN" not in __import__("os").environ
+
+
+def test_unapproved_diarization_provider_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("IPRESENTERPLUX_ASR_DIARIZATION_PROVIDER", "surprise-model")
+    with pytest.raises(ValueError, match="currently supports only disabled"):
+        load_settings()

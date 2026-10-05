@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .config import Settings, load_settings
 from .engine import EngineUnavailableError, WhisperEngine
+from .diarization import SpeakerDiarizer, create_diarizer
 
 
 class HealthResponse(BaseModel):
@@ -20,6 +21,8 @@ class HealthResponse(BaseModel):
     modelLoaded: bool
     localFilesOnly: bool
     device: str
+    diarization: str
+    diarizationReady: bool
     serverTime: str
 
 
@@ -30,9 +33,14 @@ class TranscriptionResponse(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    engine: WhisperEngine | None = None,
+    diarizer: SpeakerDiarizer | None = None,
+) -> FastAPI:
     resolved = settings or load_settings()
-    engine = WhisperEngine(resolved)
+    resolved_engine = engine or WhisperEngine(resolved)
+    resolved_diarizer = diarizer or create_diarizer(resolved.diarization_provider)
     app = FastAPI(
         title="iPresenterPlux ASR Worker",
         version=__version__,
@@ -52,9 +60,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def health() -> HealthResponse:
         return HealthResponse(
             model=resolved.model,
-            modelLoaded=engine.loaded,
+            modelLoaded=resolved_engine.loaded,
             localFilesOnly=resolved.local_files_only,
             device=resolved.device,
+            diarization=resolved_diarizer.name,
+            diarizationReady=resolved_diarizer.ready,
             serverTime=datetime.now(timezone.utc).isoformat(),
         )
 
@@ -102,14 +112,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=400, detail="PCM16 audio must contain whole samples")
 
         try:
-            result = await engine.transcribe_pcm16(body)
+            result = await resolved_engine.transcribe_pcm16(body)
         except EngineUnavailableError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+        speaker_id = None
+        if result.text:
+            speaker_id = await resolved_diarizer.identify_pcm16(body, result)
 
         return TranscriptionResponse(
             text=result.text,
             language=result.language,
-            speakerId=None,
+            speakerId=speaker_id,
             confidence=result.confidence,
         )
 
