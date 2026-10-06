@@ -35,6 +35,23 @@ ALTER TABLE stream_sessions
   ADD COLUMN IF NOT EXISTS error_code text,
   ADD COLUMN IF NOT EXISTS publisher_edge_device_id uuid REFERENCES edge_devices(id) ON DELETE SET NULL;
 
+-- Preserve control of an in-flight legacy broadcast when there is an eligible
+-- assigned Edge. New sessions always persist their publisher at creation time.
+UPDATE stream_sessions ss
+SET publisher_edge_device_id=(
+      SELECT d.id
+      FROM edge_devices d
+      JOIN services s ON s.id=ss.service_id
+      WHERE d.active_service_id=ss.service_id
+        AND d.organization_id=s.organization_id
+        AND d.status='active'
+      ORDER BY d.last_seen_at DESC NULLS LAST,d.created_at ASC,d.id ASC
+      LIMIT 1
+    ),
+    updated_at=now()
+WHERE ss.publisher_edge_device_id IS NULL
+  AND ss.status IN ('starting','live','stopping');
+
 CREATE INDEX IF NOT EXISTS idx_stream_sessions_publisher_device
   ON stream_sessions(publisher_edge_device_id, created_at DESC)
   WHERE publisher_edge_device_id IS NOT NULL;
