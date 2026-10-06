@@ -5,11 +5,13 @@ on:
   push:
     paths:
       - "apps/control/**"
+      - "config/mediamtx.yml"
       - "package.json"
       - ".github/workflows/control-ci.yml"
   pull_request:
     paths:
       - "apps/control/**"
+      - "config/mediamtx.yml"
       - "package.json"
       - ".github/workflows/control-ci.yml"
 
@@ -95,5 +97,54 @@ jobs:
         run: pnpm test:transcript-window
       - name: Stream contribution security self-test
         run: pnpm test:stream-contribution
+      - name: Validate production MediaMTX configuration
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="1.21.1"
+          expected_sha256="653abc672a3e693f8d3b2717752492fdcfb8072291ec108d03d3dd857411b0ee"
+          archive="$RUNNER_TEMP/mediamtx-${version}-linux-amd64.tar.gz"
+          extract="$RUNNER_TEMP/mediamtx-${version}-linux-amd64"
+          log="$RUNNER_TEMP/mediamtx-config-validation.log"
+          url="https://github.com/bluenviron/mediamtx/releases/download/v${version}/mediamtx_v${version}_linux_amd64.tar.gz"
+
+          curl -fsSL "$url" -o "$archive"
+          printf '%s  %s\n' "$expected_sha256" "$archive" | sha256sum -c -
+          rm -rf "$extract"
+          mkdir -p "$extract"
+          tar -xzf "$archive" -C "$extract"
+          server="$(find "$extract" -type f -name mediamtx | head -n 1)"
+          test -n "$server"
+          chmod +x "$server"
+
+          "$server" config/mediamtx.yml >"$log" 2>&1 &
+          pid=$!
+          cleanup() {
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for _ in $(seq 1 40); do
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "MediaMTX exited while loading production configuration." >&2
+              cat "$log" >&2 || true
+              exit 1
+            fi
+            if curl -fsS --max-time 1 http://127.0.0.1:9997/v3/info >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.25
+          done
+
+          if [ "$ready" -ne 1 ]; then
+            echo "MediaMTX did not become healthy with production configuration." >&2
+            cat "$log" >&2 || true
+            exit 1
+          fi
+          echo "MediaMTX v${version} accepted the production configuration."
       - name: Production build
         run: pnpm build
