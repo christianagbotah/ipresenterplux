@@ -1,7 +1,13 @@
 import { MonitorPlay, RadioTower, ShieldCheck, Sparkles } from "lucide-react";
 import { LoginForm } from "./LoginForm";
+import demoAccountCatalog from "@/config/demo-accounts.json";
+import type { DemoAccount } from "@/lib/demo-login";
 
 export default function LoginPage() {
+  const demoAccounts = process.env.IPRESENTERPLUX_ENABLE_DEMO_ACCOUNTS === "true"
+    ? demoAccountCatalog as DemoAccount[]
+    : [];
+
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
       <div className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/[.08] bg-[#0b0f16]/95 shadow-[0_35px_120px_rgba(0,0,0,.45)] lg:grid-cols-[1.15fr_.85fr]">
@@ -68,7 +74,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <LoginForm />
+            <LoginForm demoAccounts={demoAccounts} />
 
             <div className="mt-6 flex items-center gap-2 text-[11px] leading-5 text-white/25">
               <ShieldCheck size={14} className="shrink-0" />

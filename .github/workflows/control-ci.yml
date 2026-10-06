@@ -105,6 +105,12 @@ jobs:
         run: pnpm test:stream-fanout
       - name: Provider destination health self-test
         run: pnpm test:stream-provider-health
+      - name: Demo account catalog and login UI self-test
+        run: pnpm test:demo-accounts
+      - name: Seed and verify isolated demo-role accounts
+        run: |
+          pnpm demo:seed
+          pnpm test:demo-users
       - name: Validate production MediaMTX configuration
         working-directory: .
         shell: bash

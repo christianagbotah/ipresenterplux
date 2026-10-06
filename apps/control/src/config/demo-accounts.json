@@ -1,0 +1,12 @@
+[
+  {"roleId":"owner","label":"Owner","description":"Full organization administration and licensing control","email":"demo.owner@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"admin","label":"Administrator","description":"Organization configuration and user administration","email":"demo.admin@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"pastor","label":"Pastor","description":"Service, sermon, pastoral and ministry oversight","email":"demo.pastor@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"presenter_operator","label":"Presenter Operator","description":"Presentation queue, Preview and Program control","email":"demo.presenter@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"media_operator","label":"Media Operator","description":"Cameras, audio, scenes, recording and livestream control","email":"demo.media@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"translator","label":"Translator","description":"Translation channels, captions and interpretation controls","email":"demo.translator@ipresenterplux.local","password":"Demo@2026!","futureModule":false},
+  {"roleId":"finance","label":"Finance","description":"Giving, finance and accounting workflows","email":"demo.finance@ipresenterplux.local","password":"Demo@2026!","futureModule":true},
+  {"roleId":"welfare","label":"Welfare","description":"Welfare workflows with restricted member records","email":"demo.welfare@ipresenterplux.local","password":"Demo@2026!","futureModule":true},
+  {"roleId":"group_leader","label":"Group Leader","description":"Ministry and group membership and attendance scope","email":"demo.groupleader@ipresenterplux.local","password":"Demo@2026!","futureModule":true},
+  {"roleId":"viewer","label":"Viewer","description":"Read-only operational dashboards and service visibility","email":"demo.viewer@ipresenterplux.local","password":"Demo@2026!","futureModule":false}
+]
