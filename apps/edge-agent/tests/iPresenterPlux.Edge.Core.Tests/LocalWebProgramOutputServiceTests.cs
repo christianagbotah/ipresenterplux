@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using Xunit;
@@ -93,6 +95,28 @@ public sealed class LocalWebProgramOutputServiceTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("/program")]
+    [InlineData("/api/state/program")]
+    public async Task LoopbackRendererRejectsNonGetMethods(string path)
+    {
+        var port = FreePort();
+        await using var output = new LocalWebProgramOutputService(port);
+        await output.StartProgramOutputAsync(CancellationToken.None);
+        using var client = new HttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{port}{path}")
+        {
+            Content = new StringContent("{}")
+        };
+
+        using var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
+        Assert.Contains("GET", response.Headers.Allow);
+        Assert.Null(output.Snapshot.Preview);
+        Assert.Null(output.Snapshot.Program);
+    }
+
     [Fact]
     public void ExposesLoopbackOnlyProgramAndPreviewUris()
     {
@@ -101,6 +125,15 @@ public sealed class LocalWebProgramOutputServiceTests
         Assert.Equal("http", output.ProgramUri.Scheme);
         Assert.Equal("/program", output.ProgramUri.AbsolutePath);
         Assert.Equal("/preview", output.PreviewUri.AbsolutePath);
+    }
+
+
+    private static int FreePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try { return ((IPEndPoint)listener.LocalEndpoint).Port; }
+        finally { listener.Stop(); }
     }
 
     private static PresentationRenderItem Item(Guid serviceId) => new(
