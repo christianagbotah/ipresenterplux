@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CircleStop, Radio, RotateCcw } from "lucide-react";
+import { CircleStop, MonitorPlay, Radio, RotateCcw } from "lucide-react";
 
 type ServiceState = "ready" | "live" | "ended";
 
@@ -12,10 +13,12 @@ type MutationPayload = {
 
 export function ServiceControls({
   serviceId,
-  status
+  status,
+  showOperatorLink = true
 }: {
   serviceId: string;
   status: string;
+  showOperatorLink?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -63,18 +66,31 @@ export function ServiceControls({
     </div>
   );
 
+  const operatorLink = showOperatorLink ? (
+    <Link
+      href="/operator"
+      className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-3.5 py-2.5 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.13] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#efc86f]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12]"
+    >
+      <MonitorPlay size={16} aria-hidden="true" />
+      <span className="hidden lg:inline">Operator</span>
+    </Link>
+  ) : null;
+
   if (status === "live") {
     return (
       <div className="flex min-w-0 flex-col items-end gap-1.5" aria-busy={isPending}>
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => changeState("ended")}
-          className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12] disabled:opacity-40"
-        >
-          <CircleStop size={16} aria-hidden="true" />
-          End service
-        </button>
+        <div className="flex items-center gap-2">
+          {operatorLink}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => changeState("ended")}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12] disabled:opacity-40"
+          >
+            <CircleStop size={16} aria-hidden="true" />
+            End service
+          </button>
+        </div>
         {feedback}
       </div>
     );
@@ -83,15 +99,18 @@ export function ServiceControls({
   if (status === "ended") {
     return (
       <div className="flex min-w-0 flex-col items-end gap-1.5" aria-busy={isPending}>
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => changeState("ready")}
-          className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.04] px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-40"
-        >
-          <RotateCcw size={15} aria-hidden="true" />
-          Prepare again
-        </button>
+        <div className="flex items-center gap-2">
+          {operatorLink}
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => changeState("ready")}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.04] px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-40"
+          >
+            <RotateCcw size={15} aria-hidden="true" />
+            Prepare again
+          </button>
+        </div>
         {feedback}
       </div>
     );
@@ -100,6 +119,7 @@ export function ServiceControls({
   return (
     <div className="flex min-w-0 flex-col items-end gap-1.5" aria-busy={isPending}>
       <div className="flex items-center gap-2">
+        {operatorLink}
         <div className="hidden min-h-11 items-center rounded-xl border border-white/[.08] bg-white/[.035] px-4 py-2.5 text-sm font-semibold text-white/50 md:flex">
           Prepared
         </div>
