@@ -12,6 +12,10 @@ export type EdgeContributionGrant = {
   expiresAt: string;
 };
 
+export function hashContributionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export function createEdgeContributionGrant(routerBaseUrl: string, now = new Date()): EdgeContributionGrant {
   const router = new URL(routerBaseUrl);
   if (router.protocol !== "srt:") throw new Error("stream_router_protocol_invalid");
@@ -23,7 +27,7 @@ export function createEdgeContributionGrant(routerBaseUrl: string, now = new Dat
   const sessionId = randomUUID();
   const streamPath = `edge-${sessionId}`;
   const token = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const tokenHash = hashContributionToken(token);
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
 
   // MediaMTX SRT custom syntax: publish:path:user:password.
