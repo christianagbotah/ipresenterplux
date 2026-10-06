@@ -6,6 +6,7 @@ namespace iPresenterPlux.Edge.MacOS;
 public sealed class MacOSEncodedProgramVideoSource : IEncodedProgramVideoSource
 {
     private const string LibraryName = "iPresenterPluxMediaBridge";
+    private const int RequiredBridgeApiVersion = 4;
     private readonly object _gate = new();
     private readonly ProgramVideoFrameCallback _callback;
     private bool _capturing;
@@ -58,6 +59,9 @@ public sealed class MacOSEncodedProgramVideoSource : IEncodedProgramVideoSource
         int nativeStatus;
         try
         {
+            if (NativeMethods.BridgeApiVersion() < RequiredBridgeApiVersion)
+                return SetFailure("native_bridge_outdated");
+
             nativeStatus = await Task.Run(() => NativeMethods.ProgramVideoStart(
                 target.ProcessId,
                 target.WindowTitle,
@@ -199,6 +203,9 @@ public sealed class MacOSEncodedProgramVideoSource : IEncodedProgramVideoSource
     #pragma warning disable SYSLIB1054 // Swift bridge exposes a stable C ABI.
     private static class NativeMethods
     {
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_bridge_api_version", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int BridgeApiVersion();
+
         [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_program_video_start", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int ProgramVideoStart(
             int processId,
