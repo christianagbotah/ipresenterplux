@@ -39,6 +39,7 @@ const heartbeatMs = 5_000;
 const maxRetryMs = 30_000;
 let shuttingDown = false;
 const children = new Set();
+const retryWaiters = new Set();
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 
 function addressIsPrivate(address) {
@@ -55,6 +56,18 @@ function addressIsPrivate(address) {
       /^fe[89ab]/.test(lower) || lower.startsWith("ff");
   }
   return true;
+}
+
+function retryDelay(ms) {
+  if (shuttingDown) return Promise.resolve();
+  return new Promise((resolve) => {
+    const waiter = { timer: null, resolve };
+    waiter.timer = setTimeout(() => {
+      retryWaiters.delete(waiter);
+      resolve();
+    }, ms);
+    retryWaiters.add(waiter);
+  });
 }
 
 async function assertPublicResolution(ingestUrl) {
@@ -254,7 +267,7 @@ async function runDestination(destination, sessionId) {
     if (!outcome.retry || shuttingDown) break;
     attempt += 1;
     const delay = Math.min(maxRetryMs, 1_000 * 2 ** Math.min(attempt, 5));
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    await retryDelay(delay);
   }
 
   // Avoid retaining decrypted material in long-lived references after this loop.
@@ -265,6 +278,11 @@ async function runDestination(destination, sessionId) {
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
+  for (const waiter of retryWaiters) {
+    clearTimeout(waiter.timer);
+    waiter.resolve();
+  }
+  retryWaiters.clear();
   for (const child of children) {
     if (child.exitCode === null) child.kill(signal === "SIGTERM" ? "SIGTERM" : "SIGINT");
   }
