@@ -22,9 +22,16 @@ public sealed class HttpOperatorCatalogClientTests
             Assert.Equal("/api/v1/edge/operator/catalog", request.RequestUri?.AbsolutePath);
             Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
             Assert.Equal(token, request.Headers.Authorization?.Parameter);
-            return Json(HttpStatusCode.OK, $$"""
-                {"ok":true,"service":{"serviceId":"{{serviceId:D}}","title":"Sunday Worship","status":"live","activeBibleVersion":"KJV","scheduledStart":null,"startedAt":"2026-10-06T10:00:00Z"},"bibleVersions":[{"id":"KJV","name":"King James Version","abbreviation":"KJV","languageCode":"en"}],"items":[{"itemId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","itemType":"slide","title":"Welcome","body":"Welcome home","footer":null,"metadata":{"state":"queued"}}],"scriptureQueue":[{"itemId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","itemType":"scripture","title":"John 3:16","body":"For God so loved the world...","footer":"KJV","metadata":{"book":"John","chapter":"3","verses":"16","bibleVersion":"KJV"}}],"catalogRevision":"rev-42","observedAt":"2026-10-06T10:01:00Z"}
-                """);
+            return Json(HttpStatusCode.OK, new
+            {
+                ok = true,
+                service = new { serviceId, title = "Sunday Worship", status = "live", activeBibleVersion = "KJV", scheduledStart = (string?)null, startedAt = "2026-10-06T10:00:00Z" },
+                bibleVersions = new[] { new { id = "KJV", name = "King James Version", abbreviation = "KJV", languageCode = "en" } },
+                items = new[] { new { itemId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", itemType = "slide", title = "Welcome", body = "Welcome home", footer = (string?)null, metadata = new Dictionary<string,string> { ["state"] = "queued" } } },
+                scriptureQueue = new[] { new { itemId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", itemType = "scripture", title = "John 3:16", body = "For God so loved the world...", footer = "KJV", metadata = new Dictionary<string,string> { ["book"] = "John", ["chapter"] = "3", ["verses"] = "16", ["bibleVersion"] = "KJV" } } },
+                catalogRevision = "rev-42",
+                observedAt = "2026-10-06T10:01:00Z"
+            });
         })) { BaseAddress = new Uri("https://control.example.test") };
         var clock = new FixedTimeProvider(DateTimeOffset.Parse("2026-10-06T10:01:05Z"));
         var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, token)), clock);
@@ -47,11 +54,21 @@ public sealed class HttpOperatorCatalogClientTests
     {
         var identity = Identity();
         var serviceId = Guid.NewGuid();
-        var items = string.Join(',', Enumerable.Range(0, 201).Select(i =>
-            $$"""{"itemId":"item-{{i}}","itemType":"slide","title":"Slide {{i}}","body":"Body","footer":null,"metadata":{}}"""));
-        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK,
-            $$"""{"ok":true,"service":{"serviceId":"{{serviceId:D}}","title":"Service","status":"live","activeBibleVersion":"KJV","scheduledStart":null,"startedAt":null},"bibleVersions":[],"items":[{{items}}],"scriptureQueue":[],"catalogRevision":"rev","observedAt":"2026-10-06T10:00:00Z"}""")))
-        { BaseAddress = new Uri("https://control.example.test") };
+        var items = Enumerable.Range(0, 201).Select(i => new
+        {
+            itemId = $"item-{i}", itemType = "slide", title = $"Slide {i}", body = "Body", footer = (string?)null,
+            metadata = new Dictionary<string,string>()
+        }).ToArray();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, new
+        {
+            ok = true,
+            service = new { serviceId, title = "Service", status = "live", activeBibleVersion = "KJV", scheduledStart = (string?)null, startedAt = (string?)null },
+            bibleVersions = Array.Empty<object>(),
+            items,
+            scriptureQueue = Array.Empty<object>(),
+            catalogRevision = "rev",
+            observedAt = "2026-10-06T10:00:00Z"
+        }))) { BaseAddress = new Uri("https://control.example.test") };
         var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
 
         await Assert.ThrowsAsync<InvalidDataException>(() => client.GetCatalogAsync(CancellationToken.None));
@@ -67,7 +84,21 @@ public sealed class HttpOperatorCatalogClientTests
             Assert.Equal("/api/v1/edge/operator/scripture", request.RequestUri?.AbsolutePath);
             Assert.Contains("reference=John%203%3A16", request.RequestUri?.Query ?? "", StringComparison.Ordinal);
             Assert.Contains("version=KJV", request.RequestUri?.Query ?? "", StringComparison.Ordinal);
-            return Json(HttpStatusCode.OK, $$"""{"ok":true,"item":{"itemId":"local-scripture-0123456789abcdef01234567","serviceId":"{{serviceId:D}}","itemType":"scripture","title":"John 3:16","body":"For God so loved the world...","footer":"KJV","metadata":{"book":"John","chapter":"3","verses":"16","bibleVersion":"KJV"}},"observedAt":"2026-10-06T10:00:00Z"}""");
+            return Json(HttpStatusCode.OK, new
+            {
+                ok = true,
+                item = new
+                {
+                    itemId = "local-scripture-0123456789abcdef01234567",
+                    serviceId,
+                    itemType = "scripture",
+                    title = "John 3:16",
+                    body = "For God so loved the world...",
+                    footer = "KJV",
+                    metadata = new Dictionary<string,string> { ["book"] = "John", ["chapter"] = "3", ["verses"] = "16", ["bibleVersion"] = "KJV" }
+                },
+                observedAt = "2026-10-06T10:00:00Z"
+            });
         })) { BaseAddress = new Uri("https://control.example.test") };
         var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
 
@@ -92,9 +123,9 @@ public sealed class HttpOperatorCatalogClientTests
             Encoding.UTF8.GetBytes(token));
     }
 
-    private static HttpResponseMessage Json(HttpStatusCode status, string body) => new(status)
+    private static HttpResponseMessage Json(HttpStatusCode status, object body) => new(status)
     {
-        Content = new StringContent(body, Encoding.UTF8, "application/json")
+        Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
     };
 
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler
