@@ -700,7 +700,6 @@ public sealed class MainWindow : Window
         _record.IsEnabled = false;
         _take.IsEnabled = false;
         _clear.IsEnabled = false;
-        foreach (var button in _localOutputButtons) button.IsEnabled = false;
     }
 
     private void SetOperatorFeedback(string message, bool failed)
