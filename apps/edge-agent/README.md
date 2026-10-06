@@ -178,7 +178,7 @@ The control plane now persists operator-issued Edge commands in `edge_control_co
 
 `HttpEdgeCommandClient` implements the shared `IControlPlaneCommandStream` contract. The first transport is credential-authenticated HTTP polling so the command semantics are testable and restart-safe at the server before a later WebSocket/gRPC transport replaces the wire mechanism. `EdgeAgentRuntime` runs the receiver independently of heartbeat/transcript delivery; command-channel network failures mark connectivity degraded without stopping local presentation or audio capture.
 
-`ControlCommandProcessor` enforces the currently assigned service before executing service-scoped commands. `health.query` works without an output adapter. Preview/Program/output commands execute only when an `IMediaOutputService` implementation is injected; unsupported recording/stream/scene/language commands fail closed until their local adapters exist. During one agent process, repeated delivery of the same command ID reuses the prior result rather than re-executing it. A durable local completed-command journal must be added before non-idempotent hardware/media mutations are enabled for production.
+`ControlCommandProcessor` enforces the currently assigned service before executing service-scoped commands. `health.query` works without an output adapter. Preview/Program/output commands execute only when an `IMediaOutputService` implementation is injected; unsupported recording/stream/scene/language commands fail closed until their local adapters exist. Repeated delivery reuses the durable completed result as described below.
 
 ## Local Program output and projector kiosk
 
@@ -201,3 +201,34 @@ The Edge host now includes a local mixer recorder that is independent of cloud c
 Captured mixer frames are written off the realtime audio callback through a bounded channel. The recorder preserves the native capture format in WAV (PCM 16/24/32-bit or IEEE Float32), rotates at 1.5 GB per segment to remain safely below classic RIFF limits, and checkpoints WAV header sizes every 2 MB so an unexpected process/power loss leaves a substantially recoverable file. A slow disk drops recording frames rather than blocking the audio capture/ASR callback, and the dropped-frame count is included in Edge telemetry.
 
 Recordings are stored under the Edge application-data directory in `recordings/YYYY/MM/DD/<service-id>/<recording-id>/`. Each session contains `audio-001.wav` (and additional segments when needed) plus an atomic `recording.json` manifest with service, timestamps, segment names, frame counts and an allowlisted error code. Local recording continues through Internet loss once started; cloud reconnection is not required to finish the file.
+
+
+## Completed-command journal
+
+Both hosts inject Core's `ICompletedCommandJournal` / `FileCompletedCommandJournal`
+under their existing `IPRESENTERPLUX_DATA_DIR` (or per-user default). The versioned
+`completed-commands.json` snapshot retains the most recent 1000 results across
+all organization/device scopes. Successful and failed results retain their exact
+completion timestamp. New commands still pass the existing service-scope checks;
+completed commands reuse the historical result without touching the current service.
+No cloud/API/database contracts change.
+
+The command loop checks disk before execution, flushes a same-directory temporary
+snapshot to disk, atomically replaces the snapshot, and only then acknowledges.
+Failed acknowledgements retain the existing retry behavior. A failed persistence
+attempt retains the produced result in memory and blocks further execution until
+it can be stored. Corrupt/unsupported state, duplicate keys, or leftover temporary
+files block commands and mark connectivity degraded; they are never silently reset
+or deleted. Local presentation/recording and heartbeat work remain independent.
+Operators must preserve and reconcile snapshot/temporary evidence before resuming
+commands; deleting journal evidence can permit replay.
+
+This is a single-process journal, with the same host single-writer assumption as
+other Edge stores. It is **not exactly-once hardware execution**: a crash after a
+hardware/media effect but before durable result persistence can still replay that
+command. Cancellation or an adapter throwing after a partial effect has the same
+uncertainty. Closing that window requires adapter-level idempotency or a transaction
+with the hardware effect; a completed-result file cannot provide it. Results older
+than the bounded history can also replay if redelivered. File flush/atomic rename
+protect normal process restarts, but do not promise directory-metadata durability
+through every filesystem/power-loss scenario or protection from external deletion.

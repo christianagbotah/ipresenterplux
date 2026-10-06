@@ -1,6 +1,7 @@
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Transport;
 using iPresenterPlux.Edge.Core.Queues;
+using iPresenterPlux.Edge.Core.Journals;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.Security;
 using iPresenterPlux.Edge.MacOS;
@@ -83,6 +84,7 @@ static async Task<int> RunAsync()
         credentialStore,
         identityStore,
         queue,
+        new FileCompletedCommandJournal(dataDirectory),
         capabilities,
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
