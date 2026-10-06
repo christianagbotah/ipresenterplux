@@ -93,5 +93,7 @@ jobs:
         run: pnpm test:scripture-quote
       - name: Transcript and translation integration self-test
         run: pnpm test:transcript-window
+      - name: Stream contribution security self-test
+        run: pnpm test:stream-contribution
       - name: Production build
         run: pnpm build
