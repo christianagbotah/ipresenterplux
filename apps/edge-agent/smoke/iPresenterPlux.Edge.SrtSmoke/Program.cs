@@ -13,11 +13,18 @@ if (!connected.IsConnected)
     throw new InvalidOperationException($"SRT smoke connect failed: {connected.ErrorCode ?? connected.State}");
 
 var muxer = new MpegTsMuxer();
-using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+using var handler = new SocketsHttpHandler
+{
+    UseProxy = false,
+    ConnectTimeout = TimeSpan.FromMilliseconds(750)
+};
+using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 var startedAt = DateTimeOffset.UtcNow;
 var frameNumber = 0L;
 var verified = false;
+string? lastApiSnapshot = null;
+Exception? lastProbeError = null;
 
 while (!timeout.IsCancellationRequested)
 {
@@ -30,7 +37,7 @@ while (!timeout.IsCancellationRequested)
         "annexb",
         frameNumber % 30 == 0,
         ptsUs));
-    await SendPacketsAsync(sender, video, timeout.Token);
+    await SendPacketsAsync(sender, video, CancellationToken.None);
 
     if ((frameNumber & 1) == 0)
     {
@@ -43,32 +50,50 @@ while (!timeout.IsCancellationRequested)
             "adts",
             audioPts,
             21_333));
-        await SendPacketsAsync(sender, audio, timeout.Token);
+        await SendPacketsAsync(sender, audio, CancellationToken.None);
     }
 
     frameNumber++;
     if (DateTimeOffset.UtcNow - startedAt > TimeSpan.FromMilliseconds(400))
     {
+        using var probeTimeout = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+        probeTimeout.CancelAfter(TimeSpan.FromMilliseconds(750));
         try
         {
-            var json = await http.GetStringAsync(apiUri, timeout.Token);
+            var json = await http.GetStringAsync(apiUri, probeTimeout.Token);
+            lastApiSnapshot = json;
+            lastProbeError = null;
             if (PathHasCodecs(json, path, "H264", "MPEG4Audio"))
             {
                 verified = true;
                 break;
             }
         }
-        catch (HttpRequestException)
+        catch (OperationCanceledException) when (!timeout.IsCancellationRequested)
         {
+            lastProbeError = new TimeoutException("MediaMTX API probe exceeded 750 ms.");
+        }
+        catch (HttpRequestException error)
+        {
+            lastProbeError = error;
         }
     }
 
-    await Task.Delay(20, timeout.Token);
+    await Task.Delay(20);
 }
 
 await sender.DisconnectAsync(CancellationToken.None);
 if (!verified)
-    throw new InvalidOperationException("MediaMTX never reported the smoke path with H264 and MPEG4Audio tracks.");
+{
+    var snapshot = string.IsNullOrWhiteSpace(lastApiSnapshot)
+        ? "<no API snapshot>"
+        : lastApiSnapshot.Length <= 2_000 ? lastApiSnapshot : lastApiSnapshot[..2_000] + "...";
+    var probe = lastProbeError is null
+        ? "<none>"
+        : $"{lastProbeError.GetType().Name}: {lastProbeError.Message}";
+    throw new InvalidOperationException(
+        $"MediaMTX never reported the smoke path with H264 and MPEG4Audio tracks. Last probe={probe}; last API snapshot={snapshot}");
+}
 
 Console.WriteLine("SRT_MEDIAMTX_SMOKE_OK");
 
