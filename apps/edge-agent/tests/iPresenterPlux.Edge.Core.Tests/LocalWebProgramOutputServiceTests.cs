@@ -112,7 +112,7 @@ public sealed class LocalWebProgramOutputServiceTests
         using var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
-        Assert.True(response.Headers.TryGetValues("Allow", out var allow));
+        Assert.True(response.Content.Headers.TryGetValues("Allow", out var allow));
         Assert.Contains("GET", allow);
         Assert.Null(output.Snapshot.Preview);
         Assert.Null(output.Snapshot.Program);
