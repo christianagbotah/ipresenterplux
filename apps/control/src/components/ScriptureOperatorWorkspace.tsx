@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -159,22 +159,6 @@ export function ScriptureOperatorWorkspace({
   const [isPending, startTransition] = useTransition();
   const storageKey = `ipresenterplux:operator-selection:${serviceId}`;
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem(storageKey);
-    if (saved && detections.some((item) => item.id === saved)) {
-      setSelectedId(saved);
-      return;
-    }
-    if (selectedId && !detections.some((item) => item.id === selectedId)) {
-      setSelectedId(fallbackSelection?.id ?? null);
-    }
-  }, [detections, fallbackSelection?.id, selectedId, storageKey]);
-
-  useEffect(() => {
-    if (!selectedId) return;
-    window.localStorage.setItem(storageKey, selectedId);
-  }, [selectedId, storageKey]);
-
   const selected = detections.find((item) => item.id === selectedId) ?? fallbackSelection;
   const preview = detections.find((item) => item.state === "preview");
   const program = detections.find((item) => item.state === "live");
@@ -188,6 +172,7 @@ export function ScriptureOperatorWorkspace({
 
   function select(id: string) {
     setSelectedId(id);
+    window.localStorage.setItem(storageKey, id);
     setFeedback(null);
   }
 
