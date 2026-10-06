@@ -51,7 +51,7 @@ public sealed class MainWindow : Window
     private readonly TextBlock _statusDetail = Label("The local Edge runtime is not running.", 12, FontWeight.Normal, Muted);
     private readonly Border _statusDot = new() { Width = 10, Height = 10, CornerRadius = new CornerRadius(99), Background = Muted };
     private readonly TextBlock _cloudStatus = Label("Control Plane · unknown", 12, FontWeight.SemiBold, Muted);
-    private readonly TextBlock _programStatus = Label("Local Program · unknown", 12, FontWeight.SemiBold, Muted);
+    private readonly TextBlock _programStatus = Label("Local Program · waiting — start Edge first", 12, FontWeight.SemiBold, Muted);
     private readonly TextBlock _feedback = Label("", 12, FontWeight.Normal, Muted);
     private readonly Button _start = ActionButton("Start Edge", true);
     private readonly Button _stop = ActionButton("Stop", false);
