@@ -1,3 +1,4 @@
+using System.Text;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
@@ -100,8 +101,20 @@ public sealed class LocalOperatorCommandHandlerTests
         var second = LocalOperatorIpcEndpoint.ForDataDirectory(root);
 
         Assert.Equal(first.PipeName, second.PipeName);
-        Assert.True(first.PipeName.StartsWith("ipresenterplux-operator-", StringComparison.Ordinal));
+        Assert.StartsWith("ipresenterplux-operator-", first.PipeName);
         Assert.Equal(Path.Combine(Path.GetFullPath(root), "operator.sock"), first.UnixSocketPath);
+    }
+
+    [Fact]
+    public void LongUnixSocketPathFallsBackToBoundedStablePath()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ipresenterplux-ipc-tests", new string('x', 180));
+        var first = LocalOperatorIpcEndpoint.ForDataDirectory(root);
+        var second = LocalOperatorIpcEndpoint.ForDataDirectory(root);
+
+        Assert.Equal(first.UnixSocketPath, second.UnixSocketPath);
+        Assert.NotEqual(Path.Combine(Path.GetFullPath(root), "operator.sock"), first.UnixSocketPath);
+        Assert.True(Encoding.UTF8.GetByteCount(first.UnixSocketPath) <= 100);
     }
 
     private static LocalOperatorRequest Request(string command, LocalOperatorPresentation? presentation = null) =>

@@ -57,8 +57,15 @@ public sealed record LocalOperatorIpcEndpoint(string PipeName, string UnixSocket
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
         var full = Path.GetFullPath(dataDirectory);
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(full)))[..20].ToLowerInvariant();
+        var candidate = Path.Combine(full, "operator.sock");
+        var unixSocketPath = Encoding.UTF8.GetByteCount(candidate) <= 100
+            ? candidate
+            : Path.Combine(Path.GetTempPath(), $"ipx-{hash}.sock");
+        if (Encoding.UTF8.GetByteCount(unixSocketPath) > 100 && !OperatingSystem.IsWindows())
+            unixSocketPath = Path.Combine("/tmp", $"ipx-{hash}.sock");
+
         return new LocalOperatorIpcEndpoint(
             $"ipresenterplux-operator-{hash}",
-            Path.Combine(full, "operator.sock"));
+            unixSocketPath);
     }
 }

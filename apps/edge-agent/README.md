@@ -44,6 +44,14 @@ Closing the first shell release cleanly stops the supervised runtime. A later tr
 
 A user-scoped `edge-host.lock` file handle now enforces the existing single-writer assumption for the Edge data directory. A stale lock file is harmless because exclusivity is held by the open OS handle and is released automatically when the owning process exits. The desktop shell requests graceful shutdown through a timestamped local file signal in the same user-scoped data directory; no local network shutdown listener is opened.
 
+### Operator workspace Phase 1
+
+The desktop now opens on a production-oriented **Operator** workspace rather than the setup screen. The left pane provides a searchable/categorized service rundown foundation; the center pane shows authoritative Preview and Program canvases with explicit Preview, Take and Clear actions; and the right pane surfaces runtime/output/recording truth plus links to detached local outputs and cloud rooms. First-run enrollment remains available under **Setup & Runtime** and automatically becomes the selected tab when no Control Plane URL has been configured.
+
+Local mutation control does **not** use the loopback HTTP renderer. `/preview`, `/program`, `/api/state/preview` and `/api/state/program` remain read-only. The desktop talks to the Edge host through a same-user IPC contract: Windows uses a `PipeOptions.CurrentUserOnly` named pipe, while macOS uses a Unix-domain socket with user read/write permissions only. The socket normally lives inside the per-user Edge data directory; if that absolute path would exceed the platform Unix-socket pathname limit, the endpoint deterministically falls back to a short OS-temporary pathname while retaining `0600` socket permissions. The contract accepts only bounded, allowlisted presentation/output/recording commands and returns runtime-authoritative snapshots. Device credentials, pairing codes, provider OAuth tokens and stream keys are not part of the IPC DTOs.
+
+When no cloud service is assigned, Preview/Take/Clear continue in an explicit local rehearsal scope; recording stays disabled until an authoritative active service exists. Keyboard shortcuts are **F6 Preview**, **F8 Take**, **F7 Clear** and **F5 Restart Edge**.
+
 ## Apple Silicon
 
 macOS releases will ship for Apple Silicon (`osx-arm64`) first and retain an `osx-x64` build while Intel support remains worthwhile.

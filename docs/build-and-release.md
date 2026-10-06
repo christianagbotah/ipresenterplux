@@ -18,6 +18,8 @@ The VPS is a runtime/deployment target, not the authoritative build workstation.
 
 Edge CI now produces self-contained **desktop application bundles** for both platforms. Each artifact contains the shared Avalonia shell at its root and the proven platform Edge host under `runtime/`, including pinned libsrt and (on macOS) the native Apple media bridge. These bundles are intended for CI/UAT validation and do not require a separately installed .NET runtime.
 
+The Phase 1 desktop artifact includes the production Operator workspace and same-user local IPC control path. macOS normally keeps the Unix socket under the Edge data directory and uses a bounded short temporary pathname only when required by the platform socket-path limit; the socket remains user-only (`0600`). CI must build and test the IPC client/server path on both runners, including Preview → Take → Clear round-trips. The loopback Program renderer remains read-only; no release may replace the same-user IPC boundary with unauthenticated local HTTP mutation endpoints.
+
 They are **not yet public production installers**. Public distribution still requires these gates:
 
 1. Windows installer packaging (MSIX/MSI/appropriate installer), app identity/icon metadata and Authenticode signing.
@@ -27,5 +29,3 @@ They are **not yet public production installers**. Public distribution still req
 5. Field UAT on real church mixer/camera/projector hardware before calling either desktop build production-ready.
 
 No production signing key, stream key, OAuth token or device credential belongs in the repository, build logs or release manifest.
-
-No production signing key, stream key, OAuth token or device credential belongs in the repository or build logs.
