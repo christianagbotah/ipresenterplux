@@ -49,14 +49,15 @@ export async function POST(request: Request) {
 
       await client.query(
         `insert into edge_stream_contribution_sessions
-          (id,organization_id,edge_device_id,service_id,protocol,token_hash,router_authority,expires_at)
-         values ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8::timestamptz)`,
+          (id,organization_id,edge_device_id,service_id,protocol,stream_path,token_hash,router_authority,expires_at)
+         values ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8,$9::timestamptz)`,
         [
           grant.sessionId,
           device.organizationId,
           device.deviceId,
           scope.service_id,
           grant.protocol,
+          grant.streamPath,
           grant.tokenHash,
           grant.routerAuthority,
           grant.expiresAt
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
           device.organizationId,
           device.deviceId,
           grant.sessionId,
-          JSON.stringify({ serviceId: scope.service_id, protocol: grant.protocol, expiresAt: grant.expiresAt, routerAuthority: grant.routerAuthority })
+          JSON.stringify({ serviceId: scope.service_id, protocol: grant.protocol, streamPath: grant.streamPath, expiresAt: grant.expiresAt, routerAuthority: grant.routerAuthority })
         ]
       );
 
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
         contribution: {
           sessionId: grant.sessionId,
           serviceId: scope.service_id,
+          streamPath: grant.streamPath,
           protocol: grant.protocol,
           publishUrl: grant.publishUrl,
           expiresAt: grant.expiresAt
