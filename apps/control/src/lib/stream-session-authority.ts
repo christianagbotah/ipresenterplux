@@ -96,6 +96,14 @@ export async function reconcileStreamCommandResult(
     [current.id, errorCode]
   );
 
+  await client.query(
+    `update edge_stream_contribution_sessions
+     set revoked_at=coalesce(revoked_at,now()),updated_at=now()
+     where service_id=$1::uuid
+       and revoked_at is null`,
+    [result.serviceId]
+  );
+
   return updated.rows[0] ?? null;
 }
 
