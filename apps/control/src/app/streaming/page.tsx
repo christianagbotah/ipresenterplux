@@ -19,9 +19,12 @@ import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { StreamingBroadcastControl } from "@/components/StreamingBroadcastControl";
 import { StreamingDestinationControl } from "@/components/StreamingDestinationControl";
 import { StreamingDestinationCredentials } from "@/components/StreamingDestinationCredentials";
+import { StreamingProviderConnection } from "@/components/StreamingProviderConnection";
 import { query } from "@/lib/db";
 import { isSocialDestinationType } from "@/lib/destination-routing";
 import { STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
+import { providerSecretKeyConfigured } from "@/lib/provider-secrets";
+import { youtubeOAuthConfigured } from "@/lib/youtube-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +50,7 @@ type OutputRow = {
   provider_checked_at: string | null;
   provider_error_code: string | null;
   provider_issue_codes: string[] | null;
+  provider_connected: boolean;
   credential_configured: boolean;
   public_config: Record<string, unknown>;
   updated_at: string;
@@ -166,6 +170,10 @@ async function streamingData(userId: string) {
             ssd.last_heartbeat_at::text,ssd.provider_health_state,ssd.provider_live_state,
             ssd.provider_checked_at::text,ssd.provider_error_code,ssd.provider_issue_codes,
             exists(
+              select 1 from output_destination_provider_accounts pa
+              where pa.output_destination_id=od.id and pa.provider='youtube'
+            ) as provider_connected,
+            exists(
               select 1 from output_destination_credentials c
               where c.output_destination_id=od.id
             ) as credential_configured
@@ -190,6 +198,7 @@ export default async function StreamingPage() {
 
   const data = await streamingData(session.user.id);
   if (!data.service) redirect("/");
+  const youtubeProviderLinkingAvailable = youtubeOAuthConfigured() && providerSecretKeyConfigured();
 
   const master = data.streamSession;
   const masterStatus = master?.status ?? "idle";
@@ -320,6 +329,16 @@ export default async function StreamingPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-start justify-end gap-2">
+                      {output.destination_type === "youtube" ? (
+                        <StreamingProviderConnection
+                          id={output.id}
+                          name={output.name}
+                          connected={output.provider_connected}
+                          available={youtubeProviderLinkingAvailable}
+                          canControl={data.canControl}
+                          locked={broadcastActive}
+                        />
+                      ) : null}
                       {social ? (
                         <StreamingDestinationCredentials
                           id={output.id}
