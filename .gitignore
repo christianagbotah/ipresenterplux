@@ -31,3 +31,7 @@ Thumbs.db
 # .NET build output
 **/bin/
 **/obj/
+
+# Agent worktrees and execution ledgers
+.worktrees/
+.superpowers/
