@@ -32,6 +32,55 @@ jobs:
         run: dotnet build src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release --no-restore
       - name: Publish Windows portable artifact
         run: dotnet publish src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release --no-restore -o publish/windows-x64
+      - name: Build pinned libsrt 1.5.7 for Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $srtCommit = "899348d8318eb9a3c5a5b6ec43c4a1114288773a"
+          $vcpkg = $env:VCPKG_INSTALLATION_ROOT
+          if ([string]::IsNullOrWhiteSpace($vcpkg)) { $vcpkg = "C:\vcpkg" }
+          $vcpkgExe = Join-Path $vcpkg "vcpkg.exe"
+          if (-not (Test-Path $vcpkgExe)) { throw "vcpkg was not found at $vcpkgExe" }
+
+          & $vcpkgExe install openssl:x64-windows-static
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg OpenSSL install failed" }
+
+          New-Item -ItemType Directory -Force native/srt-src | Out-Null
+          git -C native/srt-src init
+          git -C native/srt-src remote add origin https://github.com/Haivision/srt.git
+          git -C native/srt-src fetch --depth 1 origin $srtCommit
+          git -C native/srt-src checkout --detach FETCH_HEAD
+          $actualCommit = (git -C native/srt-src rev-parse HEAD).Trim()
+          if ($actualCommit -ne $srtCommit) { throw "Unexpected libsrt source commit: $actualCommit" }
+
+          cmake -S native/srt-src -B native/srt-build -A x64 `
+            -DENABLE_APPS=OFF `
+            -DENABLE_EXAMPLES=OFF `
+            -DENABLE_TESTING=OFF `
+            -DENABLE_UNITTESTS=OFF `
+            -DENABLE_SHARED=ON `
+            -DENABLE_STATIC=OFF `
+            -DENABLE_ENCRYPTION=ON `
+            -DSRT_USE_OPENSSL_STATIC_LIBS=ON `
+            -DUSE_OPENSSL_PC=OFF `
+            -DCMAKE_TOOLCHAIN_FILE="$vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static
+          if ($LASTEXITCODE -ne 0) { throw "libsrt CMake configure failed" }
+          cmake --build native/srt-build --config Release --target srt
+          if ($LASTEXITCODE -ne 0) { throw "libsrt Windows build failed" }
+
+          $dll = Get-ChildItem native/srt-build -Recurse -File -Filter srt.dll |
+            Where-Object { $_.FullName -match "Release" } |
+            Select-Object -First 1
+          if (-not $dll) {
+            $dll = Get-ChildItem native/srt-build -Recurse -File -Filter srt.dll | Select-Object -First 1
+          }
+          if (-not $dll) { throw "Built srt.dll was not found" }
+          New-Item -ItemType Directory -Force publish/windows-x64/libSrt | Out-Null
+          Copy-Item $dll.FullName publish/windows-x64/libSrt/srt.dll
+
+          $env:IPRESENTERPLUX_SRT_DLL = (Resolve-Path publish/windows-x64/libSrt/srt.dll).Path
+          python -c "import ctypes, os; p=os.environ['IPRESENTERPLUX_SRT_DLL']; lib=ctypes.CDLL(p); lib.srt_getversion.restype=ctypes.c_uint; v=lib.srt_getversion(); assert v==0x010507, hex(v); print('libsrt runtime verified:', hex(v))"
       - name: Upload Windows Edge artifact
         uses: actions/upload-artifact@v4
         with:
@@ -68,6 +117,47 @@ jobs:
         run: |
           mkdir -p publish/macos/native
           cp native/macos/iPresenterPlux.MediaBridge/.build/release/libiPresenterPluxMediaBridge.dylib publish/macos/native/
+      - name: Build pinned libsrt 1.5.7 for macOS
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRT_COMMIT="899348d8318eb9a3c5a5b6ec43c4a1114288773a"
+          OPENSSL_ROOT="$(brew --prefix openssl@3)"
+          test -f "$OPENSSL_ROOT/lib/libcrypto.a"
+          test -f "$OPENSSL_ROOT/lib/libssl.a"
+
+          mkdir -p native/srt-src
+          git -C native/srt-src init
+          git -C native/srt-src remote add origin https://github.com/Haivision/srt.git
+          git -C native/srt-src fetch --depth 1 origin "$SRT_COMMIT"
+          git -C native/srt-src checkout --detach FETCH_HEAD
+          test "$(git -C native/srt-src rev-parse HEAD)" = "$SRT_COMMIT"
+
+          cmake -S native/srt-src -B native/srt-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_APPS=OFF \
+            -DENABLE_EXAMPLES=OFF \
+            -DENABLE_TESTING=OFF \
+            -DENABLE_UNITTESTS=OFF \
+            -DENABLE_SHARED=ON \
+            -DENABLE_STATIC=OFF \
+            -DENABLE_ENCRYPTION=ON \
+            -DSRT_USE_OPENSSL_STATIC_LIBS=ON \
+            -DUSE_OPENSSL_PC=OFF \
+            -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT"
+          cmake --build native/srt-build --config Release --target srt
+
+          SRT_DYLIB="$(find native/srt-build -type f -name 'libsrt*.dylib' | head -n 1)"
+          test -n "$SRT_DYLIB"
+          mkdir -p publish/macos/libSrt
+          cp "$SRT_DYLIB" publish/macos/libSrt/libsrt.dylib
+
+          if otool -L publish/macos/libSrt/libsrt.dylib | grep -E '/(opt|usr/local)/.*(libcrypto|libssl)|libcrypto|libssl'; then
+            echo "libsrt.dylib unexpectedly depends on a dynamic OpenSSL library" >&2
+            exit 1
+          fi
+          IPRESENTERPLUX_SRT_DYLIB="$(pwd)/publish/macos/libSrt/libsrt.dylib" \
+            python3 -c "import ctypes, os; p=os.environ['IPRESENTERPLUX_SRT_DYLIB']; lib=ctypes.CDLL(p); lib.srt_getversion.restype=ctypes.c_uint; v=lib.srt_getversion(); assert v==0x010507, hex(v); print('libsrt runtime verified:', hex(v))"
       - name: Upload macOS Edge artifact
         uses: actions/upload-artifact@v4
         with:
