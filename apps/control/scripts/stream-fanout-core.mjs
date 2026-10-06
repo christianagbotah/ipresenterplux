@@ -67,7 +67,10 @@ export function buildFfmpegArgs(sourceUrl, targetUrl) {
   return [
     "-hide_banner",
     "-nostdin",
+    "-nostats",
     "-loglevel", "warning",
+    "-stats_period", "2",
+    "-progress", "pipe:1",
     "-rtsp_transport", "tcp",
     "-i", sourceUrl,
     "-map", "0:v:0?",
