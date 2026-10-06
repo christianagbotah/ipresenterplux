@@ -43,16 +43,18 @@ public sealed class ContributionMasterStreamPublisher : IMasterStreamPublisher
 
             var transport = _transport.Status;
             var isPublishing = transport.IsPublishing;
-            if (isPublishing && state is not ("starting" or "stopping")) state = "publishing";
-            else if (!isPublishing && state == "publishing") state = "error";
+            if (isPublishing && state is not ("starting" or "stopping"))
+                state = transport.State == "reconnecting" ? "reconnecting" : "publishing";
+            else if (!isPublishing && state == "publishing")
+                state = transport.State == "reconnecting" ? "reconnecting" : "error";
 
             return new MasterStreamStatus(
                 isPublishing,
                 serviceId,
                 NormalizeState(state),
                 startedAt,
-                transport.BitrateBps,
-                transport.FramesPerSecond,
+                NormalizeBitrate(transport.BitrateBps),
+                NormalizeFramesPerSecond(transport.FramesPerSecond),
                 Math.Max(0, transport.DroppedFrames),
                 Math.Max(0, transport.ReconnectCount),
                 transport.LastSuccessfulSendAt,
@@ -211,6 +213,9 @@ public sealed class ContributionMasterStreamPublisher : IMasterStreamPublisher
         _ => "publisher_error"
     };
 
+    private static long? NormalizeBitrate(long? bitrate) => bitrate is >= 0 and <= 1_000_000_000 ? bitrate : null;
+    private static double? NormalizeFramesPerSecond(double? fps) => fps is >= 0 and <= 1000 ? fps : null;
+
     private static string NormalizeState(string? state) => state switch
     {
         "idle" => "idle",
@@ -250,6 +255,8 @@ public sealed class ContributionMasterStreamPublisher : IMasterStreamPublisher
         {
             await BestEffortStopTransportAsync().ConfigureAwait(false);
             SetState(null, null, "idle", null);
+            try { await _transport.DisposeAsync().ConfigureAwait(false); }
+            catch { /* disposal is best effort and must not surface transport internals */ }
         }
         finally
         {
