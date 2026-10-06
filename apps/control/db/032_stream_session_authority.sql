@@ -32,7 +32,12 @@ ALTER TABLE stream_sessions
   ADD COLUMN IF NOT EXISTS router_ready_at timestamptz,
   ADD COLUMN IF NOT EXISTS router_last_seen_at timestamptz,
   ADD COLUMN IF NOT EXISTS router_not_ready_at timestamptz,
-  ADD COLUMN IF NOT EXISTS error_code text;
+  ADD COLUMN IF NOT EXISTS error_code text,
+  ADD COLUMN IF NOT EXISTS publisher_edge_device_id uuid REFERENCES edge_devices(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_publisher_device
+  ON stream_sessions(publisher_edge_device_id, created_at DESC)
+  WHERE publisher_edge_device_id IS NOT NULL;
 
 -- Before enforcing one active broadcast session per service, reconcile any
 -- historical rows created before stream lifecycle authority existed. Keep the
