@@ -82,7 +82,7 @@ private final class EdgeProgramVideoCapture: NSObject, SCStreamOutput, SCStreamD
             }
 
             let candidates = content.windows.filter {
-                $0.owningApplication?.processID == processId && $0.onScreen
+                $0.owningApplication?.processID == processId && $0.isOnScreen
             }
             let titleMatch = candidates.first {
                 ($0.title ?? "").localizedCaseInsensitiveContains(titleHint)
@@ -361,7 +361,7 @@ public func programVideoStart(
 ) -> Int32 {
     guard processId > 0,
           let titleHintPointer,
-          let titleHint = String(validatingUTF8: titleHintPointer),
+          let titleHint = String(validatingCString: titleHintPointer),
           !titleHint.isEmpty,
           width > 0,
           height > 0,
