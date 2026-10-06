@@ -92,7 +92,7 @@ public sealed class MpegTsMuxer
             0x00, 0x01,
             0xC1, 0x00, 0x00,
             0x00, ProgramNumber,
-            (byte)(0xE0 | ((PmtPid >> 8) & 0x1F)), (byte)PmtPid
+            (byte)(0xE0 | ((PmtPid >> 8) & 0x1F)), (byte)(PmtPid & 0xFF)
         };
         return AppendCrc(section);
     }
@@ -104,10 +104,10 @@ public sealed class MpegTsMuxer
             0x02, 0xB0, 0x17,
             0x00, ProgramNumber,
             0xC1, 0x00, 0x00,
-            (byte)(0xE0 | ((VideoPid >> 8) & 0x1F)), (byte)VideoPid,
+            (byte)(0xE0 | ((VideoPid >> 8) & 0x1F)), (byte)(VideoPid & 0xFF),
             0xF0, 0x00,
-            0x1B, (byte)(0xE0 | ((VideoPid >> 8) & 0x1F)), (byte)VideoPid, 0xF0, 0x00,
-            0x0F, (byte)(0xE0 | ((AudioPid >> 8) & 0x1F)), (byte)AudioPid, 0xF0, 0x00
+            0x1B, (byte)(0xE0 | ((VideoPid >> 8) & 0x1F)), (byte)(VideoPid & 0xFF), 0xF0, 0x00,
+            0x0F, (byte)(0xE0 | ((AudioPid >> 8) & 0x1F)), (byte)(AudioPid & 0xFF), 0xF0, 0x00
         };
         return AppendCrc(section);
     }
@@ -148,7 +148,7 @@ public sealed class MpegTsMuxer
 
     private static byte[] BuildPesPacket(byte streamId, ReadOnlySpan<byte> payload, long pts90Khz)
     {
-        const int optionalHeaderLength = 8; // flags + header length + five-byte PTS.
+        const int optionalHeaderLength = 8;
         var packetLength = optionalHeaderLength + payload.Length;
         var encodedLength = packetLength <= ushort.MaxValue ? packetLength : 0;
         var pes = new byte[14 + payload.Length];
@@ -235,7 +235,7 @@ public sealed class MpegTsMuxer
     {
         packet[0] = 0x47;
         packet[1] = (byte)((payloadUnitStart ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
-        packet[2] = (byte)pid;
+        packet[2] = (byte)(pid & 0xFF);
         packet[3] = (byte)((adaptationAndPayload ? 0x30 : 0x10) | (continuity & 0x0F));
     }
 
