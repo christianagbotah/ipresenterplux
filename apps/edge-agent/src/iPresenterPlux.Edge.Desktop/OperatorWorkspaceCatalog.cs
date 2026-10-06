@@ -16,6 +16,17 @@ public sealed record OperatorWorkspaceItem(
     public override string ToString() => Title;
 }
 
+public sealed record OperatorWorkspaceView(
+    IReadOnlyList<OperatorWorkspaceItem> Items,
+    IReadOnlyList<OperatorBibleVersion> BibleVersions,
+    string? ActiveBibleVersion,
+    string? ServiceTitle,
+    string? ServiceStatus,
+    bool HasSyncedCatalog,
+    bool IsRehearsal,
+    bool IsStale,
+    string StatusLabel);
+
 public static class OperatorWorkspaceCatalog
 {
     public static IReadOnlyList<OperatorWorkspaceItem> Seeded { get; } = new[]
@@ -56,4 +67,72 @@ public static class OperatorWorkspaceCatalog
 
     public static IReadOnlyList<string> Categories { get; } =
         new[] { "All", "Scripture", "Songs", "Slides", "Media", "Announcements" };
+
+    public static OperatorWorkspaceView FromCatalog(OperatorCatalogSnapshot? catalog, bool stale)
+    {
+        if (catalog is null)
+        {
+            return new OperatorWorkspaceView(
+                Seeded, [], null, "Local rehearsal", "rehearsal",
+                HasSyncedCatalog: false, IsRehearsal: true, IsStale: false,
+                StatusLabel: "LOCAL REHEARSAL");
+        }
+
+        var activeVersion = string.IsNullOrWhiteSpace(catalog.Service?.ActiveBibleVersion)
+            ? catalog.BibleVersions.FirstOrDefault()?.Abbreviation
+            : catalog.Service.ActiveBibleVersion;
+
+        var items = catalog.Service is null
+            ? Array.Empty<OperatorWorkspaceItem>()
+            : catalog.Items
+                .Concat(catalog.ScriptureQueue)
+                .GroupBy(item => item.ItemId, StringComparer.Ordinal)
+                .Select(group => FromResolved(group.First()))
+                .ToArray();
+
+        var status = catalog.Service is null
+            ? "NO ACTIVE SERVICE"
+            : stale ? "OFFLINE CACHE" : "LIVE CATALOG";
+
+        return new OperatorWorkspaceView(
+            items, catalog.BibleVersions, activeVersion, catalog.Service?.Title, catalog.Service?.Status,
+            HasSyncedCatalog: true, IsRehearsal: false, IsStale: stale, StatusLabel: status);
+    }
+
+    public static IReadOnlyList<OperatorWorkspaceItem> Filter(
+        IEnumerable<OperatorWorkspaceItem> items,
+        string? category,
+        string? query)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        var selectedCategory = string.IsNullOrWhiteSpace(category) ? "All" : category.Trim();
+        var search = query?.Trim() ?? string.Empty;
+
+        return items.Where(item =>
+                (selectedCategory.Equals("All", StringComparison.OrdinalIgnoreCase) ||
+                 item.Category.Equals(selectedCategory, StringComparison.OrdinalIgnoreCase)) &&
+                (search.Length == 0 ||
+                 item.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                 item.Body.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                 item.Category.Contains(search, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+    }
+
+    public static OperatorWorkspaceItem FromResolved(OperatorCatalogItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var (category, accent) = PresentationKind(item.ItemType);
+        return new OperatorWorkspaceItem(
+            item.ItemId, category, item.Title, item.Body, item.Footer, accent);
+    }
+
+    private static (string Category, string Accent) PresentationKind(string? itemType) =>
+        itemType?.Trim().ToLowerInvariant() switch
+        {
+            "scripture" or "bible" => ("Scripture", "SCRIPTURE"),
+            "song" or "lyrics" => ("Songs", "SONG"),
+            "media" or "video" or "image" => ("Media", "MEDIA"),
+            "announcement" or "notice" => ("Announcements", "NOTICE"),
+            _ => ("Slides", "SLIDE")
+        };
 }
