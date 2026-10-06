@@ -8,6 +8,42 @@ ALTER TABLE stream_sessions
   ADD COLUMN IF NOT EXISTS router_not_ready_at timestamptz,
   ADD COLUMN IF NOT EXISTS error_code text;
 
+-- Before enforcing one active broadcast session per service, reconcile any
+-- historical rows created before stream lifecycle authority existed. Keep the
+-- strongest/newest active row and close every other active duplicate so this
+-- additive migration cannot fail on legacy data.
+WITH ranked AS (
+  SELECT id,
+         row_number() OVER (
+           PARTITION BY service_id
+           ORDER BY
+             CASE status
+               WHEN 'live' THEN 0
+               WHEN 'starting' THEN 1
+               WHEN 'stopping' THEN 2
+               ELSE 3
+             END,
+             created_at DESC,
+             id DESC
+         ) AS active_rank
+  FROM stream_sessions
+  WHERE status IN ('starting','live','stopping')
+)
+UPDATE stream_sessions ss
+SET status='ended',
+    ended_at=coalesce(ss.ended_at,now()),
+    error_code=coalesce(ss.error_code,'migration_duplicate_active_session'),
+    metrics=coalesce(ss.metrics,'{}'::jsonb) || jsonb_build_object(
+      'migration',jsonb_build_object(
+        'reconciledDuplicateActiveSession',true,
+        'at',clock_timestamp()
+      )
+    ),
+    updated_at=now()
+FROM ranked r
+WHERE ss.id=r.id
+  AND r.active_rank > 1;
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_stream_sessions_one_active_service
   ON stream_sessions(service_id)
   WHERE status IN ('starting','live','stopping');
