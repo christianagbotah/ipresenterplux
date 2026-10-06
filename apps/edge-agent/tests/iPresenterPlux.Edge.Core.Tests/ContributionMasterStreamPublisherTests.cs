@@ -98,6 +98,27 @@ public sealed class ContributionMasterStreamPublisherTests
     }
 
     [Fact]
+    public async Task InvalidTransportTelemetryIsDroppedInsteadOfSurfaced()
+    {
+        var transport = new FakeTransport
+        {
+            StartResult = new ContributionStreamTransportStatus(
+                true, "publishing", -5, 5001, -9, -3,
+                DateTimeOffset.Parse("2026-10-06T02:00:00Z"), null)
+        };
+        await using var publisher = new ContributionMasterStreamPublisher(
+            new FakeContributionClient(), transport, new FixedTimeProvider());
+
+        var status = await publisher.StartAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(status.IsPublishing);
+        Assert.Null(status.BitrateBps);
+        Assert.Null(status.FramesPerSecond);
+        Assert.Equal(0, status.DroppedFrames);
+        Assert.Equal(0, status.ReconnectCount);
+    }
+
+    [Fact]
     public async Task StopIsIdempotent()
     {
         var transport = new FakeTransport();
@@ -112,6 +133,18 @@ public sealed class ContributionMasterStreamPublisherTests
         Assert.False(second.IsPublishing);
         Assert.Equal("idle", second.State);
         Assert.Equal(1, transport.StopCount);
+    }
+
+    [Fact]
+    public async Task PublisherOwnsAndDisposesTransport()
+    {
+        var transport = new FakeTransport();
+        var publisher = new ContributionMasterStreamPublisher(
+            new FakeContributionClient(), transport, new FixedTimeProvider());
+
+        await publisher.DisposeAsync();
+
+        Assert.Equal(1, transport.DisposeCount);
     }
 
     private sealed class FakeContributionClient(Exception? error = null) : IStreamContributionClient
@@ -141,6 +174,7 @@ public sealed class ContributionMasterStreamPublisherTests
         private ContributionStreamTransportStatus _status = Idle();
         public int StartCount { get; private set; }
         public int StopCount { get; private set; }
+        public int DisposeCount { get; private set; }
         public ContributionStreamTransportStatus? StartResult { get; init; }
         public ContributionStreamTransportStatus Status => _status;
 
@@ -160,7 +194,11 @@ public sealed class ContributionMasterStreamPublisherTests
             return Task.FromResult(_status);
         }
 
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        public ValueTask DisposeAsync()
+        {
+            DisposeCount++;
+            return ValueTask.CompletedTask;
+        }
 
         private static ContributionStreamTransportStatus Idle() =>
             new(false, "idle", null, null, 0, 0, null, null);
