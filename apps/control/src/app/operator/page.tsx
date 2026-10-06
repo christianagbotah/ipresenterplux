@@ -160,7 +160,11 @@ export default async function OperatorPage() {
               <Settings2 size={15} /> Settings
             </Link>
             <LogoutButton />
-            <ServiceControls serviceId={service.id} status={service.status} showOperatorLink={false} />
+            {data.canControl ? (
+              <ServiceControls serviceId={service.id} status={service.status} showOperatorLink={false} />
+            ) : (
+              <span className="rounded-xl border border-amber-400/20 bg-amber-400/[.08] px-3 py-2 text-xs font-bold text-amber-100">View only</span>
+            )}
           </div>
         </div>
       </header>
