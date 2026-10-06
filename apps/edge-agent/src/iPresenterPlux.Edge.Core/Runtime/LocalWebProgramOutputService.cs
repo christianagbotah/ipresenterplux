@@ -190,6 +190,14 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
     {
         try
         {
+            if (!string.Equals(context.Request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                context.Response.Headers["Allow"] = "GET";
+                await WriteAsync(context.Response, "text/plain; charset=utf-8", "Method not allowed").ConfigureAwait(false);
+                return;
+            }
+
             var path = context.Request.Url?.AbsolutePath ?? "/";
             if (path is "/program" or "/preview")
             {
