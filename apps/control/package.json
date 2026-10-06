@@ -16,7 +16,8 @@
     "test:tts-worker": "node scripts/tts-worker-selftest.mjs",
     "test:voice-consent": "node scripts/voice-consent-selftest.mjs",
     "test:voice-binding": "node scripts/voice-binding-selftest.mjs",
-    "test:speaker-attribution": "node scripts/speaker-attribution-selftest.mjs"
+    "test:speaker-attribution": "node scripts/speaker-attribution-selftest.mjs",
+    "test:stream-contribution": "node scripts/stream-contribution-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
