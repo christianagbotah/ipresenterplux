@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { SOCIAL_DESTINATION_TYPES } from "@/lib/destination-routing";
 import { enqueueServiceEdgeCommand } from "@/lib/edge-command-dispatch";
 import { STREAM_OPERATOR_ROLES } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
@@ -110,9 +111,6 @@ export async function POST(request: Request, context: RouteContext) {
           return NextResponse.json({ ok: false, error: "Service is not ready for streaming" }, { status: 409 });
         }
 
-        // Exactly one Edge owns the master contribution for a broadcast. Choose it
-        // deterministically, preferring the freshest active device, then preserve
-        // that ownership for the full stream session.
         const publisherResult = await client.query<{ id: string }>(
           `select id::text
            from edge_devices
@@ -132,15 +130,25 @@ export async function POST(request: Request, context: RouteContext) {
 
         const destinations = await client.query<{ count: string }>(
           `select count(*)::text as count
-           from output_destinations
-           where organization_id=$1::uuid
-             and enabled=true
-             and destination_type <> 'ndi'`,
-          [service.organization_id]
+           from output_destinations od
+           where od.organization_id=$1::uuid
+             and od.enabled=true
+             and (
+               od.destination_type='web_webrtc'
+               or (
+                 od.destination_type=any($2::text[])
+                 and nullif(od.public_config->>'ingestUrl','') is not null
+                 and exists (
+                   select 1 from output_destination_credentials c
+                   where c.output_destination_id=od.id
+                 )
+               )
+             )`,
+          [service.organization_id, [...SOCIAL_DESTINATION_TYPES]]
         );
         if (Number(destinations.rows[0]?.count ?? 0) < 1) {
           await client.query("rollback");
-          return NextResponse.json({ ok: false, error: "Enable at least one broadcast destination before starting" }, { status: 409 });
+          return NextResponse.json({ ok: false, error: "Enable at least one configured broadcast destination before starting" }, { status: 409 });
         }
 
         const routerPath = streamPathForService(serviceId);
@@ -160,9 +168,19 @@ export async function POST(request: Request, context: RouteContext) {
            from output_destinations od
            where od.organization_id=$2::uuid
              and od.enabled=true
-             and od.destination_type <> 'ndi'
+             and (
+               od.destination_type='web_webrtc'
+               or (
+                 od.destination_type=any($3::text[])
+                 and nullif(od.public_config->>'ingestUrl','') is not null
+                 and exists (
+                   select 1 from output_destination_credentials c
+                   where c.output_destination_id=od.id
+                 )
+               )
+             )
            on conflict (stream_session_id,output_destination_id) do nothing`,
-          [streamSession.id, service.organization_id]
+          [streamSession.id, service.organization_id, [...SOCIAL_DESTINATION_TYPES]]
         );
 
         const queued = await enqueueServiceEdgeCommand(client, {
@@ -288,7 +306,7 @@ export async function POST(request: Request, context: RouteContext) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: "Invalid stream action", issues: error.issues }, { status: 400 });
     }
-    console.error("Stream session action failed", error);
+    console.error("Stream session action failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ ok: false, error: "Stream session action failed" }, { status: 500 });
   }
 }

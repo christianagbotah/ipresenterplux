@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { isSocialDestinationType } from "@/lib/destination-routing";
 import { STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 
@@ -38,9 +39,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         id: string;
         organization_id: string;
         name: string;
+        destination_type: string;
         enabled: boolean;
+        public_config: Record<string, unknown>;
       }>(
-        "select id, organization_id::text, name, enabled from output_destinations where id=$1 for update",
+        "select id, organization_id::text, name, destination_type, enabled, public_config from output_destinations where id=$1 for update",
         [id]
       );
 
@@ -55,6 +58,42 @@ export async function PATCH(request: Request, context: RouteContext) {
       if (!allowed) {
         await client.query("rollback");
         return NextResponse.json({ ok: false, error: "You are not allowed to manage broadcast outputs" }, { status: 403 });
+      }
+
+      const activeBroadcast = await client.query<{ active: boolean }>(
+        `select exists(
+           select 1
+           from stream_sessions ss
+           join services s on s.id=ss.service_id
+           where s.organization_id=$1::uuid
+             and ss.status in ('starting','live','stopping')
+         ) as active`,
+        [row.organization_id]
+      );
+      if (activeBroadcast.rows[0]?.active) {
+        await client.query("rollback");
+        return NextResponse.json({
+          ok: false,
+          error: "Broadcast destinations are locked while a broadcast is starting, live, or stopping"
+        }, { status: 409 });
+      }
+
+      if (enabled && isSocialDestinationType(row.destination_type)) {
+        const credentials = await client.query<{ configured: boolean }>(
+          `select exists(
+             select 1 from output_destination_credentials
+             where output_destination_id=$1::uuid
+           ) as configured`,
+          [id]
+        );
+        const ingestUrl = typeof row.public_config?.ingestUrl === "string" ? row.public_config.ingestUrl.trim() : "";
+        if (!credentials.rows[0]?.configured || !ingestUrl) {
+          await client.query("rollback");
+          return NextResponse.json({
+            ok: false,
+            error: "Configure the RTMPS ingest URL and stream key before enabling this destination"
+          }, { status: 409 });
+        }
       }
 
       const updated = await client.query<{
@@ -110,7 +149,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: "Invalid output state", issues: error.issues }, { status: 400 });
     }
-    console.error("Output update failed", error);
+    console.error("Output update failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ ok: false, error: "Output update failed" }, { status: 500 });
   }
 }

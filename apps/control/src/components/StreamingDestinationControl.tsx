@@ -2,16 +2,18 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Power, ShieldAlert } from "lucide-react";
+import { CheckCircle2, LockKeyhole, Power, ShieldAlert } from "lucide-react";
 
 export function StreamingDestinationControl({
   id,
   enabled,
-  canControl
+  canControl,
+  locked = false
 }: {
   id: string;
   enabled: boolean;
   canControl: boolean;
+  locked?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -19,7 +21,7 @@ export function StreamingDestinationControl({
   const [failed, setFailed] = useState(false);
 
   function toggle() {
-    if (!canControl) return;
+    if (!canControl || locked) return;
     setFeedback(null);
     setFailed(false);
 
@@ -45,17 +47,20 @@ export function StreamingDestinationControl({
     });
   }
 
+  const disabled = !canControl || locked || isPending;
+  const label = locked ? "Locked" : enabled ? "Enabled" : canControl ? "Enable" : "View only";
+
   return (
     <div className="flex flex-col items-end gap-1.5">
       <button
         type="button"
         onClick={toggle}
-        disabled={!canControl || isPending}
+        disabled={disabled}
         aria-pressed={enabled}
         className={`flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e7bd63] disabled:cursor-not-allowed disabled:opacity-40 ${failed ? "border-red-400/25 bg-red-400/10 text-red-100" : enabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : "border-white/[.1] bg-white/[.035] text-white/65 hover:bg-white/[.07]"}`}
       >
-        {enabled ? <CheckCircle2 size={15} aria-hidden="true" /> : canControl ? <Power size={15} aria-hidden="true" /> : <ShieldAlert size={15} aria-hidden="true" />}
-        {enabled ? "Enabled" : canControl ? "Enable" : "View only"}
+        {locked ? <LockKeyhole size={15} aria-hidden="true" /> : enabled ? <CheckCircle2 size={15} aria-hidden="true" /> : canControl ? <Power size={15} aria-hidden="true" /> : <ShieldAlert size={15} aria-hidden="true" />}
+        {label}
       </button>
       {feedback ? <span aria-live="polite" className={`max-w-64 text-right text-[11px] leading-4 ${failed ? "text-red-300" : "text-white/38"}`}>{feedback}</span> : null}
     </div>

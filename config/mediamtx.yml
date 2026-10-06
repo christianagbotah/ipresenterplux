@@ -9,7 +9,11 @@ metrics: true
 metricsAddress: 127.0.0.1:9998
 pprof: false
 
-rtsp: false
+# Loopback RTSP is the internal fan-out source for the hardened server worker.
+# It is not exposed externally; social RTMPS publishers read the already encoded
+# H.264/AAC master here and stream-copy it without a second transcode.
+rtsp: true
+rtspAddress: 127.0.0.1:8554
 rtmp: false
 srt: true
 srtAddress: :8890
@@ -47,6 +51,9 @@ authHTTPExclude:
 paths:
   "~^service/[0-9a-f-]{36}$":
     source: publisher
-    runOnAvailable: node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH"
+    # Mark the master path authoritative first, then keep the per-destination
+    # fan-out supervisor attached to this path. MediaMTX sends SIGINT to the
+    # runOnAvailable process when the path becomes unavailable.
+    runOnAvailable: sh -c 'node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH" && exec node apps/control/scripts/stream-fanout-worker.mjs "$MTX_PATH"'
     runOnAvailableRestart: false
     runOnUnavailable: node apps/control/scripts/mediamtx-state-callback.mjs not-ready "$MTX_PATH"
