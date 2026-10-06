@@ -60,6 +60,24 @@ export async function PATCH(request: Request, context: RouteContext) {
         return NextResponse.json({ ok: false, error: "You are not allowed to manage broadcast outputs" }, { status: 403 });
       }
 
+      const activeBroadcast = await client.query<{ active: boolean }>(
+        `select exists(
+           select 1
+           from stream_sessions ss
+           join services s on s.id=ss.service_id
+           where s.organization_id=$1::uuid
+             and ss.status in ('starting','live','stopping')
+         ) as active`,
+        [row.organization_id]
+      );
+      if (activeBroadcast.rows[0]?.active) {
+        await client.query("rollback");
+        return NextResponse.json({
+          ok: false,
+          error: "Broadcast destinations are locked while a broadcast is starting, live, or stopping"
+        }, { status: 409 });
+      }
+
       if (enabled && isSocialDestinationType(row.destination_type)) {
         const credentials = await client.query<{ configured: boolean }>(
           `select exists(
