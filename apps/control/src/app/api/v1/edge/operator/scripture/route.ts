@@ -7,6 +7,13 @@ import {
   normalizeOperatorText,
   parseOperatorScriptureReference,
 } from "@/lib/edge-operator-catalog";
+import {
+  EDGE_OPERATOR_SCRIPTURE_BOOK_SQL,
+  EDGE_OPERATOR_SCRIPTURE_CHAPTER_SQL,
+  EDGE_OPERATOR_SCRIPTURE_RANGE_SQL,
+  EDGE_OPERATOR_SCRIPTURE_SERVICE_SQL,
+  EDGE_OPERATOR_SCRIPTURE_VERSION_SQL,
+} from "@/lib/edge-operator-catalog-queries";
 
 export const dynamic = "force-dynamic";
 
@@ -44,15 +51,7 @@ export async function GET(request: Request) {
   }
 
   const serviceResult = await query<ServiceRow>(
-    `select s.id::text,s.active_bible_version
-     from edge_devices d
-     join services s
-       on s.id=d.active_service_id
-      and s.organization_id=d.organization_id
-      and s.campus_id is not distinct from d.campus_id
-      and s.status in ('ready','live')
-     where d.id=$1 and d.organization_id=$2 and d.status='active'
-     limit 1`,
+    EDGE_OPERATOR_SCRIPTURE_SERVICE_SQL,
     [device.deviceId, device.organizationId],
   );
   const service = serviceResult.rows[0];
@@ -66,10 +65,7 @@ export async function GET(request: Request) {
   }
 
   const versionResult = await query<VersionRow>(
-    `select id,abbreviation
-     from bible_versions
-     where upper(id)=upper($1) and local_enabled=true
-     limit 1`,
+    EDGE_OPERATOR_SCRIPTURE_VERSION_SQL,
     [requestedVersion],
   );
   const version = versionResult.rows[0];
@@ -78,11 +74,7 @@ export async function GET(request: Request) {
   }
 
   const bookResult = await query<BookRow>(
-    `select book_code,canonical_name
-     from bible_books
-     where version_id=$1
-       and (lower(canonical_name)=lower($2) or lower(book_code)=lower($2))
-     limit 1`,
+    EDGE_OPERATOR_SCRIPTURE_BOOK_SQL,
     [version.id, parsed.book],
   );
   const book = bookResult.rows[0];
@@ -90,20 +82,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Bible book is not available" }, { status: 404 });
   }
 
-  const values: unknown[] = [version.id, book.book_code, parsed.chapter];
-  let versePredicate = "";
-  if (parsed.verseStart !== null && parsed.verseEnd !== null) {
-    values.push(parsed.verseStart, parsed.verseEnd);
-    versePredicate = "and verse between $4 and $5";
-  }
-
+  const ranged = parsed.verseStart !== null && parsed.verseEnd !== null;
+  const values: unknown[] = ranged
+    ? [version.id, book.book_code, parsed.chapter, parsed.verseStart, parsed.verseEnd]
+    : [version.id, book.book_code, parsed.chapter];
   const versesResult = await query<VerseRow>(
-    `select verse,text
-     from bible_verses
-     where version_id=$1 and book_code=$2 and chapter=$3
-       ${versePredicate}
-     order by verse
-     limit 81`,
+    ranged ? EDGE_OPERATOR_SCRIPTURE_RANGE_SQL : EDGE_OPERATOR_SCRIPTURE_CHAPTER_SQL,
     values,
   );
   if (versesResult.rows.length === 0) {
