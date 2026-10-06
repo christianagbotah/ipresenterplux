@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, MonitorPlay, Settings2 } from "lucide-react";
+import { ArrowLeft, MonitorPlay, RadioTower, Settings2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
@@ -154,8 +154,14 @@ export default async function OperatorPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/settings"
+              href="/streaming"
               className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white md:flex"
+            >
+              <RadioTower size={15} /> Streaming
+            </Link>
+            <Link
+              href="/settings"
+              className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white lg:flex"
             >
               <Settings2 size={15} /> Settings
             </Link>
