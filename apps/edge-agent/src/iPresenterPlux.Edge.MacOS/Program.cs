@@ -27,6 +27,13 @@ static async Task<int> RunAsync()
     var dataDirectory = Environment.GetEnvironmentVariable("IPRESENTERPLUX_DATA_DIR");
     if (string.IsNullOrWhiteSpace(dataDirectory))
         dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "iPresenterPlux", "Edge");
+    using var instanceLock = FileEdgeHostInstanceLock.TryAcquire(dataDirectory);
+    if (instanceLock is null)
+    {
+        Console.Error.WriteLine("Another iPresenterPlux Edge runtime is already using this user data directory.");
+        return 4;
+    }
+
     var deviceName = Environment.GetEnvironmentVariable("IPRESENTERPLUX_DEVICE_NAME");
     if (string.IsNullOrWhiteSpace(deviceName)) deviceName = Environment.MachineName;
     var softwareVersion = typeof(MacOSPlatformProfile).Assembly.GetName().Version?.ToString(3) ?? "0.1.0";
@@ -111,11 +118,12 @@ static async Task<int> RunAsync()
         mediaOutput: runtimeMediaOutput,
         recordingService: recordingService);
 
+    var hostStartedAt = DateTimeOffset.UtcNow;
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };
     try
     {
-        await runtime.RunAsync(cts.Token);
+        await EdgeHostLifecycle.RunUntilShutdownRequestedAsync(runtime, dataDirectory, hostStartedAt, cts);
         return 0;
     }
     catch (OperationCanceledException) when (cts.IsCancellationRequested)

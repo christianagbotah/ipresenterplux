@@ -10,6 +10,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.MacOS",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Core.Tests", "tests\iPresenterPlux.Edge.Core.Tests\iPresenterPlux.Edge.Core.Tests.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743204}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Desktop", "src\iPresenterPlux.Edge.Desktop\iPresenterPlux.Edge.Desktop.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743205}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "iPresenterPlux.Edge.Desktop.Tests", "tests\iPresenterPlux.Edge.Desktop.Tests\iPresenterPlux.Edge.Desktop.Tests.csproj", "{17D8840C-3E4B-4B55-A143-2C3542743206}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -32,5 +36,13 @@ Global
 		{17D8840C-3E4B-4B55-A143-2C3542743204}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{17D8840C-3E4B-4B55-A143-2C3542743204}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{17D8840C-3E4B-4B55-A143-2C3542743204}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743205}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743205}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743205}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743205}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743206}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743206}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743206}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17D8840C-3E4B-4B55-A143-2C3542743206}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
