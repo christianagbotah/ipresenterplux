@@ -186,37 +186,52 @@ public sealed class WindowsMediaFoundationEncodedProgramVideoSource(
             return;
         }
 
-        ReadOnlySpan<byte> argb;
-        if (frame.Stride == options.Width * 4)
+        var source = frame.Buffer.Span;
+        var rowBytes = options.Width * 4;
+        if (frame.Stride == rowBytes)
         {
-            argb = frame.Buffer.Span[..packedArgb.Length];
+            source[..packedArgb.Length].CopyTo(packedArgb);
         }
         else
         {
-            var source = frame.Buffer.Span;
-            var rowBytes = options.Width * 4;
             for (var row = 0; row < options.Height; row++)
                 source.Slice(row * frame.Stride, rowBytes).CopyTo(packedArgb.AsSpan(row * rowBytes, rowBytes));
-            argb = packedArgb;
         }
 
         var timestampTicks = (long)((Int128)frameNumber * 10_000_000 / options.FramesPerSecond);
-        if (!converter.ProcessInput(argb, timestampTicks))
+        if (!converter.ProcessInput(packedArgb, timestampTicks))
         {
             Interlocked.Increment(ref _droppedFrames);
             return;
         }
 
         var producedVideo = false;
-        while (converter.ProcessOutput(ref nv12, out var nv12Length, out var convertedTimestamp))
+        while (converter.ProcessOutput(ref nv12, out var nv12Length))
         {
-            if (nv12Length == 0 || !encoder.ProcessInput(nv12.AsSpan(0, checked((int)nv12Length)), convertedTimestamp))
+            if (nv12Length == 0)
             {
                 Interlocked.Increment(ref _droppedFrames);
                 continue;
             }
 
-            while (encoder.ProcessOutput(ref h264, out var encodedLength, out var encodedTimestamp))
+            byte[] encoderInput;
+            if (nv12Length == nv12.Length)
+            {
+                encoderInput = nv12;
+            }
+            else
+            {
+                encoderInput = GC.AllocateUninitializedArray<byte>(checked((int)nv12Length));
+                nv12.AsSpan(0, encoderInput.Length).CopyTo(encoderInput);
+            }
+
+            if (!encoder.ProcessInput(encoderInput, timestampTicks))
+            {
+                Interlocked.Increment(ref _droppedFrames);
+                continue;
+            }
+
+            while (encoder.ProcessOutput(ref h264, out var encodedLength))
             {
                 if (encodedLength == 0) continue;
                 producedVideo = true;
@@ -231,7 +246,7 @@ public sealed class WindowsMediaFoundationEncodedProgramVideoSource(
                         "h264",
                         "annexb",
                         AnnexBVideo.IsH264KeyFrame(bytes),
-                        encodedTimestamp / 10));
+                        timestampTicks / 10));
                     Interlocked.Increment(ref _framesEncoded);
                 }
                 catch
