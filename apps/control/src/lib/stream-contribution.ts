@@ -4,6 +4,7 @@ const SESSION_TTL_MS = 5 * 60 * 1000;
 
 export type EdgeContributionGrant = {
   sessionId: string;
+  streamPath: string;
   protocol: "srt";
   publishUrl: string;
   tokenHash: string;
@@ -20,14 +21,19 @@ export function createEdgeContributionGrant(routerBaseUrl: string, now = new Dat
   }
 
   const sessionId = randomUUID();
+  const streamPath = `edge-${sessionId}`;
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
 
-  router.searchParams.set("streamid", `publish:${sessionId}:${token}`);
+  // MediaMTX SRT custom syntax: publish:path:user:password.
+  // The short-lived contribution token is supplied as the password and is never persisted raw.
+  router.searchParams.set("streamid", `publish:${streamPath}:edge:${token}`);
+  router.searchParams.set("pkt_size", "1316");
 
   return {
     sessionId,
+    streamPath,
     protocol: "srt",
     publishUrl: router.toString(),
     tokenHash,
