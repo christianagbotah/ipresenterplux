@@ -4,12 +4,11 @@ using iPresenterPlux.Edge.Core.Runtime;
 
 namespace iPresenterPlux.Edge.MacOS;
 
-public sealed class MacOSEncodedProgramAudioSource(
-    IContributionAudioBuffer audioBuffer) : IEncodedProgramAudioSource
+public sealed class MacOSEncodedProgramAudioSource : IEncodedProgramAudioSource
 {
     private const string LibraryName = "iPresenterPluxMediaBridge";
     private const int SamplesPerPacketPerChannel = 1024;
-    private readonly IContributionAudioBuffer _audioBuffer = audioBuffer ?? throw new ArgumentNullException(nameof(audioBuffer));
+    private readonly IContributionAudioBuffer _audioBuffer;
     private readonly object _gate = new();
     private readonly ProgramAudioFrameCallback _callback;
     private CancellationTokenSource? _runCts;
@@ -21,19 +20,11 @@ public sealed class MacOSEncodedProgramAudioSource(
     private string? _errorCode;
     private bool _disposed;
 
-    public MacOSEncodedProgramAudioSource()
-        : this(new BoundedContributionAudioBuffer())
+    public MacOSEncodedProgramAudioSource(IContributionAudioBuffer audioBuffer)
     {
+        _audioBuffer = audioBuffer ?? throw new ArgumentNullException(nameof(audioBuffer));
+        _callback = OnNativeFrame;
     }
-
-    public MacOSEncodedProgramAudioSource(IContributionAudioBuffer audioBuffer, bool _ = false)
-        : this(audioBuffer)
-    {
-    }
-
-    // Primary-constructor initialization cannot assign delegates, so this field initializer
-    // keeps the callback rooted for the entire native encoder lifetime.
-    private ProgramAudioFrameCallback Callback => _callback;
 
     public event EventHandler<EncodedProgramAudioFrame>? FrameEncoded;
 
@@ -87,7 +78,7 @@ public sealed class MacOSEncodedProgramAudioSource(
                 options.SampleRate,
                 options.Channels,
                 options.BitrateBps,
-                Callback);
+                _callback);
         }
         catch (DllNotFoundException)
         {
@@ -201,11 +192,8 @@ public sealed class MacOSEncodedProgramAudioSource(
 
                     if (nativeStatus == 0) continue;
                     Interlocked.Increment(ref _droppedFrames);
-                    if (nativeStatus <= -3010)
-                    {
-                        SetFailure("encoder_failed");
-                        return;
-                    }
+                    SetFailure(ClassifyNativeStatus(nativeStatus));
+                    return;
                 }
             }
         }
