@@ -18,6 +18,7 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { StreamingBroadcastControl } from "@/components/StreamingBroadcastControl";
 import { StreamingDestinationControl } from "@/components/StreamingDestinationControl";
+import { StreamingDestinationCredentials } from "@/components/StreamingDestinationCredentials";
 import { query } from "@/lib/db";
 import { isSocialDestinationType } from "@/lib/destination-routing";
 import { STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
@@ -274,7 +275,23 @@ export default async function StreamingPage() {
                         </div>
                       </div>
                     </div>
-                    <StreamingDestinationControl id={output.id} enabled={output.enabled} canControl={data.canControl && !broadcastActive} />
+                    <div className="flex flex-wrap items-start justify-end gap-2">
+                      {social ? (
+                        <StreamingDestinationCredentials
+                          id={output.id}
+                          name={output.name}
+                          configured={output.credential_configured}
+                          canControl={data.canControl}
+                          locked={broadcastActive}
+                        />
+                      ) : null}
+                      <StreamingDestinationControl
+                        id={output.id}
+                        enabled={output.enabled}
+                        canControl={data.canControl}
+                        locked={broadcastActive}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -305,7 +322,7 @@ export default async function StreamingPage() {
                 <li>• Local projector and recording continue if Internet streaming fails.</li>
                 <li>• One destination failure does not stop the master or healthy destinations.</li>
                 <li>• Stream keys stay encrypted/server-side and never enter this page.</li>
-                <li>• Destination topology is locked while a broadcast is starting, live or stopping.</li>
+                <li>• Destination topology and credentials are locked while a broadcast is starting, live or stopping.</li>
                 <li>• Transport live does not by itself claim provider viewer health or audience analytics.</li>
               </ul>
             </section>
