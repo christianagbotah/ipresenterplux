@@ -34,6 +34,14 @@ public sealed class ChromiumKioskLauncher : IAsyncDisposable
 
     public string? ActiveExecutable { get; private set; }
     public bool IsRunning => _process is { HasExited: false };
+    public int? ActiveProcessId
+    {
+        get
+        {
+            try { return _process is { HasExited: false } process ? process.Id : null; }
+            catch (InvalidOperationException) { return null; }
+        }
+    }
 
     public async Task<bool> LaunchAsync(
         Uri programUri,
