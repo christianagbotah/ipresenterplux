@@ -91,6 +91,8 @@ jobs:
         run: pnpm lint
       - name: Scripture parser self-test
         run: pnpm test:scripture
+      - name: Edge operator catalog self-test
+        run: pnpm test:edge-operator-catalog
       - name: Scripture quote integration self-test
         run: pnpm test:scripture-quote
       - name: Transcript and translation integration self-test
