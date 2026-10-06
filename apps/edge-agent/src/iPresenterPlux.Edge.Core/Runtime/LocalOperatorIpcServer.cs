@@ -76,9 +76,12 @@ public sealed class LocalOperatorIpcServer : IAsyncDisposable
         _unixListener = listener;
         listener.Bind(new UnixDomainSocketEndPoint(_endpoint.UnixSocketPath));
         listener.Listen(4);
-        File.SetUnixFileMode(
-            _endpoint.UnixSocketPath,
-            UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(
+                _endpoint.UnixSocketPath,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
 
         try
         {
