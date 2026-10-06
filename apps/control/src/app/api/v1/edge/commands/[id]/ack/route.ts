@@ -65,6 +65,7 @@ export async function POST(request: Request, context: RouteContext) {
       if (command.service_id && (command.command_type === "stream.start" || command.command_type === "stream.stop")) {
         streamTransition = await reconcileStreamCommandResult(client, {
           serviceId: command.service_id,
+          edgeDeviceId: device.deviceId,
           commandType: command.command_type,
           success: payload.success,
           errorCode
