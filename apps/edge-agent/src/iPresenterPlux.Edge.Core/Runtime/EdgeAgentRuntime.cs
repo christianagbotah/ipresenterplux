@@ -27,6 +27,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly IDeviceCredentialStore _credentialStore;
     private readonly IAgentIdentityStore _identityStore;
     private readonly IOutboundEventQueue _queue;
+    private readonly ICompletedCommandJournal _commandJournal;
     private readonly IReadOnlyDictionary<string, string> _capabilities;
     private readonly EdgeAgentRuntimeOptions _options;
     private readonly TimeProvider _clock;
@@ -50,6 +51,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         IDeviceCredentialStore credentialStore,
         IAgentIdentityStore identityStore,
         IOutboundEventQueue queue,
+        ICompletedCommandJournal commandJournal,
         IReadOnlyDictionary<string, string> capabilities,
         EdgeAgentRuntimeOptions options,
         TimeProvider? clock = null,
@@ -63,6 +65,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
         _identityStore = identityStore ?? throw new ArgumentNullException(nameof(identityStore));
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
+        _commandJournal = commandJournal ?? throw new ArgumentNullException(nameof(commandJournal));
         _capabilities = capabilities ?? throw new ArgumentNullException(nameof(capabilities));
         _ = options ?? throw new ArgumentNullException(nameof(options));
         ArgumentException.ThrowIfNullOrWhiteSpace(options.DeviceName);
@@ -148,7 +151,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         }
         await StartAudioAsync(cancellationToken).ConfigureAwait(false);
         using var commandCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var commandTask = RunCommandLoopAsync(commandClient, commandProcessor, commandCts.Token);
+        var commandTask = RunCommandLoopAsync(identity, commandClient, commandProcessor, commandCts.Token);
 
         try
         {
@@ -415,22 +418,30 @@ public sealed class EdgeAgentRuntime : IDisposable
     }
 
     private async Task RunCommandLoopAsync(
+        AgentIdentity identity,
         HttpEdgeCommandClient client,
         ControlCommandProcessor processor,
         CancellationToken cancellationToken)
     {
-        var completed = new Dictionary<string, ControlCommandResult>(StringComparer.Ordinal);
+        ControlCommandResult? pending = null;
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
+                if (pending is not null)
+                {
+                    _commandJournal.Store(identity.OrganizationId, identity.DeviceId, pending);
+                    pending = null;
+                }
                 await foreach (var command in client.ReceiveCommandsAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    if (!completed.TryGetValue(command.CommandId, out var result))
+                    var result = _commandJournal.Find(identity.OrganizationId, identity.DeviceId, command.CommandId);
+                    if (result is null)
                     {
                         result = await processor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
-                        completed[command.CommandId] = result;
-                        if (completed.Count > 1000) completed.Remove(completed.Keys.First());
+                        pending = result;
+                        _commandJournal.Store(identity.OrganizationId, identity.DeviceId, result);
+                        pending = null;
                     }
                     await client.AcknowledgeCommandAsync(result, cancellationToken).ConfigureAwait(false);
                 }
@@ -448,6 +459,14 @@ public sealed class EdgeAgentRuntime : IDisposable
                 _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
             }
             catch (InvalidDataException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+            catch (IOException)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            }
+            catch (UnauthorizedAccessException)
             {
                 _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
             }
