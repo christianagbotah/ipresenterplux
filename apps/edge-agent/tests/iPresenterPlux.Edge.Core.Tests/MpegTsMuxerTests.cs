@@ -64,7 +64,7 @@ public sealed class MpegTsMuxerTests
         var first = muxer.MuxVideo(VideoFrame(keyFrame: true, ptsUs: 0, payloadLength: 500));
         var firstVideoPackets = first.Where(packet => Pid(packet) == MpegTsMuxer.VideoPid).ToArray();
         var second = muxer.MuxVideo(VideoFrame(keyFrame: false, ptsUs: 33_333, payloadLength: 50));
-        var secondVideo = Assert.Single(second.Where(packet => Pid(packet) == MpegTsMuxer.VideoPid));
+        var secondVideo = Assert.Single(second, packet => Pid(packet) == MpegTsMuxer.VideoPid);
 
         var expected = (Continuity(firstVideoPackets[^1]) + 1) & 0x0F;
         Assert.Equal(expected, Continuity(secondVideo));
@@ -157,7 +157,7 @@ public sealed class MpegTsMuxerTests
                ((long)bytes[1] << 17) |
                ((long)bytes[2] << 9) |
                ((long)bytes[3] << 1) |
-               ((bytes[4] >> 7) & 0x01);
+               (long)((bytes[4] >> 7) & 0x01);
     }
 
     private static void AssertPsiCrc(byte[] packet)
