@@ -9,11 +9,23 @@ type CommandResult = {
   errorCode: string | null;
 };
 
+type StreamSessionRow = {
+  id: string;
+  service_id: string;
+  status: StreamSessionState;
+};
+
 type TransitionResult = {
   sessionId: string;
   serviceId: string;
   status: StreamSessionState;
 } | null;
+
+function toTransition(row: StreamSessionRow | undefined): TransitionResult {
+  return row
+    ? { sessionId: row.id, serviceId: row.service_id, status: row.status }
+    : null;
+}
 
 export function streamPathForService(serviceId: string) {
   return `service/${serviceId}`;
@@ -23,11 +35,7 @@ export async function reconcileStreamCommandResult(
   client: PoolClient,
   result: CommandResult
 ): Promise<TransitionResult> {
-  const session = await client.query<{
-    id: string;
-    service_id: string;
-    status: StreamSessionState;
-  }>(
+  const session = await client.query<StreamSessionRow>(
     `select id::text,service_id::text,status
      from stream_sessions
      where service_id=$1::uuid
@@ -57,16 +65,12 @@ export async function reconcileStreamCommandResult(
        where id=$1::uuid`,
       [current.id, result.commandType]
     );
-    return current;
+    return toTransition(current);
   }
 
   const fallbackCode = result.commandType === "stream.start" ? "edge_stream_start_failed" : "edge_stream_stop_failed";
   const errorCode = result.errorCode ?? fallbackCode;
-  const updated = await client.query<{
-    id: string;
-    service_id: string;
-    status: StreamSessionState;
-  }>(
+  const updated = await client.query<StreamSessionRow>(
     `update stream_sessions
      set status='error',
          error_code=$2,
@@ -104,7 +108,7 @@ export async function reconcileStreamCommandResult(
     [result.serviceId]
   );
 
-  return updated.rows[0] ?? null;
+  return toTransition(updated.rows[0]);
 }
 
 export async function reconcileRouterReadyState(
@@ -112,11 +116,7 @@ export async function reconcileRouterReadyState(
   streamPath: string,
   ready: boolean
 ): Promise<TransitionResult> {
-  const found = await client.query<{
-    id: string;
-    service_id: string;
-    status: StreamSessionState;
-  }>(
+  const found = await client.query<StreamSessionRow>(
     `select ss.id::text,ss.service_id::text,ss.status
      from stream_sessions ss
      join services s on s.id=ss.service_id
@@ -139,14 +139,10 @@ export async function reconcileRouterReadyState(
          where id=$1::uuid`,
         [current.id]
       );
-      return current;
+      return toTransition(current);
     }
 
-    const updated = await client.query<{
-      id: string;
-      service_id: string;
-      status: StreamSessionState;
-    }>(
+    const updated = await client.query<StreamSessionRow>(
       `update stream_sessions
        set status='live',
            started_at=coalesce(started_at,now()),
@@ -175,17 +171,13 @@ export async function reconcileRouterReadyState(
       [current.id]
     );
 
-    return updated.rows[0] ?? null;
+    return toTransition(updated.rows[0]);
   }
 
   const expectedStop = current.status === "stopping";
   const nextStatus: StreamSessionState = expectedStop ? "ended" : "error";
   const errorCode = expectedStop ? null : "router_not_ready";
-  const updated = await client.query<{
-    id: string;
-    service_id: string;
-    status: StreamSessionState;
-  }>(
+  const updated = await client.query<StreamSessionRow>(
     `update stream_sessions
      set status=$2,
          ended_at=coalesce(ended_at,now()),
@@ -222,5 +214,5 @@ export async function reconcileRouterReadyState(
     );
   }
 
-  return updated.rows[0] ?? null;
+  return toTransition(updated.rows[0]);
 }
