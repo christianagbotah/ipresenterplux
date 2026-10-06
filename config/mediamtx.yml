@@ -51,6 +51,9 @@ authHTTPExclude:
 paths:
   "~^service/[0-9a-f-]{36}$":
     source: publisher
-    runOnAvailable: node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH"
+    # Mark the master path authoritative first, then keep the per-destination
+    # fan-out supervisor attached to this path. MediaMTX sends SIGINT to the
+    # runOnAvailable process when the path becomes unavailable.
+    runOnAvailable: sh -c 'node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH" && exec node apps/control/scripts/stream-fanout-worker.mjs "$MTX_PATH"'
     runOnAvailableRestart: false
     runOnUnavailable: node apps/control/scripts/mediamtx-state-callback.mjs not-ready "$MTX_PATH"
