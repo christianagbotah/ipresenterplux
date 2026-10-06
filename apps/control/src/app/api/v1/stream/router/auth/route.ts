@@ -1,7 +1,7 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { query } from "@/lib/db";
+import { hashContributionToken } from "@/lib/stream-contribution";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +18,6 @@ const schema = z.object({
   userAgent: z.string().max(1000).optional()
 });
 
-function secretMatches(expected: string, provided: string | null) {
-  if (!provided) return false;
-  const expectedBytes = Buffer.from(expected);
-  const providedBytes = Buffer.from(provided);
-  return expectedBytes.length === providedBytes.length && timingSafeEqual(expectedBytes, providedBytes);
-}
-
 function deny(status = 401) {
   return NextResponse.json({ ok: false }, {
     status,
@@ -33,18 +26,12 @@ function deny(status = 401) {
 }
 
 export async function POST(request: Request) {
-  const routerSecret = process.env.IPRESENTERPLUX_STREAM_ROUTER_AUTH_SECRET;
-  if (!routerSecret || routerSecret.length < 24) return deny(503);
-
-  const callbackKey = new URL(request.url).searchParams.get("key");
-  if (!secretMatches(routerSecret, callbackKey)) return deny(403);
-
   try {
     const payload = schema.parse(await request.json());
-    if (payload.action !== "publish" || payload.protocol !== "srt") return deny(403);
+    if (payload.action !== "publish" || payload.protocol !== "srt") return deny();
     if (payload.user !== "edge" || !payload.path || !payload.password) return deny();
 
-    const tokenHash = createHash("sha256").update(payload.password).digest("hex");
+    const tokenHash = hashContributionToken(payload.password);
     const accepted = await query<{ id: string }>(
       `update edge_stream_contribution_sessions cs
        set last_seen_at=now(),updated_at=now()
@@ -67,10 +54,10 @@ export async function POST(request: Request) {
     );
 
     if (!accepted.rowCount) return deny();
-    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    if (error instanceof z.ZodError) return deny(400);
+    if (error instanceof z.ZodError) return deny();
     console.error("Stream router authentication failed", error instanceof Error ? error.name : "unknown");
-    return deny(500);
+    return deny(503);
   }
 }
