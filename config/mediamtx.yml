@@ -47,6 +47,6 @@ authHTTPExclude:
 paths:
   "~^service/[0-9a-f-]{36}$":
     source: publisher
-    runOnReady: node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH"
-    runOnReadyRestart: false
-    runOnNotReady: node apps/control/scripts/mediamtx-state-callback.mjs not-ready "$MTX_PATH"
+    runOnAvailable: node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH"
+    runOnAvailableRestart: false
+    runOnUnavailable: node apps/control/scripts/mediamtx-state-callback.mjs not-ready "$MTX_PATH"
