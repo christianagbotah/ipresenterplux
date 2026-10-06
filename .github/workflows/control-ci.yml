@@ -97,6 +97,8 @@ jobs:
         run: pnpm test:transcript-window
       - name: Stream contribution security self-test
         run: pnpm test:stream-contribution
+      - name: Stream session authority lifecycle self-test
+        run: pnpm test:stream-session-authority
       - name: Validate production MediaMTX configuration
         working-directory: .
         shell: bash
