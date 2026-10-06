@@ -70,6 +70,23 @@ static async Task<int> RunAsync()
         if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
     }
 
+    var contributionAudioBuffer = new BoundedContributionAudioBuffer();
+    var contributionTransport = new EncodedContributionStreamTransport(
+        new WindowsMediaFoundationEncodedProgramVideoSource(
+            new RenderedProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer())),
+        new WindowsMediaFoundationEncodedProgramAudioSource(contributionAudioBuffer),
+        new LibSrtContributionSender(),
+        () => new ProgramVideoCaptureTarget(Environment.ProcessId, "iPresenterPlux program"));
+    await using var streamPublisher = new ContributionMasterStreamPublisher(
+        new DeferredStreamContributionClient(http, identityStore, credentialStore),
+        contributionTransport);
+    var runtimeMediaOutput = new StreamPublishingMediaOutputService(mediaOutput, streamPublisher);
+    EventHandler<AudioFrame> contributionAudioHandler = (_, frame) =>
+    {
+        _ = contributionAudioBuffer.TrySubmit(frame);
+    };
+    audioCapture.AudioFrameCaptured += contributionAudioHandler;
+
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
     if (await identityStore.ReadAsync(CancellationToken.None) is null && string.IsNullOrWhiteSpace(pairingCode) && Environment.UserInteractive)
@@ -89,7 +106,7 @@ static async Task<int> RunAsync()
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
         speechRecognitionEngine: speechRecognition,
-        mediaOutput: mediaOutput,
+        mediaOutput: runtimeMediaOutput,
         recordingService: recordingService);
 
     using var cts = new CancellationTokenSource();
@@ -107,6 +124,10 @@ static async Task<int> RunAsync()
     {
         Console.Error.WriteLine(error.Message);
         return 3;
+    }
+    finally
+    {
+        audioCapture.AudioFrameCaptured -= contributionAudioHandler;
     }
 }
 
