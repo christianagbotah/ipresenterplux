@@ -48,10 +48,12 @@ const serviceId = "00000000-0000-4000-8000-000000000003";
 const routerPath = `service/${serviceId}`;
 const sessionId = randomUUID();
 let child;
+let connected = false;
 
 try {
   await fs.writeFile(fakeFfmpeg, `#!/usr/bin/env node\nconsole.log("out_time_us=1000000");\nconsole.log("total_size=1024");\nconsole.log("progress=continue");\nconst timer=setInterval(()=>{console.log("out_time_us=2000000");console.log("progress=continue");},250);\nprocess.on("SIGINT",()=>{clearInterval(timer);process.exit(0)});\nprocess.on("SIGTERM",()=>{clearInterval(timer);process.exit(0)});\n`, { mode: 0o755 });
   await client.connect();
+  connected = true;
 
   const output = await client.query(
     `select id::text from output_destinations
@@ -139,7 +141,7 @@ try {
   console.log(JSON.stringify({ ok: true, status: row.status, attempts: Number(row.attempt_count), secretLeaked: false }));
 } finally {
   if (child?.exitCode === null) child.kill("SIGKILL");
-  if (client._connected) {
+  if (connected) {
     await client.query("rollback").catch(() => {});
     await client.query("delete from stream_sessions where id=$1::uuid", [sessionId]).catch(() => {});
     await client.end().catch(() => {});
