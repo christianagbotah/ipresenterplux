@@ -40,6 +40,7 @@ public sealed class MainWindow : Window
     private readonly Button _take = ActionButton("TAKE → PROGRAM", true);
     private readonly Button _clear = ActionButton("Clear Program", false);
     private readonly Button _record = ActionButton("Start Recording", false);
+    private readonly List<Button> _localOutputButtons = [];
     private string _activeCategory = "All";
     private bool _operatorBusy;
     private bool _recordingActive;
@@ -255,7 +256,7 @@ public sealed class MainWindow : Window
                     _take,
                     _clear,
                     TransitionHint(),
-                    LinkButton("Open Program", () => LocalUri("program"))
+                    LocalOutputButton("Open Program", "program")
                 }
             }
         };
@@ -298,7 +299,7 @@ public sealed class MainWindow : Window
         rightStack.Children.Add(Card("Output & recording", new StackPanel {
             Spacing = 8,
             Children = {
-                new WrapPanel { Children = { LinkButton("Open Preview", () => LocalUri("preview")), LinkButton("Open Program", () => LocalUri("program")) } },
+                new WrapPanel { Children = { LocalOutputButton("Open Preview", "preview"), LocalOutputButton("Open Program", "program") } },
                 new WrapPanel { Children = { outputStart, outputStop } },
                 _record,
                 Label("Recording is service-scoped. In local rehearsal mode, Preview/Program remain available but recording stays disabled.", 10, FontWeight.Normal, Muted)
@@ -444,8 +445,8 @@ public sealed class MainWindow : Window
         }));
 
         var quickLinks = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = 138, ItemHeight = 44 };
-        quickLinks.Children.Add(LinkButton("Preview", () => LocalUri("preview")));
-        quickLinks.Children.Add(LinkButton("Program", () => LocalUri("program")));
+        quickLinks.Children.Add(LocalOutputButton("Preview", "preview"));
+        quickLinks.Children.Add(LocalOutputButton("Program", "program"));
         quickLinks.Children.Add(LinkButton("Control Room", () => CloudUri("/")));
         quickLinks.Children.Add(LinkButton("Streaming Studio", () => CloudUri("/streaming")));
         sidebar.Children.Add(Card("Quick access", quickLinks));
@@ -699,6 +700,7 @@ public sealed class MainWindow : Window
         _record.IsEnabled = false;
         _take.IsEnabled = false;
         _clear.IsEnabled = false;
+        foreach (var button in _localOutputButtons) button.IsEnabled = false;
     }
 
     private void SetOperatorFeedback(string message, bool failed)
@@ -820,8 +822,17 @@ public sealed class MainWindow : Window
             : SafeErrorText(snapshot.ErrorCode);
         _cloudStatus.Text = $"Control Plane · {(snapshot.ControlPlaneHealthy ? "connected" : "offline")}";
         _cloudStatus.Foreground = snapshot.ControlPlaneHealthy ? Good : Muted;
-        _programStatus.Text = $"Local Program · {(snapshot.LocalProgramHealthy ? "available" : "waiting")}";
-        _programStatus.Foreground = snapshot.LocalProgramHealthy ? Good : Muted;
+        var localOutputAvailable = LocalOutputLinkPolicy.CanOpen(snapshot);
+        foreach (var button in _localOutputButtons) button.IsEnabled = localOutputAvailable;
+        _programStatus.Text = localOutputAvailable
+            ? "Local Program · available"
+            : snapshot.State switch
+            {
+                EdgeDesktopRuntimeState.Starting => "Local Program · starting",
+                EdgeDesktopRuntimeState.Active or EdgeDesktopRuntimeState.Degraded => "Local Program · unavailable",
+                _ => "Local Program · waiting — start Edge first"
+            };
+        _programStatus.Foreground = localOutputAvailable ? Good : Muted;
 
         var running = snapshot.State is EdgeDesktopRuntimeState.Starting or EdgeDesktopRuntimeState.Active or EdgeDesktopRuntimeState.Degraded or EdgeDesktopRuntimeState.Stopping;
         _start.IsEnabled = !running;
@@ -860,6 +871,33 @@ public sealed class MainWindow : Window
     {
         var baseUri = ReadSettings().ValidateControlPlaneUri();
         return new Uri(baseUri, path);
+    }
+
+    private Button LocalOutputButton(string text, string page)
+    {
+        var button = ActionButton(text, false);
+        button.Margin = new Thickness(0, 0, 8, 8);
+        button.IsEnabled = false;
+        _localOutputButtons.Add(button);
+        button.Click += async (_, _) =>
+        {
+            if (!LocalOutputLinkPolicy.CanOpen(_supervisor.Snapshot))
+            {
+                const string message = "Start Edge and wait for ‘Local Program · available’ before opening Preview or Program.";
+                SetFeedback(message, true);
+                SetOperatorFeedback(message, true);
+                return;
+            }
+
+            try
+            {
+                var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+                if (launcher is null || !await launcher.LaunchUriAsync(LocalUri(page)))
+                    SetFeedback("The operating system could not open that local output.", true);
+            }
+            catch (Exception error) { SetFeedback(error.Message, true); }
+        };
+        return button;
     }
 
     private Button LinkButton(string text, Func<Uri> uriFactory)
