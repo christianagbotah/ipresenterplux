@@ -32,7 +32,7 @@ public sealed class StereoPcm16FrameAccumulator(int sampleFramesPerPacket = 1024
             _count = 0;
         }
 
-        return packets ?? Array.Empty<short[]>();
+        return packets is null ? Array.Empty<short[]>() : packets;
     }
 
     public void Reset()
