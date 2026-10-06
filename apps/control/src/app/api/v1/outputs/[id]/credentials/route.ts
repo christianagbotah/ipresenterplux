@@ -45,6 +45,20 @@ async function requireSession() {
   return { session } as const;
 }
 
+async function organizationBroadcastActive(client: Awaited<ReturnType<typeof db.connect>>, organizationId: string) {
+  const active = await client.query<{ active: boolean }>(
+    `select exists(
+       select 1
+       from stream_sessions ss
+       join services s on s.id=ss.service_id
+       where s.organization_id=$1::uuid
+         and ss.status in ('starting','live','stopping')
+     ) as active`,
+    [organizationId]
+  );
+  return Boolean(active.rows[0]?.active);
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   const authResult = await requireSession();
   if ("error" in authResult) return authResult.error;
@@ -102,6 +116,10 @@ export async function PUT(request: Request, context: RouteContext) {
       if (!(await userHasAnyRole(authResult.session.user.id, row.organization_id, STREAM_OPERATOR_ROLES))) {
         await client.query("rollback");
         return NextResponse.json({ ok: false, error: "You are not allowed to manage broadcast outputs" }, { status: 403 });
+      }
+      if (await organizationBroadcastActive(client, row.organization_id)) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "Destination credentials are locked during an active broadcast" }, { status: 409 });
       }
 
       await client.query(
@@ -168,6 +186,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (!(await userHasAnyRole(authResult.session.user.id, row.organization_id, STREAM_OPERATOR_ROLES))) {
       await client.query("rollback");
       return NextResponse.json({ ok: false, error: "You are not allowed to manage broadcast outputs" }, { status: 403 });
+    }
+    if (await organizationBroadcastActive(client, row.organization_id)) {
+      await client.query("rollback");
+      return NextResponse.json({ ok: false, error: "Destination credentials are locked during an active broadcast" }, { status: 409 });
     }
 
     await client.query("delete from output_destination_credentials where output_destination_id=$1::uuid", [id]);
