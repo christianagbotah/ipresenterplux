@@ -76,6 +76,8 @@ export default async function EdgeDevicesPage() {
   }
 
   const canManage = organization.roles.some((role) => DEVICE_ADMIN_ROLES.includes(role as never));
+  if (!canManage) redirect("/");
+
   const [campuses, devices] = await Promise.all([
     query<CampusRow>(
       "select id::text,name from campuses where organization_id=$1 order by name",

@@ -107,6 +107,8 @@ jobs:
         run: pnpm test:stream-provider-health
       - name: Demo account catalog and login UI self-test
         run: pnpm test:demo-accounts
+      - name: RBAC UI capability matrix self-test
+        run: pnpm test:rbac-ui
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed
