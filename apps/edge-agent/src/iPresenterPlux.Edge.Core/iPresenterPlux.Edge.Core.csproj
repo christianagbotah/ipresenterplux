@@ -4,4 +4,7 @@
     <RootNamespace>iPresenterPlux.Edge.Core</RootNamespace>
     <AssemblyName>iPresenterPlux.Edge.Core</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+  </ItemGroup>
 </Project>
