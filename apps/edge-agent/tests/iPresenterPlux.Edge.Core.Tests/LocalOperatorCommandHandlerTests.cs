@@ -100,7 +100,7 @@ public sealed class LocalOperatorCommandHandlerTests
         var second = LocalOperatorIpcEndpoint.ForDataDirectory(root);
 
         Assert.Equal(first.PipeName, second.PipeName);
-        Assert.StartsWith("ipresenterplux-operator-", first.PipeName, StringComparison.Ordinal);
+        Assert.True(first.PipeName.StartsWith("ipresenterplux-operator-", StringComparison.Ordinal));
         Assert.Equal(Path.Combine(Path.GetFullPath(root), "operator.sock"), first.UnixSocketPath);
     }
 
