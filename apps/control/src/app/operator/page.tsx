@@ -7,7 +7,7 @@ import { ScriptureOperatorWorkspace } from "@/components/ScriptureOperatorWorksp
 import { ServiceControls } from "@/components/ServiceControls";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { query } from "@/lib/db";
-import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
+import { DEVICE_ADMIN_ROLES, LIVE_OPERATOR_ROLES, STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -56,9 +56,9 @@ async function operatorData(userId: string) {
   );
 
   const service = services.rows[0];
-  if (!service) return { service: undefined, detections: [], commands: [], canControl: false };
+  if (!service) return { service: undefined, detections: [], commands: [], canControl: false, canStreaming: false, canSettings: false };
 
-  const [detections, commands, canControl] = await Promise.all([
+  const [detections, commands, canControl, canStreaming, canSettings] = await Promise.all([
     query<DetectionRow>(
       `select sd.id::text,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,
               sd.detection_method,sd.source_text,sd.detected_at::text,
@@ -89,10 +89,12 @@ async function operatorData(userId: string) {
        limit 40`,
       [service.id, ["preview.prepare", "program.show", "program.clear"]]
     ),
-    userHasAnyRole(userId, service.organization_id, LIVE_OPERATOR_ROLES)
+    userHasAnyRole(userId, service.organization_id, LIVE_OPERATOR_ROLES),
+    userHasAnyRole(userId, service.organization_id, STREAM_OPERATOR_ROLES),
+    userHasAnyRole(userId, service.organization_id, DEVICE_ADMIN_ROLES)
   ]);
 
-  return { service, detections: detections.rows, commands: commands.rows, canControl };
+  return { service, detections: detections.rows, commands: commands.rows, canControl, canStreaming, canSettings };
 }
 
 export default async function OperatorPage() {
@@ -153,18 +155,22 @@ export default async function OperatorPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/streaming"
-              className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white md:flex"
-            >
-              <RadioTower size={15} /> Streaming
-            </Link>
-            <Link
-              href="/settings"
-              className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white lg:flex"
-            >
-              <Settings2 size={15} /> Settings
-            </Link>
+            {data.canStreaming ? (
+              <Link
+                href="/streaming"
+                className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white md:flex"
+              >
+                <RadioTower size={15} /> Streaming
+              </Link>
+            ) : null}
+            {data.canSettings ? (
+              <Link
+                href="/settings"
+                className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white lg:flex"
+              >
+                <Settings2 size={15} /> Settings
+              </Link>
+            ) : null}
             <LogoutButton />
             {data.canControl ? (
               <ServiceControls serviceId={service.id} status={service.status} showOperatorLink={false} />

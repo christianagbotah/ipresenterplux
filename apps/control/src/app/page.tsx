@@ -32,6 +32,7 @@ import { OutputControls } from "@/components/OutputControls";
 import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { query } from "@/lib/db";
+import { roleCapabilities } from "@/lib/role-capabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -175,8 +176,16 @@ async function dashboardData(userId: string) {
   }
 
   if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [], detectedSpeakers: [], syntheticVoices: [], voiceAdmin: false };
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [], detectedSpeakers: [], syntheticVoices: [], voiceAdmin: false, capabilities: roleCapabilities([]) };
   }
+
+  const roleRows = await query<{ role_id: string }>(
+    `select role_id from user_organization_roles
+     where user_id=$1 and organization_id=$2
+     order by role_id`,
+    [userId, organizationId]
+  );
+  const capabilities = roleCapabilities(roleRows.rows.map((row) => row.role_id));
 
   const voiceAdminResult = await query<{ allowed: boolean }>(
     `select exists(
@@ -322,7 +331,8 @@ async function dashboardData(userId: string) {
     speakerProfiles: speakerProfiles.rows,
     detectedSpeakers: voiceAdmin ? detectedSpeakers.rows : [],
     syntheticVoices: syntheticVoices.rows,
-    voiceAdmin
+    voiceAdmin,
+    capabilities
   };
 }
 
@@ -355,7 +365,7 @@ const nav = [
   ["Cameras", Camera, null],
   ["AI Director", Bot, null],
   ["Translations", Languages, "/translations"],
-  ["Streaming", RadioTower, null],
+  ["Streaming", RadioTower, "/streaming"],
   ["Audience", Users, null],
   ["Archive", Video, null]
 ] as const;
@@ -367,6 +377,7 @@ export default async function Home() {
 
   const data = await dashboardData(session.user.id);
   const service = data.service;
+  const capabilities = data.capabilities;
   const latest = data.detections[0];
   const previewDetection = data.detections.find((item) => item.state === "preview");
   const liveDetection = data.detections.find((item) => item.state === "live");
@@ -403,6 +414,8 @@ export default async function Home() {
 
           <nav className="space-y-1">
             {nav.map(([label, Icon, href], index) => {
+              if (label === "Translations" && !capabilities.canTranslations) return null;
+              if (label === "Streaming" && !capabilities.canStreaming) return null;
               const className =
                 "group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-3 text-left transition xl:justify-start " +
                 (index === 0
@@ -413,12 +426,14 @@ export default async function Home() {
             })}
           </nav>
 
-          <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">
-            <Link href="/settings" className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-3 text-white/45 hover:text-white xl:justify-start">
-              <Settings2 size={18} />
-              <span className="hidden text-sm xl:inline">Settings</span>
-            </Link>
-          </div>
+          {capabilities.canSettings ? (
+            <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">
+              <Link href="/settings" className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-3 text-white/45 hover:text-white xl:justify-start">
+                <Settings2 size={18} />
+                <span className="hidden text-sm xl:inline">Settings</span>
+              </Link>
+            </div>
+          ) : null}
         </aside>
 
         <section className="min-w-0">
@@ -447,7 +462,7 @@ export default async function Home() {
                 <div className="text-[10px] uppercase tracking-[.12em] text-white/25">Authorized operator</div>
               </div>
               <LogoutButton />
-              {service ? <ServiceControls serviceId={service.id} status={service.status} /> : null}
+              {service && capabilities.canLiveControl ? <ServiceControls serviceId={service.id} status={service.status} /> : null}
             </div>
           </header>
 
@@ -573,7 +588,7 @@ export default async function Home() {
                       Pipeline armed
                     </div>
                   </div>
-                  {data.service ? (
+                  {data.service && capabilities.canLiveControl ? (
                     <div className="mb-3 space-y-2">
                       <ActiveSpeakerControl
                         serviceId={data.service.id}
@@ -731,9 +746,11 @@ export default async function Home() {
                             </div>
                           </div>
                         </div>
-                        <div className="mt-3">
-                          <ScriptureControls id={actionableDetection.id} currentState={actionableDetection.state} />
-                        </div>
+                        {capabilities.canLiveControl ? (
+                          <div className="mt-3">
+                            <ScriptureControls id={actionableDetection.id} currentState={actionableDetection.state} />
+                          </div>
+                        ) : null}
                       </>
                     ) : liveDetection ? (
                       <div className="rounded-xl border border-red-400/15 bg-red-400/[.05] p-5 text-center">
@@ -769,7 +786,7 @@ export default async function Home() {
                           <div className="mt-0.5 text-[10px] uppercase tracking-[.12em] text-white/28">{output.destination_type}</div>
                         </div>
                         <Pill status={output.status} />
-                        <OutputControls id={output.id} enabled={output.enabled} />
+                        {capabilities.canStreaming ? <OutputControls id={output.id} enabled={output.enabled} /> : null}
                       </div>
                     ))}
                   </div>

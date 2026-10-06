@@ -24,6 +24,7 @@
     "test:stream-provider-health": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/stream-provider-health-selftest.mjs",
     "demo:seed": "node scripts/bootstrap-demo-users.mjs",
     "test:demo-accounts": "node scripts/demo-accounts-selftest.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/demo-login-selection-selftest.mjs && node scripts/demo-login-ui-selftest.mjs",
+    "test:rbac-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/rbac-ui-selftest.mjs",
     "test:demo-users": "node scripts/demo-users-db-selftest.mjs"
   },
   "dependencies": {

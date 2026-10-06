@@ -1,34 +1,13 @@
 import { query } from "@/lib/db";
 
-export const LIVE_OPERATOR_ROLES = [
-  "owner",
-  "admin",
-  "pastor",
-  "presenter_operator",
-  "media_operator"
-] as const;
-
-export const DEVICE_ADMIN_ROLES = ["owner", "admin"] as const;
-export const VOICE_ADMIN_ROLES = ["owner", "admin"] as const;
-
-export const INGEST_ROLES = [
-  "owner",
-  "admin",
-  "presenter_operator",
-  "media_operator"
-] as const;
-
-export const STREAM_OPERATOR_ROLES = [
-  "owner",
-  "admin",
-  "media_operator"
-] as const;
-
-export const TRANSLATION_OPERATOR_ROLES = [
-  "owner",
-  "admin",
-  "translator"
-] as const;
+export {
+  LIVE_OPERATOR_ROLES,
+  DEVICE_ADMIN_ROLES,
+  VOICE_ADMIN_ROLES,
+  INGEST_ROLES,
+  STREAM_OPERATOR_ROLES,
+  TRANSLATION_OPERATOR_ROLES
+} from "./role-policy.js";
 
 export async function userHasAnyRole(
   userId: string,
