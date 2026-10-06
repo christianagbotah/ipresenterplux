@@ -11,6 +11,10 @@ on:
       - "apps/edge-agent/**"
       - ".github/workflows/edge-agent-ci.yml"
 
+env:
+  LIBSRT_VERSION: "1.5.7"
+  LIBSRT_COMMIT: "899348d8318eb9a3c5a5b6ec43c4a1114288773a"
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -30,8 +34,50 @@ jobs:
         run: dotnet test tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-build --no-restore
       - name: Build Windows platform
         run: dotnet build src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release --no-restore
+      - name: Build pinned libsrt runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $source = Join-Path $env:RUNNER_TEMP "libsrt-source"
+          if (Test-Path $source) { Remove-Item -Recurse -Force $source }
+          git clone --depth 1 --branch "v$env:LIBSRT_VERSION" https://github.com/Haivision/srt.git $source
+          Push-Location $source
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:LIBSRT_COMMIT) { throw "Unexpected libsrt commit: $actual" }
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install openssl:x64-windows-static-md
+          cmake -S . -B build -A x64 `
+            -DENABLE_SHARED=ON `
+            -DENABLE_STATIC=OFF `
+            -DENABLE_APPS=OFF `
+            -DENABLE_UNITTESTS=OFF `
+            -DENABLE_STDCXX_SYNC=ON `
+            -DOPENSSL_USE_STATIC_LIBS=TRUE `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+          cmake --build build --config Release --parallel 2
+          Pop-Location
+
+          $dll = Get-ChildItem -Path (Join-Path $source "build") -Recurse -File -Filter "srt.dll" | Select-Object -First 1
+          if (-not $dll) { throw "The pinned libsrt build did not produce srt.dll" }
+          New-Item -ItemType Directory -Force -Path "publish/libsrt-stage" | Out-Null
+          Copy-Item $dll.FullName "publish/libsrt-stage/srt.dll"
+          Copy-Item (Join-Path $source "LICENSE") "publish/libsrt-stage/LICENSE"
+          @(
+            "libsrt=$env:LIBSRT_VERSION",
+            "commit=$env:LIBSRT_COMMIT",
+            "source=https://github.com/Haivision/srt"
+          ) | Set-Content -Encoding utf8 "publish/libsrt-stage/VERSION.txt"
+      - name: Verify pinned Windows libsrt runtime
+        shell: pwsh
+        run: |
+          python -c "import ctypes, pathlib; p=pathlib.Path(r'publish/libsrt-stage/srt.dll').resolve(); lib=ctypes.CDLL(str(p)); lib.srt_getversion.restype=ctypes.c_uint; v=lib.srt_getversion(); print(f'libsrt runtime: {v>>16}.{(v>>8)&255}.{v&255}'); assert v >= 0x010507"
       - name: Publish Windows portable artifact
         run: dotnet publish src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release --no-restore -o publish/windows-x64
+      - name: Stage Windows libsrt runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "publish/windows-x64/libSrt" | Out-Null
+          Copy-Item "publish/libsrt-stage/*" "publish/windows-x64/libSrt/" -Recurse
       - name: Upload Windows Edge artifact
         uses: actions/upload-artifact@v4
         with:
@@ -61,13 +107,63 @@ jobs:
       - name: Build native Swift media bridge
         working-directory: apps/edge-agent/native/macos/iPresenterPlux.MediaBridge
         run: swift build -c release
-      - name: Publish macOS portable artifact
-        run: dotnet publish src/iPresenterPlux.Edge.MacOS/iPresenterPlux.Edge.MacOS.csproj -c Release --no-restore -o publish/macos
-      - name: Stage native macOS bridge
+      - name: Build pinned libsrt runtime
         shell: bash
         run: |
-          mkdir -p publish/macos/native
+          set -euo pipefail
+          brew install openssl@3
+          source_dir="$RUNNER_TEMP/libsrt-source"
+          rm -rf "$source_dir"
+          git clone --depth 1 --branch "v${LIBSRT_VERSION}" https://github.com/Haivision/srt.git "$source_dir"
+          actual="$(git -C "$source_dir" rev-parse HEAD)"
+          test "$actual" = "$LIBSRT_COMMIT"
+          openssl_root="$(brew --prefix openssl@3)"
+          cmake -S "$source_dir" -B "$source_dir/build" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_SHARED=ON \
+            -DENABLE_STATIC=OFF \
+            -DENABLE_APPS=OFF \
+            -DENABLE_UNITTESTS=OFF \
+            -DOPENSSL_ROOT_DIR="$openssl_root" \
+            -DOPENSSL_USE_STATIC_LIBS=TRUE
+          cmake --build "$source_dir/build" --config Release --parallel 2
+
+          dylib="$(find "$source_dir/build" -type f -name 'libsrt*.dylib' | head -n 1)"
+          test -n "$dylib"
+          mkdir -p publish/libsrt-stage
+          cp "$dylib" publish/libsrt-stage/libsrt.dylib
+          cp "$source_dir/LICENSE" publish/libsrt-stage/LICENSE
+          cat > publish/libsrt-stage/VERSION.txt <<EOF
+          libsrt=${LIBSRT_VERSION}
+          commit=${LIBSRT_COMMIT}
+          source=https://github.com/Haivision/srt
+          EOF
+          if otool -L publish/libsrt-stage/libsrt.dylib | tail -n +2 | grep -E '/(opt|usr/local)/.*(libssl|libcrypto)'; then
+            echo "libsrt unexpectedly depends on a Homebrew OpenSSL dylib" >&2
+            exit 1
+          fi
+      - name: Verify pinned macOS libsrt runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import ctypes
+          from pathlib import Path
+          p = Path("publish/libsrt-stage/libsrt.dylib").resolve()
+          lib = ctypes.CDLL(str(p))
+          lib.srt_getversion.restype = ctypes.c_uint
+          version = lib.srt_getversion()
+          print(f"libsrt runtime: {version >> 16}.{(version >> 8) & 255}.{version & 255}")
+          assert version >= 0x010507
+          PY
+      - name: Publish macOS portable artifact
+        run: dotnet publish src/iPresenterPlux.Edge.MacOS/iPresenterPlux.Edge.MacOS.csproj -c Release --no-restore -o publish/macos
+      - name: Stage native macOS bridge and libsrt runtime
+        shell: bash
+        run: |
+          mkdir -p publish/macos/native publish/macos/libSrt
           cp native/macos/iPresenterPlux.MediaBridge/.build/release/libiPresenterPluxMediaBridge.dylib publish/macos/native/
+          cp -R publish/libsrt-stage/. publish/macos/libSrt/
       - name: Upload macOS Edge artifact
         uses: actions/upload-artifact@v4
         with:
