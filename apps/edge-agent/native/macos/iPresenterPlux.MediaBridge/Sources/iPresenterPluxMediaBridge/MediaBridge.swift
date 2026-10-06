@@ -7,7 +7,7 @@ import VideoToolbox
 
 @_cdecl("ipresenterplux_macos_bridge_api_version")
 public func bridgeApiVersion() -> Int32 {
-    3
+    4
 }
 
 @_cdecl("ipresenterplux_macos_is_screen_capture_supported")
