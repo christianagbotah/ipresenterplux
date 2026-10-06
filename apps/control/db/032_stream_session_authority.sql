@@ -1,5 +1,31 @@
 BEGIN;
 
+-- Contribution paths are stable per service (`service/<uuid>`), so they must be
+-- reusable across broadcasts. Migration 031 made stream_path globally unique,
+-- which prevents a second grant for the same service even after revocation.
+-- Preserve history while allowing exactly one unrevoked owner of a path.
+ALTER TABLE edge_stream_contribution_sessions
+  DROP CONSTRAINT IF EXISTS edge_stream_contribution_sessions_stream_path_key;
+
+WITH ranked_grants AS (
+  SELECT id,
+         row_number() OVER (
+           PARTITION BY stream_path
+           ORDER BY coalesce(last_seen_at,issued_at) DESC,issued_at DESC,id DESC
+         ) AS path_rank
+  FROM edge_stream_contribution_sessions
+  WHERE revoked_at IS NULL
+)
+UPDATE edge_stream_contribution_sessions ecs
+SET revoked_at=coalesce(ecs.revoked_at,now()),updated_at=now()
+FROM ranked_grants r
+WHERE ecs.id=r.id
+  AND r.path_rank > 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_edge_stream_contribution_active_path
+  ON edge_stream_contribution_sessions(stream_path)
+  WHERE revoked_at IS NULL;
+
 ALTER TABLE stream_sessions
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS router_path text,
