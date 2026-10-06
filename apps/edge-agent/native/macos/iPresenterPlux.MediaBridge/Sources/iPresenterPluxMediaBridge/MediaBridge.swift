@@ -30,7 +30,7 @@ public func isAudioCaptureSupported() -> Int32 {
 
 private func stringFromUtf8(_ pointer: UnsafePointer<CChar>?) -> String? {
     guard let pointer else { return nil }
-    return String(validatingUTF8: pointer)
+    return String(validatingCString: pointer)
 }
 
 @_cdecl("ipresenterplux_macos_keychain_write")
