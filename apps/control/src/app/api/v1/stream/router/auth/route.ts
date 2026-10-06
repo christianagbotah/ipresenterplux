@@ -35,15 +35,18 @@ export async function POST(request: Request) {
     const accepted = await query<{ id: string }>(
       `update edge_stream_contribution_sessions cs
        set last_seen_at=now(),updated_at=now()
-       from edge_devices d,services s
+       from edge_devices d,services s,stream_sessions ss
        where cs.edge_device_id=d.id
          and cs.service_id=s.id
+         and ss.service_id=cs.service_id
+         and ss.publisher_edge_device_id=cs.edge_device_id
+         and ss.router_path=cs.stream_path
+         and ss.status in ('starting','live')
          and cs.stream_path=$1
          and cs.token_hash=$2
          and cs.protocol='srt'
          and cs.revoked_at is null
          and cs.expires_at > now()
-         and d.id=cs.edge_device_id
          and d.organization_id=cs.organization_id
          and d.status='active'
          and d.active_service_id=cs.service_id
