@@ -160,7 +160,7 @@ export default async function OperatorPage() {
               <Settings2 size={15} /> Settings
             </Link>
             <LogoutButton />
-            <ServiceControls serviceId={service.id} status={service.status} />
+            <ServiceControls serviceId={service.id} status={service.status} showOperatorLink={false} />
           </div>
         </div>
       </header>
