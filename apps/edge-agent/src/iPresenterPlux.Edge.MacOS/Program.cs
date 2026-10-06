@@ -122,7 +122,7 @@ static async Task<int> RunAsync()
 
     await using var localOperatorIpc = new LocalOperatorIpcServer(
         dataDirectory,
-        new LocalOperatorCommandHandler(runtime.State, mediaOutput, recordingService));
+        new LocalOperatorCommandHandler(runtime.State, mediaOutput, recordingService, operatorCatalog: operatorCatalog));
     await localOperatorIpc.StartAsync(CancellationToken.None);
 
     var hostStartedAt = DateTimeOffset.UtcNow;

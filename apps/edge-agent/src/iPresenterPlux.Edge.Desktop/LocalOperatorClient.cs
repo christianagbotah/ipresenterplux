@@ -23,19 +23,42 @@ public sealed class LocalOperatorClient
     }
 
     public Task<LocalOperatorResponse> QueryAsync(CancellationToken cancellationToken = default) =>
-        SendAsync(LocalOperatorCommands.SnapshotQuery, null, cancellationToken);
+        SendAsync(LocalOperatorCommands.SnapshotQuery, cancellationToken: cancellationToken);
+
+    public Task<LocalOperatorResponse> QueryCatalogAsync(CancellationToken cancellationToken = default) =>
+        SendAsync(LocalOperatorCommands.CatalogQuery, cancellationToken: cancellationToken);
+
+    public Task<LocalOperatorResponse> ResolveScriptureAsync(
+        string reference,
+        string? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reference);
+        reference = reference.Trim();
+        if (reference.Length > 120) throw new ArgumentOutOfRangeException(nameof(reference));
+        if (version is not null)
+        {
+            version = version.Trim();
+            if (version.Length is 0 or > 32) throw new ArgumentOutOfRangeException(nameof(version));
+        }
+        return SendAsync(
+            LocalOperatorCommands.ScriptureResolve,
+            cancellationToken: cancellationToken,
+            scripture: new LocalOperatorScriptureQuery(reference, version));
+    }
 
     public async Task<LocalOperatorResponse> SendAsync(
         string command,
         LocalOperatorPresentation? presentation = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        LocalOperatorScriptureQuery? scripture = null)
     {
         if (!LocalOperatorCommands.IsAllowed(command))
             throw new ArgumentOutOfRangeException(nameof(command), "Unsupported local operator command.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);
-        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), command, presentation);
+        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), command, presentation, scripture);
 
         await using var stream = await ConnectAsync(timeout.Token).ConfigureAwait(false);
         using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);

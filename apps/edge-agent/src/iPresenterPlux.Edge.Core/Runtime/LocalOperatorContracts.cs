@@ -7,6 +7,8 @@ namespace iPresenterPlux.Edge.Core.Runtime;
 public static class LocalOperatorCommands
 {
     public const string SnapshotQuery = "snapshot.query";
+    public const string CatalogQuery = "catalog.query";
+    public const string ScriptureResolve = "scripture.resolve";
     public const string PreviewRender = "preview.render";
     public const string ProgramTake = "program.take";
     public const string ProgramClear = "program.clear";
@@ -16,7 +18,7 @@ public static class LocalOperatorCommands
     public const string RecordingStop = "recording.stop";
 
     public static bool IsAllowed(string? command) => command is
-        SnapshotQuery or PreviewRender or ProgramTake or ProgramClear or
+        SnapshotQuery or CatalogQuery or ScriptureResolve or PreviewRender or ProgramTake or ProgramClear or
         OutputStart or OutputStop or RecordingStart or RecordingStop;
 }
 
@@ -27,10 +29,15 @@ public sealed record LocalOperatorPresentation(
     string Body,
     string? Footer);
 
+public sealed record LocalOperatorScriptureQuery(
+    string Reference,
+    string? Version = null);
+
 public sealed record LocalOperatorRequest(
     string RequestId,
     string Command,
-    LocalOperatorPresentation? Presentation = null);
+    LocalOperatorPresentation? Presentation = null,
+    LocalOperatorScriptureQuery? Scripture = null);
 
 public sealed record LocalOperatorSnapshot(
     bool OutputRunning,
@@ -48,7 +55,10 @@ public sealed record LocalOperatorResponse(
     bool Ok,
     string State,
     string? ErrorCode,
-    LocalOperatorSnapshot Snapshot);
+    LocalOperatorSnapshot Snapshot,
+    OperatorCatalogSnapshot? Catalog = null,
+    bool CatalogStale = false,
+    OperatorCatalogItem? ResolvedPresentation = null);
 
 public sealed record LocalOperatorIpcEndpoint(string PipeName, string UnixSocketPath)
 {
