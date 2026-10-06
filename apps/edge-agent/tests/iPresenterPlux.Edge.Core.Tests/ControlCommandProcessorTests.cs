@@ -93,6 +93,52 @@ public sealed class ControlCommandProcessorTests
     }
 
     [Fact]
+    public async Task StreamCommandsFailClosedWithoutPublisher()
+    {
+        var serviceId = Guid.NewGuid();
+        var state = new AgentRuntimeState();
+        state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ServiceMode = "live" });
+        var processor = new ControlCommandProcessor(state);
+
+        var start = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "stream.start", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+        var stop = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "stream.stop", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+
+        Assert.False(start.Success);
+        Assert.Equal("stream_unavailable", start.Error);
+        Assert.False(stop.Success);
+        Assert.Equal("stream_unavailable", stop.Error);
+    }
+
+    [Fact]
+    public async Task StreamCommandsUseInjectedPublisherForAssignedService()
+    {
+        var serviceId = Guid.NewGuid();
+        var state = new AgentRuntimeState();
+        state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ServiceMode = "live" });
+        var publisher = new FakeMasterStreamPublisher();
+        var processor = new ControlCommandProcessor(state, streamPublisher: publisher);
+
+        var start = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "stream.start", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+        var stop = await processor.ProcessAsync(new ControlCommand(
+            Guid.NewGuid().ToString("D"), serviceId.ToString("D"), "stream.stop", DateTimeOffset.UtcNow,
+            new Dictionary<string, string>()), CancellationToken.None);
+
+        Assert.True(start.Success);
+        Assert.Equal("stream_live", start.ResultingState);
+        Assert.Equal(serviceId, publisher.LastStartedServiceId);
+        Assert.Equal(1, publisher.StartCount);
+        Assert.True(stop.Success);
+        Assert.Equal("stream_stopped", stop.ResultingState);
+        Assert.Equal(1, publisher.StopCount);
+    }
+
+    [Fact]
     public async Task HealthQueryWorksWithoutMediaOutput()
     {
         var state = new AgentRuntimeState();
@@ -107,6 +153,7 @@ public sealed class ControlCommandProcessorTests
         Assert.True(result.Success);
         Assert.Contains("connection=Connected", result.ResultingState);
         Assert.Contains("audio=Capturing", result.ResultingState);
+        Assert.Contains("streaming=idle", result.ResultingState);
     }
 
     private sealed class FakeContentProvider(PresentationRenderItem item) : IPresentationContentProvider
@@ -117,7 +164,6 @@ public sealed class ControlCommandProcessorTests
             return Task.FromResult(item);
         }
     }
-
 
     private sealed class FakeRecordingService : ILocalRecordingService
     {
@@ -140,6 +186,39 @@ public sealed class ControlCommandProcessorTests
         }
         public Task HandleActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
         public bool TrySubmit(AudioFrame frame) => _status.IsRecording;
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class FakeMasterStreamPublisher : IMasterStreamPublisher
+    {
+        private MasterStreamStatus _status = new(false, null, "idle", null, null, null, 0, 0, null, null);
+        public int StartCount { get; private set; }
+        public int StopCount { get; private set; }
+        public Guid? LastStartedServiceId { get; private set; }
+        public MasterStreamStatus Status => _status;
+
+        public Task<MasterStreamStatus> StartAsync(Guid serviceId, CancellationToken cancellationToken)
+        {
+            StartCount++;
+            LastStartedServiceId = serviceId;
+            _status = new(true, serviceId, "live", DateTimeOffset.UtcNow, 4_500_000, 30, 0, 0, DateTimeOffset.UtcNow, null);
+            return Task.FromResult(_status);
+        }
+
+        public Task<MasterStreamStatus> StopAsync(CancellationToken cancellationToken)
+        {
+            StopCount++;
+            _status = _status with { IsPublishing = false, State = "stopped", LastSuccessfulSendAt = DateTimeOffset.UtcNow };
+            return Task.FromResult(_status);
+        }
+
+        public Task HandleActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken)
+        {
+            if (_status.IsPublishing && _status.ServiceId != serviceId)
+                _status = _status with { IsPublishing = false, State = "stopped", ServiceId = serviceId };
+            return Task.CompletedTask;
+        }
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
