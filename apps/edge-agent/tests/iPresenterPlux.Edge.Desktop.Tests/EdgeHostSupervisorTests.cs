@@ -29,6 +29,7 @@ public sealed class EdgeHostSupervisorTests : IDisposable
         Assert.Equal(EdgeDesktopRuntimeState.Active, supervisor.Snapshot.State);
         Assert.True(supervisor.Snapshot.ControlPlaneHealthy);
         Assert.True(supervisor.Snapshot.LocalProgramHealthy);
+        factory.Process!.Complete(0);
     }
 
     [Fact]

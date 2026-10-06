@@ -106,8 +106,8 @@ public sealed class EdgeHostSupervisor : IAsyncDisposable
 
             _monitorCancellation = new CancellationTokenSource();
             var child = _process;
-            _monitorTask = MonitorAsync(child, controlPlane, normalized.ProgramPort, _monitorCancellation.Token);
             Publish(EdgeDesktopRuntimeState.Starting, child.Id, null, false, false, null);
+            _monitorTask = MonitorAsync(child, controlPlane, normalized.ProgramPort, _monitorCancellation.Token);
         }
         finally { _gate.Release(); }
     }
