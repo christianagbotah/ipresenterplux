@@ -44,24 +44,41 @@ export async function POST(request: Request) {
     try {
       await client.query("begin");
 
+      // A router callback is authoritative only when the observed path can be
+      // traced to the Edge chosen as publisher for the currently active stream
+      // session. Ready requires a live, unrevoked grant recently authenticated by
+      // MediaMTX. Unavailable may arrive after Stop revoked the grant, so it uses
+      // recent historical contribution evidence but preserves the same publisher
+      // and session/path binding.
       const evidence = await client.query<{ organization_id: string }>(
         ready
           ? `select ecs.organization_id::text
              from edge_stream_contribution_sessions ecs
              join services s on s.id=ecs.service_id and s.organization_id=ecs.organization_id
              join edge_devices d on d.id=ecs.edge_device_id and d.organization_id=ecs.organization_id
+             join stream_sessions ss
+               on ss.service_id=ecs.service_id
+              and ss.publisher_edge_device_id=ecs.edge_device_id
+              and ss.router_path=ecs.stream_path
+              and ss.status in ('starting','live')
              where ecs.service_id=$1::uuid
                and ecs.stream_path=$2
                and ecs.revoked_at is null
                and ecs.expires_at > now()
                and ecs.last_seen_at > now()-interval '2 minutes'
                and d.status='active'
+               and d.active_service_id=ecs.service_id
                and s.status in ('ready','live')
              order by ecs.last_seen_at desc
              limit 1`
           : `select ecs.organization_id::text
              from edge_stream_contribution_sessions ecs
              join services s on s.id=ecs.service_id and s.organization_id=ecs.organization_id
+             join stream_sessions ss
+               on ss.service_id=ecs.service_id
+              and ss.publisher_edge_device_id=ecs.edge_device_id
+              and ss.router_path=ecs.stream_path
+              and ss.status in ('starting','live','stopping')
              where ecs.service_id=$1::uuid
                and ecs.stream_path=$2
                and ecs.last_seen_at is not null
@@ -74,7 +91,7 @@ export async function POST(request: Request) {
       const organizationId = evidence.rows[0]?.organization_id;
       if (!organizationId) {
         await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "No recent contribution evidence matches this router path" }, { status: 409 });
+        return NextResponse.json({ ok: false, error: "No recent publisher contribution evidence matches this router path" }, { status: 409 });
       }
 
       const transition = await reconcileRouterReadyState(client, input.path, ready);
