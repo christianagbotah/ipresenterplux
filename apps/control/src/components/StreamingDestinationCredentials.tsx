@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import type { FormEvent } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, LoaderCircle, Settings2, Trash2, X } from "lucide-react";
 
@@ -26,34 +27,38 @@ export function StreamingDestinationCredentials({
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
+  async function openConfiguration() {
+    if (!canControl || locked || loading) return;
+    setOpen(true);
     setLoading(true);
     setFeedback(null);
     setFailed(false);
-    fetch(`/api/v1/outputs/${id}/credentials`, { cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (cancelled) return;
-        if (!response.ok) {
-          setFailed(true);
-          setFeedback(payload?.error ?? "Could not load destination configuration.");
-          return;
-        }
-        setIngestUrl(payload?.credential?.ingestUrl ?? "");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setFailed(true);
-          setFeedback("Network error. Destination configuration could not be loaded.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [id, open]);
+    setStreamKey("");
+
+    try {
+      const response = await fetch(`/api/v1/outputs/${id}/credentials`, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFailed(true);
+        setFeedback(payload?.error ?? "Could not load destination configuration.");
+        return;
+      }
+      setIngestUrl(payload?.credential?.ingestUrl ?? "");
+    } catch {
+      setFailed(true);
+      setFeedback("Network error. Destination configuration could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function closeConfiguration() {
+    if (isPending) return;
+    setOpen(false);
+    setStreamKey("");
+    setFeedback(null);
+    setFailed(false);
+  }
 
   function save(event: FormEvent) {
     event.preventDefault();
@@ -112,11 +117,11 @@ export function StreamingDestinationCredentials({
     <div className="flex flex-col items-end gap-1.5">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        disabled={!canControl || locked}
+        onClick={openConfiguration}
+        disabled={!canControl || locked || loading}
         className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.035] px-3.5 py-2.5 text-sm font-black text-white/65 transition hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e7bd63] disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {configured ? <KeyRound size={15} aria-hidden="true" /> : <Settings2 size={15} aria-hidden="true" />}
+        {loading ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : configured ? <KeyRound size={15} aria-hidden="true" /> : <Settings2 size={15} aria-hidden="true" />}
         {locked ? "Locked" : configured ? "RTMPS" : "Configure"}
       </button>
 
@@ -129,7 +134,7 @@ export function StreamingDestinationCredentials({
                 <h3 className="mt-1 text-lg font-black">{name}</h3>
                 <p className="mt-1 text-xs leading-5 text-white/38">The stream key is encrypted at rest and is never returned to this browser after saving.</p>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[.08] text-white/45 hover:bg-white/[.06] hover:text-white" aria-label="Close configuration">
+              <button type="button" onClick={closeConfiguration} disabled={isPending} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[.08] text-white/45 hover:bg-white/[.06] hover:text-white disabled:opacity-40" aria-label="Close configuration">
                 <X size={16} />
               </button>
             </div>
