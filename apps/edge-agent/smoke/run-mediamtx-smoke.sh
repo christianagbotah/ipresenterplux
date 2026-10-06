@@ -23,7 +23,6 @@ pid=$!
 cleanup() {
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
-  cat "$log" || true
 }
 trap cleanup EXIT
 
@@ -31,6 +30,7 @@ ready=0
 for _ in $(seq 1 40); do
   if ! kill -0 "$pid" 2>/dev/null; then
     echo "MediaMTX exited before the API became ready." >&2
+    cat "$log" >&2 || true
     exit 1
   fi
   if curl -fsS --max-time 1 http://127.0.0.1:9997/v3/info >/dev/null; then
@@ -41,6 +41,7 @@ for _ in $(seq 1 40); do
 done
 if [ "$ready" -ne 1 ]; then
   echo "MediaMTX API did not become ready." >&2
+  cat "$log" >&2 || true
   exit 1
 fi
 
@@ -48,4 +49,16 @@ publish="publish/srt-smoke/macos"
 dotnet publish smoke/iPresenterPlux.Edge.SrtSmoke/iPresenterPlux.Edge.SrtSmoke.csproj -c Release -o "$publish"
 mkdir -p "$publish/libSrt"
 cp -R publish/libsrt-stage/. "$publish/libSrt/"
+
+set +e
 dotnet "$publish/iPresenterPlux.Edge.SrtSmoke.dll"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+  echo "SRT/MediaMTX smoke failed; MediaMTX log follows:" >&2
+  cat "$log" >&2 || true
+  exit "$status"
+fi
+
+echo "MediaMTX smoke log:"
+cat "$log" || true
