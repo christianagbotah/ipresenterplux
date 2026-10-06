@@ -34,9 +34,15 @@ Only hardware/media primitives are platform-specific.
 
 That keeps Windows and macOS behavior consistent while allowing each operating system to use its best native APIs.
 
-## Planned shared desktop shell
+## Shared Windows/macOS desktop shell
 
-The production operator shell will use a shared .NET cross-platform UI layer, with native platform services injected underneath it. Media frames do not pass through the cloud UI.
+`iPresenterPlux.Edge.Desktop` is the shared Avalonia/.NET 10 operator shell for Windows and macOS. The shell deliberately does **not** duplicate capture, recording, Program rendering, SRT contribution, durable queueing or credential-vault logic. It supervises the proven platform Edge host as a child runtime and provides first-run setup, one-time pairing, bounded health/status, graceful stop/restart and quick access to local Preview/Program plus the cloud Control Room/Streaming Studio. Media frames do not pass through the desktop UI.
+
+The pairing code is transient: it is placed only in the child process environment for `Process.Start`, removed from the shell launch object immediately afterwards, and never serialized into desktop settings. The shell persists only Control Plane URL, device name and local Program port. The platform host retains exclusive ownership of device credentials in Windows Credential Manager or macOS Keychain.
+
+Closing the first shell release cleanly stops the supervised runtime. A later tray/background lifecycle can change that behavior only after single-instance, upgrade and recovery semantics are preserved. The headless Windows/macOS executables remain supported for service/kiosk deployments and diagnostics.
+
+A user-scoped `edge-host.lock` file handle now enforces the existing single-writer assumption for the Edge data directory. A stale lock file is harmless because exclusivity is held by the open OS handle and is released automatically when the owning process exits. The desktop shell requests graceful shutdown through a timestamped local file signal in the same user-scoped data directory; no local network shutdown listener is opened.
 
 ## Apple Silicon
 

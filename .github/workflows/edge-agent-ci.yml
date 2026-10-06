@@ -28,6 +28,12 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Restore Edge solution
         run: dotnet restore iPresenterPlux.Edge.sln
+      - name: Restore desktop shell tests
+        run: dotnet restore tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj
+      - name: Build desktop shell tests
+        run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
+      - name: Test desktop shell
+        run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core
@@ -71,21 +77,31 @@ jobs:
         shell: pwsh
         run: |
           python -c "import ctypes, pathlib; p=pathlib.Path(r'publish/libsrt-stage/srt.dll').resolve(); lib=ctypes.CDLL(str(p)); lib.srt_getversion.restype=ctypes.c_uint; v=lib.srt_getversion(); print(f'libsrt runtime: {v>>16}.{(v>>8)&255}.{v&255}'); assert v >= 0x010507"
-      - name: Publish Windows portable artifact
-        run: dotnet publish src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release --no-restore -o publish/windows-x64
+      - name: Publish self-contained Windows Edge runtime
+        run: dotnet publish src/iPresenterPlux.Edge.Windows/iPresenterPlux.Edge.Windows.csproj -c Release -r win-x64 --self-contained true -o publish/windows-runtime
       - name: Stage Windows libsrt runtime
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "publish/windows-x64/libSrt" | Out-Null
-          Copy-Item "publish/libsrt-stage/*" "publish/windows-x64/libSrt/" -Recurse
+          New-Item -ItemType Directory -Force -Path "publish/windows-runtime/libSrt" | Out-Null
+          Copy-Item "publish/libsrt-stage/*" "publish/windows-runtime/libSrt/" -Recurse
+      - name: Publish self-contained Windows desktop shell
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -o publish/windows-app
+      - name: Stage Windows Edge runtime under desktop shell
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "publish/windows-app/runtime" | Out-Null
+          Copy-Item "publish/windows-runtime/*" "publish/windows-app/runtime/" -Recurse
+          if (-not (Test-Path "publish/windows-app/iPresenterPlux.Edge.Desktop.exe")) { throw "Desktop shell executable is missing" }
+          if (-not (Test-Path "publish/windows-app/runtime/iPresenterPlux.Edge.Windows.exe")) { throw "Edge runtime executable is missing" }
+          if (-not (Test-Path "publish/windows-app/runtime/libSrt/srt.dll")) { throw "Bundled libsrt runtime is missing" }
       - name: Smoke SRT contribution against MediaMTX
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
-      - name: Upload Windows Edge artifact
+      - name: Upload Windows Edge desktop artifact
         uses: actions/upload-artifact@v4
         with:
           name: ipresenterplux-edge-windows
-          path: apps/edge-agent/publish/windows-x64
+          path: apps/edge-agent/publish/windows-app
           if-no-files-found: error
           retention-days: 14
 
@@ -101,6 +117,12 @@ jobs:
           dotnet-version: "10.0.x"
       - name: Restore Edge solution
         run: dotnet restore iPresenterPlux.Edge.sln
+      - name: Restore desktop shell tests
+        run: dotnet restore tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj
+      - name: Build desktop shell tests
+        run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
+      - name: Test desktop shell
+        run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core
@@ -179,21 +201,32 @@ jobs:
           print(f"libsrt runtime: {version >> 16}.{(version >> 8) & 255}.{version & 255}")
           assert version >= 0x010507
           PY
-      - name: Publish macOS portable artifact
-        run: dotnet publish src/iPresenterPlux.Edge.MacOS/iPresenterPlux.Edge.MacOS.csproj -c Release --no-restore -o publish/macos
+      - name: Publish self-contained macOS Edge runtime
+        run: dotnet publish src/iPresenterPlux.Edge.MacOS/iPresenterPlux.Edge.MacOS.csproj -c Release -r osx-arm64 --self-contained true -o publish/macos-runtime
       - name: Stage native macOS bridge and libsrt runtime
         shell: bash
         run: |
-          mkdir -p publish/macos/native publish/macos/libSrt
-          cp native/macos/iPresenterPlux.MediaBridge/.build/release/libiPresenterPluxMediaBridge.dylib publish/macos/native/
-          cp -R publish/libsrt-stage/. publish/macos/libSrt/
+          mkdir -p publish/macos-runtime/libSrt
+          cp native/macos/iPresenterPlux.MediaBridge/.build/release/libiPresenterPluxMediaBridge.dylib publish/macos-runtime/
+          cp -R publish/libsrt-stage/. publish/macos-runtime/libSrt/
+      - name: Publish self-contained macOS desktop shell
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r osx-arm64 --self-contained true -o publish/macos-app
+      - name: Stage macOS Edge runtime under desktop shell
+        shell: bash
+        run: |
+          mkdir -p publish/macos-app/runtime
+          cp -R publish/macos-runtime/. publish/macos-app/runtime/
+          test -x publish/macos-app/iPresenterPlux.Edge.Desktop
+          test -x publish/macos-app/runtime/iPresenterPlux.Edge.MacOS
+          test -f publish/macos-app/runtime/libiPresenterPluxMediaBridge.dylib
+          test -f publish/macos-app/runtime/libSrt/libsrt.dylib
       - name: Smoke SRT contribution against MediaMTX
         shell: bash
         run: bash ./smoke/run-mediamtx-smoke.sh
-      - name: Upload macOS Edge artifact
+      - name: Upload macOS Edge desktop artifact
         uses: actions/upload-artifact@v4
         with:
           name: ipresenterplux-edge-macos
-          path: apps/edge-agent/publish/macos
+          path: apps/edge-agent/publish/macos-app
           if-no-files-found: error
           retention-days: 14
