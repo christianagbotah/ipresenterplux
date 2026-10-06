@@ -58,6 +58,7 @@ static async Task<int> RunAsync()
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
     await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
     await using var recordingService = new LocalAudioRecordingService(dataDirectory);
+    var operatorCatalog = new OperatorCatalogCoordinator(new OperatorCatalogStore(dataDirectory));
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -114,7 +115,8 @@ static async Task<int> RunAsync()
         audioCapture: audioCapture,
         speechRecognitionEngine: speechRecognition,
         mediaOutput: runtimeMediaOutput,
-        recordingService: recordingService);
+        recordingService: recordingService,
+        operatorCatalog: operatorCatalog);
 
     await using var localOperatorIpc = new LocalOperatorIpcServer(
         dataDirectory,
