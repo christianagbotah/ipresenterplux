@@ -1,17 +1,100 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import process from "node:process";
 import pg from "pg";
 import {
+  fetchYouTubeBroadcastLiveState,
   fetchYouTubeLiveStreamEvidence,
   initialProviderEvidence,
   normalizeYouTubeLiveStreamResponse
 } from "./stream-provider-health-core.mjs";
+import {
+  decryptProviderTokenEnvelope,
+  encryptProviderTokenEnvelope,
+  findYouTubeStreamIdByKey,
+  refreshGoogleAccessToken
+} from "./stream-provider-oauth-core.mjs";
 
 process.loadEnvFile?.(".env.local");
 assert.ok(process.env.DATABASE_URL, "DATABASE_URL must be configured for provider-health self-test");
+
+const providerKey = randomBytes(32).toString("base64url");
+const previousProviderKey = process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY;
+process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY = providerKey;
+const providerSecrets = await import("../src/lib/provider-secrets.ts");
+const accessSecret = `access-${randomUUID()}`;
+const refreshSecret = `refresh-${randomUUID()}`;
+const tsEnvelope = providerSecrets.encryptProviderTokens({ accessToken: accessSecret, refreshToken: refreshSecret });
+assert.deepEqual(decryptProviderTokenEnvelope(tsEnvelope, providerKey), { accessToken: accessSecret, refreshToken: refreshSecret });
+const workerEnvelope = encryptProviderTokenEnvelope({ accessToken: accessSecret, refreshToken: refreshSecret }, providerKey);
+assert.deepEqual(providerSecrets.decryptProviderTokens(workerEnvelope), { accessToken: accessSecret, refreshToken: refreshSecret });
+if (previousProviderKey === undefined) delete process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY;
+else process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY = previousProviderKey;
+
+const oauthEnv = {
+  clientId: process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID,
+  clientSecret: process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET,
+  baseUrl: process.env.IPRESENTERPLUX_PUBLIC_BASE_URL
+};
+process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID = "test-client-id.apps.googleusercontent.com";
+process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET = "test-client-secret";
+process.env.IPRESENTERPLUX_PUBLIC_BASE_URL = "https://ipresenterplux.example.test";
+const youtubeOauth = await import("../src/lib/youtube-oauth.ts");
+const oauthState = randomUUID();
+const authUrl = new URL(youtubeOauth.buildYouTubeAuthorizationUrl(oauthState));
+assert.equal(authUrl.origin, "https://accounts.google.com");
+assert.equal(authUrl.searchParams.get("access_type"), "offline");
+assert.equal(authUrl.searchParams.get("scope"), "https://www.googleapis.com/auth/youtube.readonly");
+assert.equal(authUrl.searchParams.get("state"), oauthState);
+assert.ok(!authUrl.toString().includes("test-client-secret"));
+const exchanged = await youtubeOauth.exchangeYouTubeAuthorizationCode("test-code", async (_url, options) => {
+  const body = String(options?.body);
+  assert.ok(body.includes("client_secret=test-client-secret"));
+  return { ok: true, status: 200, async json() { return { access_token: "oauth-access", refresh_token: "oauth-refresh", expires_in: 3600, scope: "https://www.googleapis.com/auth/youtube.readonly" }; } };
+});
+assert.equal(exchanged.accessToken, "oauth-access");
+assert.equal(exchanged.refreshToken, "oauth-refresh");
+for (const [name, value] of [
+  ["IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID", oauthEnv.clientId],
+  ["IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET", oauthEnv.clientSecret],
+  ["IPRESENTERPLUX_PUBLIC_BASE_URL", oauthEnv.baseUrl]
+]) {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+
+const refreshed = await refreshGoogleAccessToken({
+  refreshToken: refreshSecret,
+  clientId: "client-id",
+  clientSecret: "client-secret",
+  fetchImpl: async (_url, options) => {
+    assert.equal(String(options?.body).includes(refreshSecret), true);
+    return { ok: true, status: 200, async json() { return { access_token: "renewed-access", expires_in: 3600 }; } };
+  }
+});
+assert.deepEqual(refreshed, { ok: true, accessToken: "renewed-access", expiresIn: 3600 });
+
+const matched = await findYouTubeStreamIdByKey({
+  accessToken: accessSecret,
+  streamKey: "configured-secret-key",
+  fetchImpl: async (url, options) => {
+    assert.ok(!String(url).includes(accessSecret));
+    assert.equal(options?.headers?.Authorization, `Bearer ${accessSecret}`);
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return { items: [
+          { id: "other", cdn: { ingestionInfo: { streamName: "other-key" } } },
+          { id: "matched-stream", cdn: { ingestionInfo: { streamName: "configured-secret-key" } } }
+        ] };
+      }
+    };
+  }
+});
+assert.deepEqual(matched, { ok: true, streamId: "matched-stream" });
 
 const healthy = normalizeYouTubeLiveStreamResponse({
   items: [{
@@ -83,6 +166,31 @@ const fetched = await fetchYouTubeLiveStreamEvidence({
   }
 });
 assert.equal(fetched.providerLiveState, "receiving");
+const broadcastLive = await fetchYouTubeBroadcastLiveState({
+  accessToken,
+  streamId: "youtube-stream-id",
+  fetchImpl: async (_url, options) => {
+    assert.equal(options?.headers?.Authorization, `Bearer ${accessToken}`);
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return { items: [{ contentDetails: { boundStreamId: "youtube-stream-id" }, status: { lifeCycleStatus: "live" } }] };
+      }
+    };
+  }
+});
+assert.deepEqual(broadcastLive, { confirmedLive: true });
+const broadcastNotLive = await fetchYouTubeBroadcastLiveState({
+  accessToken,
+  streamId: "youtube-stream-id",
+  fetchImpl: async () => ({
+    ok: true,
+    status: 200,
+    async json() { return { items: [{ contentDetails: { boundStreamId: "youtube-stream-id" }, status: { lifeCycleStatus: "testing" } }] }; }
+  })
+});
+assert.deepEqual(broadcastNotLive, { confirmedLive: false });
 assert.equal(observedAuth, `Bearer ${accessToken}`);
 assert.ok(!observedUrl.includes(accessToken), "OAuth token must never enter provider URL/query string");
 assert.ok(!JSON.stringify(fetched).includes(accessToken), "OAuth token must never enter provider evidence");

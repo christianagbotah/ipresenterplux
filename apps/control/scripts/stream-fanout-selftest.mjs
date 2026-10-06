@@ -91,6 +91,14 @@ try {
      values ($1::uuid,$2::uuid,'pending')`,
     [sessionId, outputId]
   );
+  await client.query(
+    `insert into output_destination_provider_accounts(
+       output_destination_id,provider,token_ciphertext,key_version,scopes,connected_at,updated_at
+     ) values ($1::uuid,'youtube','test-provider-envelope',1,array['https://www.googleapis.com/auth/youtube.readonly'],now(),now())
+     on conflict (output_destination_id) do update
+     set provider='youtube',token_ciphertext=excluded.token_ciphertext,scopes=excluded.scopes,provider_stream_id=null,updated_at=now()`,
+    [outputId]
+  );
 
   const failedOutput = await client.query(
     `insert into output_destinations(organization_id,name,destination_type,enabled,status,public_config)
@@ -112,6 +120,9 @@ try {
     env: {
       ...process.env,
       IPRESENTERPLUX_DESTINATION_SECRET_KEY: rawKey,
+      IPRESENTERPLUX_PROVIDER_SECRET_KEY: "",
+      IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID: "",
+      IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET: "",
       IPRESENTERPLUX_FFMPEG_PATH: fakeFfmpeg
     },
     stdio: ["ignore", "pipe", "pipe"]
@@ -128,7 +139,7 @@ try {
   let failedRow;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const result = await client.query(
-      `select output_destination_id::text,status,attempt_count,worker_id,last_heartbeat_at is not null as heartbeating,last_error_code
+      `select output_destination_id::text,status,attempt_count,worker_id,last_heartbeat_at is not null as heartbeating,last_error_code,provider_health_state,provider_error_code
        from stream_session_destinations
        where stream_session_id=$1::uuid
          and output_destination_id=any($2::uuid[])`,
@@ -136,7 +147,7 @@ try {
     );
     row = result.rows.find((item) => item.output_destination_id === outputId);
     failedRow = result.rows.find((item) => item.output_destination_id === failedOutputId);
-    if (row?.status === "live" && failedRow?.status === "error") break;
+    if (row?.status === "live" && row?.provider_error_code === "provider_auth_missing" && failedRow?.status === "error") break;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
@@ -144,6 +155,8 @@ try {
   assert.ok(Number(row.attempt_count) >= 1);
   assert.ok(row.worker_id?.startsWith("fanout-"));
   assert.equal(row.heartbeating, true);
+  assert.equal(row.provider_health_state, "error");
+  assert.equal(row.provider_error_code, "provider_auth_missing", "provider failure must degrade evidence without stopping RTMPS");
   assert.equal(failedRow?.status, "error", "misconfigured sibling destination must fail independently");
   assert.equal(failedRow?.last_error_code, "fanout_destination_not_configured");
   const sessionAfterFailure = await client.query("select status from stream_sessions where id=$1::uuid", [sessionId]);

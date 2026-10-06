@@ -163,3 +163,50 @@ export async function fetchYouTubeLiveStreamEvidence({
 export const providerHealthConstants = Object.freeze({
   youtubeIssueTypes: Object.freeze([...YOUTUBE_CONFIGURATION_ISSUE_TYPES])
 });
+
+export async function fetchYouTubeBroadcastLiveState({
+  accessToken,
+  streamId,
+  fetchImpl = globalThis.fetch,
+  signal
+}) {
+  const token = typeof accessToken === "string" ? accessToken.trim() : "";
+  const id = typeof streamId === "string" ? streamId.trim() : "";
+  if (!token || !id || typeof fetchImpl !== "function") return { confirmedLive: false };
+
+  let pageToken = null;
+  for (let page = 0; page < 4; page += 1) {
+    const url = new URL("https://www.googleapis.com/youtube/v3/liveBroadcasts");
+    url.searchParams.set("part", "status,contentDetails");
+    url.searchParams.set("mine", "true");
+    url.searchParams.set("maxResults", "50");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    let response;
+    try {
+      response = await fetchImpl(url, {
+        method: "GET",
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        signal
+      });
+    } catch {
+      return { confirmedLive: false };
+    }
+    if (!response?.ok) return { confirmedLive: false };
+
+    try {
+      const payload = await response.json();
+      for (const item of Array.isArray(payload?.items) ? payload.items : []) {
+        if (item?.contentDetails?.boundStreamId !== id) continue;
+        return { confirmedLive: item?.status?.lifeCycleStatus === "live" };
+      }
+      pageToken = typeof payload?.nextPageToken === "string" && payload.nextPageToken.trim()
+        ? payload.nextPageToken.trim()
+        : null;
+      if (!pageToken) break;
+    } catch {
+      return { confirmedLive: false };
+    }
+  }
+  return { confirmedLive: false };
+}

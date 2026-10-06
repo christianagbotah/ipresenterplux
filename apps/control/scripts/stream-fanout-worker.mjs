@@ -6,6 +6,7 @@ import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 import process from "node:process";
 import pg from "pg";
+import { createClient } from "redis";
 import {
   buildFfmpegArgs,
   buildRtmpsTarget,
@@ -14,6 +15,13 @@ import {
   destinationTypeIsFanout,
   normalizeRtmpsIngestUrl
 } from "./stream-fanout-core.mjs";
+import { fetchYouTubeBroadcastLiveState, fetchYouTubeLiveStreamEvidence } from "./stream-provider-health-core.mjs";
+import {
+  decryptProviderTokenEnvelope,
+  encryptProviderTokenEnvelope,
+  findYouTubeStreamIdByKey,
+  refreshGoogleAccessToken
+} from "./stream-provider-oauth-core.mjs";
 
 process.loadEnvFile?.(".env.local");
 
@@ -37,10 +45,20 @@ const ffmpegPath = process.env.IPRESENTERPLUX_FFMPEG_PATH?.trim() || "ffmpeg";
 const sourceBaseUrl = process.env.IPRESENTERPLUX_FANOUT_RTSP_URL?.trim() || "rtsp://127.0.0.1:8554";
 const heartbeatMs = 5_000;
 const maxRetryMs = 30_000;
+const providerPollMs = 30_000;
+const providerMaxBackoffMs = 5 * 60_000;
 let shuttingDown = false;
 const children = new Set();
 const retryWaiters = new Set();
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+const realtime = createClient({
+  url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
+  socket: {
+    connectTimeout: 1_000,
+    reconnectStrategy: false
+  }
+});
+realtime.on("error", () => {});
 
 function addressIsPrivate(address) {
   const family = isIP(address);
@@ -80,7 +98,7 @@ async function assertPublicResolution(ingestUrl) {
 
 async function currentSession() {
   const result = await client.query(
-    `select ss.id::text,ss.status,s.organization_id::text
+    `select ss.id::text,ss.service_id::text,ss.status,s.organization_id::text
      from stream_sessions ss
      join services s on s.id=ss.service_id
      where ss.router_path=$1
@@ -275,6 +293,176 @@ async function runDestination(destination, sessionId) {
   targetUrl = undefined;
 }
 
+async function publishProviderEvent(serviceId, destinationId, evidence) {
+  try {
+    if (!realtime.isOpen) await realtime.connect();
+    await realtime.publish(
+      `ipresenterplux:service:${serviceId}`,
+      JSON.stringify({
+        type: "stream.provider.changed",
+        serviceId,
+        payload: {
+          destinationId,
+          providerHealthState: evidence.providerHealthState,
+          providerLiveState: evidence.providerLiveState,
+          providerErrorCode: evidence.providerErrorCode
+        },
+        emittedAt: new Date().toISOString()
+      })
+    );
+  } catch {
+    // Realtime delivery is advisory; persisted provider evidence remains authoritative.
+  }
+}
+
+async function updateProviderEvidence(destination, session, evidence) {
+  const updated = await client.query(
+    `update stream_session_destinations
+     set provider_health_state=$4,
+         provider_live_state=$5,
+         provider_checked_at=now(),
+         provider_error_code=$6,
+         provider_issue_codes=$7::text[],
+         updated_at=now()
+     where id=$1::uuid
+       and stream_session_id=$2::uuid
+       and worker_id=$3
+     returning output_destination_id::text`,
+    [
+      destination.id,
+      session.id,
+      workerId,
+      evidence.providerHealthState,
+      evidence.providerLiveState,
+      evidence.providerErrorCode,
+      (evidence.providerIssueCodes ?? []).slice(0, 8)
+    ]
+  );
+  if (updated.rowCount) await publishProviderEvent(session.service_id, destination.output_destination_id, evidence);
+}
+
+function providerDelay(errorCode, failures) {
+  if (errorCode === "provider_quota_limited") return providerMaxBackoffMs;
+  if (!errorCode) return providerPollMs;
+  return Math.min(providerMaxBackoffMs, providerPollMs * 2 ** Math.min(failures, 3));
+}
+
+async function loadYouTubeProvider(destination, sessionId) {
+  const result = await client.query(
+    `select pa.token_ciphertext,pa.provider_stream_id,pa.token_expires_at,
+            c.secret_ciphertext as stream_secret_ciphertext,ssd.worker_id,ssd.status
+     from stream_session_destinations ssd
+     left join output_destination_provider_accounts pa
+       on pa.output_destination_id=ssd.output_destination_id and pa.provider='youtube'
+     left join output_destination_credentials c
+       on c.output_destination_id=ssd.output_destination_id
+     where ssd.id=$1::uuid and ssd.stream_session_id=$2::uuid`,
+    [destination.id, sessionId]
+  );
+  return result.rows[0] ?? null;
+}
+
+async function runYouTubeProviderHealth(destination, sessionId) {
+  if (destination.destination_type !== "youtube") return;
+  let failures = 0;
+  while (!shuttingDown) {
+    const session = await currentSession();
+    if (!session || session.id !== sessionId) break;
+    const account = await loadYouTubeProvider(destination, sessionId);
+    if (!account || account.worker_id !== workerId) {
+      await retryDelay(1_000);
+      continue;
+    }
+    if (!account.token_ciphertext) {
+      await updateProviderEvidence(destination, session, {
+        providerHealthState: "unverified",
+        providerLiveState: "unknown",
+        providerErrorCode: null,
+        providerIssueCodes: []
+      });
+      break;
+    }
+    if (!process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY?.trim() ||
+        !process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID?.trim() ||
+        !process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET?.trim()) {
+      await updateProviderEvidence(destination, session, {
+        providerHealthState: "error",
+        providerLiveState: "unknown",
+        providerErrorCode: "provider_auth_missing",
+        providerIssueCodes: []
+      });
+      break;
+    }
+
+    let tokens;
+    let streamKey;
+    try {
+      tokens = decryptProviderTokenEnvelope(account.token_ciphertext, process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY);
+      streamKey = decryptSecretEnvelope(account.stream_secret_ciphertext, process.env.IPRESENTERPLUX_DESTINATION_SECRET_KEY).streamKey;
+    } catch {
+      await updateProviderEvidence(destination, session, {
+        providerHealthState: "error",
+        providerLiveState: "unknown",
+        providerErrorCode: "provider_auth_invalid",
+        providerIssueCodes: []
+      });
+      break;
+    }
+
+    let accessToken = tokens.accessToken;
+    const expiresAt = account.token_expires_at ? Date.parse(account.token_expires_at) : 0;
+    if (!expiresAt || expiresAt < Date.now() + 90_000) {
+      const refreshed = await refreshGoogleAccessToken({
+        refreshToken: tokens.refreshToken,
+        clientId: process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_ID,
+        clientSecret: process.env.IPRESENTERPLUX_GOOGLE_OAUTH_CLIENT_SECRET
+      });
+      if (!refreshed.ok) {
+        failures += 1;
+        const evidence = { providerHealthState: "error", providerLiveState: "unknown", providerErrorCode: refreshed.errorCode, providerIssueCodes: [] };
+        await updateProviderEvidence(destination, session, evidence);
+        await retryDelay(providerDelay(refreshed.errorCode, failures));
+        continue;
+      }
+      accessToken = refreshed.accessToken;
+      const refreshedCiphertext = encryptProviderTokenEnvelope({ accessToken, refreshToken: tokens.refreshToken }, process.env.IPRESENTERPLUX_PROVIDER_SECRET_KEY);
+      await client.query(
+        `update output_destination_provider_accounts
+         set token_ciphertext=$2,token_expires_at=now()+($3::int*interval '1 second'),refreshed_at=now(),updated_at=now()
+         where output_destination_id=$1::uuid and provider='youtube'`,
+        [destination.output_destination_id, refreshedCiphertext, refreshed.expiresIn]
+      );
+    }
+
+    let streamId = account.provider_stream_id;
+    if (!streamId) {
+      const found = await findYouTubeStreamIdByKey({ accessToken, streamKey });
+      if (!found.ok) {
+        failures += 1;
+        const evidence = { providerHealthState: "error", providerLiveState: "unknown", providerErrorCode: found.errorCode, providerIssueCodes: [] };
+        await updateProviderEvidence(destination, session, evidence);
+        await retryDelay(providerDelay(found.errorCode, failures));
+        continue;
+      }
+      streamId = found.streamId;
+      await client.query(
+        `update output_destination_provider_accounts set provider_stream_id=$2,updated_at=now()
+         where output_destination_id=$1::uuid and provider='youtube'`,
+        [destination.output_destination_id, streamId]
+      );
+    }
+
+    const evidence = await fetchYouTubeLiveStreamEvidence({ accessToken, streamId });
+    if (evidence.providerLiveState === "receiving" && !evidence.providerErrorCode) {
+      const broadcast = await fetchYouTubeBroadcastLiveState({ accessToken, streamId });
+      if (broadcast.confirmedLive) evidence.providerLiveState = "live";
+    }
+    await updateProviderEvidence(destination, session, evidence);
+    failures = evidence.providerErrorCode ? failures + 1 : 0;
+    await retryDelay(providerDelay(evidence.providerErrorCode, failures));
+  }
+}
+
 async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -311,12 +499,26 @@ try {
       [session.id, ["youtube", "facebook", "tiktok", "tiktok_rtmp", "custom_rtmp"]]
     );
 
-    await Promise.all(destinations.rows.map((destination) => runDestination(destination, session.id)));
+    await Promise.all(destinations.rows.flatMap((destination) => [
+      runDestination(destination, session.id),
+      runYouTubeProviderHealth(destination, session.id).catch(async () => {
+        const current = await currentSession().catch(() => null);
+        if (current?.id === session.id) {
+          await updateProviderEvidence(destination, current, {
+            providerHealthState: "error",
+            providerLiveState: "unknown",
+            providerErrorCode: "provider_worker_failed",
+            providerIssueCodes: []
+          }).catch(() => {});
+        }
+      })
+    ]));
   }
 } catch (error) {
   console.error(`Fan-out worker failed: ${error instanceof Error ? error.message.replace(/rtmps:\/\/[^\s]+/gi, "rtmps://[REDACTED]") : "unknown"}`);
   process.exitCode = 6;
 } finally {
   await shutdown("SIGINT");
+  if (realtime.isOpen) await realtime.quit().catch(() => realtime.destroy());
   await client.end().catch(() => {});
 }
