@@ -7,7 +7,7 @@ import VideoToolbox
 
 @_cdecl("ipresenterplux_macos_bridge_api_version")
 public func bridgeApiVersion() -> Int32 {
-    3
+    4
 }
 
 @_cdecl("ipresenterplux_macos_is_screen_capture_supported")
@@ -30,7 +30,7 @@ public func isAudioCaptureSupported() -> Int32 {
 
 private func stringFromUtf8(_ pointer: UnsafePointer<CChar>?) -> String? {
     guard let pointer else { return nil }
-    return String(validatingUTF8: pointer)
+    return String(validatingCString: pointer)
 }
 
 @_cdecl("ipresenterplux_macos_keychain_write")
