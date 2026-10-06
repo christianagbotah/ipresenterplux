@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { sanitizeCommandError } from "@/lib/edge-commands";
 import { publishServiceEvent } from "@/lib/realtime";
+import { reconcileStreamCommandResult } from "@/lib/stream-session-authority";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,6 +27,7 @@ export async function POST(request: Request, context: RouteContext) {
     const errorCode = sanitizeCommandError(payload.error);
     const targetState = payload.success ? "succeeded" : "failed";
     const client = await db.connect();
+    let streamTransition: { sessionId: string; serviceId: string; status: string } | null = null;
     try {
       await client.query("begin");
       const found = await client.query<{
@@ -59,6 +61,28 @@ export async function POST(request: Request, context: RouteContext) {
          values ($1,'edge_device',$2,'edge.command.completed','edge_command',$3,$4::jsonb)`,
         [device.organizationId, device.deviceId, id, JSON.stringify({ type: command.command_type, success: payload.success, resultingState: payload.resultingState, errorCode })]
       );
+
+      if (command.service_id && (command.command_type === "stream.start" || command.command_type === "stream.stop")) {
+        streamTransition = await reconcileStreamCommandResult(client, {
+          serviceId: command.service_id,
+          commandType: command.command_type,
+          success: payload.success,
+          errorCode
+        });
+        if (streamTransition && !payload.success) {
+          await client.query(
+            `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
+             values ($1,'edge_device',$2,'stream.edge_command.failed','stream_session',$3,$4::jsonb)`,
+            [
+              device.organizationId,
+              device.deviceId,
+              streamTransition.sessionId,
+              JSON.stringify({ commandId: id, type: command.command_type, errorCode })
+            ]
+          );
+        }
+      }
+
       await client.query("commit");
       // Publication is best-effort and must follow the committed result and audit record.
       if (command.service_id) {
@@ -70,6 +94,15 @@ export async function POST(request: Request, context: RouteContext) {
           errorCode,
           edgeDeviceId: device.deviceId
         });
+        if (streamTransition) {
+          await publishServiceEvent(command.service_id, "stream.session.changed", {
+            streamSessionId: streamTransition.sessionId,
+            status: streamTransition.status,
+            commandType: command.command_type,
+            commandState: targetState,
+            errorCode
+          });
+        }
       }
       return NextResponse.json({ ok: true, duplicate: false, commandId: id, state: targetState });
     } catch (error) {
