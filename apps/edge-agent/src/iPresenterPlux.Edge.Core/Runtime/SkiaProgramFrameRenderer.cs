@@ -64,9 +64,14 @@ public sealed class SkiaProgramFrameRenderer : IProgramFrameRenderer
         var titleText = item.Title?.Trim() ?? string.Empty;
         var footerText = item.Footer?.Trim() ?? string.Empty;
 
-        using var labelPaint = TextPaint(Math.Max(18f, height * 0.022f), Accent, bold: true);
-        using var titlePaint = TextPaint(Math.Max(34f, height * 0.064f), Foreground, bold: true);
-        using var footerPaint = TextPaint(Math.Max(18f, height * 0.025f), Muted, bold: true);
+        using var boldTypeface = SKTypeface.FromFamilyName("sans-serif", SKFontStyle.Bold);
+        using var regularTypeface = SKTypeface.FromFamilyName("sans-serif", SKFontStyle.Normal);
+        using var labelFont = new SKFont(boldTypeface, Math.Max(18f, height * 0.022f));
+        using var titleFont = new SKFont(boldTypeface, Math.Max(34f, height * 0.064f));
+        using var footerFont = new SKFont(boldTypeface, Math.Max(18f, height * 0.025f));
+        using var labelPaint = TextPaint(Accent);
+        using var titlePaint = TextPaint(Foreground);
+        using var footerPaint = TextPaint(Muted);
 
         var bodySize = bodyText.Length switch
         {
@@ -75,21 +80,22 @@ public sealed class SkiaProgramFrameRenderer : IProgramFrameRenderer
             > 180 => height * 0.049f,
             _ => height * 0.058f
         };
-        using var bodyPaint = TextPaint(Math.Max(28f, bodySize), Foreground, bold: false);
+        using var bodyFont = new SKFont(regularTypeface, Math.Max(28f, bodySize));
+        using var bodyPaint = TextPaint(Foreground);
 
         var label = item.ItemType.Equals("scripture", StringComparison.OrdinalIgnoreCase)
             ? "SCRIPTURE"
             : item.ItemType.ToUpperInvariant();
-        canvas.DrawText(label, horizontalPadding, height * 0.12f, labelPaint);
+        canvas.DrawText(label, horizontalPadding, height * 0.12f, SKTextAlign.Left, labelFont, labelPaint);
 
         var titleY = height * 0.205f;
         if (!string.IsNullOrWhiteSpace(titleText))
-            canvas.DrawText(titleText, horizontalPadding, titleY, titlePaint);
+            canvas.DrawText(titleText, horizontalPadding, titleY, SKTextAlign.Left, titleFont, titlePaint);
 
         var bodyTop = height * 0.31f;
         var bodyBottom = height * 0.80f;
-        var lineHeight = bodyPaint.TextSize * 1.42f;
-        var lines = WrapText(bodyText, bodyPaint, contentWidth);
+        var lineHeight = bodyFont.Size * 1.42f;
+        var lines = WrapText(bodyText, bodyFont, bodyPaint, contentWidth);
         var maxLines = Math.Max(1, (int)Math.Floor((bodyBottom - bodyTop) / lineHeight));
         if (lines.Count > maxLines)
         {
@@ -102,32 +108,24 @@ public sealed class SkiaProgramFrameRenderer : IProgramFrameRenderer
         }
 
         var totalHeight = Math.Max(lineHeight, lines.Count * lineHeight);
-        var y = bodyTop + Math.Max(0, ((bodyBottom - bodyTop) - totalHeight) * 0.5f) + bodyPaint.TextSize;
+        var y = bodyTop + Math.Max(0, ((bodyBottom - bodyTop) - totalHeight) * 0.5f) + bodyFont.Size;
         foreach (var line in lines)
         {
-            canvas.DrawText(line, horizontalPadding, y, bodyPaint);
+            canvas.DrawText(line, horizontalPadding, y, SKTextAlign.Left, bodyFont, bodyPaint);
             y += lineHeight;
         }
 
         if (!string.IsNullOrWhiteSpace(footerText))
-            canvas.DrawText(footerText, horizontalPadding, height * 0.91f, footerPaint);
+            canvas.DrawText(footerText, horizontalPadding, height * 0.91f, SKTextAlign.Left, footerFont, footerPaint);
     }
 
-    private static SKPaint TextPaint(float size, SKColor color, bool bold)
+    private static SKPaint TextPaint(SKColor color) => new()
     {
-        var typeface = SKTypeface.FromFamilyName("sans-serif", bold ? SKFontStyle.Bold : SKFontStyle.Normal)
-            ?? SKTypeface.Default;
-        return new SKPaint
-        {
-            IsAntialias = true,
-            Color = color,
-            TextSize = size,
-            Typeface = typeface,
-            TextAlign = SKTextAlign.Left
-        };
-    }
+        IsAntialias = true,
+        Color = color
+    };
 
-    private static List<string> WrapText(string text, SKPaint paint, float maxWidth)
+    private static List<string> WrapText(string text, SKFont font, SKPaint paint, float maxWidth)
     {
         var lines = new List<string>();
         if (string.IsNullOrWhiteSpace(text)) return lines;
@@ -145,7 +143,7 @@ public sealed class SkiaProgramFrameRenderer : IProgramFrameRenderer
             for (var index = 1; index < words.Length; index++)
             {
                 var candidate = $"{current} {words[index]}";
-                if (paint.MeasureText(candidate) <= maxWidth)
+                if (font.MeasureText(candidate, paint) <= maxWidth)
                 {
                     current = candidate;
                     continue;
