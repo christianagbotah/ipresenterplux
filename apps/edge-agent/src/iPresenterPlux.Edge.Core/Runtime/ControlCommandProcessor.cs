@@ -9,12 +9,14 @@ public sealed class ControlCommandProcessor(
     IMediaOutputService? mediaOutput = null,
     IPresentationContentProvider? contentProvider = null,
     ILocalRecordingService? recordingService = null,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null,
+    IMasterStreamPublisher? streamPublisher = null)
 {
     private readonly AgentRuntimeState _state = state ?? throw new ArgumentNullException(nameof(state));
     private readonly IMediaOutputService? _mediaOutput = mediaOutput;
     private readonly IPresentationContentProvider? _contentProvider = contentProvider;
     private readonly ILocalRecordingService? _recordingService = recordingService;
+    private readonly IMasterStreamPublisher? _streamPublisher = streamPublisher;
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
     public async Task<ControlCommandResult> ProcessAsync(ControlCommand command, CancellationToken cancellationToken)
@@ -30,7 +32,8 @@ public sealed class ControlCommandProcessor(
         if (command.Type == "health.query")
         {
             var recording = _recordingService?.Status.IsRecording == true ? "recording" : "idle";
-            var value = $"connection={snapshot.ConnectionStatus};audio={snapshot.AudioStatus};service={snapshot.ServiceMode};recording={recording}";
+            var streaming = _streamPublisher?.Status.IsPublishing == true ? "publishing" : "idle";
+            var value = $"connection={snapshot.ConnectionStatus};audio={snapshot.AudioStatus};service={snapshot.ServiceMode};recording={recording};streaming={streaming}";
             return Success(command, value);
         }
 
@@ -89,6 +92,21 @@ public sealed class ControlCommandProcessor(
                     if (_recordingService is null) return Failure(command, "recording_unavailable");
                     var stopped = await _recordingService.StopAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, stopped.RecordingId is null ? "recording_stopped" : $"recording_stopped:{stopped.RecordingId}");
+
+                case "stream.start":
+                    if (_streamPublisher is null) return Failure(command, "stream_unavailable");
+                    if (snapshot.ActiveServiceId is not { } streamServiceId) return Failure(command, "service_required");
+                    var streamStarted = await _streamPublisher.StartAsync(streamServiceId, cancellationToken).ConfigureAwait(false);
+                    return streamStarted.IsPublishing
+                        ? Success(command, "stream_live")
+                        : Failure(command, streamStarted.ErrorCode ?? "stream_start_failed");
+
+                case "stream.stop":
+                    if (_streamPublisher is null) return Failure(command, "stream_unavailable");
+                    var streamStopped = await _streamPublisher.StopAsync(cancellationToken).ConfigureAwait(false);
+                    return !streamStopped.IsPublishing
+                        ? Success(command, "stream_stopped")
+                        : Failure(command, streamStopped.ErrorCode ?? "stream_stop_failed");
 
                 default:
                     return Failure(command, "unsupported_command");
