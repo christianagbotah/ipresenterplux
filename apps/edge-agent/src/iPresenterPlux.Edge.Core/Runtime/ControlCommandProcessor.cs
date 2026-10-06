@@ -16,7 +16,7 @@ public sealed class ControlCommandProcessor(
     private readonly IMediaOutputService? _mediaOutput = mediaOutput;
     private readonly IPresentationContentProvider? _contentProvider = contentProvider;
     private readonly ILocalRecordingService? _recordingService = recordingService;
-    private readonly IMasterStreamPublisher? _streamPublisher = streamPublisher;
+    private readonly IMasterStreamPublisher? _streamPublisher = streamPublisher ?? (mediaOutput as IStreamPublishingMediaOutput)?.StreamPublisher;
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
     public async Task<ControlCommandResult> ProcessAsync(ControlCommand command, CancellationToken cancellationToken)

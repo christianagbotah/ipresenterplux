@@ -1,5 +1,6 @@
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Transport;
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Queues;
 using iPresenterPlux.Edge.Core.Journals;
 using iPresenterPlux.Edge.Core.Runtime;
@@ -70,6 +71,24 @@ static async Task<int> RunAsync()
         if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
     }
 
+    var contributionAudioBuffer = new BoundedContributionAudioBuffer();
+    var contributionTransport = new EncodedContributionStreamTransport(
+        new MacOSEncodedProgramVideoSource(),
+        new MacOSEncodedProgramAudioSource(contributionAudioBuffer),
+        new LibSrtContributionSender(),
+        () => programDisplay.ActiveProcessId is { } processId
+            ? new ProgramVideoCaptureTarget(processId, "iPresenterPlux program")
+            : null);
+    await using var streamPublisher = new ContributionMasterStreamPublisher(
+        new DeferredStreamContributionClient(http, identityStore, credentialStore),
+        contributionTransport);
+    var runtimeMediaOutput = new StreamPublishingMediaOutputService(mediaOutput, streamPublisher);
+    EventHandler<AudioFrame> contributionAudioHandler = (_, frame) =>
+    {
+        _ = contributionAudioBuffer.TrySubmit(frame);
+    };
+    audioCapture.AudioFrameCaptured += contributionAudioHandler;
+
     var pairingCode = Environment.GetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE");
     Environment.SetEnvironmentVariable("IPRESENTERPLUX_PAIRING_CODE", null);
     if (await identityStore.ReadAsync(CancellationToken.None) is null && string.IsNullOrWhiteSpace(pairingCode) && Environment.UserInteractive)
@@ -89,7 +108,7 @@ static async Task<int> RunAsync()
         new EdgeAgentRuntimeOptions(deviceName, softwareVersion, pairingCode, activeServiceId),
         audioCapture: audioCapture,
         speechRecognitionEngine: speechRecognition,
-        mediaOutput: mediaOutput,
+        mediaOutput: runtimeMediaOutput,
         recordingService: recordingService);
 
     using var cts = new CancellationTokenSource();
@@ -107,6 +126,10 @@ static async Task<int> RunAsync()
     {
         Console.Error.WriteLine(error.Message);
         return 3;
+    }
+    finally
+    {
+        audioCapture.AudioFrameCaptured -= contributionAudioHandler;
     }
 }
 
