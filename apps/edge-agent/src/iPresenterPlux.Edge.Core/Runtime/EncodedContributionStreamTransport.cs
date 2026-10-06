@@ -152,7 +152,7 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
                 if (!senderStatus.IsConnected)
                 {
                     SetFailure(senderStatus.ErrorCode ?? "transport_connect_failed");
-                    await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+                    await StopCoreAsync(CancellationToken.None, preserveFailure: true).ConfigureAwait(false);
                     return Status;
                 }
 
@@ -162,7 +162,7 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
                 if (!audio.IsCapturing)
                 {
                     SetFailure(MapSourceError(audio.ErrorCode));
-                    await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+                    await StopCoreAsync(CancellationToken.None, preserveFailure: true).ConfigureAwait(false);
                     return Status;
                 }
 
@@ -170,7 +170,7 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
                 if (!video.IsCapturing)
                 {
                     SetFailure(MapSourceError(video.ErrorCode));
-                    await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+                    await StopCoreAsync(CancellationToken.None, preserveFailure: true).ConfigureAwait(false);
                     return Status;
                 }
 
@@ -191,7 +191,7 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
             catch
             {
                 SetFailure("transport_connect_failed");
-                await StopCoreAsync(CancellationToken.None).ConfigureAwait(false);
+                await StopCoreAsync(CancellationToken.None, preserveFailure: true).ConfigureAwait(false);
                 return Status;
             }
         }
@@ -215,23 +215,35 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
         }
     }
 
-    private async Task<ContributionStreamTransportStatus> StopCoreAsync(CancellationToken cancellationToken)
+    private async Task<ContributionStreamTransportStatus> StopCoreAsync(
+        CancellationToken cancellationToken,
+        bool preserveFailure = false)
     {
         Channel<MediaEnvelope>? channel;
         CancellationTokenSource? runCts;
         Task? sendTask;
+        string? preservedError = null;
         lock (_stateGate)
         {
             channel = _mediaChannel;
             runCts = _runCts;
             sendTask = _sendTask;
+            if (preserveFailure) preservedError = _errorCode;
             if (runCts is null && channel is null)
             {
                 _publishing = false;
                 _serviceId = null;
                 _startedAt = null;
-                _state = "idle";
-                _errorCode = null;
+                if (preserveFailure && !string.IsNullOrWhiteSpace(preservedError))
+                {
+                    _state = "error";
+                    _errorCode = preservedError;
+                }
+                else
+                {
+                    _state = "idle";
+                    _errorCode = null;
+                }
                 return Status;
             }
             _state = "stopping";
@@ -274,8 +286,16 @@ public sealed class EncodedContributionStreamTransport : IContributionStreamTran
             _serviceId = null;
             _startedAt = null;
             _publishing = false;
-            _state = "idle";
-            _errorCode = null;
+            if (preserveFailure && !string.IsNullOrWhiteSpace(preservedError))
+            {
+                _state = "error";
+                _errorCode = preservedError;
+            }
+            else
+            {
+                _state = "idle";
+                _errorCode = null;
+            }
         }
         return Status;
     }
