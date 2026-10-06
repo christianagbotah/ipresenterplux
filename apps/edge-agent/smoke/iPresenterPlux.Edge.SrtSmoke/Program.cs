@@ -63,7 +63,7 @@ while (!timeout.IsCancellationRequested)
             var json = await http.GetStringAsync(apiUri, probeTimeout.Token);
             lastApiSnapshot = json;
             lastProbeError = null;
-            if (PathHasCodecs(json, path, "H264", "MPEG4Audio"))
+            if (PathHasCodecs(json, path, "H264", "MPEG-4 Audio"))
             {
                 verified = true;
                 break;
@@ -92,7 +92,7 @@ if (!verified)
         ? "<none>"
         : $"{lastProbeError.GetType().Name}: {lastProbeError.Message}";
     throw new InvalidOperationException(
-        $"MediaMTX never reported the smoke path with H264 and MPEG4Audio tracks. Last probe={probe}; last API snapshot={snapshot}");
+        $"MediaMTX never reported the smoke path with H264 and MPEG-4 Audio tracks. Last probe={probe}; last API snapshot={snapshot}");
 }
 
 Console.WriteLine("SRT_MEDIAMTX_SMOKE_OK");
@@ -159,9 +159,17 @@ static bool PathHasCodecs(string json, string expectedPath, params string[] code
             continue;
         if (!item.TryGetProperty("ready", out var ready) || ready.ValueKind != JsonValueKind.True)
             continue;
+        if (!item.TryGetProperty("tracks2", out var tracks) || tracks.ValueKind != JsonValueKind.Array)
+            return false;
 
-        var itemText = item.GetRawText();
-        return codecs.All(codec => itemText.Contains(codec, StringComparison.OrdinalIgnoreCase));
+        var actual = tracks.EnumerateArray()
+            .Where(track => track.TryGetProperty("codec", out var codec) && codec.ValueKind == JsonValueKind.String)
+            .Select(track => NormalizeCodec(track.GetProperty("codec").GetString() ?? string.Empty))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return codecs.All(codec => actual.Contains(NormalizeCodec(codec)));
     }
     return false;
 }
+
+static string NormalizeCodec(string codec) =>
+    new(codec.Where(char.IsLetterOrDigit).ToArray());
