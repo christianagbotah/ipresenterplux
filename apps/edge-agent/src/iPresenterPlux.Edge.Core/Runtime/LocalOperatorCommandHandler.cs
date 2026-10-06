@@ -13,17 +13,25 @@ public sealed class LocalOperatorCommandHandler
     private readonly LocalWebProgramOutputService _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
     private readonly TimeProvider _clock;
+    private readonly OperatorCatalogCoordinator? _operatorCatalog;
+    private readonly TimeSpan _catalogMaxAge;
 
     public LocalOperatorCommandHandler(
         AgentRuntimeState state,
         LocalWebProgramOutputService mediaOutput,
         ILocalRecordingService? recordingService = null,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        OperatorCatalogCoordinator? operatorCatalog = null,
+        TimeSpan? catalogMaxAge = null)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _mediaOutput = mediaOutput ?? throw new ArgumentNullException(nameof(mediaOutput));
         _recordingService = recordingService;
         _clock = clock ?? TimeProvider.System;
+        _operatorCatalog = operatorCatalog;
+        _catalogMaxAge = catalogMaxAge ?? TimeSpan.FromMinutes(1);
+        if (_catalogMaxAge <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(catalogMaxAge), "Catalog maximum age must be positive.");
     }
 
     public async Task<LocalOperatorResponse> HandleAsync(
@@ -41,6 +49,12 @@ public sealed class LocalOperatorCommandHandler
             {
                 case LocalOperatorCommands.SnapshotQuery:
                     return Success(requestId, "snapshot_ready");
+
+                case LocalOperatorCommands.CatalogQuery:
+                    return await HandleCatalogQueryAsync(requestId, cancellationToken).ConfigureAwait(false);
+
+                case LocalOperatorCommands.ScriptureResolve:
+                    return await HandleScriptureResolveAsync(requestId, request.Scripture, cancellationToken).ConfigureAwait(false);
 
                 case LocalOperatorCommands.PreviewRender:
                     if (!TryBuildPresentation(request.Presentation, out var item, out var error))
@@ -69,8 +83,8 @@ public sealed class LocalOperatorCommandHandler
                     if (_recordingService is null) return Failure(requestId, "recording_unavailable");
                     if (_state.Snapshot.ActiveServiceId is not { } activeServiceId)
                         return Failure(requestId, "service_required");
-                    var started = await _recordingService.StartAsync(activeServiceId, cancellationToken).ConfigureAwait(false);
-                    return Success(requestId, started.RecordingId is null ? "recording_started" : "recording_started");
+                    await _recordingService.StartAsync(activeServiceId, cancellationToken).ConfigureAwait(false);
+                    return Success(requestId, "recording_started");
 
                 case LocalOperatorCommands.RecordingStop:
                     if (_recordingService is null) return Failure(requestId, "recording_unavailable");
@@ -92,6 +106,69 @@ public sealed class LocalOperatorCommandHandler
         catch
         {
             return Failure(requestId, "command_failed");
+        }
+    }
+
+    private async Task<LocalOperatorResponse> HandleCatalogQueryAsync(
+        string requestId,
+        CancellationToken cancellationToken)
+    {
+        if (_operatorCatalog is null) return Failure(requestId, "catalog_unavailable");
+        var activeServiceId = _state.Snapshot.ActiveServiceId;
+        if (_operatorCatalog.ActiveServiceId != activeServiceId)
+            return Failure(requestId, "catalog_scope_mismatch");
+
+        var catalog = await _operatorCatalog.QueryAsync(cancellationToken).ConfigureAwait(false);
+        if (catalog?.Service?.ServiceId != activeServiceId &&
+            (catalog is not null || activeServiceId is not null))
+        {
+            return Failure(requestId, "catalog_scope_mismatch");
+        }
+
+        var stale = catalog?.IsStale(_clock.GetUtcNow(), _catalogMaxAge) == true;
+        return Success(requestId, "catalog_ready", catalog: catalog, catalogStale: stale);
+    }
+
+    private async Task<LocalOperatorResponse> HandleScriptureResolveAsync(
+        string requestId,
+        LocalOperatorScriptureQuery? scripture,
+        CancellationToken cancellationToken)
+    {
+        if (scripture is null) return Failure(requestId, "scripture_query_required");
+        var reference = scripture.Reference?.Trim() ?? string.Empty;
+        if (reference.Length is < 3 or > 120) return Failure(requestId, "scripture_reference_invalid");
+
+        var version = scripture.Version?.Trim();
+        if (version is { Length: 0 or > 32 }) return Failure(requestId, "bible_version_invalid");
+        if (_operatorCatalog is null) return Failure(requestId, "catalog_unavailable");
+
+        var activeServiceId = _state.Snapshot.ActiveServiceId;
+        if (activeServiceId is null) return Failure(requestId, "service_required");
+        if (_operatorCatalog.ActiveServiceId != activeServiceId)
+            return Failure(requestId, "catalog_scope_mismatch");
+
+        try
+        {
+            var resolved = await _operatorCatalog.ResolveScriptureAsync(reference, version, cancellationToken).ConfigureAwait(false);
+            if (resolved.ServiceId != activeServiceId)
+                return Failure(requestId, "catalog_scope_mismatch");
+            return Success(requestId, "scripture_ready", resolvedPresentation: resolved.Item);
+        }
+        catch (OperatorScriptureUnavailableOfflineException)
+        {
+            return Failure(requestId, "scripture_unavailable_offline");
+        }
+        catch (HttpRequestException)
+        {
+            return Failure(requestId, "scripture_resolve_failed");
+        }
+        catch (InvalidDataException)
+        {
+            return Failure(requestId, "scripture_resolve_failed");
+        }
+        catch (ArgumentException)
+        {
+            return Failure(requestId, "scripture_resolve_failed");
         }
     }
 
@@ -128,8 +205,13 @@ public sealed class LocalOperatorCommandHandler
         return true;
     }
 
-    private LocalOperatorResponse Success(string requestId, string state) =>
-        new(requestId, true, state, null, Snapshot());
+    private LocalOperatorResponse Success(
+        string requestId,
+        string state,
+        OperatorCatalogSnapshot? catalog = null,
+        bool catalogStale = false,
+        OperatorCatalogItem? resolvedPresentation = null) =>
+        new(requestId, true, state, null, Snapshot(), catalog, catalogStale, resolvedPresentation);
 
     private LocalOperatorResponse Failure(string requestId, string code) =>
         new(requestId, false, code, code, Snapshot());

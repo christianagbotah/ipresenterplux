@@ -37,6 +37,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
     private readonly IMediaOutputService? _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
+    private readonly OperatorCatalogCoordinator? _operatorCatalog;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
     private SpeechRecognitionHealth? _latestAsrWorkerHealth;
     private readonly object _audioGate = new();
@@ -59,7 +60,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         IAudioCaptureService? audioCapture = null,
         ISpeechRecognitionEngine? speechRecognitionEngine = null,
         IMediaOutputService? mediaOutput = null,
-        ILocalRecordingService? recordingService = null)
+        ILocalRecordingService? recordingService = null,
+        OperatorCatalogCoordinator? operatorCatalog = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -83,6 +85,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _speechRecognitionEngine = speechRecognitionEngine;
         _mediaOutput = mediaOutput;
         _recordingService = recordingService;
+        _operatorCatalog = operatorCatalog;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
@@ -135,9 +138,13 @@ public sealed class EdgeAgentRuntime : IDisposable
         var commandClient = new HttpEdgeCommandClient(_httpClient, identity, _credentialStore, _clock);
         var presentationClient = new HttpPresentationContentClient(_httpClient, identity, _credentialStore, _clock);
         var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, presentationClient, _recordingService, _clock);
+        if (_operatorCatalog is not null)
+            _operatorCatalog.BindClient(new HttpOperatorCatalogClient(_httpClient, identity, _credentialStore, _clock));
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
+        await AlignOperatorCatalogScopeAsync(_state.Snapshot.ActiveServiceId, cancellationToken).ConfigureAwait(false);
+        await RefreshOperatorCatalogAsync(cancellationToken).ConfigureAwait(false);
         if (_audioCapture is not null && _speechRecognitionEngine is not null)
         {
             _transcriptionPipeline = new AudioTranscriptionPipeline(
@@ -159,6 +166,7 @@ public sealed class EdgeAgentRuntime : IDisposable
           {
             await RotateIfNeededAsync(identity, manager, cancellationToken).ConfigureAwait(false);
             await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
+            await RefreshOperatorCatalogAsync(cancellationToken).ConfigureAwait(false);
             await ProbeSpeechRecognitionHealthAsync(cancellationToken).ConfigureAwait(false);
 
             var health = _healthSampler.Sample(
@@ -247,6 +255,7 @@ public sealed class EdgeAgentRuntime : IDisposable
             var previousServiceId = _state.Snapshot.ActiveServiceId;
             if (previousServiceId == nextServiceId) return;
 
+            await AlignOperatorCatalogScopeAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             if (_mediaOutput is IServiceScopedMediaOutput scopedOutput)
                 await scopedOutput.SetActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             if (_recordingService is not null)
@@ -273,6 +282,42 @@ public sealed class EdgeAgentRuntime : IDisposable
         catch (InvalidDataException)
         {
             _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+        }
+    }
+
+    private async Task AlignOperatorCatalogScopeAsync(Guid? activeServiceId, CancellationToken cancellationToken)
+    {
+        if (_operatorCatalog is null) return;
+        try
+        {
+            await _operatorCatalog.SetActiveServiceAsync(activeServiceId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            Console.Error.WriteLine($"Operator catalog scope cache unavailable: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private async Task RefreshOperatorCatalogAsync(CancellationToken cancellationToken)
+    {
+        if (_operatorCatalog is null) return;
+        try
+        {
+            await _operatorCatalog.RefreshAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception error) when (error is HttpRequestException or TaskCanceledException or InvalidDataException or IOException or UnauthorizedAccessException)
+        {
+            _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+            Console.Error.WriteLine($"Operator catalog refresh unavailable: {error.GetType().Name}: {error.Message}");
         }
     }
 

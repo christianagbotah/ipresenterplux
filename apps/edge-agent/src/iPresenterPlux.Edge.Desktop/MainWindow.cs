@@ -25,6 +25,11 @@ public sealed class MainWindow : Window
     private readonly DispatcherTimer _operatorTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly TabControl _tabs = new();
     private readonly TextBox _operatorSearch = Input("Search scripture, songs, slides or media", false);
+    private readonly TextBox _scriptureReference = Input("John 3:16 or Psalm 23", false);
+    private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
+    private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
+    private readonly TextBlock _catalogStatus = Label("LOCAL REHEARSAL", 10, FontWeight.Bold, Warning);
+    private readonly TextBlock _catalogService = Label("Demo content · no synced service yet", 11, FontWeight.Normal, Muted);
     private readonly ListBox _rundown = new();
     private readonly TextBlock _previewTitle = Label("Preview is clear", 22, FontWeight.Bold);
     private readonly TextBlock _previewBody = Label("Select a cue and press Preview Selected.", 16, FontWeight.Normal, Muted);
@@ -42,6 +47,9 @@ public sealed class MainWindow : Window
     private readonly Button _record = ActionButton("Start Recording", false);
     private readonly List<Button> _localOutputButtons = [];
     private string _activeCategory = "All";
+    private OperatorWorkspaceView _workspace = OperatorWorkspaceCatalog.FromCatalog(null, stale: false);
+    private string? _catalogRevision;
+    private bool _catalogStale;
     private bool _operatorBusy;
     private bool _recordingActive;
     private readonly TextBox _controlUrl = Input("https://control.example.com", false);
@@ -97,6 +105,11 @@ public sealed class MainWindow : Window
         _take.Click += async (_, _) => await TakeAsync();
         _clear.Click += async (_, _) => await ClearProgramAsync();
         _record.Click += async (_, _) => await ToggleRecordingAsync();
+        _resolveScripture.Click += async (_, _) => await ResolveAndPreviewScriptureAsync();
+        _scriptureReference.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
+        };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
     }
 
@@ -150,6 +163,7 @@ public sealed class MainWindow : Window
         leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         leftGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
         leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         leftGrid.RowSpacing = 10;
@@ -159,14 +173,39 @@ public sealed class MainWindow : Window
             Children = {
                 Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold),
                 Label("Content & cues", 19, FontWeight.Bold),
-                Label("Seed content now; cloud library sync follows this workspace foundation.", 11, FontWeight.Normal, Muted)
+                _catalogStatus,
+                _catalogService
             }
         };
         Grid.SetRow(leftTitle, 0);
         leftGrid.Children.Add(leftTitle);
 
+        _scriptureReference.MinHeight = 38;
+        _scriptureReference.IsEnabled = false;
+        _bibleVersion.IsEnabled = false;
+        _resolveScripture.IsEnabled = false;
+        _bibleVersion.Background = SurfaceRaised;
+        _bibleVersion.Foreground = Brushes.White;
+        _resolveScripture.MinWidth = 112;
+        _resolveScripture.MinHeight = 38;
+        _resolveScripture.Padding = new Thickness(10, 6);
+        var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+        scriptureRow.Children.Add(_bibleVersion);
+        Grid.SetColumn(_resolveScripture, 1);
+        scriptureRow.Children.Add(_resolveScripture);
+        var scriptureTools = new StackPanel {
+            Spacing = 6,
+            Children = {
+                Label("SCRIPTURE LOOKUP", 9, FontWeight.Bold, Muted),
+                _scriptureReference,
+                scriptureRow
+            }
+        };
+        Grid.SetRow(scriptureTools, 1);
+        leftGrid.Children.Add(scriptureTools);
+
         _operatorSearch.MinHeight = 40;
-        Grid.SetRow(_operatorSearch, 1);
+        Grid.SetRow(_operatorSearch, 2);
         leftGrid.Children.Add(_operatorSearch);
 
         var categories = new WrapPanel { Orientation = Orientation.Horizontal };
@@ -181,13 +220,13 @@ public sealed class MainWindow : Window
             button.Click += (_, _) => { _activeCategory = captured; RefreshRundown(); };
             categories.Children.Add(button);
         }
-        Grid.SetRow(categories, 2);
+        Grid.SetRow(categories, 3);
         leftGrid.Children.Add(categories);
 
         _rundown.Background = SurfaceRaised;
         _rundown.MinHeight = 260;
         _rundown.SelectionChanged += (_, _) => _prepare.IsEnabled = _rundown.SelectedItem is OperatorWorkspaceItem;
-        Grid.SetRow(_rundown, 3);
+        Grid.SetRow(_rundown, 4);
         leftGrid.Children.Add(_rundown);
 
         var leftActions = new StackPanel {
@@ -197,7 +236,7 @@ public sealed class MainWindow : Window
                 Label("F6 Preview · F8 Take · F7 Clear", 10, FontWeight.SemiBold, Muted)
             }
         };
-        Grid.SetRow(leftActions, 4);
+        Grid.SetRow(leftActions, 5);
         leftGrid.Children.Add(leftActions);
 
         var left = new Border {
@@ -546,18 +585,11 @@ public sealed class MainWindow : Window
 
     private void RefreshRundown()
     {
-        var query = _operatorSearch.Text?.Trim() ?? string.Empty;
-        var items = OperatorWorkspaceCatalog.Seeded
-            .Where(item => (_activeCategory == "All" || string.Equals(item.Category, _activeCategory, StringComparison.OrdinalIgnoreCase)) &&
-                (query.Length == 0 ||
-                 item.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                 item.Body.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                 item.Category.Contains(query, StringComparison.OrdinalIgnoreCase)))
-            .ToArray();
+        var items = OperatorWorkspaceCatalog.Filter(_workspace.Items, _activeCategory, _operatorSearch.Text);
         _rundown.ItemsSource = items;
         var selected = _rundown.SelectedItem as OperatorWorkspaceItem;
         if (selected is null || !items.Contains(selected))
-            _rundown.SelectedIndex = items.Length > 0 ? 0 : -1;
+            _rundown.SelectedIndex = items.Count > 0 ? 0 : -1;
         _prepare.IsEnabled = _rundown.SelectedItem is OperatorWorkspaceItem;
     }
 
@@ -569,10 +601,132 @@ public sealed class MainWindow : Window
         {
             var response = await _operatorClient.QueryAsync(CancellationToken.None);
             RenderOperatorSnapshot(response.Snapshot);
-            _operatorFeedback.Text = response.Snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase)
-                ? "Local control and Control Plane are connected."
+
+            var catalogResponse = await _operatorClient.QueryCatalogAsync(CancellationToken.None);
+            ApplyCatalogResponse(catalogResponse);
+
+            var connected = response.Snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ||
+                response.Snapshot.ConnectionStatus.Equals("Connected", StringComparison.OrdinalIgnoreCase);
+            _operatorFeedback.Text = connected
+                ? _workspace.IsStale
+                    ? "Local control is connected; the displayed service catalog is an offline cache."
+                    : "Local control and Control Plane are connected."
                 : "Local control is available; cloud connectivity may be degraded.";
-            _operatorFeedback.Foreground = response.Snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ? Good : Warning;
+            _operatorFeedback.Foreground = connected && !_workspace.IsStale ? Good : Warning;
+        }
+        catch
+        {
+            SetOperatorUnavailable();
+        }
+        finally
+        {
+            _operatorBusy = false;
+        }
+    }
+
+    private void ApplyCatalogResponse(LocalOperatorResponse response)
+    {
+        if (!response.Ok)
+        {
+            _catalogStatus.Text = "CATALOG WAITING";
+            _catalogStatus.Foreground = Warning;
+            _catalogService.Text = SafeOperatorError(response.ErrorCode);
+            _resolveScripture.IsEnabled = false;
+            return;
+        }
+
+        var revision = response.Catalog?.CatalogRevision;
+        var hasCatalog = response.Catalog is not null;
+        var changed = !string.Equals(_catalogRevision, revision, StringComparison.Ordinal) ||
+            _catalogStale != response.CatalogStale ||
+            _workspace.HasSyncedCatalog != hasCatalog;
+
+        if (changed)
+        {
+            var selectedVersion = _bibleVersion.SelectedItem as string;
+            _workspace = OperatorWorkspaceCatalog.FromCatalog(response.Catalog, response.CatalogStale);
+            _catalogRevision = revision;
+            _catalogStale = response.CatalogStale;
+
+            var versions = _workspace.BibleVersions
+                .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
+                .Where(version => !string.IsNullOrWhiteSpace(version))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            _bibleVersion.ItemsSource = versions;
+            var preferred = selectedVersion is not null && versions.Contains(selectedVersion, StringComparer.OrdinalIgnoreCase)
+                ? versions.First(version => version.Equals(selectedVersion, StringComparison.OrdinalIgnoreCase))
+                : versions.FirstOrDefault(version => version.Equals(_workspace.ActiveBibleVersion, StringComparison.OrdinalIgnoreCase))
+                  ?? versions.FirstOrDefault();
+            _bibleVersion.SelectedItem = preferred;
+            RefreshRundown();
+        }
+
+        _catalogStatus.Text = _workspace.StatusLabel;
+        _catalogStatus.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
+        _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
+            ? $"{title} · {_workspace.ServiceStatus ?? "service"}"
+            : _workspace.IsRehearsal
+                ? "Demo content · no synced service yet"
+                : "No active service assigned to this Edge.";
+
+        var hasVersions = (_bibleVersion.ItemsSource as IEnumerable<string>)?.Any() == true;
+        var scriptureEnabled = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is not null;
+        _bibleVersion.IsEnabled = scriptureEnabled && hasVersions;
+        _scriptureReference.IsEnabled = scriptureEnabled;
+        _resolveScripture.IsEnabled = scriptureEnabled;
+
+        _operatorService.Text = _workspace.ServiceTitle is { Length: > 0 } serviceTitle
+            ? $"{serviceTitle.ToUpperInvariant()} · {_workspace.StatusLabel}"
+            : _workspace.StatusLabel;
+        _operatorService.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
+    }
+
+    private async Task ResolveAndPreviewScriptureAsync()
+    {
+        var reference = _scriptureReference.Text?.Trim() ?? string.Empty;
+        if (reference.Length < 3)
+        {
+            SetOperatorFeedback("Enter a scripture reference such as John 3:16 or Psalm 23.", true);
+            return;
+        }
+        if (_operatorBusy) return;
+
+        _operatorBusy = true;
+        try
+        {
+            var version = _bibleVersion.SelectedItem as string;
+            var resolved = await _operatorClient.ResolveScriptureAsync(reference, version, CancellationToken.None);
+            RenderOperatorSnapshot(resolved.Snapshot);
+            if (!resolved.Ok)
+            {
+                SetOperatorFeedback(SafeOperatorError(resolved.ErrorCode), true);
+                return;
+            }
+            if (resolved.ResolvedPresentation is null)
+            {
+                SetOperatorFeedback("The Edge runtime returned no scripture passage for that reference.", true);
+                return;
+            }
+
+            var item = OperatorWorkspaceCatalog.FromResolved(resolved.ResolvedPresentation);
+            var preview = await _operatorClient.SendAsync(
+                LocalOperatorCommands.PreviewRender,
+                item.ToPresentation(),
+                CancellationToken.None);
+            RenderOperatorSnapshot(preview.Snapshot);
+            if (preview.Ok)
+            {
+                SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version ?? "default version"}.", false);
+            }
+            else
+            {
+                SetOperatorFeedback(SafeOperatorError(preview.ErrorCode), true);
+            }
+        }
+        catch (ArgumentException)
+        {
+            SetOperatorFeedback("Enter a valid scripture reference and Bible version.", true);
         }
         catch
         {
@@ -711,9 +865,14 @@ public sealed class MainWindow : Window
     private static string SafeOperatorError(string? code) => code switch
     {
         "preview_required" => "Prepare a cue in Preview before taking it to Program.",
-        "service_required" => "Recording requires an active service assignment. Preview and Program still work in rehearsal mode.",
+        "service_required" => "This action requires an active service assignment. Preview and Program still work in rehearsal mode.",
         "recording_unavailable" => "Local recording is not available on this runtime.",
         "invalid_runtime_state" => "The local runtime is not ready for that action yet.",
+        "scripture_query_required" or "scripture_reference_invalid" => "Enter a scripture reference such as John 3:16 or Psalm 23.",
+        "bible_version_invalid" => "Choose a valid Bible version for this service.",
+        "scripture_unavailable_offline" => "That passage is not in the offline cache. Reconnect the Control Plane or choose a cached passage.",
+        "scripture_resolve_failed" => "Scripture lookup could not be completed. Check the reference and try again.",
+        "catalog_unavailable" or "catalog_scope_mismatch" => "The service catalog is still synchronizing with this Edge runtime.",
         "presentation_required" or "body_invalid" or "item_id_invalid" or "item_type_invalid" => "That cue is not valid for local presentation.",
         _ => "The Edge runtime rejected that local operator action."
     };

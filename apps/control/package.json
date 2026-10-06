@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:migrate": "node scripts/migrate.mjs",
     "test:scripture": "node scripts/scripture-selftest.mjs",
+    "test:edge-operator-catalog": "node scripts/edge-operator-catalog-selftest.mjs",
     "test:scripture-quote": "node scripts/scripture-quote-selftest.mjs",
     "test:transcript-window": "node scripts/transcript-window-selftest.mjs",
     "test:translation-worker": "node scripts/translation-worker-selftest.mjs",

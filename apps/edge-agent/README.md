@@ -52,6 +52,12 @@ Local mutation control does **not** use the loopback HTTP renderer. `/preview`, 
 
 When no cloud service is assigned, Preview/Take/Clear continue in an explicit local rehearsal scope; recording stays disabled until an authoritative active service exists. Keyboard shortcuts are **F6 Preview**, **F8 Take**, **F7 Clear** and **F5 Restart Edge**.
 
+### Synced service and scripture catalog
+
+The Operator workspace now consumes an authenticated, bounded service/scripture catalog synchronized by the Edge runtime. The Avalonia shell never receives the Edge bearer credential: the runtime fetches the active service, Bible versions, service cues and scripture queue from the Control Plane, persists a versioned atomic cache under the normal Edge data directory, and exposes only presentation-safe catalog data through the same-user IPC channel. Cloud loss keeps the last same-service catalog available as an explicit **OFFLINE CACHE**; demo seed content appears only in **LOCAL REHEARSAL** when no synchronized catalog exists. A synchronized no-service state remains empty rather than reviving stale service cues.
+
+The left Operator pane includes version-aware scripture lookup. A reference such as `John 3:16` or `Psalm 23` is resolved by the runtime using the selected/active Bible version, then sent to the existing local Preview path; taking it to Program remains an explicit operator action. Exact passages already present in the local cache can resolve during cloud loss; uncached passages fail closed with an offline message. The local loopback renderer remains read-only throughout this flow.
+
 ## Apple Silicon
 
 macOS releases will ship for Apple Silicon (`osx-arm64`) first and retain an `osx-x64` build while Intel support remains worthwhile.
