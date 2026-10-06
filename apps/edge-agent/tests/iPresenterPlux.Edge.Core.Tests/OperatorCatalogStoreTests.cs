@@ -14,7 +14,7 @@ public sealed class OperatorCatalogStoreTests
         var second = fixture.Snapshot("rev-2");
 
         await store.WriteAsync(first, CancellationToken.None);
-        Assert.Equal(first, await store.ReadAsync(CancellationToken.None));
+        Assert.Equivalent(first, await store.ReadAsync(CancellationToken.None), strict: true);
         await store.WriteAsync(second, CancellationToken.None);
 
         var loaded = await store.ReadAsync(CancellationToken.None);
