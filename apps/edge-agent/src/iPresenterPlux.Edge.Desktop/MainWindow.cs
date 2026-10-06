@@ -220,7 +220,7 @@ public sealed class MainWindow : Window
             SetFeedback("The packaged Edge runtime is not beside the shell yet. CI packaging must stage it before field use.", true);
     }
 
-    private DesktopSettings ReadSettings() => new(
+    private DesktopSettings ReadSettings() => new DesktopSettings(
         _controlUrl.Text?.Trim() ?? "",
         _deviceName.Text?.Trim() ?? "",
         49321).Normalize();

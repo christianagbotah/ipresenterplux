@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 
@@ -9,15 +10,23 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        var lifetime = new ClassicDesktopStyleApplicationLifetime
+        {
+            Args = args,
+            ShutdownMode = ShutdownMode.OnLastWindowClose
+        };
+
         AppBuilder.Configure<Application>()
             .UsePlatformDetect()
-            .Start((app, _) =>
+            .AfterSetup(builder =>
             {
+                if (builder.Instance is not { } app) return;
                 app.Styles.Add(new FluentTheme());
                 app.RequestedThemeVariant = ThemeVariant.Dark;
-                var window = new MainWindow();
-                window.Show();
-                app.Run(window);
-            }, args);
+            })
+            .SetupWithLifetime(lifetime);
+
+        lifetime.MainWindow = new MainWindow();
+        lifetime.Start(args);
     }
 }
