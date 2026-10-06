@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import type { PoolClient } from "pg";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
 import { encryptDestinationSecret } from "@/lib/destination-secrets";
@@ -45,7 +46,7 @@ async function requireSession() {
   return { session } as const;
 }
 
-async function organizationBroadcastActive(client: Awaited<ReturnType<typeof db.connect>>, organizationId: string) {
+async function organizationBroadcastActive(client: PoolClient, organizationId: string) {
   const active = await client.query<{ active: boolean }>(
     `select exists(
        select 1
