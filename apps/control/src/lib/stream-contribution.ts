@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 const SESSION_TTL_MS = 5 * 60 * 1000;
+const STREAM_PATH_PATTERN = /^[A-Za-z0-9._/-]{1,200}$/;
 
 export type EdgeContributionGrant = {
   sessionId: string;
@@ -16,7 +17,11 @@ export function hashContributionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function createEdgeContributionGrant(routerBaseUrl: string, now = new Date()): EdgeContributionGrant {
+export function createEdgeContributionGrant(
+  routerBaseUrl: string,
+  now = new Date(),
+  authoritativeStreamPath?: string
+): EdgeContributionGrant {
   const router = new URL(routerBaseUrl);
   if (router.protocol !== "srt:") throw new Error("stream_router_protocol_invalid");
   if (!router.hostname) throw new Error("stream_router_host_invalid");
@@ -25,13 +30,18 @@ export function createEdgeContributionGrant(routerBaseUrl: string, now = new Dat
   }
 
   const sessionId = randomUUID();
-  const streamPath = `edge-${sessionId}`;
+  const streamPath = authoritativeStreamPath ?? `edge-${sessionId}`;
+  if (!STREAM_PATH_PATTERN.test(streamPath) || streamPath.includes("..") || streamPath.startsWith("/") || streamPath.endsWith("/")) {
+    throw new Error("stream_router_path_invalid");
+  }
+
   const token = randomBytes(32).toString("base64url");
   const tokenHash = hashContributionToken(token);
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS).toISOString();
 
   // MediaMTX SRT custom syntax: publish:path:user:password.
-  // The short-lived contribution token is supplied as the password and is never persisted raw.
+  // The path identifies the authoritative broadcast session while the short-lived
+  // token is the credential. The raw token is never persisted.
   router.searchParams.set("streamid", `publish:${streamPath}:edge:${token}`);
   router.searchParams.set("pkt_size", "1316");
 

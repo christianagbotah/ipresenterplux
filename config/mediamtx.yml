@@ -36,7 +36,7 @@ webrtcAdditionalHosts:
 moq: false
 
 authMethod: http
-authHTTPAddress: http://127.0.0.1:3011/api/v1/media/auth
+authHTTPAddress: http://127.0.0.1:3011/api/v1/stream/router/auth
 authHTTPExclude:
   - action: read
     path: "~^service/[0-9a-f-]{36}$"
@@ -47,3 +47,6 @@ authHTTPExclude:
 paths:
   "~^service/[0-9a-f-]{36}$":
     source: publisher
+    runOnAvailable: node apps/control/scripts/mediamtx-state-callback.mjs ready "$MTX_PATH"
+    runOnAvailableRestart: false
+    runOnUnavailable: node apps/control/scripts/mediamtx-state-callback.mjs not-ready "$MTX_PATH"
