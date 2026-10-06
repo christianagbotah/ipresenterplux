@@ -183,16 +183,21 @@ async function runAttempt(destination, sessionId, targetUrl, sourceUrl, hasBeenL
 
   // Never relay FFmpeg stderr because authenticated RTMPS targets can appear in errors.
   child.stderr?.resume();
-  child.once("error", () => {
-    spawnFailed = true;
-  });
 
   await new Promise((resolve) => {
-    child.once("exit", (code, signal) => {
+    let settled = false;
+    const settle = (code, signal) => {
+      if (settled) return;
+      settled = true;
       exitCode = code;
       exitSignal = signal;
       resolve();
+    };
+    child.once("error", () => {
+      spawnFailed = true;
+      settle(127, null);
     });
+    child.once("close", settle);
     if (shuttingDown && child.exitCode === null) child.kill("SIGINT");
   });
 
