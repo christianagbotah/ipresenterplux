@@ -9,7 +9,11 @@ metrics: true
 metricsAddress: 127.0.0.1:9998
 pprof: false
 
-rtsp: false
+# Loopback RTSP is the internal fan-out source for the hardened server worker.
+# It is not exposed externally; social RTMPS publishers read the already encoded
+# H.264/AAC master here and stream-copy it without a second transcode.
+rtsp: true
+rtspAddress: 127.0.0.1:8554
 rtmp: false
 srt: true
 srtAddress: :8890
