@@ -113,7 +113,7 @@ public sealed class DurableControlCommandExecutorTests : IDisposable
         public Task<MasterStreamStatus> StopAsync(CancellationToken cancellationToken)
         {
             StopCount++;
-            _status = new(false, null, "idle", null, null, 0, 0, null, null, null);
+            _status = new(false, null, "idle", null, null, null, 0, 0, null, null);
             return Task.FromResult(_status);
         }
 
