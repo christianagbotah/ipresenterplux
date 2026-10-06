@@ -87,6 +87,62 @@ public sealed class OutboundEventDispatcherTests
     }
 
     [Fact]
+    public async Task InternetFailureDoesNotStopLocalProgramOrRecording()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(), "ipresenterplux-offline-continuity-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var serviceId = Guid.NewGuid();
+            var item = new PresentationRenderItem(
+                Guid.NewGuid().ToString("D"),
+                serviceId,
+                "scripture",
+                "John 3:16",
+                "For God so loved the world.",
+                "KJV",
+                new Dictionary<string, string>());
+            await using var output = new LocalWebProgramOutputService(49329, new FileProgramStateStore(directory));
+            await using var recorder = new LocalAudioRecordingService(directory);
+            await output.StartProgramOutputAsync(CancellationToken.None);
+            await output.SetPreviewAsync(item, CancellationToken.None);
+            await output.TakePreviewToProgramAsync(CancellationToken.None);
+            await recorder.StartAsync(serviceId, CancellationToken.None);
+
+            var identity = Identity();
+            var queue = new InMemoryOutboundEventQueue();
+            var publisher = new FakePublisher { Fail = true };
+            var clock = new MutableClock(DateTimeOffset.Parse("2026-10-06T13:00:00Z"));
+            var dispatcher = new OutboundEventDispatcher(queue, publisher, clock);
+            var health = new EdgeDeviceHealth(
+                identity.DeviceId.ToString(),
+                identity.DeviceName,
+                identity.SoftwareVersion,
+                "online",
+                clock.GetUtcNow(),
+                12.5,
+                42.0,
+                10.0,
+                new Dictionary<string, string> { ["display.program"] = "available" });
+            var outbound = OutboundEventFactory.Health(identity, health, Guid.NewGuid());
+            await queue.EnqueueAsync(outbound, CancellationToken.None);
+
+            var result = await dispatcher.FlushAsync(outbound.Scope, 10, CancellationToken.None);
+
+            Assert.Equal(new OutboundDispatchResult(1, 0, 1), result);
+            Assert.True(output.Snapshot.OutputRunning);
+            Assert.Equal(item.ItemId, output.Snapshot.Program?.ItemId);
+            Assert.True(recorder.Status.IsRecording);
+            Assert.Equal(serviceId, recorder.Status.ServiceId);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void FactoryScopesEventsToTenantAndDevice()
     {
         var identity = Identity();

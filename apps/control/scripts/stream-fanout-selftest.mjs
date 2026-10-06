@@ -49,6 +49,7 @@ const routerPath = `service/${serviceId}`;
 const sessionId = randomUUID();
 let child;
 let connected = false;
+let failedOutputId = null;
 
 try {
   await fs.writeFile(fakeFfmpeg, `#!/usr/bin/env node\nconsole.log("out_time_us=1000000");\nconsole.log("total_size=1024");\nconsole.log("progress=continue");\nconst timer=setInterval(()=>{console.log("out_time_us=2000000");console.log("progress=continue");},250);\nprocess.on("SIGINT",()=>{clearInterval(timer);process.exit(0)});\nprocess.on("SIGTERM",()=>{clearInterval(timer);process.exit(0)});\n`, { mode: 0o755 });
@@ -90,6 +91,20 @@ try {
      values ($1::uuid,$2::uuid,'pending')`,
     [sessionId, outputId]
   );
+
+  const failedOutput = await client.query(
+    `insert into output_destinations(organization_id,name,destination_type,enabled,status,public_config)
+     values ('00000000-0000-4000-8000-000000000001'::uuid,$1,'custom_rtmp',true,'ready',
+       jsonb_build_object('protocol','RTMPS','ingestUrl','rtmps://example.com/live','credentialConfigured',false))
+     returning id::text`,
+    [`Fanout isolated failure ${Date.now()}-${randomUUID()}`]
+  );
+  failedOutputId = failedOutput.rows[0].id;
+  await client.query(
+    `insert into stream_session_destinations(stream_session_id,output_destination_id,status)
+     values ($1::uuid,$2::uuid,'pending')`,
+    [sessionId, failedOutputId]
+  );
   await client.query("commit");
 
   child = spawn(process.execPath, [path.resolve("scripts/stream-fanout-worker.mjs"), routerPath], {
@@ -110,22 +125,29 @@ try {
   child.stderr.on("data", (value) => { stderr += value; });
 
   let row;
+  let failedRow;
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const result = await client.query(
-      `select status,attempt_count,worker_id,last_heartbeat_at is not null as heartbeating
+      `select output_destination_id::text,status,attempt_count,worker_id,last_heartbeat_at is not null as heartbeating,last_error_code
        from stream_session_destinations
-       where stream_session_id=$1::uuid and output_destination_id=$2::uuid`,
-      [sessionId, outputId]
+       where stream_session_id=$1::uuid
+         and output_destination_id=any($2::uuid[])`,
+      [sessionId, [outputId, failedOutputId]]
     );
-    row = result.rows[0];
-    if (row?.status === "live") break;
+    row = result.rows.find((item) => item.output_destination_id === outputId);
+    failedRow = result.rows.find((item) => item.output_destination_id === failedOutputId);
+    if (row?.status === "live" && failedRow?.status === "error") break;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
-  assert.equal(row?.status, "live", `fan-out did not become live; stderr=${stderr}`);
+  assert.equal(row?.status, "live", `healthy fan-out did not become live; stderr=${stderr}`);
   assert.ok(Number(row.attempt_count) >= 1);
   assert.ok(row.worker_id?.startsWith("fanout-"));
   assert.equal(row.heartbeating, true);
+  assert.equal(failedRow?.status, "error", "misconfigured sibling destination must fail independently");
+  assert.equal(failedRow?.last_error_code, "fanout_destination_not_configured");
+  const sessionAfterFailure = await client.query("select status from stream_sessions where id=$1::uuid", [sessionId]);
+  assert.equal(sessionAfterFailure.rows[0]?.status, "live", "destination failure must not stop the master session");
   assert.ok(!stdout.includes(streamKey));
   assert.ok(!stderr.includes(streamKey));
 
@@ -144,6 +166,9 @@ try {
   if (connected) {
     await client.query("rollback").catch(() => {});
     await client.query("delete from stream_sessions where id=$1::uuid", [sessionId]).catch(() => {});
+    if (failedOutputId) {
+      await client.query("delete from output_destinations where id=$1::uuid", [failedOutputId]).catch(() => {});
+    }
     await client.end().catch(() => {});
   }
   await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});

@@ -423,26 +423,19 @@ public sealed class EdgeAgentRuntime : IDisposable
         ControlCommandProcessor processor,
         CancellationToken cancellationToken)
     {
-        ControlCommandResult? pending = null;
+        var executor = new DurableControlCommandExecutor(
+            identity.OrganizationId,
+            identity.DeviceId,
+            _commandJournal,
+            processor);
         while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                if (pending is not null)
-                {
-                    _commandJournal.Store(identity.OrganizationId, identity.DeviceId, pending);
-                    pending = null;
-                }
+                executor.FlushPending();
                 await foreach (var command in client.ReceiveCommandsAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var result = _commandJournal.Find(identity.OrganizationId, identity.DeviceId, command.CommandId);
-                    if (result is null)
-                    {
-                        result = await processor.ProcessAsync(command, cancellationToken).ConfigureAwait(false);
-                        pending = result;
-                        _commandJournal.Store(identity.OrganizationId, identity.DeviceId, result);
-                        pending = null;
-                    }
+                    var result = await executor.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
                     await client.AcknowledgeCommandAsync(result, cancellationToken).ConfigureAwait(false);
                 }
             }
