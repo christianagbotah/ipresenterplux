@@ -4,6 +4,7 @@ export type StreamSessionState = "idle" | "starting" | "live" | "stopping" | "en
 
 type CommandResult = {
   serviceId: string;
+  edgeDeviceId: string;
   commandType: "stream.start" | "stream.stop";
   success: boolean;
   errorCode: string | null;
@@ -35,15 +36,19 @@ export async function reconcileStreamCommandResult(
   client: PoolClient,
   result: CommandResult
 ): Promise<TransitionResult> {
+  // Only the Edge chosen as publisher for this exact broadcast may reconcile its
+  // stream.start/stream.stop commands into session state. A stale command from a
+  // previously assigned device must not mutate the current broadcast.
   const session = await client.query<StreamSessionRow>(
     `select id::text,service_id::text,status
      from stream_sessions
      where service_id=$1::uuid
+       and publisher_edge_device_id=$2::uuid
        and status in ('starting','live','stopping')
      order by created_at desc
      limit 1
      for update`,
-    [result.serviceId]
+    [result.serviceId, result.edgeDeviceId]
   );
   const current = session.rows[0];
   if (!current) return null;
@@ -58,12 +63,13 @@ export async function reconcileStreamCommandResult(
              'edgeCommand',jsonb_build_object(
                'type',$2::text,
                'state','succeeded',
+               'edgeDeviceId',$3::text,
                'at',clock_timestamp()
              )
            ),
            updated_at=now()
        where id=$1::uuid`,
-      [current.id, result.commandType]
+      [current.id, result.commandType, result.edgeDeviceId]
     );
     return toTransition(current);
   }
@@ -79,6 +85,7 @@ export async function reconcileStreamCommandResult(
            'edgeCommand',jsonb_build_object(
              'type',$3::text,
              'state','failed',
+             'edgeDeviceId',$4::text,
              'errorCode',$2::text,
              'at',clock_timestamp()
            )
@@ -86,7 +93,7 @@ export async function reconcileStreamCommandResult(
          updated_at=now()
      where id=$1::uuid
      returning id::text,service_id::text,status`,
-    [current.id, errorCode, result.commandType]
+    [current.id, errorCode, result.commandType, result.edgeDeviceId]
   );
 
   await client.query(
