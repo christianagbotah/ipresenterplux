@@ -124,24 +124,44 @@ jobs:
             -DENABLE_STATIC=OFF \
             -DENABLE_APPS=OFF \
             -DENABLE_UNITTESTS=OFF \
-            -DOPENSSL_ROOT_DIR="$openssl_root" \
-            -DOPENSSL_USE_STATIC_LIBS=TRUE
+            -DENABLE_STDCXX_SYNC=ON
           cmake --build "$source_dir/build" --config Release --parallel 2
 
           dylib="$(find "$source_dir/build" -type f -name 'libsrt*.dylib' | head -n 1)"
           test -n "$dylib"
           mkdir -p publish/libsrt-stage
           cp "$dylib" publish/libsrt-stage/libsrt.dylib
+          cp "$openssl_root/lib/libssl.3.dylib" publish/libsrt-stage/libssl.3.dylib
+          cp "$openssl_root/lib/libcrypto.3.dylib" publish/libsrt-stage/libcrypto.3.dylib
+
+          srt_ssl_dep="$(otool -L publish/libsrt-stage/libsrt.dylib | awk '/libssl/{print $1; exit}')"
+          srt_crypto_dep="$(otool -L publish/libsrt-stage/libsrt.dylib | awk '/libcrypto/{print $1; exit}')"
+          ssl_crypto_dep="$(otool -L publish/libsrt-stage/libssl.3.dylib | awk '/libcrypto/{print $1; exit}')"
+          test -n "$srt_ssl_dep"
+          test -n "$srt_crypto_dep"
+          test -n "$ssl_crypto_dep"
+          install_name_tool -change "$srt_ssl_dep" "@loader_path/libssl.3.dylib" publish/libsrt-stage/libsrt.dylib
+          install_name_tool -change "$srt_crypto_dep" "@loader_path/libcrypto.3.dylib" publish/libsrt-stage/libsrt.dylib
+          install_name_tool -change "$ssl_crypto_dep" "@loader_path/libcrypto.3.dylib" publish/libsrt-stage/libssl.3.dylib
+          install_name_tool -id "@rpath/libsrt.dylib" publish/libsrt-stage/libsrt.dylib
+          install_name_tool -id "@rpath/libssl.3.dylib" publish/libsrt-stage/libssl.3.dylib
+          install_name_tool -id "@rpath/libcrypto.3.dylib" publish/libsrt-stage/libcrypto.3.dylib
+
           cp "$source_dir/LICENSE" publish/libsrt-stage/LICENSE
           cat > publish/libsrt-stage/VERSION.txt <<EOF
           libsrt=${LIBSRT_VERSION}
           commit=${LIBSRT_COMMIT}
           source=https://github.com/Haivision/srt
           EOF
-          if otool -L publish/libsrt-stage/libsrt.dylib | tail -n +2 | grep -E '/(opt|usr/local)/.*(libssl|libcrypto)'; then
-            echo "libsrt unexpectedly depends on a Homebrew OpenSSL dylib" >&2
-            exit 1
-          fi
+
+          for library in publish/libsrt-stage/*.dylib; do
+            echo "Dependencies for $library"
+            otool -L "$library"
+            if otool -L "$library" | tail -n +2 | grep -E '/(opt|usr/local)/'; then
+              echo "$library unexpectedly depends on a package-manager path" >&2
+              exit 1
+            fi
+          done
       - name: Verify pinned macOS libsrt runtime
         shell: bash
         run: |
