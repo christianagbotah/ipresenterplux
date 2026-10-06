@@ -19,7 +19,8 @@
     "test:speaker-attribution": "node scripts/speaker-attribution-selftest.mjs",
     "test:stream-contribution": "node scripts/stream-contribution-selftest.mjs",
     "test:stream-session-authority": "node scripts/stream-session-authority-selftest.mjs",
-    "test:stream-fanout": "node scripts/stream-fanout-selftest.mjs"
+    "test:stream-fanout": "node scripts/stream-fanout-selftest.mjs",
+    "test:stream-provider-health": "node scripts/stream-provider-health-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

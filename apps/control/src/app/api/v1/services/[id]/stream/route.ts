@@ -163,8 +163,14 @@ export async function POST(request: Request, context: RouteContext) {
 
         await client.query(
           `insert into stream_session_destinations
-             (stream_session_id,output_destination_id,status)
-           select $1::uuid,od.id,'pending'
+             (stream_session_id,output_destination_id,status,provider_health_state,provider_live_state,provider_issue_codes)
+           select $1::uuid,od.id,'pending',
+                  case
+                    when od.destination_type in ('youtube','facebook','tiktok','tiktok_rtmp') then 'unverified'
+                    else 'unsupported'
+                  end,
+                  'unknown',
+                  array[]::text[]
            from output_destinations od
            where od.organization_id=$2::uuid
              and od.enabled=true

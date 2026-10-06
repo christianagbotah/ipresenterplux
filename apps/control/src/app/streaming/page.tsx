@@ -42,6 +42,11 @@ type OutputRow = {
   last_error_code: string | null;
   attempt_count: number | null;
   last_heartbeat_at: string | null;
+  provider_health_state: "unverified" | "checking" | "healthy" | "warning" | "error" | "unsupported" | null;
+  provider_live_state: "unknown" | "receiving" | "live" | "not_live" | "error" | null;
+  provider_checked_at: string | null;
+  provider_error_code: string | null;
+  provider_issue_codes: string[] | null;
   credential_configured: boolean;
   public_config: Record<string, unknown>;
   updated_at: string;
@@ -78,10 +83,37 @@ function protocolLabel(config: Record<string, unknown>) {
 
 function statusClasses(status: string) {
   if (status === "live") return "border-red-400/25 bg-red-400/10 text-red-100";
-  if (status === "ready") return "border-emerald-400/25 bg-emerald-400/10 text-emerald-100";
-  if (["pending", "connecting", "starting", "stopping", "warning"].includes(status)) return "border-amber-400/25 bg-amber-400/10 text-amber-100";
+  if (["ready", "healthy", "receiving"].includes(status)) return "border-emerald-400/25 bg-emerald-400/10 text-emerald-100";
+  if (["pending", "connecting", "checking", "starting", "stopping", "warning"].includes(status)) return "border-amber-400/25 bg-amber-400/10 text-amber-100";
   if (status === "error") return "border-red-400/25 bg-red-400/10 text-red-100";
   return "border-white/10 bg-white/[.035] text-white/45";
+}
+
+
+function providerEvidenceLabel(output: OutputRow) {
+  const health = output.provider_health_state ?? "unverified";
+  const live = output.provider_live_state ?? "unknown";
+  if (health === "unsupported") return "Provider unsupported";
+  if (health === "unverified") return "Provider unverified";
+  if (health === "checking") return "Provider checking";
+  if (live === "live") return `Provider live · ${health}`;
+  if (live === "receiving") return `Provider receiving · ${health}`;
+  if (live === "not_live") return `Provider not live · ${health}`;
+  if (live === "error") return "Provider error";
+  return `Provider ${health}`;
+}
+
+function providerEvidenceDetail(output: OutputRow) {
+  const health = output.provider_health_state ?? "unverified";
+  const live = output.provider_live_state ?? "unknown";
+  const issues = output.provider_issue_codes ?? [];
+  if (health === "unsupported") return "No social-platform health API applies to this destination.";
+  if (health === "unverified") return "Transport truth is available, but the social platform has not supplied provider-confirmed health yet.";
+  if (health === "checking") return "The provider adapter is checking platform-side stream evidence.";
+  if (output.provider_error_code) return `Provider evidence degraded · ${output.provider_error_code}. RTMPS transport remains independent.`;
+  if (issues.length) return `Provider evidence: ${live.replaceAll("_", " ")} · ${issues.join(", ")}.`;
+  if (output.provider_checked_at) return `Provider evidence: ${live.replaceAll("_", " ")} · last checked ${new Date(output.provider_checked_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`;
+  return `Provider evidence: ${live.replaceAll("_", " ")}.`;
 }
 
 function operationalStatus(output: OutputRow) {
@@ -131,7 +163,8 @@ async function streamingData(userId: string) {
     `select od.id::text,od.name,od.destination_type,od.enabled,
             od.status as config_status,od.public_config,od.updated_at::text,
             ssd.status as session_status,ssd.last_error_code,ssd.attempt_count,
-            ssd.last_heartbeat_at::text,
+            ssd.last_heartbeat_at::text,ssd.provider_health_state,ssd.provider_live_state,
+            ssd.provider_checked_at::text,ssd.provider_error_code,ssd.provider_issue_codes,
             exists(
               select 1 from output_destination_credentials c
               where c.output_destination_id=od.id
@@ -165,7 +198,10 @@ export default async function StreamingPage() {
   const enabledCount = data.outputs.filter((item) => item.enabled).length;
   const eligibleOutputCount = data.outputs.filter(destinationEligible).length;
   const liveCount = data.outputs.filter((item) => operationalStatus(item) === "live").length;
-  const errorCount = data.outputs.filter((item) => ["error", "warning"].includes(operationalStatus(item))).length;
+  const errorCount = data.outputs.filter((item) =>
+    ["error", "warning"].includes(operationalStatus(item)) ||
+    ["error", "warning"].includes(item.provider_health_state ?? "")
+  ).length;
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
@@ -218,7 +254,7 @@ export default async function StreamingPage() {
           <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Warnings</span><ShieldAlert size={16} className={errorCount ? "text-amber-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black">{errorCount}</div>
-            <div className="mt-1 text-xs text-white/35">Current/last session health</div>
+            <div className="mt-1 text-xs text-white/35">Transport or provider evidence</div>
           </div>
         </section>
 
@@ -227,7 +263,7 @@ export default async function StreamingPage() {
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-4 sm:px-5">
               <div>
                 <h2 className="text-base font-black">Broadcast Destinations</h2>
-                <p className="mt-1 text-xs text-white/35">Enabled is configuration. Connecting/live/error below comes from the broadcast session, not a global toggle.</p>
+                <p className="mt-1 text-xs text-white/35">Transport and provider evidence are separate. A social destination is never called provider-confirmed just because RTMPS connected.</p>
               </div>
               <span className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[.12em] ${masterLive ? "border-red-400/25 bg-red-400/10 text-red-100" : statusClasses(masterStatus)}`}>
                 Master {masterStatus}
@@ -250,9 +286,14 @@ export default async function StreamingPage() {
                           <h3 className="truncate text-sm font-black text-white/80">{output.name}</h3>
                           <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(status)}`}>{status}</span>
                           {social ? (
-                            <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
-                              {output.credential_configured ? "credentials set" : "credentials needed"}
-                            </span>
+                            <>
+                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
+                                {output.credential_configured ? "credentials set" : "credentials needed"}
+                              </span>
+                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(output.provider_health_state ?? "unverified")}`}>
+                                {providerEvidenceLabel(output)}
+                              </span>
+                            </>
                           ) : null}
                         </div>
                         <div className="mt-1 text-xs text-white/35">{destinationLabel(output.destination_type)} · {protocolLabel(output.public_config)}</div>
@@ -273,6 +314,9 @@ export default async function StreamingPage() {
                                       : "Destination is enabled and ready for a future broadcast."
                                     : "Destination is disabled and will not be included in a future broadcast."}
                         </div>
+                        {social ? (
+                          <div className="mt-1 text-[11px] leading-5 text-white/35">{providerEvidenceDetail(output)}</div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-start justify-end gap-2">
@@ -324,6 +368,7 @@ export default async function StreamingPage() {
                 <li>• Stream keys stay encrypted/server-side and never enter this page.</li>
                 <li>• Destination topology and credentials are locked while a broadcast is starting, live or stopping.</li>
                 <li>• Transport live does not by itself claim provider viewer health or audience analytics.</li>
+                <li>• Provider API failures degrade provider evidence only; they do not stop RTMPS fan-out.</li>
               </ul>
             </section>
 

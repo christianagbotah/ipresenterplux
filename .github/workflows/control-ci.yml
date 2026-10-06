@@ -101,6 +101,8 @@ jobs:
         run: pnpm test:stream-session-authority
       - name: Destination fan-out lifecycle self-test
         run: pnpm test:stream-fanout
+      - name: Provider destination health self-test
+        run: pnpm test:stream-provider-health
       - name: Validate production MediaMTX configuration
         working-directory: .
         shell: bash
