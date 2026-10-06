@@ -4,6 +4,7 @@ import type { EdgeCommandType } from "@/lib/edge-commands";
 type ServiceEdgeCommand = {
   organizationId: string;
   serviceId: string;
+  edgeDeviceId?: string;
   type: EdgeCommandType;
   arguments?: Record<string, string>;
   issuedBy: string;
@@ -21,8 +22,17 @@ export async function enqueueServiceEdgeCommand(client: PoolClient, command: Ser
      where d.organization_id=$1
        and d.active_service_id=$2
        and d.status='active'
+       and ($7::uuid is null or d.id=$7::uuid)
      returning id::text,edge_device_id::text`,
-    [command.organizationId, command.serviceId, command.type, JSON.stringify(command.arguments ?? {}), command.issuedBy, ttlSeconds]
+    [
+      command.organizationId,
+      command.serviceId,
+      command.type,
+      JSON.stringify(command.arguments ?? {}),
+      command.issuedBy,
+      ttlSeconds,
+      command.edgeDeviceId ?? null
+    ]
   );
 
   const ids = inserted.rows.map((row) => row.id);
