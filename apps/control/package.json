@@ -18,7 +18,8 @@
     "test:voice-binding": "node scripts/voice-binding-selftest.mjs",
     "test:speaker-attribution": "node scripts/speaker-attribution-selftest.mjs",
     "test:stream-contribution": "node scripts/stream-contribution-selftest.mjs",
-    "test:stream-session-authority": "node scripts/stream-session-authority-selftest.mjs"
+    "test:stream-session-authority": "node scripts/stream-session-authority-selftest.mjs",
+    "test:stream-fanout": "node scripts/stream-fanout-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -37,7 +38,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
-    "@types/react": "^19",
+    "@types/react": "^19.2.8",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
