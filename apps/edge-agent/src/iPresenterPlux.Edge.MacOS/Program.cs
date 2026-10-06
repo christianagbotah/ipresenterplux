@@ -118,6 +118,11 @@ static async Task<int> RunAsync()
         mediaOutput: runtimeMediaOutput,
         recordingService: recordingService);
 
+    await using var localOperatorIpc = new LocalOperatorIpcServer(
+        dataDirectory,
+        new LocalOperatorCommandHandler(runtime.State, mediaOutput, recordingService));
+    await localOperatorIpc.StartAsync(CancellationToken.None);
+
     var hostStartedAt = DateTimeOffset.UtcNow;
     using var cts = new CancellationTokenSource();
     Console.CancelKeyPress += (_, args) => { args.Cancel = true; cts.Cancel(); };
