@@ -27,10 +27,13 @@ type SessionRow = {
   status: StreamSessionState;
   video_profile: string;
   router_path: string | null;
+  publisher_edge_device_id: string | null;
   started_at: string | null;
   ended_at: string | null;
   error_code: string | null;
 };
+
+const sessionProjection = `id::text,status,video_profile,router_path,publisher_edge_device_id::text,started_at::text,ended_at::text,error_code`;
 
 export async function POST(request: Request, context: RouteContext) {
   const session = await auth();
@@ -82,7 +85,7 @@ export async function POST(request: Request, context: RouteContext) {
       }
 
       const activeResult = await client.query<SessionRow>(
-        `select id::text,status,video_profile,router_path,started_at::text,ended_at::text,error_code
+        `select ${sessionProjection}
          from stream_sessions
          where service_id=$1::uuid
            and status in ('starting','live','stopping')
@@ -102,20 +105,27 @@ export async function POST(request: Request, context: RouteContext) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "The current broadcast is still stopping" }, { status: 409 });
         }
-        if (!['ready', 'live'].includes(service.status)) {
+        if (!["ready", "live"].includes(service.status)) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "Service is not ready for streaming" }, { status: 409 });
         }
 
-        const edge = await client.query<{ count: string }>(
-          `select count(*)::text as count
+        // Exactly one Edge owns the master contribution for a broadcast. Choose it
+        // deterministically, preferring the freshest active device, then preserve
+        // that ownership for the full stream session.
+        const publisherResult = await client.query<{ id: string }>(
+          `select id::text
            from edge_devices
            where organization_id=$1::uuid
              and active_service_id=$2::uuid
-             and status='active'`,
+             and status='active'
+           order by last_seen_at desc nulls last,created_at asc,id asc
+           limit 1
+           for update`,
           [service.organization_id, serviceId]
         );
-        if (Number(edge.rows[0]?.count ?? 0) < 1) {
+        const publisherEdgeDeviceId = publisherResult.rows[0]?.id;
+        if (!publisherEdgeDeviceId) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "No active Edge device is assigned to this service" }, { status: 409 });
         }
@@ -136,10 +146,10 @@ export async function POST(request: Request, context: RouteContext) {
         const routerPath = streamPathForService(serviceId);
         const inserted = await client.query<SessionRow>(
           `insert into stream_sessions
-             (service_id,status,video_profile,router_path,metrics,updated_at)
-           values ($1::uuid,'starting',$2,$3,jsonb_build_object('requestedAt',clock_timestamp()),now())
-           returning id::text,status,video_profile,router_path,started_at::text,ended_at::text,error_code`,
-          [serviceId, payload.videoProfile ?? "1080p30", routerPath]
+             (service_id,status,video_profile,router_path,publisher_edge_device_id,metrics,updated_at)
+           values ($1::uuid,'starting',$2,$3,$4::uuid,jsonb_build_object('requestedAt',clock_timestamp()),now())
+           returning ${sessionProjection}`,
+          [serviceId, payload.videoProfile ?? "1080p30", routerPath, publisherEdgeDeviceId]
         );
         const streamSession = inserted.rows[0];
 
@@ -158,30 +168,36 @@ export async function POST(request: Request, context: RouteContext) {
         const queued = await enqueueServiceEdgeCommand(client, {
           organizationId: service.organization_id,
           serviceId,
+          edgeDeviceId: publisherEdgeDeviceId,
           type: "stream.start",
           issuedBy: session.user.id,
           source: "streaming-studio",
           ttlSeconds: 90
         });
-        if (queued < 1) {
+        if (queued !== 1) {
           await client.query("rollback");
-          return NextResponse.json({ ok: false, error: "No assigned Edge device accepted the start command" }, { status: 409 });
+          return NextResponse.json({ ok: false, error: "The selected Edge publisher did not accept the start command" }, { status: 409 });
         }
 
         await client.query(
           `insert into audit_events
              (organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
            values ($1::uuid,'operator',$2,'stream.start.requested','stream_session',$3,$4::jsonb)`,
-          [service.organization_id, session.user.id, streamSession.id, JSON.stringify({ serviceId, routerPath, queuedEdgeDevices: queued, videoProfile: streamSession.video_profile })]
+          [
+            service.organization_id,
+            session.user.id,
+            streamSession.id,
+            JSON.stringify({ serviceId, routerPath, publisherEdgeDeviceId, videoProfile: streamSession.video_profile })
+          ]
         );
 
         realtime = {
           event: "stream.session.changed",
-          payload: { streamSessionId: streamSession.id, status: "starting", routerPath, queuedEdgeDevices: queued }
+          payload: { streamSessionId: streamSession.id, status: "starting", routerPath, publisherEdgeDeviceId }
         };
         await client.query("commit");
         await publishServiceEvent(serviceId, realtime.event, realtime.payload);
-        return NextResponse.json({ ok: true, duplicate: false, streamSession, queuedEdgeDevices: queued }, { status: 202 });
+        return NextResponse.json({ ok: true, duplicate: false, streamSession, publisherEdgeDeviceId }, { status: 202 });
       }
 
       if (!active) {
@@ -192,25 +208,31 @@ export async function POST(request: Request, context: RouteContext) {
         await client.query("commit");
         return NextResponse.json({ ok: true, duplicate: true, streamSession: active });
       }
-
-      const edge = await client.query<{ count: string }>(
-        `select count(*)::text as count
-         from edge_devices
-         where organization_id=$1::uuid
-           and active_service_id=$2::uuid
-           and status='active'`,
-        [service.organization_id, serviceId]
-      );
-      if (Number(edge.rows[0]?.count ?? 0) < 1) {
+      if (!active.publisher_edge_device_id) {
         await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "Assigned Edge device is unavailable; broadcast stop cannot be confirmed safely" }, { status: 409 });
+        return NextResponse.json({ ok: false, error: "The active broadcast has no publisher authority; stop cannot be confirmed safely" }, { status: 409 });
+      }
+
+      const publisher = await client.query<{ id: string }>(
+        `select id::text
+         from edge_devices
+         where id=$1::uuid
+           and organization_id=$2::uuid
+           and active_service_id=$3::uuid
+           and status='active'
+         for update`,
+        [active.publisher_edge_device_id, service.organization_id, serviceId]
+      );
+      if (!publisher.rows[0]) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "The broadcast publisher Edge is unavailable; stop cannot be confirmed safely" }, { status: 409 });
       }
 
       const stopping = await client.query<SessionRow>(
         `update stream_sessions
          set status='stopping',error_code=null,updated_at=now()
          where id=$1::uuid
-         returning id::text,status,video_profile,router_path,started_at::text,ended_at::text,error_code`,
+         returning ${sessionProjection}`,
         [active.id]
       );
 
@@ -225,31 +247,37 @@ export async function POST(request: Request, context: RouteContext) {
       const queued = await enqueueServiceEdgeCommand(client, {
         organizationId: service.organization_id,
         serviceId,
+        edgeDeviceId: active.publisher_edge_device_id,
         type: "stream.stop",
         issuedBy: session.user.id,
         source: "streaming-studio",
         ttlSeconds: 90
       });
-      if (queued < 1) {
+      if (queued !== 1) {
         await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "No assigned Edge device accepted the stop command" }, { status: 409 });
+        return NextResponse.json({ ok: false, error: "The broadcast publisher Edge did not accept the stop command" }, { status: 409 });
       }
 
       await client.query(
         `insert into audit_events
            (organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
          values ($1::uuid,'operator',$2,'stream.stop.requested','stream_session',$3,$4::jsonb)`,
-        [service.organization_id, session.user.id, active.id, JSON.stringify({ serviceId, queuedEdgeDevices: queued })]
+        [
+          service.organization_id,
+          session.user.id,
+          active.id,
+          JSON.stringify({ serviceId, publisherEdgeDeviceId: active.publisher_edge_device_id })
+        ]
       );
 
       const streamSession = stopping.rows[0];
       realtime = {
         event: "stream.session.changed",
-        payload: { streamSessionId: streamSession.id, status: "stopping", queuedEdgeDevices: queued }
+        payload: { streamSessionId: streamSession.id, status: "stopping", publisherEdgeDeviceId: active.publisher_edge_device_id }
       };
       await client.query("commit");
       await publishServiceEvent(serviceId, realtime.event, realtime.payload);
-      return NextResponse.json({ ok: true, duplicate: false, streamSession, queuedEdgeDevices: queued }, { status: 202 });
+      return NextResponse.json({ ok: true, duplicate: false, streamSession, publisherEdgeDeviceId: active.publisher_edge_device_id }, { status: 202 });
     } catch (error) {
       await client.query("rollback");
       throw error;
