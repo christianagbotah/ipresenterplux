@@ -1,0 +1,36 @@
+logLevel: info
+logDestinations: [stdout]
+readTimeout: 5s
+writeTimeout: 5s
+
+api: true
+apiAddress: 127.0.0.1:9997
+metrics: false
+pprof: false
+playback: false
+
+rtsp: false
+rtmp: false
+hls: false
+webrtc: false
+moq: false
+
+srt: true
+srtAddress: 127.0.0.1:8890
+
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+        path: "~^service/[0-9a-f-]{36}$"
+  - user: any
+    pass:
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: api
+
+paths:
+  all_others:
