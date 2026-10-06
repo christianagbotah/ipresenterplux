@@ -5,6 +5,13 @@ import { createEdgeContributionGrant } from "@/lib/stream-contribution";
 
 export const dynamic = "force-dynamic";
 
+type PublisherScope = {
+  service_id: string;
+  organization_id: string;
+  stream_session_id: string;
+  router_path: string;
+};
+
 export async function POST(request: Request) {
   const device = await authenticateEdgeDevice(request);
   if (!device) return NextResponse.json({ ok: false, error: "Device authentication required" }, { status: 401 });
@@ -15,36 +22,50 @@ export async function POST(request: Request) {
   }
 
   try {
-    const grant = createEdgeContributionGrant(routerBaseUrl);
     const client = await db.connect();
     try {
       await client.query("begin");
-      const assigned = await client.query<{ service_id: string; organization_id: string }>(
-        `select d.active_service_id::text as service_id,d.organization_id::text
+      const assigned = await client.query<PublisherScope>(
+        `select d.active_service_id::text as service_id,
+                d.organization_id::text,
+                ss.id::text as stream_session_id,
+                ss.router_path
          from edge_devices d
          join services s on s.id=d.active_service_id
+         join stream_sessions ss
+           on ss.service_id=d.active_service_id
+          and ss.publisher_edge_device_id=d.id
+          and ss.status in ('starting','live')
          where d.id=$1::uuid
            and d.organization_id=$2::uuid
            and d.status='active'
            and s.organization_id=d.organization_id
            and s.status in ('ready','live')
-         for update of d`,
+           and ss.router_path is not null
+         order by ss.created_at desc
+         limit 1
+         for update of d,ss`,
         [device.deviceId, device.organizationId]
       );
       const scope = assigned.rows[0];
-      if (!scope?.service_id) {
+      if (!scope?.service_id || !scope.router_path) {
         await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "No active streamable service is assigned to this device" }, { status: 409 });
+        return NextResponse.json({ ok: false, error: "This Edge device is not the active broadcast publisher" }, { status: 409 });
       }
 
+      const grant = createEdgeContributionGrant(routerBaseUrl, new Date(), scope.router_path);
+
+      // A service path is stable across broadcasts. Revoke every previous owner of
+      // that path, including expired-but-not-revoked grants, before issuing the new
+      // short-lived credential. The session/device lock serializes renewal attempts.
       await client.query(
         `update edge_stream_contribution_sessions
          set revoked_at=coalesce(revoked_at,now()),updated_at=now()
-         where edge_device_id=$1::uuid
+         where organization_id=$1::uuid
            and service_id=$2::uuid
-           and revoked_at is null
-           and expires_at > now()`,
-        [device.deviceId, scope.service_id]
+           and stream_path=$3
+           and revoked_at is null`,
+        [device.organizationId, scope.service_id, scope.router_path]
       );
 
       await client.query(
@@ -72,7 +93,14 @@ export async function POST(request: Request) {
           device.organizationId,
           device.deviceId,
           grant.sessionId,
-          JSON.stringify({ serviceId: scope.service_id, protocol: grant.protocol, streamPath: grant.streamPath, expiresAt: grant.expiresAt, routerAuthority: grant.routerAuthority })
+          JSON.stringify({
+            serviceId: scope.service_id,
+            streamSessionId: scope.stream_session_id,
+            protocol: grant.protocol,
+            streamPath: grant.streamPath,
+            expiresAt: grant.expiresAt,
+            routerAuthority: grant.routerAuthority
+          })
         ]
       );
 
@@ -82,6 +110,7 @@ export async function POST(request: Request) {
         ok: true,
         contribution: {
           sessionId: grant.sessionId,
+          streamSessionId: scope.stream_session_id,
           serviceId: scope.service_id,
           streamPath: grant.streamPath,
           protocol: grant.protocol,
