@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS edge_stream_contribution_sessions (
   edge_device_id uuid NOT NULL REFERENCES edge_devices(id) ON DELETE CASCADE,
   service_id uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
   protocol text NOT NULL CHECK (protocol IN ('srt','rtmps','whip')),
+  stream_path text NOT NULL UNIQUE,
   token_hash text NOT NULL UNIQUE,
   router_authority text NOT NULL,
   issued_at timestamptz NOT NULL DEFAULT now(),
