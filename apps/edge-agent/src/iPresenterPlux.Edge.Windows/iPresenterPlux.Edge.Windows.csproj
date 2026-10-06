@@ -11,5 +11,6 @@
   <ItemGroup>
     <ProjectReference Include="../iPresenterPlux.Edge.Core/iPresenterPlux.Edge.Core.csproj" />
     <PackageReference Include="NAudio.Wasapi" Version="3.1.0" />
+    <PackageReference Include="SharpMediaFoundationInterop" Version="0.3.1" />
   </ItemGroup>
 </Project>
