@@ -18,6 +18,7 @@ public sealed record OperatorWorkspaceItem(
 
 public sealed record OperatorWorkspaceView(
     IReadOnlyList<OperatorWorkspaceItem> Items,
+    IReadOnlyList<OperatorWorkspaceItem> RundownItems,
     IReadOnlyList<OperatorBibleVersion> BibleVersions,
     string? ActiveBibleVersion,
     string? ServiceTitle,
@@ -73,7 +74,7 @@ public static class OperatorWorkspaceCatalog
         if (catalog is null)
         {
             return new OperatorWorkspaceView(
-                Seeded, [], null, "Local rehearsal", "rehearsal",
+                Seeded, Seeded, [], null, "Local rehearsal", "rehearsal",
                 HasSyncedCatalog: false, IsRehearsal: true, IsStale: false,
                 StatusLabel: "LOCAL REHEARSAL");
         }
@@ -81,6 +82,13 @@ public static class OperatorWorkspaceCatalog
         var activeVersion = string.IsNullOrWhiteSpace(catalog.Service?.ActiveBibleVersion)
             ? catalog.BibleVersions.FirstOrDefault()?.Abbreviation
             : catalog.Service.ActiveBibleVersion;
+
+        var rundownItems = catalog.Service is null
+            ? Array.Empty<OperatorWorkspaceItem>()
+            : catalog.Items
+                .GroupBy(item => item.ItemId, StringComparer.Ordinal)
+                .Select(group => FromResolved(group.First()))
+                .ToArray();
 
         var items = catalog.Service is null
             ? Array.Empty<OperatorWorkspaceItem>()
@@ -95,7 +103,7 @@ public static class OperatorWorkspaceCatalog
             : stale ? "OFFLINE CACHE" : "LIVE CATALOG";
 
         return new OperatorWorkspaceView(
-            items, catalog.BibleVersions, activeVersion, catalog.Service?.Title, catalog.Service?.Status,
+            items, rundownItems, catalog.BibleVersions, activeVersion, catalog.Service?.Title, catalog.Service?.Status,
             HasSyncedCatalog: true, IsRehearsal: false, IsStale: stale, StatusLabel: status);
     }
 
@@ -131,7 +139,7 @@ public static class OperatorWorkspaceCatalog
         {
             "scripture" or "bible" => ("Scripture", "SCRIPTURE"),
             "song" or "lyrics" => ("Songs", "SONG"),
-            "media" or "video" or "image" => ("Media", "MEDIA"),
+            "media" or "video" or "image" or "camera" => ("Media", "MEDIA"),
             "announcement" or "notice" => ("Announcements", "NOTICE"),
             _ => ("Slides", "SLIDE")
         };
