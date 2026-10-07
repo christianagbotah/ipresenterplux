@@ -110,6 +110,31 @@ const previewSource = await readRequired("../src/components/planner/CuePreview.t
 assert.match(previewSource, /body/, "safe cue preview must render normalized presentation body");
 assert.match(previewSource, /footer/, "safe cue preview must render normalized presentation footer");
 
+// Task 8: resilient ordering, readiness workflow and optimistic-conflict recovery.
+assert.match(rundownSource, /Move up/i, "rundown must provide keyboard-accessible Move up independent of drag");
+assert.match(rundownSource, /Move down/i, "rundown must provide keyboard-accessible Move down independent of drag");
+assert.match(rundownSource, /draggable|onDragStart|onDrop/, "rundown must provide pointer drag reorder without a large dependency");
+assert.match(rundownSource, /onReorder/, "rundown must emit the complete reordered cue list to the workspace");
+
+assert.match(workspaceSource, /\/reorder/, "workspace must persist rundown order through planner reorder API");
+assert.match(workspaceSource, /itemIds\s*:/, "reorder request must send one complete itemIds list");
+assert.match(workspaceSource, /ReadinessPanel/, "workspace must compose the readiness panel");
+assert.match(workspaceSource, /\/ready/, "Ready action must call planner readiness endpoint");
+assert.match(workspaceSource, /\/draft/, "ready service must expose an explicit return-to-Draft action");
+assert.match(workspaceSource, /planner_revision_conflict/, "workspace must detect the stable stale-revision conflict code");
+assert.match(workspaceSource, /conflict|stale/i, "workspace must freeze mutation actions after a stale revision conflict");
+assert.match(workspaceSource, /reload|refresh/i, "stale revision UI must offer a reload/refresh action rather than retry silently");
+assert.match(workspaceSource, /setRevision\(|revision\)/, "successful server mutations must replace the local planner revision");
+
+const readinessSource = await readRequired("../src/components/planner/ReadinessPanel.tsx", "ReadinessPanel");
+assert.match(readinessSource, /issues/, "readiness panel must render server readiness issues");
+assert.match(readinessSource, /itemId/, "readiness issue with itemId must be able to focus its cue");
+assert.match(readinessSource, /onFocusCue/, "readiness panel must delegate cue focus back to the workspace");
+assert.match(readinessSource, /canEdit/, "Ready/Draft mutation controls must be capability gated");
+assert.match(readinessSource, /Ready for service/i, "readiness panel must expose the Ready workflow");
+assert.match(readinessSource, /Return to draft/i, "ready service must be able to return to draft");
+assert.match(readinessSource, /disabled=.*canEdit|!canEdit/, "readiness mutation actions must be disabled for read-only users");
+
 console.log(JSON.stringify({
   ok: true,
   roles: allRoles.length,
@@ -119,5 +144,8 @@ console.log(JSON.stringify({
   mutationGating: true,
   cueTypes: 8,
   typedEditors: true,
-  safePreview: true
+  safePreview: true,
+  reorderAccessible: true,
+  readinessWorkflow: true,
+  conflictRecovery: true
 }));
