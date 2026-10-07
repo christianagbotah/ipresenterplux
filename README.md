@@ -61,12 +61,15 @@ pnpm dev
 
 ## Production
 
+GitHub `main` is deployed by the VPS-side pull deployer. A one-minute systemd timer accepts fast-forwards only, validates a candidate Control Plane build and migrations as `lightworld`, swaps only the Control Plane build/runtime dependencies, and requires both local and public health checks. Failed swap/restart/health gates restore the prior code/build SHA automatically.
+
 ```bash
-cd /home/lightworld/webapps/ipresenterplux/apps/control
-pnpm build
-sudo systemctl restart ipresenterplux
-curl http://127.0.0.1:3011/api/v1/health
+systemctl status ipresenterplux-deploy.timer --no-pager
+cat /home/lightworld/deployments/ipresenterplux/last_successful_sha
+curl -fsS http://127.0.0.1:3011/api/v1/health
 ```
+
+See `docs/vps-pull-deployer.md` for installation, rollback, audit and recovery details.
 
 ## Current APIs
 

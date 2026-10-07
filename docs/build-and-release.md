@@ -12,7 +12,7 @@ GitHub is the intended source of truth for iPresenterPlux. Production services r
 
 ## Deployment rule
 
-The VPS is a runtime/deployment target, not the authoritative build workstation. A production deployment should consume a tested commit/artifact rather than repeatedly compiling native clients on the server.
+The VPS is a runtime/deployment target, not the authoritative native build workstation. GitHub `main` is handed to the one-minute VPS pull deployer, which performs only the Control Plane dependency install, production build, database migration and health-gated service swap. Windows/macOS Edge, mobile and other native artifacts remain CI-built and are never compiled by the VPS deployer. The handoff workflow uses `contents: read` only and no GitHub SSH deployment secret. See `docs/vps-pull-deployer.md`.
 
 ## Desktop shell and packaging status
 

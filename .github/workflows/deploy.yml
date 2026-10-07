@@ -1,0 +1,62 @@
+name: Deployment Handoff
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ipresenterplux-deployment-handoff
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release for VPS pull deployer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Verify deployment contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET="/home/lightworld/webapps/ipresenterplux"
+
+          test -f ops/deploy/ipresenterplux-deploy.sh
+          test -f ops/deploy/ipresenterplux-deploy.service
+          test -f ops/deploy/ipresenterplux-deploy.timer
+          bash -n ops/deploy/ipresenterplux-deploy.sh
+          node apps/control/scripts/deployment-contract-selftest.mjs
+
+          if [[ "$TARGET" != "/home/lightworld/webapps/ipresenterplux" ]]; then
+            echo "::error::Invalid deployment target"
+            exit 1
+          fi
+
+          echo "Deployment target: $TARGET"
+          echo "No GitHub SSH deployment secrets are required."
+          echo "The VPS-side Git pull deployer polls origin/main and accepts fast-forwards only."
+          echo "Control Plane install/build/migrations run on the VPS; Edge desktop artifacts are not built there."
+
+      - name: Deployment handoff summary
+        shell: bash
+        run: |
+          {
+            echo "## iPresenterPlux deployment handoff"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Target: \`/home/lightworld/webapps/ipresenterplux\`"
+            echo "- Mechanism: VPS-side Git pull deployer"
+            echo "- Poll cadence: every minute"
+            echo "- Runtime data preserved: .env.local, storage, logs, recordings/caches, certificates"
+            echo "- Build gate: candidate Control Plane install + production build before service swap"
+            echo "- Database gate: migrations run only after candidate build succeeds"
+            echo "- Health gates: local origin + public HTTPS API"
+            echo "- Rollback: automatic code/build rollback to previous known-good SHA on restart/health failure"
+            echo "- Desktop/Edge artifacts: not compiled on the VPS"
+            echo "- This workflow is a handoff only; it does not claim the VPS deployment completed."
+          } >> "$GITHUB_STEP_SUMMARY"
