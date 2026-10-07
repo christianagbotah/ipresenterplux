@@ -69,7 +69,8 @@ public sealed class OperatorRundownNavigator
 
         var programId = snapshot.Program?.ItemId;
         var previewId = snapshot.Preview?.ItemId;
-        var hasCurrent = programId is not null && _indexById.TryGetValue(programId, out var currentIndex);
+        var currentIndex = -1;
+        var hasCurrent = programId is not null && _indexById.TryGetValue(programId, out currentIndex);
         var programIsAdHoc = programId is not null && !hasCurrent;
         var currentItemId = hasCurrent ? programId : null;
         var nextItemId = hasCurrent && currentIndex + 1 < _items.Count
