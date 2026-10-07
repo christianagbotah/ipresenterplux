@@ -28,6 +28,9 @@ public sealed class MainWindow : Window
     private readonly TextBox _scriptureReference = Input("John 3:16 or Psalm 23", false);
     private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
     private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
+    private readonly TextBlock _rundownEyebrow = Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold);
+    private readonly TextBlock _rundownTitle = Label("Content & cues", 19, FontWeight.Bold);
+    private readonly TextBlock _rundownCurrent = Label("CURRENT · Program clear", 10, FontWeight.SemiBold, Muted);
     private readonly TextBlock _catalogStatus = Label("LOCAL REHEARSAL", 10, FontWeight.Bold, Warning);
     private readonly TextBlock _catalogService = Label("Demo content · no synced service yet", 11, FontWeight.Normal, Muted);
     private readonly ListBox _rundown = new();
@@ -48,6 +51,17 @@ public sealed class MainWindow : Window
     private readonly List<Button> _localOutputButtons = [];
     private string _activeCategory = "All";
     private OperatorWorkspaceView _workspace = OperatorWorkspaceCatalog.FromCatalog(null, stale: false);
+    private LocalOperatorSnapshot _operatorSnapshot = new(
+        OutputRunning: false,
+        Preview: null,
+        Program: null,
+        IsRecording: false,
+        RecordingId: null,
+        ConnectionStatus: "Offline",
+        ActiveServiceId: null,
+        ServiceMode: "rehearsal",
+        UpdatedAt: DateTimeOffset.MinValue);
+    private string? _selectedRundownItemId;
     private string? _catalogRevision;
     private bool _catalogStale;
     private bool _operatorBusy;
@@ -95,6 +109,20 @@ public sealed class MainWindow : Window
             if (args.Key == Key.F8) _ = TakeAsync();
             if (args.Key == Key.F7) _ = ClearProgramAsync();
             if (args.Key == Key.F6) _ = PreviewSelectedAsync();
+            if (args.Source is not TextBox && args.Source is not ComboBox &&
+                (args.KeyModifiers & KeyModifiers.Control) != 0)
+            {
+                if (args.Key == Key.Up)
+                {
+                    MoveRundownSelection(-1);
+                    args.Handled = true;
+                }
+                else if (args.Key == Key.Down)
+                {
+                    MoveRundownSelection(1);
+                    args.Handled = true;
+                }
+            }
         };
 
         _save.Click += async (_, _) => await SaveAsync();
@@ -171,8 +199,10 @@ public sealed class MainWindow : Window
         var leftTitle = new StackPanel {
             Spacing = 3,
             Children = {
-                Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold),
-                Label("Content & cues", 19, FontWeight.Bold),
+                _rundownEyebrow,
+                _rundownTitle,
+                _rundownCurrent,
+                Label("Rows track CURRENT · PREVIEW · NEXT from Edge truth", 9, FontWeight.SemiBold, Muted),
                 _catalogStatus,
                 _catalogService
             }
@@ -225,7 +255,12 @@ public sealed class MainWindow : Window
 
         _rundown.Background = SurfaceRaised;
         _rundown.MinHeight = 260;
-        _rundown.SelectionChanged += (_, _) => _prepare.IsEnabled = _rundown.SelectedItem is OperatorWorkspaceItem;
+        _rundown.SelectionChanged += (_, _) =>
+        {
+            if (_rundown.SelectedItem is OperatorRundownRow row)
+                _selectedRundownItemId = row.Item.Id;
+            _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
+        };
         Grid.SetRow(_rundown, 4);
         leftGrid.Children.Add(_rundown);
 
@@ -233,7 +268,7 @@ public sealed class MainWindow : Window
             Spacing = 8,
             Children = {
                 _prepare,
-                Label("F6 Preview · F8 Take · F7 Clear", 10, FontWeight.SemiBold, Muted)
+                Label("Ctrl+↑/↓ Select · F6 Preview · F8 Take · F7 Clear", 10, FontWeight.SemiBold, Muted)
             }
         };
         Grid.SetRow(leftActions, 5);
@@ -583,14 +618,30 @@ public sealed class MainWindow : Window
         return grid;
     }
 
+    private OperatorRundownNavigator RundownNavigator() => new(_workspace.RundownItems);
+
     private void RefreshRundown()
     {
-        var items = OperatorWorkspaceCatalog.Filter(_workspace.Items, _activeCategory, _operatorSearch.Text);
-        _rundown.ItemsSource = items;
-        var selected = _rundown.SelectedItem as OperatorWorkspaceItem;
-        if (selected is null || !items.Contains(selected))
-            _rundown.SelectedIndex = items.Count > 0 ? 0 : -1;
-        _prepare.IsEnabled = _rundown.SelectedItem is OperatorWorkspaceItem;
+        var canonical = _workspace.RundownItems;
+        var visibleItems = OperatorWorkspaceCatalog.Filter(canonical, _activeCategory, _operatorSearch.Text);
+        var navigator = new OperatorRundownNavigator(canonical);
+        var state = navigator.BuildState(_operatorSnapshot, visibleItems.Select(item => item.Id));
+
+        if (_selectedRundownItemId is null || !canonical.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+            _selectedRundownItemId = visibleItems.FirstOrDefault()?.Id ?? canonical.FirstOrDefault()?.Id;
+
+        _rundown.ItemsSource = state.Rows;
+        _rundown.SelectedItem = state.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal));
+        _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
+        _rundownCurrent.Text = $"CURRENT · {state.CurrentLabel}";
+        _rundownCurrent.Foreground = state.ProgramIsAdHoc ? Warning : state.CurrentItemId is null ? Muted : Good;
+    }
+
+    private void MoveRundownSelection(int delta)
+    {
+        if (_operatorBusy || _workspace.RundownItems.Count == 0) return;
+        _selectedRundownItemId = RundownNavigator().MoveSelection(_selectedRundownItemId, delta);
+        RefreshRundown();
     }
 
     private async Task RefreshOperatorAsync()
@@ -647,6 +698,9 @@ public sealed class MainWindow : Window
             _workspace = OperatorWorkspaceCatalog.FromCatalog(response.Catalog, response.CatalogStale);
             _catalogRevision = revision;
             _catalogStale = response.CatalogStale;
+            if (_selectedRundownItemId is not null &&
+                !_workspace.RundownItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+                _selectedRundownItemId = null;
 
             var versions = _workspace.BibleVersions
                 .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
@@ -662,6 +716,9 @@ public sealed class MainWindow : Window
             RefreshRundown();
         }
 
+        var hasServiceOrder = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is { Length: > 0 };
+        _rundownEyebrow.Text = hasServiceOrder ? "ORDER OF SERVICE" : "SERVICE RUNDOWN";
+        _rundownTitle.Text = hasServiceOrder ? "Planned rundown" : "Content & cues";
         _catalogStatus.Text = _workspace.StatusLabel;
         _catalogStatus.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
         _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
@@ -716,13 +773,9 @@ public sealed class MainWindow : Window
                 CancellationToken.None);
             RenderOperatorSnapshot(preview.Snapshot);
             if (preview.Ok)
-            {
                 SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version ?? "default version"}.", false);
-            }
             else
-            {
                 SetOperatorFeedback(SafeOperatorError(preview.ErrorCode), true);
-            }
         }
         catch (ArgumentException)
         {
@@ -738,20 +791,53 @@ public sealed class MainWindow : Window
         }
     }
 
+    private OperatorWorkspaceItem? SelectedRundownItem() =>
+        _rundown.SelectedItem is OperatorRundownRow row ? row.Item : null;
+
     private async Task PreviewSelectedAsync()
     {
-        if (_rundown.SelectedItem is not OperatorWorkspaceItem item)
+        var item = SelectedRundownItem();
+        if (item is null)
         {
             SetOperatorFeedback("Select a rundown item first.", true);
             return;
         }
+        _selectedRundownItemId = item.Id;
         await SendOperatorAsync(LocalOperatorCommands.PreviewRender, item.ToPresentation(), $"Preview prepared: {item.Title}");
     }
 
-    private Task TakeAsync() => SendOperatorAsync(
-        LocalOperatorCommands.ProgramTake,
-        null,
-        "Preview taken to Program.");
+    private async Task TakeAsync()
+    {
+        if (_operatorBusy) return;
+        var selectionBeforeTake = _selectedRundownItemId;
+        _operatorBusy = true;
+        try
+        {
+            var response = await _operatorClient.SendAsync(LocalOperatorCommands.ProgramTake, null, CancellationToken.None);
+            RenderOperatorSnapshot(response.Snapshot);
+            if (response.Ok)
+            {
+                _selectedRundownItemId = RundownNavigator().AdvanceAfterTake(
+                    selectionBeforeTake,
+                    response.Snapshot.Program?.ItemId,
+                    response.Ok);
+                RefreshRundown();
+                SetOperatorFeedback("Preview taken to Program.", false);
+            }
+            else
+            {
+                SetOperatorFeedback(SafeOperatorError(response.ErrorCode), true);
+            }
+        }
+        catch
+        {
+            SetOperatorUnavailable();
+        }
+        finally
+        {
+            _operatorBusy = false;
+        }
+    }
 
     private Task ClearProgramAsync() => SendOperatorAsync(
         LocalOperatorCommands.ProgramClear,
@@ -775,13 +861,9 @@ public sealed class MainWindow : Window
             var response = await _operatorClient.SendAsync(command, presentation, CancellationToken.None);
             RenderOperatorSnapshot(response.Snapshot);
             if (response.Ok)
-            {
                 SetOperatorFeedback(successMessage, false);
-            }
             else
-            {
                 SetOperatorFeedback(SafeOperatorError(response.ErrorCode), true);
-            }
         }
         catch
         {
@@ -795,6 +877,7 @@ public sealed class MainWindow : Window
 
     private void RenderOperatorSnapshot(LocalOperatorSnapshot snapshot)
     {
+        _operatorSnapshot = snapshot;
         RenderStage(snapshot.Preview, _previewTitle, _previewBody, _previewFooter, "Preview is clear", "Select a cue and press Preview Selected.", "PREVIEW", Gold);
         RenderStage(snapshot.Program, _programTitle, _programBody, _programFooter, "Program is clear", "Nothing is currently live on Program.", "PROGRAM", Good);
 
@@ -811,6 +894,7 @@ public sealed class MainWindow : Window
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
         _take.IsEnabled = snapshot.Preview is not null;
         _clear.IsEnabled = snapshot.Program is not null;
+        RefreshRundown();
     }
 
     private static void RenderStage(
@@ -841,6 +925,8 @@ public sealed class MainWindow : Window
 
     private void SetOperatorUnavailable()
     {
+        _operatorSnapshot = new LocalOperatorSnapshot(
+            false, null, null, false, null, "Offline", null, "rehearsal", DateTimeOffset.UtcNow);
         _operatorRuntime.Text = "EDGE OFFLINE";
         _operatorRuntime.Foreground = Muted;
         _operatorService.Text = "LOCAL CONTROL WAITING";
@@ -854,6 +940,7 @@ public sealed class MainWindow : Window
         _record.IsEnabled = false;
         _take.IsEnabled = false;
         _clear.IsEnabled = false;
+        RefreshRundown();
     }
 
     private void SetOperatorFeedback(string message, bool failed)
