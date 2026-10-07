@@ -174,6 +174,8 @@ export function ScriptureOperatorWorkspace({
   const persistedSelectionId = useSyncExternalStore(subscribeSelection, readSelection, readServerSelection);
 
   const selected = detections.find((item) => item.id === persistedSelectionId) ?? fallbackSelection;
+  const selectedIndex = detections.findIndex((item) => item.id === selected?.id);
+  const newerDetectionCount = selectedIndex > 0 ? selectedIndex : 0;
   const preview = detections.find((item) => item.state === "preview");
   const program = detections.find((item) => item.state === "live");
 
@@ -202,6 +204,11 @@ export function ScriptureOperatorWorkspace({
     window.dispatchEvent(new Event(selectionEvent));
     setFeedback(null);
   }, [selectionEvent, storageKey]);
+
+  useEffect(() => {
+    if (!selected?.id) return;
+    document.getElementById(`operator-queue-${selected.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [selected?.id]);
 
   const moveSelection = useCallback((direction: -1 | 1) => {
     if (!detections.length) return;
@@ -319,15 +326,28 @@ export function ScriptureOperatorWorkspace({
                 <div className="text-xs font-black uppercase tracking-[.14em] text-white/55">Service Queue</div>
                 <div className="mt-1 text-[11px] text-white/30">Selection stays fixed while new detections arrive</div>
               </div>
-              <span className="rounded-lg bg-white/[.045] px-2 py-1 text-xs font-bold text-white/45">{detections.length}</span>
+              <div className="flex items-center gap-2">
+                {newerDetectionCount > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => detections[0] && select(detections[0].id)}
+                    className="rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-[10px] font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b]"
+                  >
+                    {newerDetectionCount} newer · Jump to newest
+                  </button>
+                ) : null}
+                <span className="rounded-lg bg-white/[.045] px-2 py-1 text-xs font-bold text-white/45">{detections.length}</span>
+              </div>
             </div>
 
             <div className="ip-scrollbar max-h-[420px] space-y-2 overflow-y-auto px-3 pb-3 xl:max-h-[720px]">
-              {detections.length ? detections.map((item) => {
+              {detections.length ? detections.map((item, index) => {
                 const active = item.id === selected?.id;
+                const isNewer = selectedIndex > 0 && index < selectedIndex;
                 return (
                   <button
                     key={item.id}
+                    id={`operator-queue-${item.id}`}
                     type="button"
                     aria-pressed={active}
                     onClick={() => select(item.id)}
@@ -345,6 +365,7 @@ export function ScriptureOperatorWorkspace({
                         <div className="mt-1 truncate text-[11px] text-white/34">{item.bibleVersion} · {methodLabel(item.detectionMethod)}</div>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${item.state === "live" ? "bg-red-400/10 text-red-200" : item.state === "preview" ? "bg-amber-400/10 text-amber-200" : "bg-white/[.05] text-white/35"}`}>{item.state}</span>
+                          {isNewer ? <span className="rounded-full bg-[#d7a94a]/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[.1em] text-[#efc86f]">Newer</span> : null}
                           {active ? <span className="text-[10px] font-bold text-[#e8bd62]">Selected</span> : null}
                         </div>
                       </div>
