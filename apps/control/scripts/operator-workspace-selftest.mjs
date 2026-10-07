@@ -30,6 +30,14 @@ assert.match(workspace, /Queue navigation/u, "Workspace must visibly document qu
 assert.match(workspace, /Ctrl\/⌘ \+ Enter/u, "Workspace must visibly document deliberate Take Live shortcut");
 assert.match(workspace, /Ctrl\/⌘ \+ Backspace/u, "Workspace must visibly document deliberate Clear Program shortcut");
 
+assert.match(workspace, /const selectedIndex = detections\.findIndex/u, "Queue must locate the pinned selection within the newest-first detection list");
+assert.match(workspace, /const newerDetectionCount = selectedIndex > 0 \? selectedIndex : 0/u, "Queue must count detections newer than the pinned selection");
+assert.match(workspace, /scrollIntoView\(\{ block: "nearest" \}\)/u, "Keyboard navigation must keep the selected queue row visible");
+assert.match(workspace, /Jump to newest/u, "Operator must have an explicit action to move focus to the latest detection");
+assert.match(workspace, /select\(detections\[0\]\.id\)/u, "Jump to newest must deliberately select the latest queue item");
+assert.match(workspace, /const isNewer = selectedIndex > 0 && index < selectedIndex/u, "Rows newer than the pinned selection must be identified without changing selection");
+assert.match(workspace, />Newer</u, "Newer queue rows must have a visible marker");
+
 console.log(JSON.stringify({
   ok: true,
   selectionPersistence: "hard-reload-safe",
@@ -38,5 +46,7 @@ console.log(JSON.stringify({
   takeLiveShortcut: "Ctrl/Cmd+Enter",
   clearShortcut: "Ctrl/Cmd+Backspace",
   previewBeforeProgram: true,
-  initialSelectionPinned: true
+  initialSelectionPinned: true,
+  newerDetectionAwareness: true,
+  selectedRowVisibility: "nearest"
 }));
