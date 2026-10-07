@@ -83,7 +83,7 @@ jobs:
             ('WEBP','GEN',1,1,'In the beginning, God created the heavens and the earth.'),
             ('WEBP','JOH',3,16,'For God so loved the world, that he gave his one and only Son, that whoever believes in him should not perish, but have eternal life.'),
             ('WEBP','JOH',3,17,'For God didn''t send his Son into the world to judge the world, but that the world should be saved through him.')
-          ON CONFLICT (version_id,book_code,chapter,verse) DO UPDATE SET text=EXCLUDED.text;
+          ON CONFLICT (version_id,book_code) DO NOTHING;
 
           UPDATE services SET active_bible_version='WEBP';
           SQL
@@ -119,6 +119,8 @@ jobs:
         run: pnpm test:service-planner-mutation
       - name: Service Planner readiness lifecycle self-test
         run: pnpm test:service-planner-readiness
+      - name: Service Planner list/create UI self-test
+        run: pnpm test:service-planner-ui
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed
