@@ -29,6 +29,7 @@
     "test:service-planner-service": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-service-selftest.mjs",
     "test:service-planner-item": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-item-selftest.mjs",
     "test:service-planner-mutation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-mutation-selftest.mjs",
+    "test:service-planner-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-readiness-selftest.mjs",
     "test:demo-users": "node scripts/demo-users-db-selftest.mjs"
   },
   "dependencies": {
