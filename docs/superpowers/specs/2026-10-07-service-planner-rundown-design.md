@@ -68,17 +68,16 @@ Use the existing service states:
 - `ready -> draft` is allowed for authorized planners when edits are needed before going live.
 - `ready -> live`, `live -> ended`, and archive behavior continue through the existing operational service controls rather than the planner inventing a second lifecycle.
 - Planner structural edits are allowed in `draft` and `ready`.
+- **Phase 1 uses a conservative ready-edit rule:** any persisted planner metadata/item/reorder mutation against a `ready` service atomically demotes it to `draft` and clears `active_service_id` from Edge devices assigned to that service. The planner must explicitly pass readiness validation and mark it ready again. This prevents a partially edited rundown from remaining eligible for service use.
 - Once `live`, destructive structural edits are blocked in Phase 1. Runtime-specific operator actions continue through existing live controls.
 - `ended` and `archived` rundowns are read-only.
 
-Any mutation that would invalidate a `ready` service automatically returns it to `draft` unless the mutation itself revalidates the entire service in the same transaction.
-
-Draft services are planner-only and do not sync to Edge. The existing Edge catalog intentionally exposes only the active device-assigned service when that service is `ready` or `live`. Therefore, a ready service that is demoted to draft after an invalidating edit disappears from the Edge catalog on the next successful sync rather than leaving the workstation on a stale supposedly-ready rundown.
+Draft services are planner-only and do not sync to Edge. The existing Edge catalog intentionally exposes only the active device-assigned service when that service is `ready` or `live`. A ready service demoted to draft therefore disappears from the Edge catalog on the next successful sync, and clearing its device assignment allows a later ready/live service to be assigned normally.
 
 ## Service list and creation UX
 Add a Service Planner entry point to the Control Room for authorized planner roles.
 
-Device-to-service assignment remains authoritative in **Settings → Edge Devices**; the planner may display assignment status but must not create a second assignment workflow.
+The planner must not create a second manual device-assignment workflow. Device administration/pairing remains under **Settings → Edge Devices**, while the existing service lifecycle logic may continue automatically assigning eligible campus Edge devices when a service becomes `ready`/`live`. The planner may display assignment status only.
 
 The service list shows:
 - title;
