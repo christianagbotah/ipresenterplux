@@ -1,0 +1,23 @@
+[Unit]
+Description=iPresenterPlux GitHub pull deployment
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Environment=HOME=/root
+WorkingDirectory=/home/lightworld/webapps/ipresenterplux
+ExecStart=/home/lightworld/bin/ipresenterplux-deploy.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

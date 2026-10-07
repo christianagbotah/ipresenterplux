@@ -8,12 +8,16 @@ on:
       - "config/mediamtx.yml"
       - "package.json"
       - ".github/workflows/control-ci.yml"
+      - ".github/workflows/deploy.yml"
+      - "ops/deploy/**"
   pull_request:
     paths:
       - "apps/control/**"
       - "config/mediamtx.yml"
       - "package.json"
       - ".github/workflows/control-ci.yml"
+      - ".github/workflows/deploy.yml"
+      - "ops/deploy/**"
 
 permissions:
   contents: read
@@ -89,6 +93,11 @@ jobs:
           SQL
       - name: Lint
         run: pnpm lint
+      - name: Deployment handoff contract self-test
+        working-directory: .
+        run: |
+          bash -n ops/deploy/ipresenterplux-deploy.sh
+          node apps/control/scripts/deployment-contract-selftest.mjs
       - name: Scripture parser self-test
         run: pnpm test:scripture
       - name: Edge operator catalog self-test

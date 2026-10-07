@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll GitHub main and deploy iPresenterPlux
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=5s
+RandomizedDelaySec=3s
+Persistent=true
+Unit=ipresenterplux-deploy.service
+
+[Install]
+WantedBy=timers.target
