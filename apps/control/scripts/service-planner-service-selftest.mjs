@@ -75,15 +75,13 @@ try {
      on conflict (id) do update set local_enabled=false`
   );
 
-  const bulk = [];
   for (let index = 0; index < 55; index += 1) {
-    bulk.push(client.query(
+    await client.query(
       `insert into services(organization_id,campus_id,title,status,active_bible_version,scheduled_start)
        values ($1,$2,$3,'draft','WEBP',now() + ($4 || ' hours')::interval)`,
       [ids.orgA, ids.campusA, `Planner List ${index + 1}`, String(index + 1)]
-    ));
+    );
   }
-  await Promise.all(bulk);
   await client.query(
     `insert into services(id,organization_id,campus_id,title,status,active_bible_version)
      values ($1,$2,$3,'Foreign Service','draft','WEBP')`,

@@ -113,7 +113,7 @@ try {
 
   const serviceId = await insertService();
   const firstId = await insertSlide(serviceId, "First", 1000);
-  const secondId = await insertSlide(serviceId, "Second", 2000);
+  await insertSlide(serviceId, "Second", 2000);
   const foreignService = await insertService();
   const foreignItem = await insertSlide(foreignService, "Foreign", 1000);
 
