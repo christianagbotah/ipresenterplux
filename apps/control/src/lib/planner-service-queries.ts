@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { PLANNER_MUTATION_ROLES } from "./role-policy.js";
-import { computePlannerRevision } from "./planner-revision";
+import { computePlannerRevision } from "./planner-revision-runtime.js";
 
 const SERVICE_TYPE_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 const SERVICE_FILTERS = new Set(["upcoming", "draft", "ready", "live", "ended", "archived"]);
