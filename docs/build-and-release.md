@@ -10,6 +10,8 @@ GitHub is the intended source of truth for iPresenterPlux. Production services r
 - **Mobile CI**: TypeScript validation plus Android and iOS native debug builds.
 - **ASR Worker CI**: Python compile and contract tests.
 
+Database-writing Control Portal self-tests are fail-closed: they run only when the database name clearly contains a `ci`, `test`, `testing`, or `selftest` segment. This prevents a developer command on the production VPS from loading `.env.local` and mutating `lightworld_iplux`. A deliberate one-off override requires the full phrase `IPRESENTERPLUX_ALLOW_DATABASE_SELFTEST=I_UNDERSTAND_THIS_CAN_WRITE_DATA`; do not set it in production service files or persistent shell profiles.
+
 ## Deployment rule
 
 The VPS is a runtime/deployment target, not the authoritative native build workstation. GitHub `main` is handed to the one-minute VPS pull deployer, which performs only the Control Plane dependency install, production build, database migration and health-gated service swap. Windows/macOS Edge, mobile and other native artifacts remain CI-built and are never compiled by the VPS deployer. The handoff workflow uses `contents: read` only and no GitHub SSH deployment secret. See `docs/vps-pull-deployer.md`.

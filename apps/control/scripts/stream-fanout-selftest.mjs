@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import {
   buildFfmpegArgs,
   buildRtmpsTarget,
@@ -18,6 +19,7 @@ import {
 } from "./stream-fanout-core.mjs";
 
 process.loadEnvFile?.(".env.local");
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 assert.ok(process.env.DATABASE_URL, "DATABASE_URL must be configured for fan-out self-test");
 
 const key = randomBytes(32);
