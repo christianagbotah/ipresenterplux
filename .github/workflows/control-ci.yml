@@ -115,6 +115,8 @@ jobs:
         run: pnpm test:service-planner-service
       - name: Service Planner item and preview self-test
         run: pnpm test:service-planner-item
+      - name: Service Planner mutation self-test
+        run: pnpm test:service-planner-mutation
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed
