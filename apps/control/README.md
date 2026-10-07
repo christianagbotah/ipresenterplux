@@ -82,7 +82,7 @@ The Control Portal CI also runs the Service Planner contract, service, item/Prev
 
 ## Production safety rules
 
-- Planner APIs derive tenant scope from the authenticated membership; clients do not choose an organization ID.
+- Any organization/campus identifier supplied by a client is constrained by the authenticated user's organization membership and role; it cannot be used to escape tenant scope.
 - Lifecycle transitions and cue mutations are audited with bounded metadata.
 - Planner content is typed and normalized; raw HTML/script execution is not part of the cue contract.
 - Device credentials, pairing codes, OAuth tokens and stream keys are never returned to the Planner UI.
