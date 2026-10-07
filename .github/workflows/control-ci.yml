@@ -109,6 +109,18 @@ jobs:
         run: pnpm test:demo-accounts
       - name: RBAC UI capability matrix self-test
         run: pnpm test:rbac-ui
+      - name: Service Planner contract self-test
+        run: pnpm test:service-planner-contract
+      - name: Service Planner service API self-test
+        run: pnpm test:service-planner-service
+      - name: Service Planner item and preview self-test
+        run: pnpm test:service-planner-item
+      - name: Service Planner mutation self-test
+        run: pnpm test:service-planner-mutation
+      - name: Service Planner readiness lifecycle self-test
+        run: pnpm test:service-planner-readiness
+      - name: Service Planner list/create UI self-test
+        run: pnpm test:service-planner-ui
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed

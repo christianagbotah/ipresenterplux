@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
+import { validatePlannerReadiness } from "@/lib/planner-readiness";
 import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 
@@ -25,7 +26,6 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const { id } = await context.params;
-
   if (!z.string().uuid().safeParse(id).success) {
     return NextResponse.json({ ok: false, error: "Invalid service id" }, { status: 400 });
   }
@@ -56,6 +56,59 @@ export async function PATCH(request: Request, context: RouteContext) {
       await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [serviceScopeKey]);
       await client.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [scope.rows[0].id]);
 
+      const current = await client.query<{
+        id: string;
+        organization_id: string;
+        title: string;
+        status: string;
+      }>(
+        "select id::text,organization_id::text,title,status from services where id=$1 for update",
+        [id]
+      );
+      if (!current.rowCount) {
+        await client.query("rollback");
+        return NextResponse.json({ ok: false, error: "Service not found" }, { status: 404 });
+      }
+      const row = current.rows[0];
+
+      if (state === "ready" && row.status !== "draft" && row.status !== "ready") {
+        await client.query("rollback");
+        return NextResponse.json(
+          { ok: false, error: "Service cannot transition to ready from its current state", code: "service_transition_invalid" },
+          { status: 409 }
+        );
+      }
+      if (state === "live" && row.status !== "ready" && row.status !== "live") {
+        await client.query("rollback");
+        return NextResponse.json(
+          { ok: false, error: "Service must be ready before it can go live", code: "service_transition_invalid" },
+          { status: 409 }
+        );
+      }
+      if (state === "ended" && row.status !== "live" && row.status !== "ended") {
+        await client.query("rollback");
+        return NextResponse.json(
+          { ok: false, error: "Only a live service can be ended", code: "service_transition_invalid" },
+          { status: 409 }
+        );
+      }
+
+      if (state === "ready") {
+        const readiness = await validatePlannerReadiness(client, id, row.organization_id);
+        if (!readiness.ready) {
+          await client.query("rollback");
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "Service readiness checks failed",
+              code: "readiness_failed",
+              issues: readiness.issues
+            },
+            { status: 422 }
+          );
+        }
+      }
+
       if (state === "live") {
         const conflict = await client.query<{ id: string; title: string }>(
           `select id::text,title
@@ -74,21 +127,6 @@ export async function PATCH(request: Request, context: RouteContext) {
           );
         }
       }
-
-      const current = await client.query<{
-        id: string;
-        organization_id: string;
-        title: string;
-        status: string;
-      }>(
-        "select id::text,organization_id::text,title,status from services where id=$1 for update",
-        [id]
-      );
-      if (!current.rowCount) {
-        await client.query("rollback");
-        return NextResponse.json({ ok: false, error: "Service not found" }, { status: 404 });
-      }
-      const row = current.rows[0];
 
       const updated = await client.query<{
         id: string;
@@ -109,7 +147,7 @@ export async function PATCH(request: Request, context: RouteContext) {
                when $2 in ('ready','live') then null
                else ended_at
              end,
-             updated_at=now()
+             updated_at=clock_timestamp()
          where id=$1
          returning id, title, status, started_at::text, ended_at::text`,
         [id, state]

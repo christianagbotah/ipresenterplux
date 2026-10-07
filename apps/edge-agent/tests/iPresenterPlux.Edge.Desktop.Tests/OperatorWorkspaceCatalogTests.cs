@@ -6,7 +6,7 @@ namespace iPresenterPlux.Edge.Desktop.Tests;
 public sealed class OperatorWorkspaceCatalogTests
 {
     [Fact]
-    public void SyncedCatalogMapsRealRundownAndActiveBibleVersionWithoutDemoSeeds()
+    public void SyncedCatalogKeepsPlannedRundownSeparateFromAdHocScriptureQueue()
     {
         var serviceId = Guid.NewGuid();
         var catalog = Snapshot(
@@ -30,10 +30,15 @@ public sealed class OperatorWorkspaceCatalogTests
         Assert.Equal("live", view.ServiceStatus);
         Assert.Equal("KJV", view.ActiveBibleVersion);
         Assert.Equal(2, view.BibleVersions.Count);
+
         Assert.Equal(3, view.Items.Count);
         Assert.Contains(view.Items, item => item.Id == "scripture-live" && item.Category == "Scripture");
         Assert.Contains(view.Items, item => item.Id == "song-1" && item.Category == "Songs");
         Assert.Contains(view.Items, item => item.Id == "slide-1" && item.Category == "Slides");
+
+        Assert.Equal(2, view.RundownItems.Count);
+        Assert.Equal(["song-1", "slide-1"], view.RundownItems.Select(item => item.Id).ToArray());
+        Assert.DoesNotContain(view.RundownItems, item => item.Id == "scripture-live");
         Assert.DoesNotContain(view.Items, item => item.Id.StartsWith("scripture-john-3-16", StringComparison.Ordinal));
     }
 
@@ -58,6 +63,7 @@ public sealed class OperatorWorkspaceCatalogTests
         Assert.False(rehearsal.HasSyncedCatalog);
         Assert.Equal("LOCAL REHEARSAL", rehearsal.StatusLabel);
         Assert.Equal(OperatorWorkspaceCatalog.Seeded.Count, rehearsal.Items.Count);
+        Assert.Equal(OperatorWorkspaceCatalog.Seeded.Count, rehearsal.RundownItems.Count);
 
         var now = DateTimeOffset.Parse("2026-10-06T10:00:00Z");
         var noService = new OperatorCatalogSnapshot(
@@ -74,6 +80,7 @@ public sealed class OperatorWorkspaceCatalogTests
         Assert.False(synced.IsRehearsal);
         Assert.True(synced.HasSyncedCatalog);
         Assert.Empty(synced.Items);
+        Assert.Empty(synced.RundownItems);
         Assert.Equal("NO ACTIVE SERVICE", synced.StatusLabel);
     }
 
