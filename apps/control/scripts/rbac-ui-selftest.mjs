@@ -42,11 +42,13 @@ assert.deepEqual(roleModule.roleCapabilities(["viewer", "translator"]), {
 }, "capabilities must union across memberships");
 
 const page = await fs.readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
-assert.match(page, /roleCapabilities/, "dashboard must use the shared role capability helper");
-assert.match(page, /capabilities\.canLiveControl/, "dashboard must gate live controls");
-assert.match(page, /capabilities\.canTranslations/, "dashboard must gate Translations navigation");
-assert.match(page, /capabilities\.canStreaming/, "dashboard must gate Streaming navigation");
-assert.match(page, /capabilities\.canSettings/, "dashboard must gate Settings navigation");
+const dashboardModule = await fs.readFile(new URL("../src/app/DashboardPage.tsx", import.meta.url), "utf8");
+const dashboardSource = `${page}\n${dashboardModule}`;
+assert.match(dashboardSource, /roleCapabilities/, "dashboard must use the shared role capability helper");
+assert.match(dashboardSource, /capabilities\.canLiveControl/, "dashboard must gate live controls");
+assert.match(dashboardSource, /capabilities\.canTranslations/, "dashboard must gate Translations navigation");
+assert.match(dashboardSource, /capabilities\.canStreaming/, "dashboard must gate Streaming navigation");
+assert.match(dashboardSource, /capabilities\.canSettings/, "dashboard must gate Settings navigation");
 
 const operatorPage = await fs.readFile(new URL("../src/app/operator/page.tsx", import.meta.url), "utf8");
 assert.match(operatorPage, /data\.canStreaming/, "Operator page must gate Streaming navigation");
