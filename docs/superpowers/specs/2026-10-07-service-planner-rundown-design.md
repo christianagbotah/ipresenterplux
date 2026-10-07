@@ -25,7 +25,7 @@ Phase 1 includes four connected surfaces:
 3. **Edge catalog synchronization** of the authored ordered rundown using the existing device-authenticated catalog contract.
 4. **Desktop Order of Service UX** that makes the synced rundown usable as a real operator queue with current/next semantics.
 
-A separate reusable Media Library / Asset Manager is explicitly deferred to the next milestone. Phase 1 media cues may reference approved existing media metadata/URLs only; arbitrary local filesystem paths and unrestricted uploads are not permitted.
+A separate reusable Media Library / Asset Manager is explicitly deferred to the next milestone. Phase 1 media cues may reference only approved application-managed media metadata (including an existing organization-scoped `media_sources` record or an HTTPS asset reference already stored by trusted application configuration). The planner does not provide a free-form URL/path field. Arbitrary local filesystem paths and unrestricted uploads are not permitted.
 
 ## Roles and authorization
 Existing RBAC remains the source of truth.
@@ -73,8 +73,12 @@ Use the existing service states:
 
 Any mutation that would invalidate a `ready` service automatically returns it to `draft` unless the mutation itself revalidates the entire service in the same transaction.
 
+Draft services are planner-only and do not sync to Edge. The existing Edge catalog intentionally exposes only the active device-assigned service when that service is `ready` or `live`. Therefore, a ready service that is demoted to draft after an invalidating edit disappears from the Edge catalog on the next successful sync rather than leaving the workstation on a stale supposedly-ready rundown.
+
 ## Service list and creation UX
 Add a Service Planner entry point to the Control Room for authorized planner roles.
+
+Device-to-service assignment remains authoritative in **Settings → Edge Devices**; the planner may display assignment status but must not create a second assignment workflow.
 
 The service list shows:
 - title;
@@ -144,7 +148,7 @@ All item types share:
 - `content`
 - timestamps
 
-Item content remains bounded so the Edge catalog cannot be used as an arbitrary blob transport.
+Item content remains bounded so the Edge catalog cannot be used as an arbitrary blob transport. Presentation body text is capped at the existing Edge normalization limit of **12,000 characters**; footer/subtitle text is capped at **500 characters**; metadata stays within the existing bounded safe-string map. Item-specific editors may impose stricter limits where appropriate.
 
 ### Scripture
 Editor fields:
