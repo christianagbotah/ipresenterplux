@@ -11,25 +11,34 @@ try {
 assert.ok(roleModule?.roleCapabilities, "role capability helper must exist");
 
 const cases = [
-  ["owner", true, true, true, true],
-  ["admin", true, true, true, true],
-  ["pastor", true, false, false, false],
-  ["presenter_operator", true, false, false, false],
-  ["media_operator", true, true, false, false],
-  ["translator", false, false, true, false],
-  ["finance", false, false, false, false],
-  ["welfare", false, false, false, false],
-  ["group_leader", false, false, false, false],
-  ["viewer", false, false, false, false]
+  ["owner", true, true, true, true, true, true],
+  ["admin", true, true, true, true, true, true],
+  ["pastor", true, false, false, false, true, true],
+  ["presenter_operator", true, false, false, false, true, true],
+  ["media_operator", true, true, false, false, true, true],
+  ["translator", false, false, true, false, true, false],
+  ["finance", false, false, false, false, true, false],
+  ["welfare", false, false, false, false, true, false],
+  ["group_leader", false, false, false, false, true, false],
+  ["viewer", false, false, false, false, true, false]
 ];
-for (const [role, canLiveControl, canStreaming, canTranslations, canSettings] of cases) {
-  assert.deepEqual(roleModule.roleCapabilities([role]), { canLiveControl, canStreaming, canTranslations, canSettings }, `${role} capability mismatch`);
+for (const [role, canLiveControl, canStreaming, canTranslations, canSettings, canViewPlanner, canPlanServices] of cases) {
+  assert.deepEqual(roleModule.roleCapabilities([role]), {
+    canLiveControl,
+    canStreaming,
+    canTranslations,
+    canSettings,
+    canViewPlanner,
+    canPlanServices
+  }, `${role} capability mismatch`);
 }
 assert.deepEqual(roleModule.roleCapabilities(["viewer", "translator"]), {
   canLiveControl: false,
   canStreaming: false,
   canTranslations: true,
-  canSettings: false
+  canSettings: false,
+  canViewPlanner: true,
+  canPlanServices: false
 }, "capabilities must union across memberships");
 
 const page = await fs.readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
