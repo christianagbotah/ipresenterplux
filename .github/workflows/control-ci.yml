@@ -120,6 +120,8 @@ jobs:
         run: pnpm test:demo-accounts
       - name: RBAC UI capability matrix self-test
         run: pnpm test:rbac-ui
+      - name: Operator workspace safety self-test
+        run: pnpm test:operator-workspace
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test

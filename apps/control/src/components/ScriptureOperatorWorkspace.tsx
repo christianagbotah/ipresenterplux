@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -154,12 +154,26 @@ export function ScriptureOperatorWorkspace({
     ?? detections.find((item) => item.state === "detected")
     ?? detections.find((item) => item.state === "live")
     ?? detections[0];
-  const [selectedId, setSelectedId] = useState<string | null>(fallbackSelection?.id ?? null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [isPending, startTransition] = useTransition();
   const storageKey = `ipresenterplux:operator-selection:${serviceId}`;
+  const selectionEvent = `${storageKey}:changed`;
+  const subscribeSelection = useCallback((onStoreChange: () => void) => {
+    function onStorage(event: StorageEvent) {
+      if (event.key === storageKey) onStoreChange();
+    }
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(selectionEvent, onStoreChange);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(selectionEvent, onStoreChange);
+    };
+  }, [selectionEvent, storageKey]);
+  const readSelection = useCallback(() => window.localStorage.getItem(storageKey), [storageKey]);
+  const readServerSelection = useCallback(() => null, []);
+  const persistedSelectionId = useSyncExternalStore(subscribeSelection, readSelection, readServerSelection);
 
-  const selected = detections.find((item) => item.id === selectedId) ?? fallbackSelection;
+  const selected = detections.find((item) => item.id === persistedSelectionId) ?? fallbackSelection;
   const preview = detections.find((item) => item.state === "preview");
   const program = detections.find((item) => item.state === "live");
 
@@ -170,13 +184,35 @@ export function ScriptureOperatorWorkspace({
   const previewCommand = preview ? commandFor("preview.prepare", preview.id) : undefined;
   const programCommand = program ? commandFor("program.show", program.id) : commandFor("program.clear");
 
-  function select(id: string) {
-    setSelectedId(id);
-    window.localStorage.setItem(storageKey, id);
-    setFeedback(null);
-  }
+  useEffect(() => {
+    const persistedSelectionIsValid = Boolean(
+      persistedSelectionId && detections.some((item) => item.id === persistedSelectionId)
+    );
+    if (persistedSelectionIsValid) return;
 
-  function changeState(id: string, state: MutationState, successLabel: string) {
+    const nextId = fallbackSelection?.id ?? null;
+    if (nextId === persistedSelectionId) return;
+    if (nextId) window.localStorage.setItem(storageKey, nextId);
+    else window.localStorage.removeItem(storageKey);
+    window.dispatchEvent(new Event(selectionEvent));
+  }, [detections, fallbackSelection?.id, persistedSelectionId, selectionEvent, storageKey]);
+
+  const select = useCallback((id: string) => {
+    window.localStorage.setItem(storageKey, id);
+    window.dispatchEvent(new Event(selectionEvent));
+    setFeedback(null);
+  }, [selectionEvent, storageKey]);
+
+  const moveSelection = useCallback((direction: -1 | 1) => {
+    if (!detections.length) return;
+    const currentIndex = detections.findIndex((item) => item.id === selected?.id);
+    const nextIndex = currentIndex < 0
+      ? direction > 0 ? 0 : detections.length - 1
+      : (currentIndex + direction + detections.length) % detections.length;
+    select(detections[nextIndex].id);
+  }, [detections, select, selected?.id]);
+
+  const changeState = useCallback((id: string, state: MutationState, successLabel: string) => {
     if (!canControl) {
       setFeedback({ tone: "error", message: "Your role can view this workspace but cannot control live output." });
       return;
@@ -205,7 +241,53 @@ export function ScriptureOperatorWorkspace({
         setFeedback({ tone: "error", message: "Network error. The requested output change could not be verified." });
       }
     });
-  }
+  }, [canControl, router]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (
+        target.isContentEditable
+        || Boolean(target.closest("input,textarea,select,[contenteditable='true'],[role='textbox']"))
+      )) return;
+
+      const commandModifier = event.ctrlKey || event.metaKey;
+      if (!commandModifier && !event.altKey && event.key === "ArrowDown") {
+        event.preventDefault();
+        moveSelection(1);
+        return;
+      }
+      if (!commandModifier && !event.altKey && event.key === "ArrowUp") {
+        event.preventDefault();
+        moveSelection(-1);
+        return;
+      }
+      if (!commandModifier && !event.altKey && event.key.toLowerCase() === "p") {
+        if (selected && canControl && !isPending && selected.state !== "preview" && selected.state !== "live") {
+          event.preventDefault();
+          changeState(selected.id, "preview", "Preview prepared");
+        }
+        return;
+      }
+      if (commandModifier && !event.altKey && event.key === "Enter") {
+        if (selected && canControl && !isPending && selected.state === "preview") {
+          event.preventDefault();
+          changeState(selected.id, "live", "Program updated");
+        }
+        return;
+      }
+      if (commandModifier && !event.altKey && (event.key === "Backspace" || event.key === "Delete")) {
+        if (program && canControl && !isPending) {
+          event.preventDefault();
+          changeState(program.id, "detected", "Program cleared");
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [canControl, changeState, isPending, moveSelection, program, selected]);
 
   const feedbackClass = feedback?.tone === "success"
     ? "border-emerald-400/20 bg-emerald-400/[.08] text-emerald-100"
@@ -303,7 +385,7 @@ export function ScriptureOperatorWorkspace({
                   <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <button
                       type="button"
-                      disabled={!selected || !canControl || isPending || selected.state === "preview"}
+                      disabled={!selected || !canControl || isPending || selected.state === "preview" || selected.state === "live"}
                       onClick={() => selected && changeState(selected.id, "preview", "Preview prepared")}
                       className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm font-black text-white/80 transition hover:bg-white/[.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 disabled:cursor-not-allowed disabled:opacity-35"
                     >
@@ -311,7 +393,8 @@ export function ScriptureOperatorWorkspace({
                     </button>
                     <button
                       type="button"
-                      disabled={!selected || !canControl || isPending || selected.state === "live"}
+                      disabled={!selected || !canControl || isPending || selected.state !== "preview"}
+                      title={selected && selected.state !== "preview" ? "Preview the selected scripture before taking it live" : "Take the prepared Preview to Program"}
                       onClick={() => selected && changeState(selected.id, "live", "Program updated")}
                       className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-3 text-sm font-black text-[#171107] shadow-[0_12px_34px_rgba(215,169,74,.18)] transition hover:bg-[#e9c469] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d58f] disabled:cursor-not-allowed disabled:opacity-35"
                     >
@@ -333,6 +416,14 @@ export function ScriptureOperatorWorkspace({
                     >
                       <X size={16} /> Dismiss
                     </button>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[.06] pt-3 text-[11px] text-white/35">
+                    <span className="font-bold uppercase tracking-[.12em] text-white/45">Keyboard</span>
+                    <span>Queue navigation <kbd className="rounded border border-white/10 bg-black/25 px-1.5 py-0.5 font-mono text-white/55">↑ / ↓</kbd></span>
+                    <span>Preview <kbd className="rounded border border-white/10 bg-black/25 px-1.5 py-0.5 font-mono text-white/55">P</kbd></span>
+                    <span>Take Live <kbd className="rounded border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-1.5 py-0.5 font-mono text-[#efc86f]">Ctrl/⌘ + Enter</kbd></span>
+                    <span>Clear Program <kbd className="rounded border border-red-400/15 bg-red-400/[.05] px-1.5 py-0.5 font-mono text-red-200/80">Ctrl/⌘ + Backspace</kbd></span>
                   </div>
 
                   {feedback ? <div aria-live="polite" role="status" className={`mt-4 rounded-xl border px-4 py-3 text-xs font-semibold leading-5 ${feedbackClass}`}>{feedback.message}</div> : null}
@@ -362,6 +453,7 @@ export function ScriptureOperatorWorkspace({
                   <ul className="mt-3 space-y-2 text-xs leading-5 text-white/38">
                     <li>• New AI detections never replace your current selection.</li>
                     <li>• Preview does not take content live.</li>
+                    <li>• Take Live is enabled only for the item explicitly staged in Preview.</li>
                     <li>• Program changes require an explicit operator action.</li>
                     <li>• Edge confirmation is shown separately from cloud intent.</li>
                   </ul>
