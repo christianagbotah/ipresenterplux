@@ -2,6 +2,9 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
+
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 
 const {
   PlannerServiceError,

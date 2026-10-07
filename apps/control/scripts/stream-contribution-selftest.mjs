@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import ts from "typescript";
 
 process.loadEnvFile?.(".env.local");
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
 const source = await readFile(new URL("../src/lib/stream-contribution.ts", import.meta.url), "utf8");

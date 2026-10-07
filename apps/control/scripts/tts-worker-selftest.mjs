@@ -3,9 +3,11 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import ts from "typescript";
 
 process.loadEnvFile?.(".env.local");
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
 async function transpiledDataUrl(relative) {

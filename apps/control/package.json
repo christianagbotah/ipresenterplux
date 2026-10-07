@@ -32,7 +32,8 @@
     "test:service-planner-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-readiness-selftest.mjs",
     "test:service-planner-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-ui-selftest.mjs",
     "test:demo-users": "node scripts/demo-users-db-selftest.mjs",
-    "test:deployment-contract": "node scripts/deployment-contract-selftest.mjs"
+    "test:deployment-contract": "node scripts/deployment-contract-selftest.mjs",
+    "test:db-selftest-safety": "node scripts/db-selftest-safety-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

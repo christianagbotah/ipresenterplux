@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import process from "node:process";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import {
   fetchYouTubeBroadcastLiveState,
   fetchYouTubeLiveStreamEvidence,
@@ -18,6 +19,7 @@ import {
 } from "./stream-provider-oauth-core.mjs";
 
 process.loadEnvFile?.(".env.local");
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 assert.ok(process.env.DATABASE_URL, "DATABASE_URL must be configured for provider-health self-test");
 
 const providerKey = randomBytes(32).toString("base64url");

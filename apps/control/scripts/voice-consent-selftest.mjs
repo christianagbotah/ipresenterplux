@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import process from "node:process";
 import pg from "pg";
+import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 
 process.loadEnvFile?.(".env.local");
+assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });

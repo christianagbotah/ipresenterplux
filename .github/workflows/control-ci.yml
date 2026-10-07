@@ -93,6 +93,8 @@ jobs:
           SQL
       - name: Lint
         run: pnpm lint
+      - name: Writable database self-test safety guard
+        run: pnpm test:db-selftest-safety
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
