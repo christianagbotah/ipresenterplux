@@ -26,6 +26,7 @@
     "test:demo-accounts": "node scripts/demo-accounts-selftest.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/demo-login-selection-selftest.mjs && node scripts/demo-login-ui-selftest.mjs",
     "test:rbac-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/rbac-ui-selftest.mjs",
     "test:service-planner-contract": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-contract-selftest.mjs",
+    "test:service-planner-service": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-planner-service-selftest.mjs",
     "test:demo-users": "node scripts/demo-users-db-selftest.mjs"
   },
   "dependencies": {

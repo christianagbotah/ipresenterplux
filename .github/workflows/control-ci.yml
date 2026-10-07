@@ -111,6 +111,8 @@ jobs:
         run: pnpm test:rbac-ui
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
+      - name: Service Planner service API self-test
+        run: pnpm test:service-planner-service
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed
