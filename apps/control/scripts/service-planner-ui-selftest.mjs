@@ -59,11 +59,65 @@ assert.match(createSource, /router\.push\(`\/planner\/\$\{/, "successful create 
 assert.match(createSource, /400|403|409/, "create dialog must surface safe API validation/authorization/conflict failures");
 assert.doesNotMatch(createSource, /w-\[(?:[6-9]\d\d|\d{4,})px\]/, "create dialog must remain responsive");
 
+const detailPage = await readRequired("../src/app/planner/[id]/page.tsx", "Planner detail page");
+assert.match(detailPage, /ServicePlannerWorkspace/, "Planner detail page must render the authoring workspace");
+assert.match(detailPage, /loadPlannerServiceDetail/, "Planner detail page must load tenant-scoped service detail");
+assert.match(detailPage, /bible_versions/, "Planner detail page must load enabled Bible choices");
+assert.match(detailPage, /media_sources/, "Planner detail page must load approved organization media sources");
+
+const workspaceSource = await readRequired("../src/components/planner/ServicePlannerWorkspace.tsx", "ServicePlannerWorkspace");
+for (const component of ["RundownList", "CueEditor", "CuePreview"]) {
+  assert.match(workspaceSource, new RegExp(component), `workspace must compose ${component}`);
+}
+assert.match(workspaceSource, /activePane/, "narrow workspace must expose pane navigation state");
+for (const pane of ["Rundown", "Editor", "Preview"]) {
+  assert.match(workspaceSource, new RegExp(`>${pane}<|\"${pane}\"`), `workspace must expose ${pane} pane`);
+}
+assert.match(workspaceSource, /\/api\/v1\/planner\/services\/\$\{[^}]+\}\/preview/, "Preview must use planner Preview API");
+assert.doesNotMatch(workspaceSource, /edge\/.*program|program\.take|program\.show/i, "Planner authoring must never invoke Edge Program APIs");
+assert.match(workspaceSource, /If-Match/i, "persisted cue mutations must carry the latest planner revision");
+assert.match(workspaceSource, /duplicate/i, "workspace must support cue duplication");
+assert.match(workspaceSource, /DELETE/, "workspace must support cue deletion");
+
+const rundownSource = await readRequired("../src/components/planner/RundownList.tsx", "RundownList");
+assert.match(rundownSource, /canEdit/, "rundown mutation affordances must be read-only aware");
+assert.doesNotMatch(rundownSource, /w-\[(?:[6-9]\d\d|\d{4,})px\]/, "rundown must remain responsive");
+
+const cueEditorSource = await readRequired("../src/components/planner/CueEditor.tsx", "CueEditor");
+for (const itemType of ["scripture", "song", "slide", "announcement", "lower_third", "media", "camera", "custom"]) {
+  assert.match(cueEditorSource, new RegExp(`\"${itemType}\"`), `CueEditor must expose ${itemType}`);
+}
+assert.doesNotMatch(cueEditorSource, /raw\s*json|json\s*editor/i, "Planner must not expose a raw JSON editor");
+
+const scriptureEditor = await readRequired("../src/components/planner/editors/ScriptureCueEditor.tsx", "ScriptureCueEditor");
+assert.match(scriptureEditor, /reference/, "Scripture editor must expose scripture reference");
+assert.match(scriptureEditor, /bibleVersion/, "Scripture editor must expose Bible version");
+
+const songEditor = await readRequired("../src/components/planner/editors/SongCueEditor.tsx", "SongCueEditor");
+assert.match(songEditor, /sections/, "Song editor must use structured sections");
+assert.match(songEditor, /64/, "Song editor must enforce the 64-section planner cap");
+assert.match(songEditor, /Add section/i, "Song editor must support adding sections");
+assert.match(songEditor, /Remove/i, "Song editor must support removing sections");
+assert.match(songEditor, /Move up|Move down/i, "Song editor must support section reordering");
+
+const mediaEditor = await readRequired("../src/components/planner/editors/MediaCueEditor.tsx", "MediaCueEditor");
+assert.match(mediaEditor, /mediaSources/, "Media editor must use approved organization sources");
+assert.match(mediaEditor, /sourceId/, "Media editor must persist an approved source id");
+assert.match(mediaEditor, /<select/, "Media editor must select an approved source rather than accept a path");
+assert.doesNotMatch(mediaEditor, /sourceUrl|filePath|javascript:/i, "Media editor must not expose free-form executable/media paths");
+
+const previewSource = await readRequired("../src/components/planner/CuePreview.tsx", "CuePreview");
+assert.match(previewSource, /body/, "safe cue preview must render normalized presentation body");
+assert.match(previewSource, /footer/, "safe cue preview must render normalized presentation footer");
+
 console.log(JSON.stringify({
   ok: true,
   roles: allRoles.length,
   filters: 5,
   timezoneAware: true,
   responsive: true,
-  mutationGating: true
+  mutationGating: true,
+  cueTypes: 8,
+  typedEditors: true,
+  safePreview: true
 }));
