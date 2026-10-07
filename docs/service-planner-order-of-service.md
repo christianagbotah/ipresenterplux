@@ -82,7 +82,7 @@ Visual reorder is the only optimistic planner state change; the previous order i
 
 ## 6. Security boundaries
 
-- Organization scope comes from authenticated membership, not a client-provided tenant selector.
+- Any organization/campus identifier supplied by the client is constrained by authenticated membership and role before it can affect a query or mutation.
 - Ready validation cannot be bypassed through the legacy service-state endpoint.
 - Planner content uses strict typed schemas; there is no raw JSON or raw executable/HTML authoring escape hatch.
 - Edge loopback Preview/Program HTTP endpoints remain read-only.
