@@ -113,6 +113,8 @@ jobs:
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
         run: pnpm test:service-planner-service
+      - name: Service Planner item and preview self-test
+        run: pnpm test:service-planner-item
       - name: Seed and verify isolated demo-role accounts
         run: |
           pnpm demo:seed
