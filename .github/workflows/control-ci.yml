@@ -105,6 +105,8 @@ jobs:
         run: pnpm test:activation-api
       - name: Licensing administration self-test
         run: pnpm test:licensing-admin
+      - name: Entitlement operation gating self-test
+        run: pnpm test:entitlement-gating
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
