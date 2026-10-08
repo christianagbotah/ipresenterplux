@@ -57,7 +57,34 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
     }
   }
 
-  useEffect(() => { void refresh(); }, [organizationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+
+    async function loadOrganization() {
+      try {
+        const [subscriptionResponse, keysResponse] = await Promise.all([
+          fetch(`/api/v1/admin/licensing/subscriptions?organizationId=${encodeURIComponent(organizationId)}`, { cache: "no-store" }),
+          fetch(`/api/v1/admin/licensing/keys?organizationId=${encodeURIComponent(organizationId)}`, { cache: "no-store" })
+        ]);
+        const subscriptionData = await subscriptionResponse.json() as ApiResult;
+        const keyData = await keysResponse.json() as ApiResult;
+        if (!subscriptionResponse.ok) throw new Error(subscriptionData.error || "Unable to load subscription");
+        if (!keysResponse.ok) throw new Error(keyData.error || "Unable to load product keys");
+        if (cancelled) return;
+        setOverview((subscriptionData.overview as Overview | undefined) ?? null);
+        setKeys((keyData.keys as KeyItem[] | undefined) ?? []);
+        const nextLimit = (subscriptionData.overview as Overview | undefined)?.seats.limit;
+        if (nextLimit) setSeatLimit(nextLimit);
+        setMessage("");
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "Unable to load licensing data");
+      }
+    }
+
+    void loadOrganization();
+    return () => { cancelled = true; };
+  }, [organizationId]);
 
   async function mutate(url: string, payload: Record<string, unknown>, showKey = false) {
     setBusy(true);
