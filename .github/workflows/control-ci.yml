@@ -162,6 +162,8 @@ jobs:
         run: pnpm test:ai-director
       - name: Service Archive workspace self-test
         run: pnpm test:archive
+      - name: Studio route gating self-test
+        run: pnpm test:studio-route-gating
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test

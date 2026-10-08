@@ -6,8 +6,8 @@ import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { ScriptureOperatorWorkspace } from "@/components/ScriptureOperatorWorkspace";
 import { ServiceControls } from "@/components/ServiceControls";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import { query } from "@/lib/db";
-import { DEVICE_ADMIN_ROLES, LIVE_OPERATOR_ROLES, STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
+import { db, query } from "@/lib/db";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
@@ -43,58 +43,48 @@ type EdgeCommandRow = {
 };
 
 async function operatorData(userId: string) {
-  const services = await query<ServiceRow>(
-    `select s.id::text,s.organization_id::text,s.title,s.status,s.active_bible_version
-     from services s
-     where exists (
-       select 1 from user_organization_roles uor
-       where uor.user_id=$1 and uor.organization_id=s.organization_id
-     )
-     order by case when s.status='live' then 0 when s.status='ready' then 1 else 2 end,s.created_at desc
-     limit 1`,
-    [userId]
-  );
-
-  const service = services.rows[0];
-  if (!service) return { service: undefined, detections: [], commands: [], canControl: false, canStreaming: false, canSettings: false };
-
-  const [detections, commands, canControl, canStreaming, canSettings] = await Promise.all([
+  const context = await getCurrentServiceForUser(userId, { client: db });
+  const current = context?.service;
+  if (!current || !context) return { service: undefined, detections: [], commands: [], canControl: false, canStreaming: false, canSettings: false };
+  const service: ServiceRow = {
+    id: current.id,
+    organization_id: current.organizationId,
+    title: current.title,
+    status: current.status,
+    active_bible_version: current.activeBibleVersion
+  };
+  const [detections, commands] = await Promise.all([
     query<DetectionRow>(
       `select sd.id::text,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,
               sd.detection_method,sd.source_text,sd.detected_at::text,
               (
                 select string_agg(bv.text, ' ' order by bv.verse)
                 from bible_books bb
-                join bible_verses bv
-                  on bv.version_id=bb.version_id and bv.book_code=bb.book_code
-                where bb.version_id=sd.bible_version
-                  and lower(bb.canonical_name)=lower(sd.book)
+                join bible_verses bv on bv.version_id=bb.version_id and bv.book_code=bb.book_code
+                where bb.version_id=sd.bible_version and lower(bb.canonical_name)=lower(sd.book)
                   and bv.chapter=sd.chapter
                   and (sd.verse_start is null or bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start))
               ) as passage_text
        from scripture_detections sd
-       where sd.service_id=$1::uuid
-         and sd.state <> 'dismissed'
+       where sd.service_id=$1::uuid and sd.state <> 'dismissed'
        order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc
-       limit 30`,
-      [service.id]
-    ),
+       limit 30`, [service.id]),
     query<EdgeCommandRow>(
       `select id::text,command_type,state,arguments->>'itemId' as item_id,resulting_state,error_code,
               issued_at::text,completed_at::text
        from edge_control_commands
-       where service_id=$1::uuid
-         and command_type = any($2::text[])
-       order by issued_at desc,id desc
-       limit 40`,
-      [service.id, ["preview.prepare", "program.show", "program.clear"]]
-    ),
-    userHasAnyRole(userId, service.organization_id, LIVE_OPERATOR_ROLES),
-    userHasAnyRole(userId, service.organization_id, STREAM_OPERATOR_ROLES),
-    userHasAnyRole(userId, service.organization_id, DEVICE_ADMIN_ROLES)
+       where service_id=$1::uuid and command_type = any($2::text[])
+       order by issued_at desc,id desc limit 40`,
+      [service.id,["preview.prepare","program.show","program.clear"]])
   ]);
-
-  return { service, detections: detections.rows, commands: commands.rows, canControl, canStreaming, canSettings };
+  return {
+    service,
+    detections:detections.rows,
+    commands:commands.rows,
+    canControl:context.roleCapabilities.canLiveControl,
+    canStreaming:context.navigationCapabilities.canStreaming,
+    canSettings:context.roleCapabilities.canSettings
+  };
 }
 
 export default async function OperatorPage() {

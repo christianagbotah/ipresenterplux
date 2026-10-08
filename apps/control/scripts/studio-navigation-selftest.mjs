@@ -47,8 +47,12 @@ assert.equal(isStudioRouteActive("/settings/devices", "/settings"), true);
 assert.equal(isStudioRouteActive("/streaming-health", "/streaming"), false);
 
 const noPremium = visibleStudioRoutes({
+  canMedia: false,
+  canCameras: false,
+  canAIDirector: false,
   canTranslations: false,
   canStreaming: false,
+  canArchive: false,
   canSettings: false
 });
 assert.equal(noPremium.some((route) => route.href === "/translations"), false);
@@ -57,8 +61,12 @@ assert.equal(noPremium.some((route) => route.href === "/settings"), false);
 assert.equal(noPremium.some((route) => route.href === "/scripture"), true);
 
 const allCapabilities = visibleStudioRoutes({
+  canMedia: true,
+  canCameras: true,
+  canAIDirector: true,
   canTranslations: true,
   canStreaming: true,
+  canArchive: true,
   canSettings: true
 });
 assert.deepEqual(allCapabilities.map((route) => route.href), studioRoutes.map((route) => route.href));
@@ -73,11 +81,15 @@ for (const filePath of [sidebarPath, mobilePath]) {
 const readinessPath = path.join(controlRoot, "src/components/navigation/StudioReadinessPage.tsx");
 assert.ok(existsSync(readinessPath), "shared readiness shell must exist for connected-but-not-yet-full workspaces");
 const readiness = readFileSync(readinessPath, "utf8");
-assert.match(readiness, /order by uor\.granted_at/, "readiness membership ordering must use the real user_organization_roles.granted_at column");
+assert.match(readiness, /getCurrentServiceForUser/, "readiness shell must delegate membership/service selection to the shared resolver");
 assert.doesNotMatch(readiness, /uor\.created_at/, "readiness shell must not query a nonexistent membership created_at column");
+const currentServicePath = path.join(controlRoot, "src/lib/current-service.ts");
+const currentServiceSource = readFileSync(currentServicePath, "utf8");
+assert.match(currentServiceSource, /min\(uor\.granted_at\)/, "shared current-service membership ordering must use granted_at");
+assert.doesNotMatch(currentServiceSource, /uor\.created_at/, "shared current-service resolver must not query nonexistent membership created_at");
 
 const dashboard = readFileSync(dashboardPath, "utf8");
-assert.match(dashboard, /user_organization_roles where user_id=\$1 order by granted_at limit 1/, "Control Room no-service membership fallback must use granted_at");
+assert.match(dashboard, /getCurrentServiceForUser/, "Control Room must use the shared current-service membership/service resolver");
 assert.doesNotMatch(dashboard, /user_organization_roles where user_id=\$1 order by created_at limit 1/, "Control Room must not query nonexistent membership created_at");
 assert.match(dashboard, /StudioSidebar/, "Control Room must render the shared desktop sidebar");
 assert.match(dashboard, /StudioMobileNav/, "Control Room must render the shared mobile navigation");

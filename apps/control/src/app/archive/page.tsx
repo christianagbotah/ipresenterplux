@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import { auth } from "@auth";
 import { ArchiveList } from "@/components/archive/ArchiveList";
 import { db } from "@/lib/db";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 import { listArchivedServices } from "@/lib/archive";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,9 @@ export default async function ArchivePage({ searchParams }: Props) {
 
   const client = await db.connect();
   try {
-    const result = await listArchivedServices(client, session.user.id, { search, limit: 50, offset: 0 });
+    const context = await getCurrentServiceForUser(session.user.id, { client });
+    if (!context) redirect("/");
+    const result = await listArchivedServices(client, session.user.id, { organizationId: context.organizationId, search, limit: 50, offset: 0 });
     return (
       <main className="min-h-screen bg-[#080b10] text-white">
         <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">

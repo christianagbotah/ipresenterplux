@@ -6,44 +6,10 @@ import { auth } from "@auth";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
-import { query } from "@/lib/db";
-import { roleCapabilities } from "@/lib/role-capabilities";
-
-type ContextRow = {
-  organization_id: string;
-  service_id: string | null;
-  service_title: string | null;
-  service_status: string | null;
-};
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 async function readinessContext(userId: string) {
-  const context = await query<ContextRow>(
-    `select uor.organization_id::text,
-            s.id::text as service_id,s.title as service_title,s.status as service_status
-     from user_organization_roles uor
-     left join lateral (
-       select id,title,status
-       from services
-       where organization_id=uor.organization_id
-       order by case when status='live' then 0 when status='ready' then 1 else 2 end,created_at desc
-       limit 1
-     ) s on true
-     where uor.user_id=$1
-     order by uor.granted_at
-     limit 1`,
-    [userId]
-  );
-  const row = context.rows[0];
-  if (!row) return null;
-
-  const roles = await query<{ role_id: string }>(
-    `select role_id from user_organization_roles
-     where user_id=$1 and organization_id=$2
-     order by role_id`,
-    [userId, row.organization_id]
-  );
-
-  return { row, capabilities: roleCapabilities(roles.rows.map((item) => item.role_id)) };
+  return getCurrentServiceForUser(userId);
 }
 
 export async function StudioReadinessPage({
@@ -72,7 +38,7 @@ export async function StudioReadinessPage({
   if (session.user.forcePasswordChange) redirect("/change-password");
 
   const context = await readinessContext(session.user.id);
-  const capabilities = context?.capabilities ?? roleCapabilities([]);
+  const capabilities = context?.navigationCapabilities ?? { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false };
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
@@ -107,8 +73,8 @@ export async function StudioReadinessPage({
               <div className="grid gap-3 p-6 sm:grid-cols-2 sm:p-8">
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
                   <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Current service</div>
-                  <div className="mt-2 text-base font-black text-white/75">{context?.row.service_title ?? "No service selected"}</div>
-                  <div className="mt-1 text-xs capitalize text-white/35">{context?.row.service_status ?? "Create or prepare a service to continue"}</div>
+                  <div className="mt-2 text-base font-black text-white/75">{context?.service?.title ?? "No service selected"}</div>
+                  <div className="mt-1 text-xs capitalize text-white/35">{context?.service?.status ?? "Create or prepare a service to continue"}</div>
                 </div>
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
                   <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Production truth</div>

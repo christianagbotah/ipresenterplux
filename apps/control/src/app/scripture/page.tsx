@@ -9,7 +9,7 @@ import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import { ScriptureWorkspace } from "@/components/scripture/ScriptureWorkspace";
 import { listBibleBooks, listLocalBibleVersions } from "@/lib/bible-library";
 import { db, query } from "@/lib/db";
-import { roleCapabilities } from "@/lib/role-capabilities";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
@@ -33,50 +33,25 @@ type DetectionRow = {
 };
 
 async function scripturePageData(userId: string) {
-  const services = await query<ServiceRow>(
-    `select s.id::text,s.organization_id::text,s.title,s.status,s.active_bible_version
-     from services s
-     where exists (
-       select 1 from user_organization_roles uor
-       where uor.user_id=$1 and uor.organization_id=s.organization_id
-     )
-     order by case when s.status='live' then 0 when s.status='ready' then 1 else 2 end,s.created_at desc
-     limit 1`,
-    [userId]
-  );
-  const service = services.rows[0] ?? null;
-
-  let organizationId = service?.organization_id ?? null;
-  if (!organizationId) {
-    const membership = await query<{ organization_id: string }>(
-      `select organization_id::text
-       from user_organization_roles
-       where user_id=$1
-       order by created_at
-       limit 1`,
-      [userId]
-    );
-    organizationId = membership.rows[0]?.organization_id ?? null;
-  }
-
-  if (!organizationId) {
+  const context = await getCurrentServiceForUser(userId);
+  const service: ServiceRow | null = context?.service ? {
+    id: context.service.id,
+    organization_id: context.service.organizationId,
+    title: context.service.title,
+    status: context.service.status,
+    active_bible_version: context.service.activeBibleVersion
+  } : null;
+  if (!context) {
     return {
       service: null,
-      capabilities: roleCapabilities([]),
-      versions: [],
-      books: [],
-      detections: [],
+      capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false },
+      navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
+      versions: [], books: [], detections: [],
       libraryError: "No church organization is assigned to this account."
     };
   }
-
-  const roles = await query<{ role_id: string }>(
-    `select role_id from user_organization_roles
-     where user_id=$1 and organization_id=$2
-     order by role_id`,
-    [userId, organizationId]
-  );
-  const capabilities = roleCapabilities(roles.rows.map((row) => row.role_id));
+  const capabilities = context.roleCapabilities;
+  const navigationCapabilities = context.navigationCapabilities;
 
   let versions: Awaited<ReturnType<typeof listLocalBibleVersions>> = [];
   let books: Awaited<ReturnType<typeof listBibleBooks>> = [];
@@ -114,6 +89,7 @@ async function scripturePageData(userId: string) {
   return {
     service,
     capabilities,
+    navigationCapabilities,
     versions,
     books,
     detections: detections.rows,
@@ -143,9 +119,9 @@ export default async function ScripturePage() {
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
       {service ? <RealtimeRefresh serviceId={service.id} /> : null}
-      <StudioMobileNav capabilities={capabilities} />
+      <StudioMobileNav capabilities={data.navigationCapabilities} />
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
-        <StudioSidebar capabilities={capabilities} />
+        <StudioSidebar capabilities={data.navigationCapabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
           <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
             <div className="flex min-w-0 items-center gap-3">

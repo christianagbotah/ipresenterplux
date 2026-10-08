@@ -9,7 +9,7 @@ import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import { audienceQrSvg, canonicalAudienceUrl } from "@/lib/audience-links";
 import { query } from "@/lib/db";
-import { roleCapabilities } from "@/lib/role-capabilities";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
@@ -30,35 +30,13 @@ async function audienceOrigin() {
 }
 
 async function audiencePageData(userId: string) {
-  const services = await query<ServiceRow>(
-    `select s.id::text,s.organization_id::text,s.title,s.status
-     from services s
-     where exists (
-       select 1 from user_organization_roles uor
-       where uor.user_id=$1 and uor.organization_id=s.organization_id
-     )
-     order by case when s.status='live' then 0 when s.status='ready' then 1 when s.status='ended' then 2 else 3 end,s.created_at desc
-     limit 1`,
-    [userId]
-  );
-  const service = services.rows[0] ?? null;
-  let organizationId = service?.organization_id ?? null;
-  if (!organizationId) {
-    const membership = await query<{ organization_id: string }>(
-      `select organization_id::text from user_organization_roles
-       where user_id=$1 order by granted_at limit 1`,
-      [userId]
-    );
-    organizationId = membership.rows[0]?.organization_id ?? null;
-  }
-  if (!organizationId) return { service: null, capabilities: roleCapabilities([]), languages: [], scripture: null, caption: null, streamStatus: "idle" };
-
-  const roles = await query<{ role_id: string }>(
-    `select role_id from user_organization_roles where user_id=$1 and organization_id=$2::uuid order by role_id`,
-    [userId, organizationId]
-  );
-  const capabilities = roleCapabilities(roles.rows.map((row) => row.role_id));
-  if (!service) return { service: null, capabilities, languages: [], scripture: null, caption: null, streamStatus: "idle" };
+  const context = await getCurrentServiceForUser(userId);
+  if (!context) return { service: null, capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false }, navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false }, languages: [], scripture: null, caption: null, streamStatus: "idle" };
+  const service: ServiceRow | null = context.service ? { id: context.service.id, organization_id: context.service.organizationId, title: context.service.title, status: context.service.status } : null;
+  const organizationId = context.organizationId;
+  const capabilities = context.roleCapabilities;
+  const navigationCapabilities = context.navigationCapabilities;
+  if (!service) return { service: null, capabilities, navigationCapabilities, languages: [], scripture: null, caption: null, streamStatus: "idle" };
 
   const [languages, scriptures, transcripts, streams] = await Promise.all([
     query<LanguageRow>(
@@ -92,6 +70,7 @@ async function audiencePageData(userId: string) {
   return {
     service,
     capabilities,
+    navigationCapabilities,
     languages: languages.rows.map((row) => ({ name: row.language_name, mode: row.channel_mode, listeners: row.listener_count })),
     scripture: scriptures.rows[0] ? { reference: scriptures.rows[0].scripture_reference, text: scriptures.rows[0].passage_text } : null,
     caption: transcripts.rows[0]?.text ?? null,
@@ -112,9 +91,9 @@ export default async function AudiencePage() {
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
       {data.service ? <RealtimeRefresh serviceId={data.service.id} /> : null}
-      <StudioMobileNav capabilities={data.capabilities} />
+      <StudioMobileNav capabilities={data.navigationCapabilities} />
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
-        <StudioSidebar capabilities={data.capabilities} />
+        <StudioSidebar capabilities={data.navigationCapabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
           <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
             <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]"><Users size={19} /></div><div><h1 className="text-sm font-black sm:text-base">Audience Studio</h1><p className="text-[11px] text-white/35">QR · canonical links · public experience readiness</p></div></div>

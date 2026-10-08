@@ -27,8 +27,9 @@ import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
 import { roleCapabilities } from "@/lib/role-capabilities";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
@@ -150,38 +151,24 @@ type TranslationWorkerRow = {
 type TtsWorkerRow = TranslationWorkerRow;
 
 async function dashboardData(userId: string) {
-  const services = await query<ServiceRow>(
-    `select s.id,s.organization_id::text,s.title,s.status,s.active_bible_version,s.auto_preview_threshold::text
-     from services s
-     where exists (
-       select 1 from user_organization_roles uor
-       where uor.user_id=$1 and uor.organization_id=s.organization_id
-     )
-     order by case when s.status='live' then 0 when s.status='ready' then 1 else 2 end,s.created_at desc
-     limit 1`,
-    [userId]
-  );
+  const context = await getCurrentServiceForUser(userId, { client: db });
+  const organizationId = context?.organizationId;
+  const service: ServiceRow | undefined = context?.service ? {
+    id: context.service.id,
+    organization_id: context.service.organizationId,
+    title: context.service.title,
+    status: context.service.status,
+    active_bible_version: context.service.activeBibleVersion,
+    auto_preview_threshold: String(context.service.autoPreviewThreshold)
+  } : undefined;
 
-  let organizationId = services.rows[0]?.organization_id;
-  if (!organizationId) {
-    const membership = await query<{ organization_id: string }>(
-      "select organization_id::text from user_organization_roles where user_id=$1 order by granted_at limit 1",
-      [userId]
-    );
-    organizationId = membership.rows[0]?.organization_id;
+  if (!organizationId || !context) {
+    const emptyCapabilities = roleCapabilities([]);
+    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [], detectedSpeakers: [], syntheticVoices: [], voiceAdmin: false, capabilities: emptyCapabilities, navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false } };
   }
 
-  if (!organizationId) {
-    return { service: undefined, outputs: [], languages: [], detections: [], integrations: [], mediaSources: [], transcript: undefined, translationWorker: undefined, ttsWorker: undefined, speakerProfiles: [], detectedSpeakers: [], syntheticVoices: [], voiceAdmin: false, capabilities: roleCapabilities([]) };
-  }
-
-  const roleRows = await query<{ role_id: string }>(
-    `select role_id from user_organization_roles
-     where user_id=$1 and organization_id=$2
-     order by role_id`,
-    [userId, organizationId]
-  );
-  const capabilities = roleCapabilities(roleRows.rows.map((row) => row.role_id));
+  const capabilities = context.roleCapabilities;
+  const navigationCapabilities = context.navigationCapabilities;
 
   const voiceAdminResult = await query<{ allowed: boolean }>(
     `select exists(
@@ -218,7 +205,7 @@ async function dashboardData(userId: string) {
        where s.organization_id=$1
          and ($2::uuid is null or sd.service_id=$2::uuid)
        order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc limit 8`,
-      [organizationId, services.rows[0]?.id ?? null]
+      [organizationId, service?.id ?? null]
     ),
     query<IntegrationRow>(
       "select provider,status,integration_type from integrations where organization_id=$1 order by provider",
@@ -252,7 +239,7 @@ async function dashboardData(userId: string) {
          and ($2::uuid is null or ts.service_id=$2::uuid)
        order by ts.source_observed_at desc,ts.created_at desc,ts.id desc
        limit 1`,
-      [organizationId, services.rows[0]?.id ?? null]
+      [organizationId, service?.id ?? null]
     ),
     query<TranslationWorkerRow>(
       `select worker_id,provider,
@@ -282,11 +269,11 @@ async function dashboardData(userId: string) {
          and vp.consented_at is not null and vp.revoked_at is null
          and vp.source_speaker_id is not null and length(btrim(vp.source_speaker_id)) > 0
        order by active desc,vp.display_name,vp.id`,
-      [organizationId, services.rows[0]?.id ?? null]
+      [organizationId, service?.id ?? null]
     )
   ]);
 
-  const serviceId = services.rows[0]?.id ?? null;
+  const serviceId = service?.id ?? null;
   const detectedSpeakers = serviceId ? await query<DetectedSpeakerRow>(
     `select recent.speaker_id,recent.last_seen_at::text,b.voice_profile_id::text,vp.display_name as voice_name
      from (
@@ -315,7 +302,7 @@ async function dashboardData(userId: string) {
   ) : { rows: [] as SyntheticVoiceRow[] };
 
   return {
-    service: services.rows[0],
+    service,
     outputs: outputs.rows,
     languages: languages.rows,
     detections: detections.rows,
@@ -328,7 +315,8 @@ async function dashboardData(userId: string) {
     detectedSpeakers: voiceAdmin ? detectedSpeakers.rows : [],
     syntheticVoices: syntheticVoices.rows,
     voiceAdmin,
-    capabilities
+    capabilities,
+    navigationCapabilities
   };
 }
 
@@ -383,10 +371,10 @@ export default async function Home() {
   return (
     <main className="min-h-screen">
       {service ? <RealtimeRefresh serviceId={service.id} /> : <AutoRefresh intervalMs={15_000} />}
-      <StudioMobileNav capabilities={capabilities} />
+      <StudioMobileNav capabilities={data.navigationCapabilities} />
 
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
-        <StudioSidebar capabilities={capabilities} />
+        <StudioSidebar capabilities={data.navigationCapabilities} />
 
         <section className="min-w-0 pb-20 md:pb-0">
           <header className="sticky top-0 z-30 flex min-h-[72px] items-center justify-between border-b border-white/[.07] bg-[#090c12]/88 px-5 backdrop-blur-xl lg:px-7">
