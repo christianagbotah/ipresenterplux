@@ -122,8 +122,19 @@ try {
   assert.equal(model.program?.source, "scripture_detection");
   assert.equal(model.program?.id, liveScripture);
   assert.equal(model.program?.title, "John 3");
-  assert.match(model.program?.body ?? "", /For God so loved the world/);
-  assert.match(model.program?.body ?? "", /For God did not send his Son into the world/, "whole-chapter detection must include every local verse in the chapter");
+  const expectedChapter = await client.query(
+    `select bv.text
+       from bible_books bb
+       join bible_verses bv on bv.version_id=bb.version_id and bv.book_code=bb.book_code
+      where bb.version_id='WEBP' and lower(bb.canonical_name)=lower('John') and bv.chapter=3
+      order by bv.verse`,
+  );
+  assert.ok(expectedChapter.rowCount >= 2, "whole-chapter fixture must contain multiple verses");
+  assert.equal(
+    model.program?.body,
+    expectedChapter.rows.map((row) => row.text).join(" "),
+    "whole-chapter detection must include every local verse in canonical order"
+  );
   assert.equal(model.preview?.source, "presentation_item");
   assert.equal(model.preview?.id, previewItem);
   assert.equal(model.preview?.title, "Amazing Grace");
