@@ -20,6 +20,7 @@ export type ServiceContext = {
   campus_id: string | null;
   active_bible_version: string;
   auto_preview_threshold: string;
+  ai_enabled: boolean;
 };
 
 export type TranscriptInput = {
@@ -64,7 +65,7 @@ type BibleVerseRow = {
 
 export async function findServiceById(serviceId: string) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text
+    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
      from services where id=$1 limit 1`,
     [serviceId]
   );
@@ -73,7 +74,7 @@ export async function findServiceById(serviceId: string) {
 
 export async function findActiveServiceForDevice(organizationId: string, campusId: string | null) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text
+    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
      from services
      where organization_id=$1
        and status in ('live','ready')
@@ -393,7 +394,7 @@ export async function ingestTranscriptForService(
       (observedMs === cursorObservedMs && ordinal < cursorBeforeIngest.source_ordinal)
     );
     const staleForPreview = staleByTranscript || staleByCursor;
-    const nextState = !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
+    const nextState = service.ai_enabled && !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
       ? "preview"
       : "detected";
     if (nextState === "preview") {
