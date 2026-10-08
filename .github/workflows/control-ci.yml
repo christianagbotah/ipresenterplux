@@ -110,6 +110,8 @@ jobs:
         run: pnpm test:manual-scripture
       - name: Scripture workspace UI self-test
         run: pnpm test:scripture-workspace-ui
+      - name: Whole-chapter Scripture rendering self-test
+        run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test
         run: pnpm test:edge-operator-catalog
       - name: Scripture quote integration self-test

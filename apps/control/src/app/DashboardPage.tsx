@@ -165,7 +165,7 @@ async function dashboardData(userId: string) {
   let organizationId = services.rows[0]?.organization_id;
   if (!organizationId) {
     const membership = await query<{ organization_id: string }>(
-      "select organization_id::text from user_organization_roles where user_id=$1 order by created_at limit 1",
+      "select organization_id::text from user_organization_roles where user_id=$1 order by granted_at limit 1",
       [userId]
     );
     organizationId = membership.rows[0]?.organization_id;
@@ -211,7 +211,7 @@ async function dashboardData(userId: string) {
                 where bb.version_id=sd.bible_version
                   and lower(bb.canonical_name)=lower(sd.book)
                   and bv.chapter=sd.chapter
-                  and bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start)
+                  and (sd.verse_start is null or bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start))
               ) as passage_text
        from scripture_detections sd
        join services s on s.id=sd.service_id

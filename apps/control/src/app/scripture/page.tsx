@@ -101,7 +101,7 @@ async function scripturePageData(userId: string) {
               where bb.version_id=sd.bible_version
                 and lower(bb.canonical_name)=lower(sd.book)
                 and bv.chapter=sd.chapter
-                and bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start)
+                and (sd.verse_start is null or bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start))
             ) as passage_text
      from scripture_detections sd
      where sd.service_id=$1::uuid

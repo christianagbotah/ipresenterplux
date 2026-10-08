@@ -33,6 +33,13 @@ assert.deepEqual(
   expectedRoutes,
   "studio navigation must expose the approved route map without dead entries"
 );
+
+for (const route of studioRoutes) {
+  const pagePath = route.href === "/"
+    ? path.join(controlRoot, "src/app/page.tsx")
+    : path.join(controlRoot, `src/app${route.href}/page.tsx`);
+  assert.ok(existsSync(pagePath), `${route.label} must resolve to a real App Router page at ${route.href}`);
+}
 assert.equal(isStudioRouteActive("/", "/"), true);
 assert.equal(isStudioRouteActive("/scripture", "/"), false);
 assert.equal(isStudioRouteActive("/archive/123", "/archive"), true);
@@ -63,7 +70,15 @@ for (const filePath of [sidebarPath, mobilePath]) {
   assert.match(source, /usePathname\(/, `${path.basename(filePath)} must derive active state from the pathname`);
 }
 
+const readinessPath = path.join(controlRoot, "src/components/navigation/StudioReadinessPage.tsx");
+assert.ok(existsSync(readinessPath), "shared readiness shell must exist for connected-but-not-yet-full workspaces");
+const readiness = readFileSync(readinessPath, "utf8");
+assert.match(readiness, /order by uor\.granted_at/, "readiness membership ordering must use the real user_organization_roles.granted_at column");
+assert.doesNotMatch(readiness, /uor\.created_at/, "readiness shell must not query a nonexistent membership created_at column");
+
 const dashboard = readFileSync(dashboardPath, "utf8");
+assert.match(dashboard, /user_organization_roles where user_id=\$1 order by granted_at limit 1/, "Control Room no-service membership fallback must use granted_at");
+assert.doesNotMatch(dashboard, /user_organization_roles where user_id=\$1 order by created_at limit 1/, "Control Room must not query nonexistent membership created_at");
 assert.match(dashboard, /StudioSidebar/, "Control Room must render the shared desktop sidebar");
 assert.match(dashboard, /StudioMobileNav/, "Control Room must render the shared mobile navigation");
 assert.doesNotMatch(dashboard, /const\s+nav\s*=\s*\[/, "Control Room must not retain a second hard-coded studio route list");
