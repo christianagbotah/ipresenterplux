@@ -44,7 +44,10 @@
     "test:audience-studio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-studio-selftest.mjs",
     "test:audience-live-state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-live-state-selftest.mjs",
     "test:streaming-studio-recovery": "node scripts/streaming-studio-recovery-selftest.mjs",
-    "test:audience-streaming-ci": "node scripts/audience-streaming-ci-selftest.mjs"
+    "test:audience-streaming-ci": "node scripts/audience-streaming-ci-selftest.mjs",
+    "test:subscription-schema": "node scripts/subscription-schema-selftest.mjs",
+    "test:product-key": "node scripts/product-key-selftest.mjs",
+    "test:entitlement-signing": "node scripts/entitlement-signing-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
