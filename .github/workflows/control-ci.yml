@@ -158,6 +158,8 @@ jobs:
         run: pnpm test:cockpit-view-model
       - name: Predictive Next self-test
         run: pnpm test:cockpit-predictive-next
+      - name: Cockpit typed command self-test
+        run: pnpm test:cockpit-command
       - name: Predictive Next recommendation persistence self-test
         run: pnpm test:cockpit-recommendations
       - name: Intelligent Cockpit shell self-test
