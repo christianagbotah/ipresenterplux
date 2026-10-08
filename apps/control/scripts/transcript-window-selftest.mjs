@@ -25,7 +25,7 @@ const quoteUrl = await transpiledDataUrl(
 );
 const windowUrl = await transpiledDataUrl(new URL("../src/lib/transcript-window.ts", import.meta.url));
 const receiptUrl = await transpiledDataUrl(new URL("../src/lib/transcript-receipt.ts", import.meta.url));
-const translationUrl = await transpiledDataUrl(new URL("../src/lib/translation-jobs.ts", import.meta.url));
+const translationUrl = new URL("../src/lib/translation-jobs.ts", import.meta.url);
 const workerUrl = await transpiledDataUrl(new URL("../src/lib/translation-worker.ts", import.meta.url));
 const { matchScriptureQuote } = await import(quoteUrl);
 const { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } = await import(windowUrl);
@@ -55,6 +55,42 @@ try {
   assert.ok(service.rows[0]?.id, "Expected at least one service");
   const serviceId = service.rows[0].id;
   const organizationId = service.rows[0].organization_id;
+
+  const entitlementPlan = await client.query(
+    `insert into subscription_plans
+      (code,name,enabled,billing_interval,default_device_seat_limit,features,numeric_limits)
+     values ('transcript-selftest','Transcript self-test',true,'custom',1,
+       '{"translations.text":true,"translations.audio":true}'::jsonb,'{}'::jsonb)
+     on conflict (code) do update set
+       enabled=true,features=excluded.features,numeric_limits=excluded.numeric_limits
+     returning id::text`,
+  );
+  const currentSubscription = await client.query(
+    `select id::text
+     from organization_subscriptions
+     where organization_id=$1
+       and status in ('trial','active','past_due','suspended')
+     order by created_at desc,id desc
+     limit 1`,
+    [organizationId]
+  );
+  if (currentSubscription.rows[0]?.id) {
+    await client.query(
+      `update organization_subscriptions
+       set plan_id=$2,status='active',starts_at='2020-01-01T00:00:00Z',
+           expires_at='2200-01-01T00:00:00Z',grace_until='2200-01-08T00:00:00Z',updated_at=now()
+       where id=$1`,
+      [currentSubscription.rows[0].id, entitlementPlan.rows[0].id]
+    );
+  } else {
+    await client.query(
+      `insert into organization_subscriptions
+        (organization_id,plan_id,status,starts_at,expires_at,grace_until)
+       values ($1,$2,'active','2020-01-01T00:00:00Z','2200-01-01T00:00:00Z','2200-01-08T00:00:00Z')`,
+      [organizationId, entitlementPlan.rows[0].id]
+    );
+  }
+
   const firstAt = new Date("2099-01-01T10:00:00Z");
   const secondAt = new Date("2099-01-01T10:00:05Z");
 
