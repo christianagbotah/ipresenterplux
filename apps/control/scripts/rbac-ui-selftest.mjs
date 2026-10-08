@@ -46,9 +46,25 @@ const dashboardModule = await fs.readFile(new URL("../src/app/DashboardPage.tsx"
 const dashboardSource = `${page}\n${dashboardModule}`;
 assert.match(dashboardSource, /roleCapabilities/, "dashboard must use the shared role capability helper");
 assert.match(dashboardSource, /capabilities\.canLiveControl/, "dashboard must gate live controls");
-assert.match(dashboardSource, /capabilities\.canTranslations/, "dashboard must gate Translations navigation");
-assert.match(dashboardSource, /capabilities\.canStreaming/, "dashboard must gate Streaming navigation");
-assert.match(dashboardSource, /capabilities\.canSettings/, "dashboard must gate Settings navigation");
+
+const navModule = await import("../src/components/navigation/studio-routes.ts");
+assert.ok(navModule?.visibleStudioRoutes, "shared studio navigation capability filter must exist");
+const navigationCases = [
+  ["Translations", "canTranslations"],
+  ["Streaming", "canStreaming"],
+  ["Settings", "canSettings"]
+];
+for (const [label, capability] of navigationCases) {
+  const route = navModule.studioRoutes.find((item) => item.label === label);
+  assert.equal(route?.capability, capability, `${label} must declare ${capability} on the shared route model`);
+  const hidden = navModule.visibleStudioRoutes({ canTranslations: false, canStreaming: false, canSettings: false });
+  assert.equal(hidden.some((item) => item.label === label), false, `${label} must be hidden without ${capability}`);
+}
+
+const sidebarSource = await fs.readFile(new URL("../src/components/navigation/StudioSidebar.tsx", import.meta.url), "utf8");
+const mobileNavSource = await fs.readFile(new URL("../src/components/navigation/StudioMobileNav.tsx", import.meta.url), "utf8");
+assert.match(sidebarSource, /visibleStudioRoutes\(capabilities\)/, "desktop navigation must apply shared capability filtering");
+assert.match(mobileNavSource, /visibleStudioRoutes\(capabilities\)/, "mobile navigation must apply shared capability filtering");
 
 const operatorPage = await fs.readFile(new URL("../src/app/operator/page.tsx", import.meta.url), "utf8");
 assert.match(operatorPage, /data\.canStreaming/, "Operator page must gate Streaming navigation");
