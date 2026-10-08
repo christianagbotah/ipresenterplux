@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using iPresenterPlux.Edge.Core.Contracts;
 using NSec.Cryptography;
@@ -48,7 +47,7 @@ public static class EntitlementVerifier
         try
         {
             var algorithm = SignatureAlgorithm.Ed25519;
-            using var publicKey = PublicKey.Import(algorithm, keyBytes, KeyBlobFormat.RawPublicKey);
+            var publicKey = PublicKey.Import(algorithm, keyBytes, KeyBlobFormat.RawPublicKey);
             if (!algorithm.Verify(publicKey, raw, signature))
                 return new EntitlementValidation(EntitlementLeaseState.Invalid, payload, trustedNow, "invalid_signature");
         }
