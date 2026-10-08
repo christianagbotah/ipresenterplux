@@ -37,6 +37,8 @@
     "test:operator-workspace": "node scripts/operator-workspace-selftest.mjs",
     "test:studio-navigation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/studio-navigation-selftest.mjs",
     "test:studio-route-gating": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/studio-route-gating-selftest.mjs",
+    "test:studio-workspaces-ci": "node scripts/studio-workspaces-ci-selftest.mjs",
+    "test:studio-route-manifest": "node scripts/studio-route-manifest-selftest.mjs",
     "test:bible-library": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/bible-library-selftest.mjs",
     "test:manual-scripture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/manual-scripture-selftest.mjs",
     "test:scripture-workspace-ui": "node scripts/scripture-workspace-ui-selftest.mjs",

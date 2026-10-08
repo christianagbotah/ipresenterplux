@@ -164,6 +164,8 @@ jobs:
         run: pnpm test:archive
       - name: Studio route gating self-test
         run: pnpm test:studio-route-gating
+      - name: Studio workspace acceptance self-test
+        run: pnpm test:studio-workspaces-ci
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
@@ -231,3 +233,5 @@ jobs:
           echo "MediaMTX v${version} accepted the production configuration."
       - name: Production build
         run: pnpm build
+      - name: Validate Studio route manifest
+        run: pnpm test:studio-route-manifest
