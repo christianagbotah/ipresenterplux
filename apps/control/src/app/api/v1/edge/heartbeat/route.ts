@@ -3,6 +3,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { registerEdgeEvent } from "@/lib/edge-events";
+import { publishServiceEvent } from "@/lib/realtime";
+import { reconcileStaleStreamSession } from "@/lib/stream-session-authority";
 
 const schema = z.object({
   eventId: z.string().uuid(),
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
       }
       const health = { status: payload.status, observedAt: payload.observedAt, cpuPercent: payload.cpuPercent,
         memoryPercent: payload.memoryPercent, uplinkMbps: payload.uplinkMbps ?? null };
-      await client.query(
+      const edgeUpdate = await client.query<{ active_service_id: string | null }>(
         `update edge_devices
          set status='active',
              software_version=case when last_seen_at is null or $5::timestamptz >= last_seen_at then $2 else software_version end,
@@ -53,11 +55,30 @@ export async function POST(request: Request) {
                then metadata || jsonb_build_object('lastHealth',$4::jsonb) else metadata end,
              last_seen_at=greatest(coalesce(last_seen_at,'epoch'::timestamptz),$5::timestamptz),
              updated_at=now()
-         where id=$1`,
+         where id=$1
+         returning active_service_id::text`,
         [device.deviceId,payload.version,JSON.stringify(payload.capabilities),JSON.stringify(health),payload.observedAt]
       );
+      const activeServiceId = edgeUpdate.rows[0]?.active_service_id ?? null;
+      const streamTransition = activeServiceId
+        ? await reconcileStaleStreamSession(client, activeServiceId)
+        : null;
       await client.query("commit");
-      return NextResponse.json({ ok: true, duplicate: false, eventId: payload.eventId, deviceId: device.deviceId, receivedAt: new Date().toISOString() });
+      if (activeServiceId && streamTransition) {
+        await publishServiceEvent(activeServiceId, "stream.session.changed", {
+          streamSessionId: streamTransition.sessionId,
+          status: streamTransition.status,
+          reason: "heartbeat_reconciliation"
+        });
+      }
+      return NextResponse.json({
+        ok: true,
+        duplicate: false,
+        eventId: payload.eventId,
+        deviceId: device.deviceId,
+        streamReconciled: streamTransition?.status ?? null,
+        receivedAt: new Date().toISOString()
+      });
     } catch (error) { await client.query("rollback"); throw error; } finally { client.release(); }
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ ok: false, error: "Invalid heartbeat payload", issues: error.issues }, { status: 400 });
