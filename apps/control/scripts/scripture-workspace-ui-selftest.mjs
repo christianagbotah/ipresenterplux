@@ -6,19 +6,23 @@ const root = path.resolve(import.meta.dirname, "..");
 const pagePath = path.join(root, "src/app/scripture/page.tsx");
 const workspacePath = path.join(root, "src/components/scripture/ScriptureWorkspace.tsx");
 const libraryRoutePath = path.join(root, "src/app/api/v1/scriptures/library/route.ts");
+const currentServicePath = path.join(root, "src/lib/current-service.ts");
 
-for (const file of [pagePath, workspacePath, libraryRoutePath]) {
+for (const file of [pagePath, workspacePath, libraryRoutePath, currentServicePath]) {
   assert.ok(existsSync(file), `${path.relative(root, file)} must exist`);
 }
 
 const page = readFileSync(pagePath, "utf8");
 const workspace = readFileSync(workspacePath, "utf8");
 const libraryRoute = readFileSync(libraryRoutePath, "utf8");
+const currentService = readFileSync(currentServicePath, "utf8");
 
 assert.match(page, /auth\(\)/, "Scripture page must require authentication");
 assert.match(page, /StudioSidebar/, "Scripture page must use shared desktop navigation");
 assert.match(page, /StudioMobileNav/, "Scripture page must use shared mobile navigation");
-assert.match(page, /case when s\.status='live' then 0 when s\.status='ready' then 1 else 2 end/, "Scripture page must use current-service ordering");
+assert.match(page, /getCurrentServiceForUser/, "Scripture page must delegate service selection to the shared resolver");
+assert.match(currentService, /status in \('live','ready'\)/, "shared resolver must limit current service to live/ready");
+assert.match(currentService, /case s\.status when 'live' then 0 else 1 end/, "shared resolver must rank live ahead of ready");
 assert.match(page, /state <> 'dismissed'/, "Scripture page must load recent actionable/history detections");
 assert.match(page, /ScriptureWorkspace/, "Scripture page must render the workspace");
 
