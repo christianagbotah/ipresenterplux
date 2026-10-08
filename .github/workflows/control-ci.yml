@@ -156,6 +156,8 @@ jobs:
         run: pnpm test:operator-workspace
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
+      - name: Cameras workspace self-test
+        run: pnpm test:camera-workspace
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
