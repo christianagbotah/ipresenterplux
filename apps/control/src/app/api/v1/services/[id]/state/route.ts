@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { validatePlannerReadiness } from "@/lib/planner-readiness";
 import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
+import { finalizeStreamsForEndedService, type EndedServiceStreamResult } from "@/lib/service-stream-lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,15 @@ export async function PATCH(request: Request, context: RouteContext) {
         }
       }
 
+      let streamFinalization: EndedServiceStreamResult | null = null;
+      if (state === "ended") {
+        streamFinalization = await finalizeStreamsForEndedService(client, {
+          serviceId: id,
+          organizationId: row.organization_id,
+          actorId: session.user.id
+        });
+      }
+
       const updated = await client.query<{
         id: string;
         title: string;
@@ -143,7 +153,7 @@ export async function PATCH(request: Request, context: RouteContext) {
                else started_at
              end,
              ended_at=case
-               when $2='ended' then now()
+               when $2='ended' then coalesce(ended_at,now())
                when $2 in ('ready','live') then null
                else ended_at
              end,
@@ -225,6 +235,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         from: row.status,
         to: state
       });
+      if (streamFinalization?.endedSessionIds.length) {
+        await publishServiceEvent(id, "stream.session.changed", {
+          status: "ended",
+          streamSessionIds: streamFinalization.endedSessionIds,
+          stopRequestedForDeviceId: streamFinalization.stopRequestedForDeviceId,
+          reason: "service_ended"
+        });
+      }
       return NextResponse.json({
         ok: true,
         service: updated.rows[0],

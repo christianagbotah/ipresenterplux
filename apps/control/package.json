@@ -39,7 +39,8 @@
     "test:bible-library": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/bible-library-selftest.mjs",
     "test:manual-scripture": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/manual-scripture-selftest.mjs",
     "test:scripture-workspace-ui": "node scripts/scripture-workspace-ui-selftest.mjs",
-    "test:scripture-whole-chapter": "node scripts/scripture-whole-chapter-selftest.mjs"
+    "test:scripture-whole-chapter": "node scripts/scripture-whole-chapter-selftest.mjs",
+    "test:service-stream-lifecycle": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-stream-lifecycle-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
