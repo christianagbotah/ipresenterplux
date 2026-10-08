@@ -41,7 +41,8 @@
     "test:scripture-workspace-ui": "node scripts/scripture-workspace-ui-selftest.mjs",
     "test:scripture-whole-chapter": "node scripts/scripture-whole-chapter-selftest.mjs",
     "test:service-stream-lifecycle": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-stream-lifecycle-selftest.mjs",
-    "test:audience-studio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-studio-selftest.mjs"
+    "test:audience-studio": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-studio-selftest.mjs",
+    "test:audience-live-state": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-live-state-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

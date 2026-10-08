@@ -25,11 +25,11 @@ export async function GET(request: Request) {
   }
 
   const service = await query<{ id: string }>(
-    "select id from services where id=$1 and status='live' limit 1",
+    "select id from services where id=$1 limit 1",
     [serviceId]
   );
   if (!service.rowCount) {
-    return new Response("Live service not found", { status: 404 });
+    return new Response("Service not found", { status: 404 });
   }
 
   const encoder = new TextEncoder();
