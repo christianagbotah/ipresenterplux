@@ -13,7 +13,7 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
       <span className="text-[10px] text-white/28">{program ? "Audience output" : "Safe staging"}</span>
     </header>
     <div className={`ip-grid flex aspect-video min-h-60 items-center justify-center p-5 text-center ${program ? "lg:min-h-[360px]" : "lg:min-h-[300px]"}`}>
-      {item ? <div className="max-w-2xl"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-white/28">{item.contentType.replaceAll("_", " ")}</div><h2 className={`${program ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"} mt-3 font-black tracking-tight text-white/90`}>{item.title}</h2>{item.detail ? <div className="mt-3 text-sm text-white/40">{item.detail}</div> : null}</div> : <div className="text-sm text-white/22">{program ? "Nothing on Program" : "Nothing in Preview"}</div>}
+      {item ? <div className="max-w-2xl"><div className="text-[10px] font-bold uppercase tracking-[.18em] text-white/28">{item.contentType.replaceAll("_", " ")}</div><h2 className={`${program ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"} mt-3 font-black tracking-tight text-white/90`}>{item.title}</h2>{item.body ? <div className={`${program ? "text-lg sm:text-xl" : "text-base sm:text-lg"} mt-4 whitespace-pre-wrap leading-relaxed text-white/78`}>{item.body}</div> : null}{item.detail ? <div className="mt-3 text-sm text-white/40">{item.detail}</div> : null}</div> : <div className="text-sm text-white/22">{program ? "Nothing on Program" : "Nothing in Preview"}</div>}
     </div>
   </section>;
 }

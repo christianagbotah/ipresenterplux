@@ -85,7 +85,7 @@ try {
   );
   await client.query(
     `insert into scripture_detections(id,service_id,scripture_reference,book,chapter,verse_start,verse_end,bible_version,source_text,confidence,state,detected_at,source_observed_at,source_ordinal,detection_method)
-     values ($1,$2,'John 3:16','John',3,16,16,'WEBP','John chapter three verse sixteen',97,'live','2099-04-12T09:59:42Z','2099-04-12T09:59:41Z',1,'reference')`,
+     values ($1,$2,'John 3','John',3,null,null,'WEBP','John chapter three',97,'live','2099-04-12T09:59:42Z','2099-04-12T09:59:41Z',1,'reference')`,
     [liveScripture, liveService]
   );
   await client.query(
@@ -121,7 +121,9 @@ try {
   assert.equal(model.service?.title, "Live Worship");
   assert.equal(model.program?.source, "scripture_detection");
   assert.equal(model.program?.id, liveScripture);
-  assert.equal(model.program?.title, "John 3:16");
+  assert.equal(model.program?.title, "John 3");
+  assert.match(model.program?.body ?? "", /For God so loved the world/);
+  assert.match(model.program?.body ?? "", /For God did not send his Son into the world/, "whole-chapter detection must include every local verse in the chapter");
   assert.equal(model.preview?.source, "presentation_item");
   assert.equal(model.preview?.id, previewItem);
   assert.equal(model.preview?.title, "Amazing Grace");
@@ -147,7 +149,8 @@ try {
     programPreviewSeparated: true,
     staleBoundarySeconds: 120,
     plannerNeighborhood: true,
-    edgeTruth: true
+    edgeTruth: true,
+    wholeChapterBody: true
   }));
 } catch (error) {
   await client.query("rollback").catch(() => {});

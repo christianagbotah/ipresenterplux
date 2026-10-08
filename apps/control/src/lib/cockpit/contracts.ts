@@ -11,6 +11,7 @@ export type CockpitStageState = {
   state: "preview" | "live";
   observedAt: string | null;
   detail: string | null;
+  body: string | null;
 };
 
 export type CockpitProgramState = CockpitStageState;

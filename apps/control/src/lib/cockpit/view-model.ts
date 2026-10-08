@@ -26,6 +26,7 @@ type ScriptureRow = {
   confidence: string | number;
   source_observed_at: string;
   bible_version: string;
+  passage_text: string | null;
 };
 
 type TranscriptRow = {
@@ -86,7 +87,8 @@ function stageFromPresentation(row: PresentationRow | undefined): CockpitStageSt
     title: row.title,
     state: row.state,
     observedAt: row.updated_at,
-    detail: null
+    detail: null,
+    body: null
   };
 }
 
@@ -99,7 +101,8 @@ function stageFromScripture(row: ScriptureRow | undefined): CockpitStageState | 
     title: row.scripture_reference,
     state: row.state,
     observedAt: row.source_observed_at,
-    detail: row.bible_version
+    detail: row.bible_version,
+    body: row.passage_text
   };
 }
 
@@ -139,10 +142,19 @@ export async function getCockpitViewModel(
     : { rows: [] as PresentationRow[] };
   const scriptureResult = serviceId
     ? await client.query<ScriptureRow>(
-        `select id::text,scripture_reference,state,confidence,bible_version,source_observed_at::text
-           from scripture_detections
-          where service_id=$1 and state <> 'dismissed'
-          order by source_observed_at desc,source_ordinal desc,detected_at desc,id desc`,
+        `select sd.id::text,sd.scripture_reference,sd.state,sd.confidence,sd.bible_version,sd.source_observed_at::text,
+                (
+                  select string_agg(bv.text, ' ' order by bv.verse)
+                  from bible_books bb
+                  join bible_verses bv on bv.version_id=bb.version_id and bv.book_code=bb.book_code
+                  where bb.version_id=sd.bible_version
+                    and lower(bb.canonical_name)=lower(sd.book)
+                    and bv.chapter=sd.chapter
+                    and (sd.verse_start is null or bv.verse between sd.verse_start and coalesce(sd.verse_end,sd.verse_start))
+                ) as passage_text
+           from scripture_detections sd
+          where sd.service_id=$1 and sd.state <> 'dismissed'
+          order by sd.source_observed_at desc,sd.source_ordinal desc,sd.detected_at desc,sd.id desc`,
         [serviceId]
       )
     : { rows: [] as ScriptureRow[] };
