@@ -156,6 +156,8 @@ jobs:
         run: pnpm test:operator-workspace
       - name: Intelligent Cockpit view-model self-test
         run: pnpm test:cockpit-view-model
+      - name: Intelligent Cockpit shell self-test
+        run: pnpm test:cockpit-shell
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
