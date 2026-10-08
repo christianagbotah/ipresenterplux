@@ -34,7 +34,8 @@
     "test:demo-users": "node scripts/demo-users-db-selftest.mjs",
     "test:deployment-contract": "node scripts/deployment-contract-selftest.mjs",
     "test:db-selftest-safety": "node scripts/db-selftest-safety-selftest.mjs",
-    "test:operator-workspace": "node scripts/operator-workspace-selftest.mjs"
+    "test:operator-workspace": "node scripts/operator-workspace-selftest.mjs",
+    "test:studio-navigation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/studio-navigation-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -10,16 +10,10 @@ import {
   CircleDot,
   Cloud,
   Languages,
-  LayoutDashboard,
   MonitorPlay,
-  Music2,
-  Settings2,
   Sparkles,
-  Users,
-  Video,
   Wifi
 } from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { AutoRefresh } from "@/components/AutoRefresh";
@@ -31,6 +25,8 @@ import { SpeakerVoiceBindings } from "@/components/SpeakerVoiceBindings";
 import { OutputControls } from "@/components/OutputControls";
 import { AudienceAccessCard } from "@/components/audience/AudienceAccessCard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { StudioSidebar } from "@/components/navigation/StudioSidebar";
+import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { query } from "@/lib/db";
 import { roleCapabilities } from "@/lib/role-capabilities";
 
@@ -358,18 +354,6 @@ function Pill({ status }: { status: string }) {
   );
 }
 
-const nav = [
-  ["Control Room", LayoutDashboard, null],
-  ["Scripture", BookOpen, null],
-  ["Songs & Media", Music2, null],
-  ["Cameras", Camera, null],
-  ["AI Director", Bot, null],
-  ["Translations", Languages, "/translations"],
-  ["Streaming", RadioTower, "/streaming"],
-  ["Audience", Users, null],
-  ["Archive", Video, null]
-] as const;
-
 export default async function Home() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -399,44 +383,12 @@ export default async function Home() {
   return (
     <main className="min-h-screen">
       {service ? <RealtimeRefresh serviceId={service.id} /> : <AutoRefresh intervalMs={15_000} />}
+      <StudioMobileNav capabilities={capabilities} />
 
-      <div className="grid min-h-screen grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
-        <aside className="sticky top-0 h-screen border-r border-white/[.07] bg-[#080b10]/95 px-3 py-4 backdrop-blur-xl xl:px-4">
-          <div className="mb-7 flex items-center gap-3 px-1 xl:px-2">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#d7a94a]/30 bg-[#d7a94a]/10 text-[#f2c765] shadow-[0_0_35px_rgba(215,169,74,.08)]">
-              <MonitorPlay size={22} />
-            </div>
-            <div className="hidden min-w-0 xl:block">
-              <div className="truncate text-sm font-extrabold tracking-tight">iPresenterPlux</div>
-              <div className="truncate text-[10px] uppercase tracking-[.22em] text-white/35">AI Church Studio</div>
-            </div>
-          </div>
+      <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
+        <StudioSidebar capabilities={capabilities} />
 
-          <nav className="space-y-1">
-            {nav.map(([label, Icon, href], index) => {
-              if (label === "Translations" && !capabilities.canTranslations) return null;
-              if (label === "Streaming" && !capabilities.canStreaming) return null;
-              const className =
-                "group flex w-full items-center justify-center gap-3 rounded-xl px-3 py-3 text-left transition xl:justify-start " +
-                (index === 0
-                  ? "border border-[#d7a94a]/20 bg-[#d7a94a]/10 text-[#f2c765]"
-                  : "text-white/45 hover:bg-white/[.04] hover:text-white/80");
-              const content = <><Icon size={18} /><span className="hidden text-sm font-medium xl:inline">{label}</span></>;
-              return href ? <Link key={label} href={href} className={className}>{content}</Link> : <button key={label} className={className}>{content}</button>;
-            })}
-          </nav>
-
-          {capabilities.canSettings ? (
-            <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">
-              <Link href="/settings" className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-3 text-white/45 hover:text-white xl:justify-start">
-                <Settings2 size={18} />
-                <span className="hidden text-sm xl:inline">Settings</span>
-              </Link>
-            </div>
-          ) : null}
-        </aside>
-
-        <section className="min-w-0">
+        <section className="min-w-0 pb-20 md:pb-0">
           <header className="sticky top-0 z-30 flex min-h-[72px] items-center justify-between border-b border-white/[.07] bg-[#090c12]/88 px-5 backdrop-blur-xl lg:px-7">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
