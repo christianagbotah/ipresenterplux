@@ -43,9 +43,12 @@ assert.deepEqual(roleModule.roleCapabilities(["viewer", "translator"]), {
 
 const page = await fs.readFile(new URL("../src/app/page.tsx", import.meta.url), "utf8");
 const dashboardModule = await fs.readFile(new URL("../src/app/DashboardPage.tsx", import.meta.url), "utf8");
+const cockpitViewModelSource = await fs.readFile(new URL("../src/lib/cockpit/view-model.ts", import.meta.url), "utf8");
+const programPreviewSource = await fs.readFile(new URL("../src/components/cockpit/ProgramPreviewStage.tsx", import.meta.url), "utf8");
 const dashboardSource = `${page}\n${dashboardModule}`;
-assert.match(dashboardSource, /roleCapabilities/, "dashboard must use the shared role capability helper");
-assert.match(dashboardSource, /capabilities\.canLiveControl/, "dashboard must gate live controls");
+assert.match(dashboardSource, /getCockpitViewModel/, "dashboard must use the authoritative Cockpit view model");
+assert.match(cockpitViewModelSource, /getCurrentServiceForUser/, "Cockpit view model must use shared service/RBAC context");
+assert.match(programPreviewSource, /model\.capabilities\.canLiveControl/, "shared Program/Preview stage must gate live controls from server capabilities");
 
 const navModule = await import("../src/components/navigation/studio-routes.ts");
 assert.ok(navModule?.visibleStudioRoutes, "shared studio navigation capability filter must exist");
@@ -67,8 +70,8 @@ assert.match(sidebarSource, /visibleStudioRoutes\(capabilities\)/, "desktop navi
 assert.match(mobileNavSource, /visibleStudioRoutes\(capabilities\)/, "mobile navigation must apply shared capability filtering");
 
 const operatorPage = await fs.readFile(new URL("../src/app/operator/page.tsx", import.meta.url), "utf8");
-assert.match(operatorPage, /data\.canStreaming/, "Operator page must gate Streaming navigation");
-assert.match(operatorPage, /data\.canSettings/, "Operator page must gate Settings navigation");
+assert.match(operatorPage, /getCockpitViewModel/, "Operator compatibility route must use the authoritative Cockpit view model");
+assert.match(operatorPage, /CockpitWorkspace/, "Operator compatibility route must render the shared capability-filtered Cockpit");
 
 const devicesPage = await fs.readFile(new URL("../src/app/settings/devices/page.tsx", import.meta.url), "utf8");
 assert.match(devicesPage, /if \(!canManage\) redirect\("\/"\)/, "Edge Devices page must reject non-admin direct access");
