@@ -61,7 +61,8 @@
     "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs",
     "test:cockpit-view-model": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-view-model-selftest.mjs",
     "test:cockpit-shell": "node scripts/cockpit-shell-selftest.mjs",
-    "test:cockpit-focus": "node scripts/cockpit-focus-mode-selftest.mjs"
+    "test:cockpit-focus": "node scripts/cockpit-focus-mode-selftest.mjs",
+    "test:cockpit-recommendations": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-recommendations-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
