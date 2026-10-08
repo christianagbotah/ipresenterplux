@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ListEnd, Pin } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
+import { NextItemActions } from "./NextItemActions";
 
 export function NextRail({ model }: { model: CockpitViewModel }) {
   return (
@@ -17,9 +18,11 @@ export function NextRail({ model }: { model: CockpitViewModel }) {
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-white/75">{item.title}</div>
                 <div className="mt-1 text-[11px] text-white/30">{item.targetType.replaceAll("_", " ")} · {item.reason ?? item.source}</div>
+                {item.confidence !== null ? <div className="mt-1 text-[10px] font-bold text-emerald-300/75">{Math.round(item.confidence)}% confidence</div> : null}
               </div>
               {item.source === "pinned" ? <Pin size={13} className="text-[#e1b75e]" /> : null}
             </div>
+            {model.service ? <NextItemActions item={item} organizationId={model.organization.id} serviceId={model.service.id} canControl={model.capabilities.canLiveControl} /> : null}
           </div>
         )) : <div className="rounded-xl border border-dashed border-white/[.08] p-6 text-center text-xs leading-5 text-white/32">No queued item. The service can still be operated manually.</div>}
       </div>

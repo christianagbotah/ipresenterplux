@@ -2,10 +2,10 @@ import type { PoolClient } from "pg";
 import { getCurrentServiceForUser } from "../current-service.ts";
 import type {
   CockpitFreshness,
-  CockpitNextItem,
   CockpitStageState,
   CockpitViewModel
 } from "./contracts.ts";
+import { projectPredictiveNext } from "./predictive-next.ts";
 
 const FRESHNESS_MS = 120_000;
 
@@ -199,23 +199,9 @@ export async function getCockpitViewModel(
   const outputs = outputResult.rows[0] ?? { total: 0, enabled: 0, healthy: 0, degraded: 0 };
   const languages = languageResult.rows[0] ?? { enabled: 0, listeners: 0 };
 
-  const next: CockpitNextItem[] = presentationResult.rows
-    .filter((row) => row.state === "queued")
-    .slice(0, 8)
-    .map((row) => ({
-      id: row.id,
-      source: "planned",
-      targetType: row.item_type,
-      targetId: row.id,
-      title: row.title,
-      state: row.state,
-      sortOrder: row.sort_order,
-      confidence: null,
-      reason: "Planned service rundown",
-      observedAt: row.updated_at,
-      freshUntil: null,
-      actions: ["preview", "open", "pin"]
-    }));
+  const next = serviceId
+    ? await projectPredictiveNext(client, { organizationId, serviceId, now })
+    : [];
 
   return {
     organization: { id: organizationId, name: context.organizationName },

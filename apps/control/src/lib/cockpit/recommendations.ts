@@ -46,9 +46,14 @@ async function requireOperator(client: PoolClient, actorUserId: string, organiza
 
 export async function listCockpitRecommendations(client: PoolClient, input:{organizationId:string;serviceId:string;now?:Date}) {
   const now=input.now ?? new Date();
-  await client.query(`update cockpit_recommendations set state='expired',updated_at=$3 where organization_id=$1 and service_id=$2 and state in ('suggested','prepared') and expires_at <= $3`,[input.organizationId,input.serviceId,now]);
   const result=await client.query<RecommendationRow>(`${REC_SELECT} where organization_id=$1 and service_id=$2 order by case state when 'prepared' then 0 when 'suggested' then 1 when 'accepted' then 2 when 'dismissed' then 3 else 4 end,confidence desc,source_observed_at desc,id desc`,[input.organizationId,input.serviceId]);
-  return result.rows.map(mapRecommendation);
+  return result.rows.map((row) => {
+    const recommendation=mapRecommendation(row);
+    if ((recommendation.state === "suggested" || recommendation.state === "prepared") && new Date(recommendation.expiresAt).getTime() <= now.getTime()) {
+      return { ...recommendation, state: "expired" as const };
+    }
+    return recommendation;
+  });
 }
 
 export async function upsertCockpitRecommendation(client: PoolClient, input:{organizationId:string;serviceId:string;sourceKey:string;recommendationType:string;targetType:string;targetId?:string|null;payload?:Record<string,unknown>;confidence:number;reason:string;evidence?:string;sourceObservedAt:Date;expiresAt:Date;state?:CockpitRecommendationState;previewResultType?:string|null;previewResultId?:string|null;now?:Date}) {

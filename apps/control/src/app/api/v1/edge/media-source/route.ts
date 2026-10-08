@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { registerEdgeEvent } from "@/lib/edge-events";
 import { publishServiceEvent } from "@/lib/realtime";
+import { upsertCockpitRecommendation } from "@/lib/cockpit/recommendations";
 
 const schema = z.object({
   eventId: z.string().uuid(),
@@ -57,8 +58,8 @@ export async function POST(request: Request) {
         await client.query("rollback");
         return NextResponse.json({ ok: false, error: "Media source name is owned by another Edge device" }, { status: 409 });
       }
-      const active = await client.query<{ id: string }>(
-        `select d.active_service_id::text as id
+      const active = await client.query<{ id: string; ai_enabled: boolean }>(
+        `select d.active_service_id::text as id,s.ai_enabled
            from edge_devices d
            join services s on s.id=d.active_service_id
           where d.id=$1
@@ -74,6 +75,17 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: "Media source service is not assigned to this Edge device" }, { status: 409 });
       }
       activeServiceId = active.rows[0]?.id;
+      const activeService = active.rows[0];
+      if (activeService?.ai_enabled && ["camera","video_input","video_capture"].includes(payload.sourceType) && ["ready","live"].includes(payload.status)) {
+        const observedAt = new Date(payload.observedAt);
+        await upsertCockpitRecommendation(client, {
+          organizationId: device.organizationId, serviceId: activeService.id, sourceKey: `camera:${updated.rows[0].id}`,
+          recommendationType: "camera.available", targetType: "camera_source", targetId: updated.rows[0].id,
+          payload: { status: payload.status, sourceType: payload.sourceType }, confidence: 70,
+          reason: `${payload.name} is available from the active Edge`, evidence: "Fresh Edge camera telemetry",
+          sourceObservedAt: observedAt, expiresAt: new Date(observedAt.getTime()+120_000), state: "suggested", now: observedAt
+        });
+      }
       await client.query("commit");
       if (activeServiceId) await publishServiceEvent(activeServiceId, "media.source.status", { sourceId: payload.sourceId, name: payload.name, status: payload.status });
       return NextResponse.json({ ok: true, duplicate: false, eventId: payload.eventId, mediaSourceId: updated.rows[0].id, status: updated.rows[0].status });

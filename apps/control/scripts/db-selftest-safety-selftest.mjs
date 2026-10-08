@@ -51,6 +51,7 @@ const protectedScripts = [
   "audience-live-state-selftest.mjs",
   "camera-workspace-selftest.mjs",
   "cockpit-view-model-selftest.mjs",
+  "cockpit-predictive-next-selftest.mjs",
   "cockpit-recommendations-selftest.mjs",
   "edge-operator-catalog-selftest.mjs",
   "licensing-admin-selftest.mjs",
