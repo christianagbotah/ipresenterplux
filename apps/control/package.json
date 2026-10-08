@@ -51,7 +51,8 @@
     "test:activation-api": "node scripts/activation-api-selftest.mjs",
     "test:licensing-admin": "node scripts/licensing-admin-selftest.mjs",
     "test:entitlement-gating": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/entitlement-gating-selftest.mjs",
-    "test:licensing-release-security": "node scripts/licensing-release-security-selftest.mjs"
+    "test:licensing-release-security": "node scripts/licensing-release-security-selftest.mjs",
+    "test:media-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/media-workspace-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -49,6 +49,7 @@ const protectedScripts = [
   "audience-live-state-selftest.mjs",
   "edge-operator-catalog-selftest.mjs",
   "licensing-admin-selftest.mjs",
+  "media-workspace-selftest.mjs",
   "service-planner-item-selftest.mjs",
   "service-planner-mutation-selftest.mjs",
   "service-planner-readiness-selftest.mjs",

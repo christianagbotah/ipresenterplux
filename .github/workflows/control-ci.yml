@@ -154,6 +154,8 @@ jobs:
         run: pnpm test:rbac-ui
       - name: Operator workspace safety self-test
         run: pnpm test:operator-workspace
+      - name: Songs and Media workspace self-test
+        run: pnpm test:media-workspace
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
