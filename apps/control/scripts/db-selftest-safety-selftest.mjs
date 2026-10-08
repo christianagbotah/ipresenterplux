@@ -58,6 +58,7 @@ const protectedScripts = [
   "stream-fanout-selftest.mjs",
   "stream-provider-health-selftest.mjs",
   "stream-session-authority-selftest.mjs",
+  "subscription-schema-selftest.mjs",
   "transcript-window-selftest.mjs",
   "translation-worker-selftest.mjs",
   "tts-worker-selftest.mjs",
