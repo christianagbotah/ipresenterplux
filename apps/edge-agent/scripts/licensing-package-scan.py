@@ -11,7 +11,7 @@ root = Path(sys.argv[1]).resolve()
 if not root.is_dir():
     raise SystemExit(f"package directory not found: {root}")
 
-private_pem = b"-----BEGIN PRIVATE KEY-----"
+private_pem = re.compile(rb"-----BEGIN (?P<label>(?:[A-Z0-9]+ )?PRIVATE KEY)-----[\r\n]+[A-Za-z0-9+/=\r\n]{40,}-----END (?P=label)-----")
 private_env = b"IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM"
 product_key = re.compile(rb"IPLX-(?:[A-HJ-NP-Z2-9]{4}-){4}[A-HJ-NP-Z2-9]{4}")
 placeholder = b"IPLX-XXXX-XXXX-XXXX-XXXX-XXXX"
@@ -22,7 +22,7 @@ for file in root.rglob("*"):
         continue
     scanned += 1
     data = file.read_bytes()
-    if private_pem in data:
+    if private_pem.search(data):
         raise SystemExit(f"private signing key material found in package: {file.relative_to(root)}")
     if private_env in data:
         raise SystemExit(f"server-only signing-key environment name found in package: {file.relative_to(root)}")

@@ -70,7 +70,8 @@ assert.match(edgeCi, /licensing-package-scan\.py/);
 
 const packageScannerPath = path.join(repoRoot, "apps/edge-agent/scripts/licensing-package-scan.py");
 const packageScanner = await read("apps/edge-agent/scripts/licensing-package-scan.py");
-assert.match(packageScanner, /BEGIN PRIVATE KEY/);
+assert.match(packageScanner, /PRIVATE KEY/);
+assert.match(packageScanner, /END \(\?P=label\)/);
 assert.match(packageScanner, /IPLX-/);
 assert.match(packageScanner, /settings\.json/);
 
@@ -84,9 +85,11 @@ try {
     await import("node:fs/promises").then(({ mkdir }) => mkdir(directory, { recursive: true }));
   }
   await writeFile(path.join(safe, "settings.json"), JSON.stringify({ controlPlaneUrl: "https://control.example" }));
-  assert.equal(spawnSync("python3", [packageScannerPath, safe]).status, 0, "safe package must pass secret scan");
+  await writeFile(path.join(safe, "cryptography-library.bin"), `parser metadata: ${privatePemHeader} label only`);
+  assert.equal(spawnSync("python3", [packageScannerPath, safe]).status, 0, "library PEM labels without key material must pass secret scan");
 
-  await writeFile(path.join(privateLeak, "payload.txt"), privatePemHeader + "\nnot-a-real-key");
+  const privatePem = `${privatePemHeader}\nMC4CAQAwBQYDK2VwBCIEIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n-----END PRIVATE KEY-----\n`;
+  await writeFile(path.join(privateLeak, "payload.txt"), privatePem);
   assert.notEqual(spawnSync("python3", [packageScannerPath, privateLeak]).status, 0, "private key material must fail package scan");
 
   await writeFile(path.join(keyLeak, "payload.txt"), "IPLX-ABCD-EFGH-JKMN-PQRS-TUVW");
