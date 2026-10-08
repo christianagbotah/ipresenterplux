@@ -59,7 +59,7 @@
     "test:camera-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/camera-workspace-selftest.mjs",
     "test:ai-director": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-director-selftest.mjs",
     "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs",
-    "test:studio-route-gating": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/studio-route-gating-selftest.mjs"
+    "test:cockpit-view-model": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-view-model-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
