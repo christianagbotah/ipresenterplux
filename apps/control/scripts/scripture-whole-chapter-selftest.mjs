@@ -7,8 +7,7 @@ const consumers = [
   "src/app/DashboardPage.tsx",
   "src/app/operator/page.tsx",
   "src/app/scripture/page.tsx",
-  "src/app/live/page.tsx",
-  "src/app/api/v1/audience/service/[id]/route.ts",
+  "src/lib/public-audience-service.ts",
   "src/app/api/v1/edge/presentation/items/[id]/route.ts",
   "src/lib/edge-operator-catalog-queries.ts"
 ];
@@ -23,4 +22,17 @@ for (const relative of consumers) {
   );
 }
 
-console.log(JSON.stringify({ ok: true, wholeChapterConsumers: consumers.length, nullVerseBounds: "full-chapter" }));
+const publicAudienceConsumers = [
+  "src/app/live/page.tsx",
+  "src/app/api/v1/audience/service/[id]/route.ts"
+];
+for (const relative of publicAudienceConsumers) {
+  const source = readFileSync(path.join(root, relative), "utf8");
+  assert.match(
+    source,
+    /loadPublicAudienceService/u,
+    `${relative} must delegate public Scripture loading through the shared audience loader`
+  );
+}
+
+console.log(JSON.stringify({ ok: true, wholeChapterConsumers: consumers.length, publicAudienceConsumers: publicAudienceConsumers.length, nullVerseBounds: "full-chapter" }));
