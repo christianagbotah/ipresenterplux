@@ -54,7 +54,8 @@
     "test:licensing-release-security": "node scripts/licensing-release-security-selftest.mjs",
     "test:media-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/media-workspace-selftest.mjs",
     "test:camera-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/camera-workspace-selftest.mjs",
-    "test:ai-director": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-director-selftest.mjs"
+    "test:ai-director": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-director-selftest.mjs",
+    "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -160,6 +160,8 @@ jobs:
         run: pnpm test:camera-workspace
       - name: AI Director workspace self-test
         run: pnpm test:ai-director
+      - name: Service Archive workspace self-test
+        run: pnpm test:archive
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
