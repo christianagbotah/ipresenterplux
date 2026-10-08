@@ -4,12 +4,17 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
+using iPresenterPlux.Edge.Core.Security;
 
 namespace iPresenterPlux.Edge.Desktop;
 
 public sealed class MainWindow : Window
 {
+    private const int OperatorTabIndex = 0;
+    private const int ActivationTabIndex = 1;
+    private const int SetupTabIndex = 2;
     private static readonly IBrush Surface = Brush("#0D121A");
     private static readonly IBrush SurfaceRaised = Brush("#121925");
     private static readonly IBrush Gold = Brush("#D7A94A");
@@ -22,6 +27,10 @@ public sealed class MainWindow : Window
     private readonly DesktopSettingsStore _settingsStore;
     private readonly EdgeHostSupervisor _supervisor;
     private readonly LocalOperatorClient _operatorClient;
+    private readonly DesktopEntitlementStore _entitlementStore;
+    private readonly HttpClient _licensingHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private readonly EntitlementClient _entitlementClient;
+    private readonly IReadOnlyDictionary<string, byte[]> _entitlementPublicKeys;
     private readonly DispatcherTimer _operatorTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly TabControl _tabs = new();
     private readonly TextBox _operatorSearch = Input("Search scripture, songs, slides or media", false);
@@ -67,6 +76,14 @@ public sealed class MainWindow : Window
     private bool _operatorBusy;
     private bool _recordingActive;
     private readonly TextBox _controlUrl = Input("https://control.example.com", false);
+    private readonly TextBox _activationControlUrl = Input("https://control.example.com", false);
+    private readonly TextBox _productKey = Input("IPLX-XXXXX-XXXXX-XXXXX-XXXXX", true);
+    private readonly TextBlock _entitlementStatus = Label("Activation required", 22, FontWeight.Bold, Warning);
+    private readonly TextBlock _entitlementDetail = Label("Enter the Control Plane URL and product key supplied with your subscription.", 12, FontWeight.Normal, Muted);
+    private readonly TextBlock _entitlementDevice = Label("Installation identity will be created locally.", 11, FontWeight.Normal, Muted);
+    private readonly TextBlock _entitlementFeedback = Label("", 12, FontWeight.Normal, Muted);
+    private readonly Button _activate = ActionButton("Activate iPresenterPlux", true);
+    private readonly Button _renewEntitlement = ActionButton("Retry validation", false);
     private readonly TextBox _deviceName = Input("Church production computer", false);
     private readonly TextBox _pairingCode = Input("One-time pairing code", true);
     private readonly TextBlock _statusTitle = Label("Stopped", 22, FontWeight.Bold);
@@ -80,6 +97,8 @@ public sealed class MainWindow : Window
     private readonly Button _restart = ActionButton("Restart", false);
     private readonly Button _save = ActionButton("Save settings", false);
     private DesktopSettings _settings = DesktopSettings.CreateDefault();
+    private EntitlementValidation? _entitlementValidation;
+    private bool _entitlementUsable;
     private bool _allowClose;
 
     public MainWindow()
@@ -87,6 +106,9 @@ public sealed class MainWindow : Window
         _settingsStore = new DesktopSettingsStore(_paths.SettingsDirectory);
         _supervisor = new EdgeHostSupervisor(_paths);
         _operatorClient = new LocalOperatorClient(_paths.EdgeDataDirectory);
+        _entitlementStore = DesktopEntitlementStore.CreateDefault();
+        _entitlementPublicKeys = EntitlementPublicKeyCatalog.Load();
+        _entitlementClient = new EntitlementClient(_licensingHttpClient, _entitlementStore, _entitlementPublicKeys);
         _supervisor.SnapshotChanged += (_, snapshot) => Dispatcher.UIThread.Post(() => RenderSnapshot(snapshot));
         _operatorTimer.Tick += async (_, _) => await RefreshOperatorAsync();
 
@@ -126,6 +148,8 @@ public sealed class MainWindow : Window
         };
 
         _save.Click += async (_, _) => await SaveAsync();
+        _activate.Click += async (_, _) => await ActivateLicenseAsync();
+        _renewEntitlement.Click += async (_, _) => await RenewEntitlementAsync();
         _start.Click += async (_, _) => await StartAsync();
         _stop.Click += async (_, _) => await StopAsync();
         _restart.Click += async (_, _) => await RestartAsync();
@@ -139,6 +163,11 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
         };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
+        _tabs.SelectionChanged += (_, _) =>
+        {
+            if (_tabs.SelectedIndex == OperatorTabIndex && !_entitlementUsable)
+                _tabs.SelectedIndex = ActivationTabIndex;
+        };
     }
 
     private Control BuildContent()
@@ -147,10 +176,78 @@ public sealed class MainWindow : Window
         _tabs.ItemsSource = new object[]
         {
             new TabItem { Header = "Operator", Content = BuildOperatorContent() },
+            new TabItem { Header = "Activation", Content = BuildActivationContent() },
             new TabItem { Header = "Setup & Runtime", Content = BuildSetupContent() }
         };
-        _tabs.SelectedIndex = 0;
+        _tabs.SelectedIndex = ActivationTabIndex;
         return _tabs;
+    }
+
+    private Control BuildActivationContent()
+    {
+        _productKey.PasswordChar = '●';
+        _entitlementDetail.TextWrapping = TextWrapping.Wrap;
+        _entitlementDevice.TextWrapping = TextWrapping.Wrap;
+        _entitlementFeedback.TextWrapping = TextWrapping.Wrap;
+
+        var form = new Grid { ColumnSpacing = 12, RowSpacing = 12 };
+        form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        form.Children.Add(Field("Control Plane URL", _activationControlUrl, 0, 0, 2));
+        form.Children.Add(Field("Product key", _productKey, 1, 0, 2));
+
+        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var button in new[] { _activate, _renewEntitlement })
+        {
+            button.Margin = new Thickness(0, 0, 10, 0);
+            actions.Children.Add(button);
+        }
+        var settings = ActionButton("Open Setup & Settings", false);
+        settings.Click += (_, _) => _tabs.SelectedIndex = SetupTabIndex;
+        actions.Children.Add(settings);
+        Grid.SetRow(actions, 2);
+        Grid.SetColumnSpan(actions, 2);
+        form.Children.Add(actions);
+
+        var status = new StackPanel {
+            Spacing = 8,
+            Children = {
+                Label("SUBSCRIPTION STATUS", 10, FontWeight.Bold, Gold),
+                _entitlementStatus,
+                _entitlementDetail,
+                _entitlementDevice,
+                Separator(),
+                Label("Settings remain available even when a subscription needs attention. Existing local work is not force-stopped solely because online validation is temporarily unavailable.", 11, FontWeight.Normal, Muted)
+            }
+        };
+
+        var panel = new StackPanel {
+            Spacing = 18,
+            MaxWidth = 780,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Children = {
+                new StackPanel {
+                    Spacing = 5,
+                    Children = {
+                        Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
+                        Label("Activate this production computer", 30, FontWeight.Bold),
+                        Label("Use the online subscription key issued for this church. Product keys are never saved by the desktop app.", 13, FontWeight.Normal, Muted)
+                    }
+                },
+                Card("Activation", form),
+                Card("Subscription", status),
+                _entitlementFeedback
+            }
+        };
+
+        return new ScrollViewer {
+            Margin = new Thickness(24),
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = panel
+        };
     }
 
     private Control BuildOperatorContent()
@@ -967,19 +1064,21 @@ public sealed class MainWindow : Window
     private async Task LoadAsync()
     {
         _settings = await _settingsStore.LoadAsync(CancellationToken.None);
+        if (string.IsNullOrWhiteSpace(_settings.InstallationId))
+            _settings = _settings with { InstallationId = Guid.NewGuid().ToString("N") };
         _controlUrl.Text = _settings.ControlPlaneUrl;
+        _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
+
+        var validation = await LoadEntitlementAsync();
+        _tabs.SelectedIndex = validation?.IsUsable == true ? OperatorTabIndex : ActivationTabIndex;
         if (string.IsNullOrWhiteSpace(_settings.ControlPlaneUrl))
         {
             _statusTitle.Text = "Setup required";
             _statusDetail.Text = "Enter the secure Control Plane URL and device name, then pair this computer.";
             _statusDot.Background = Warning;
-            _tabs.SelectedIndex = 1;
         }
-        else
-        {
-            _tabs.SelectedIndex = 0;
-        }
+
         SetOperatorUnavailable();
         _operatorTimer.Start();
         await RefreshOperatorAsync();
@@ -990,7 +1089,8 @@ public sealed class MainWindow : Window
     private DesktopSettings ReadSettings() => new DesktopSettings(
         _controlUrl.Text?.Trim() ?? "",
         _deviceName.Text?.Trim() ?? "",
-        49321).Normalize();
+        49321,
+        _settings.InstallationId).Normalize();
 
     private async Task SaveAsync()
     {
@@ -998,6 +1098,7 @@ public sealed class MainWindow : Window
         {
             _settings = ReadSettings();
             await _settingsStore.SaveAsync(_settings, CancellationToken.None);
+            _activationControlUrl.Text = _settings.ControlPlaneUrl;
             SetFeedback("Settings saved. Pairing code was not persisted.", false);
         }
         catch (Exception error)
@@ -1010,6 +1111,7 @@ public sealed class MainWindow : Window
     {
         try
         {
+            if (!await EnsureEntitlementForStartAsync()) return;
             _settings = ReadSettings();
             await _settingsStore.SaveAsync(_settings, CancellationToken.None);
             var pairing = _pairingCode.Text;
@@ -1034,6 +1136,7 @@ public sealed class MainWindow : Window
     {
         try
         {
+            if (!await EnsureEntitlementForStartAsync()) return;
             _settings = ReadSettings();
             var pairing = _pairingCode.Text;
             _pairingCode.Text = "";
@@ -1042,6 +1145,180 @@ public sealed class MainWindow : Window
         }
         catch (Exception error) { SetFeedback(error.Message, true); }
     }
+
+    private async Task<EntitlementValidation?> LoadEntitlementAsync()
+    {
+        DesktopEntitlementCache? cache;
+        try
+        {
+            cache = await _entitlementStore.ReadAsync(CancellationToken.None);
+        }
+        catch (InvalidDataException)
+        {
+            await _entitlementStore.ClearAsync(CancellationToken.None);
+            RenderEntitlement(null, null, "Saved activation data was corrupted and has been cleared.");
+            return null;
+        }
+
+        if (cache is null)
+        {
+            RenderEntitlement(null, null, "Activation required.");
+            return null;
+        }
+        if (_entitlementPublicKeys.Count == 0)
+        {
+            RenderEntitlement(null, cache, "Activation verification is not configured in this desktop release.");
+            return null;
+        }
+
+        var validation = EntitlementVerifier.Verify(cache.Envelope, _entitlementPublicKeys, DateTimeOffset.UtcNow, cache.LastTrustedNow);
+        if (validation.Payload is not null && validation.TrustedNow > cache.LastTrustedNow)
+            await _entitlementStore.SaveAsync(cache with { LastTrustedNow = validation.TrustedNow }, CancellationToken.None);
+        RenderEntitlement(validation, cache);
+        return validation;
+    }
+
+    private async Task ActivateLicenseAsync()
+    {
+        if (_entitlementPublicKeys.Count == 0)
+        {
+            SetEntitlementFeedback("This desktop build does not contain an entitlement verification public key. Install an official signed release or contact Lightworld support.", true);
+            return;
+        }
+
+        var productKey = _productKey.Text?.Trim() ?? string.Empty;
+        _productKey.Text = string.Empty;
+        try
+        {
+            var controlPlane = ValidateActivationControlPlane();
+            _controlUrl.Text = controlPlane.ToString().TrimEnd('/');
+            _settings = new DesktopSettings(
+                _controlUrl.Text,
+                _deviceName.Text?.Trim() ?? Environment.MachineName,
+                49321,
+                _settings.InstallationId).Normalize();
+            await _settingsStore.SaveAsync(_settings, CancellationToken.None);
+
+            var validation = await _entitlementClient.ActivateAsync(
+                controlPlane,
+                productKey,
+                _settings.InstallationId,
+                OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "desktop",
+                typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? "1.0.0",
+                _settings.DeviceName,
+                CancellationToken.None);
+            var cache = await _entitlementStore.ReadAsync(CancellationToken.None);
+            RenderEntitlement(validation, cache, "Activation succeeded. Pair this computer with the church Control Plane to continue.");
+            _tabs.SelectedIndex = SetupTabIndex;
+        }
+        catch (Exception error)
+        {
+            SetEntitlementFeedback(SafeLicensingError(error), true);
+            _tabs.SelectedIndex = ActivationTabIndex;
+        }
+    }
+
+    private async Task RenewEntitlementAsync()
+    {
+        if (_entitlementPublicKeys.Count == 0)
+        {
+            SetEntitlementFeedback("This desktop build does not contain an entitlement verification public key.", true);
+            return;
+        }
+        try
+        {
+            var validation = await _entitlementClient.RenewAsync(ValidateActivationControlPlane(), CancellationToken.None);
+            var cache = await _entitlementStore.ReadAsync(CancellationToken.None);
+            RenderEntitlement(validation, cache, "Subscription validation refreshed.");
+            if (validation.IsUsable) _tabs.SelectedIndex = OperatorTabIndex;
+        }
+        catch (Exception error)
+        {
+            SetEntitlementFeedback(SafeLicensingError(error), true);
+        }
+    }
+
+    private async Task<bool> EnsureEntitlementForStartAsync()
+    {
+        var validation = await LoadEntitlementAsync();
+        if (validation?.IsUsable == true) return true;
+
+        if (!string.IsNullOrWhiteSpace(_settings.ControlPlaneUrl) && _entitlementPublicKeys.Count > 0)
+        {
+            try
+            {
+                validation = await _entitlementClient.RenewAsync(_settings.ValidateControlPlaneUri(), CancellationToken.None);
+                var cache = await _entitlementStore.ReadAsync(CancellationToken.None);
+                RenderEntitlement(validation, cache, "Subscription validation refreshed before starting Edge.");
+                if (validation.IsUsable) return true;
+            }
+            catch
+            {
+                // A failed online refresh must not terminate an already-running service. This gate only blocks a new start/restart.
+            }
+        }
+
+        _tabs.SelectedIndex = ActivationTabIndex;
+        SetEntitlementFeedback("A valid subscription is required before starting or restarting Edge. Settings remain available.", true);
+        return false;
+    }
+
+    private Uri ValidateActivationControlPlane()
+    {
+        var value = _activationControlUrl.Text?.Trim() ?? _settings.ControlPlaneUrl;
+        var candidate = new DesktopSettings(value, _deviceName.Text?.Trim() ?? Environment.MachineName, 49321, _settings.InstallationId);
+        return candidate.ValidateControlPlaneUri();
+    }
+
+    private void RenderEntitlement(EntitlementValidation? validation, DesktopEntitlementCache? cache, string? message = null)
+    {
+        _entitlementValidation = validation;
+        _entitlementUsable = validation?.IsUsable == true;
+        if (validation?.State == EntitlementLeaseState.ValidOnline && validation.Payload is { } online)
+        {
+            _entitlementStatus.Text = "Subscription active";
+            _entitlementStatus.Foreground = Good;
+            _entitlementDetail.Text = $"{online.PlanCode} · online validation through {online.OnlineValidUntil.LocalDateTime:g} · offline grace through {online.OfflineGraceUntil.LocalDateTime:g}.";
+        }
+        else if (validation?.State == EntitlementLeaseState.OfflineGrace && validation.Payload is { } grace)
+        {
+            _entitlementStatus.Text = "Offline grace active";
+            _entitlementStatus.Foreground = Warning;
+            _entitlementDetail.Text = $"The last online lease expired, but this installation may continue offline until {grace.OfflineGraceUntil.LocalDateTime:g}. Reconnect before the grace deadline.";
+        }
+        else if (validation?.State == EntitlementLeaseState.Expired && validation.Payload is { } expired)
+        {
+            _entitlementStatus.Text = "Subscription expired";
+            _entitlementStatus.Foreground = Danger;
+            _entitlementDetail.Text = $"Offline grace ended {expired.OfflineGraceUntil.LocalDateTime:g}. Renew the subscription, then retry validation.";
+        }
+        else
+        {
+            _entitlementStatus.Text = "Activation required";
+            _entitlementStatus.Foreground = Warning;
+            _entitlementDetail.Text = "Enter the Control Plane URL and product key supplied with your subscription.";
+        }
+
+        _entitlementDevice.Text = cache is null
+            ? $"Installation · {_settings.InstallationId}"
+            : $"Installation · {cache.InstallationId} · last trusted validation {cache.LastTrustedNow.LocalDateTime:g}";
+        if (!string.IsNullOrWhiteSpace(message)) SetEntitlementFeedback(message, validation?.IsUsable != true && validation is not null);
+    }
+
+    private void SetEntitlementFeedback(string message, bool failed)
+    {
+        _entitlementFeedback.Text = message;
+        _entitlementFeedback.Foreground = failed ? Danger : Good;
+    }
+
+    private static string SafeLicensingError(Exception error) => error switch
+    {
+        InvalidOperationException => "Activation or validation was rejected. Check the subscription, Control Plane URL, and network connection.",
+        InvalidDataException => "The signed subscription response could not be verified. Install an official release or contact Lightworld support.",
+        HttpRequestException => "The Control Plane could not be reached. Check the Internet connection and try again.",
+        TaskCanceledException => "Subscription validation timed out. Check the network connection and try again.",
+        _ => "Subscription activation could not be completed."
+    };
 
     private void RenderSnapshot(EdgeDesktopSnapshot snapshot)
     {
@@ -1106,6 +1383,7 @@ public sealed class MainWindow : Window
         _operatorTimer.Stop();
         _start.IsEnabled = _stop.IsEnabled = _restart.IsEnabled = false;
         try { await _supervisor.DisposeAsync(); } catch { }
+        _licensingHttpClient.Dispose();
         _allowClose = true;
         Close();
     }
