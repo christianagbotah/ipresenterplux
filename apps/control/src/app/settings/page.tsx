@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, AudioLines, ChevronRight, MonitorCog, Settings2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, AudioLines, ChevronRight, CreditCard, MonitorCog, Settings2, ShieldCheck } from "lucide-react";
 import { auth } from "@auth";
 import { query } from "@/lib/db";
 import { DEVICE_ADMIN_ROLES, VOICE_ADMIN_ROLES } from "@/lib/rbac";
@@ -32,6 +32,7 @@ export default async function SettingsPage() {
   const roles = organization?.roles ?? [];
   const canDevices = roles.some((role) => DEVICE_ADMIN_ROLES.includes(role as never));
   const canVoices = roles.some((role) => VOICE_ADMIN_ROLES.includes(role as never));
+  const canSubscription = canDevices;
 
   const cards = [
     canDevices ? {
@@ -39,6 +40,12 @@ export default async function SettingsPage() {
       title: "Edge Devices",
       description: "Pair Windows and macOS church computers, rotate credentials and monitor connection health.",
       icon: MonitorCog
+    } : null,
+    canSubscription ? {
+      href: "/settings/subscription",
+      title: "Subscription & Activation",
+      description: "View your plan, expiry, grace period, seat usage and deactivate retired desktop installations.",
+      icon: CreditCard
     } : null,
     canVoices ? {
       href: "/settings/voices",
@@ -52,7 +59,7 @@ export default async function SettingsPage() {
     <main className="min-h-screen px-4 py-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-7 flex items-center gap-4">
-          <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/50 transition hover:bg-white/[.06] hover:text-white" aria-label="Back to Control Room">
+          <Link href="/" className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/50 transition hover:bg-white/[.06] hover:text-white" aria-label="Back to Control Room">
             <ArrowLeft size={17} />
           </Link>
           <div>
@@ -68,9 +75,9 @@ export default async function SettingsPage() {
         </div>
 
         {cards.length ? (
-          <section className="grid gap-4 md:grid-cols-2">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {cards.map(({ href, title, description, icon: Icon }) => (
-              <Link key={href} href={href} className="group rounded-[22px] border border-white/[.08] bg-[#0d121a] p-5 transition hover:border-[#d7a94a]/25 hover:bg-[#111721]">
+              <Link key={href} href={href} className="group cursor-pointer rounded-[22px] border border-white/[.08] bg-[#0d121a] p-5 transition hover:border-[#d7a94a]/25 hover:bg-[#111721]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.07] text-[#efc76e]"><Icon size={19} /></div>
                   <ChevronRight size={16} className="mt-3 text-white/18 transition group-hover:translate-x-0.5 group-hover:text-[#d7a94a]" />
