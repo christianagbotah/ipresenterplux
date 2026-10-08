@@ -22,14 +22,18 @@ assert.notEqual(svg, await audienceQrSvg(canonicalAudienceUrl("https://studio.ex
 
 const pagePath = path.join(root, "src/app/audience/page.tsx");
 const componentPath = path.join(root, "src/components/audience/AudienceStudio.tsx");
+const currentServicePath = path.join(root, "src/lib/current-service.ts");
 assert.ok(existsSync(componentPath), "AudienceStudio component must exist");
 const page = readFileSync(pagePath, "utf8");
 const component = readFileSync(componentPath, "utf8");
+const currentService = readFileSync(currentServicePath, "utf8");
 assert.doesNotMatch(page, /StudioReadinessPage/u, "Audience route must no longer be a readiness placeholder");
 assert.match(page, /AudienceStudio/u, "Audience route must render AudienceStudio");
 assert.match(page, /canonicalAudienceUrl/u, "Audience route must build the canonical service link server-side");
 assert.match(page, /audienceQrSvg/u, "Audience route must build the QR locally server-side");
-assert.match(page, /order by granted_at/u, "membership fallback must use the real granted_at schema column");
+assert.match(page, /getCurrentServiceForUser/u, "Audience route must delegate membership/current-service selection to the shared resolver");
+assert.match(currentService, /min\(uor\.granted_at\)/u, "shared resolver membership ordering must use the real granted_at schema column");
+assert.doesNotMatch(currentService, /uor\.created_at/u, "shared resolver must not use nonexistent membership created_at");
 
 for (const copy of ["No service selected", "Ready to share", "Live now", "Service ended", "Copy audience link", "Open audience view", "Audience preview"]) {
   assert.match(component, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "u"), `Audience Studio must expose ${copy}`);
