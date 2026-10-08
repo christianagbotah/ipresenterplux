@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { requireEntitlementFeature } from "./licensing/entitlement-access.ts";
 
 export type TranslationJobSummary = {
   id: string;
@@ -14,6 +15,7 @@ export async function enqueueTranslationJobs(
   organizationId: string,
   sourceLanguage?: string | null
 ) {
+  await requireEntitlementFeature(organizationId, "translations.text", { client });
   const sourceCode = sourceLanguage?.trim().toLowerCase() || null;
   const created = await client.query<TranslationJobSummary>(
     `insert into transcript_translation_jobs
