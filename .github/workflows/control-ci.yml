@@ -103,6 +103,8 @@ jobs:
         run: pnpm test:entitlement-signing
       - name: Activation and renewal API self-test
         run: pnpm test:activation-api
+      - name: Licensing administration self-test
+        run: pnpm test:licensing-admin
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
