@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 type MembershipRow = { id: string; name: string; roles: string[] };
 
+type ScopedSubscriptionRow = { id: string };
+
 export default async function SubscriptionSettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -32,7 +34,23 @@ export default async function SubscriptionSettingsPage() {
   const canManage = organization.roles.some((role) => DEVICE_ADMIN_ROLES.includes(role as never));
   if (!canManage) redirect("/");
 
-  const overview = await getOrganizationSubscriptionOverview(db, organization.id);
+  const scopedSubscription = await query<ScopedSubscriptionRow>(
+    `select id::text
+     from organization_subscriptions
+     where organization_id=$1
+     order by case when status in ('trial','active','past_due','suspended') then 0 else 1 end,created_at desc
+     limit 1`,
+    [organization.id]
+  );
+  const overview = scopedSubscription.rows[0]
+    ? await getOrganizationSubscriptionOverview(db, organization.id)
+    : {
+        organizationId: organization.id,
+        organizationName: organization.name,
+        subscription: null,
+        seats: { limit: 0, used: 0 },
+        activations: []
+      };
 
   async function deactivateAction(formData: FormData) {
     "use server";
