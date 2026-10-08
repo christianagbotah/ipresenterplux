@@ -1,7 +1,7 @@
 # iPresenterPlux Intelligent Service Cockpit Design
 
 Date: 2026-10-08
-Status: Approved design direction; written spec for review
+Status: Approved
 Owner: Lightworld Technologies Ltd
 Parent: `2026-10-07-product-readiness-program-design.md`
 
