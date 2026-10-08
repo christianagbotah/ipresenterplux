@@ -102,6 +102,14 @@ jobs:
           node apps/control/scripts/deployment-contract-selftest.mjs
       - name: Scripture parser self-test
         run: pnpm test:scripture
+      - name: Studio navigation route self-test
+        run: pnpm test:studio-navigation
+      - name: Local Bible library self-test
+        run: pnpm test:bible-library
+      - name: Manual Scripture selection self-test
+        run: pnpm test:manual-scripture
+      - name: Scripture workspace UI self-test
+        run: pnpm test:scripture-workspace-ui
       - name: Edge operator catalog self-test
         run: pnpm test:edge-operator-catalog
       - name: Scripture quote integration self-test
