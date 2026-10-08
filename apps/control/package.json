@@ -48,7 +48,8 @@
     "test:subscription-schema": "node scripts/subscription-schema-selftest.mjs",
     "test:product-key": "node scripts/product-key-selftest.mjs",
     "test:entitlement-signing": "node scripts/entitlement-signing-selftest.mjs",
-    "test:activation-api": "node scripts/activation-api-selftest.mjs"
+    "test:activation-api": "node scripts/activation-api-selftest.mjs",
+    "test:licensing-admin": "node scripts/licensing-admin-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
