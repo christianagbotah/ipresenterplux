@@ -38,9 +38,12 @@ export type ActivationErrorCode =
   | "not_found";
 
 export class ActivationServiceError extends Error {
-  constructor(public readonly code: ActivationErrorCode, message = "Activation could not be completed") {
+  readonly code: ActivationErrorCode;
+
+  constructor(code: ActivationErrorCode, message = "Activation could not be completed") {
     super(message);
     this.name = "ActivationServiceError";
+    this.code = code;
   }
 }
 
@@ -334,10 +337,14 @@ export async function activateProduct(client: QueryClient, request: ActivationRe
 
   if (!existing) {
     const seatLimit = license.device_seat_limit ?? license.default_device_seat_limit;
-    const [subscriptionSeats, keySeats] = await Promise.all([
-      client.query<{ count: number }>("select count(*)::int as count from product_activations where subscription_id=$1 and state='active'", [license.subscription_id]),
-      client.query<{ count: number }>("select count(*)::int as count from product_activations where product_key_id=$1 and state='active'", [license.product_key_id])
-    ]);
+    const subscriptionSeats = await client.query<{ count: number }>(
+      "select count(*)::int as count from product_activations where subscription_id=$1 and state='active'",
+      [license.subscription_id]
+    );
+    const keySeats = await client.query<{ count: number }>(
+      "select count(*)::int as count from product_activations where product_key_id=$1 and state='active'",
+      [license.product_key_id]
+    );
     if ((subscriptionSeats.rows[0]?.count ?? 0) >= seatLimit || (keySeats.rows[0]?.count ?? 0) >= license.activation_limit) {
       await recordAttempt(client, { organizationId: license.organization_id, productKeyId: license.product_key_id, keyPrefix: prefix, installationId: request.installationId, sourceIp: ip, outcome: "seat_limit", occurredAt: now });
       throw new ActivationServiceError("seat_limit");
