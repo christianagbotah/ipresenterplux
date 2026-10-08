@@ -101,6 +101,8 @@ jobs:
         run: pnpm test:product-key
       - name: Signed entitlement envelope self-test
         run: pnpm test:entitlement-signing
+      - name: Activation and renewal API self-test
+        run: pnpm test:activation-api
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
