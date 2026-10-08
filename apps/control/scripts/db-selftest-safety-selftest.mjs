@@ -45,6 +45,7 @@ assert.doesNotThrow(() =>
 );
 
 const protectedScripts = [
+  "activation-api-selftest.mjs",
   "audience-live-state-selftest.mjs",
   "edge-operator-catalog-selftest.mjs",
   "service-planner-item-selftest.mjs",
