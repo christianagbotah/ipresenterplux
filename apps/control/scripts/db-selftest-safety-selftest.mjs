@@ -45,11 +45,13 @@ assert.doesNotThrow(() =>
 );
 
 const protectedScripts = [
+  "audience-live-state-selftest.mjs",
   "edge-operator-catalog-selftest.mjs",
   "service-planner-item-selftest.mjs",
   "service-planner-mutation-selftest.mjs",
   "service-planner-readiness-selftest.mjs",
   "service-planner-service-selftest.mjs",
+  "service-stream-lifecycle-selftest.mjs",
   "speaker-attribution-selftest.mjs",
   "speech-synthesis-selftest.mjs",
   "stream-contribution-selftest.mjs",
