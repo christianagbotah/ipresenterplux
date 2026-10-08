@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
+import { requireEntitlementFeature } from "./licensing/entitlement-access.ts";
 
 export type SpeechSynthesisJobSummary = {
   id: string;
@@ -86,6 +87,8 @@ export async function enqueueSpeechSynthesisJob(
   );
   const row = source.rows[0];
   if (!row) return null;
+
+  await requireEntitlementFeature(row.organization_id, "translations.audio", { client });
 
   if (row.voice_profile_id) {
     const activeVoice = await client.query(
