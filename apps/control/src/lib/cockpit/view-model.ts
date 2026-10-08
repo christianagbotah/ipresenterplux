@@ -6,6 +6,7 @@ import type {
   CockpitViewModel
 } from "./contracts.ts";
 import { projectPredictiveNext } from "./predictive-next.ts";
+import { loadCockpitAttention } from "./attention.ts";
 
 const FRESHNESS_MS = 120_000;
 
@@ -202,6 +203,9 @@ export async function getCockpitViewModel(
   const next = serviceId
     ? await projectPredictiveNext(client, { organizationId, serviceId, now })
     : [];
+  const attention = serviceId
+    ? await loadCockpitAttention(client, { organizationId, serviceId, serviceLive: context.service?.status === "live", now })
+    : [];
 
   return {
     organization: { id: organizationId, name: context.organizationName },
@@ -228,7 +232,7 @@ export async function getCockpitViewModel(
       currentContent: program
     },
     next,
-    attention: [],
+    attention,
     systems: {
       edge: {
         id: edge?.id ?? null,

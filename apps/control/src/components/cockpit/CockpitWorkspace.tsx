@@ -6,12 +6,14 @@ import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { CockpitHeader } from "./CockpitHeader";
 import { CockpitDepthControls } from "./CockpitDepthControls";
 import { CommandPalette } from "./CommandPalette";
+import { AttentionLayer } from "./AttentionLayer";
 
 export function CockpitWorkspace({ model, initialFocusMode = false }: { model: CockpitViewModel; initialFocusMode?: boolean }) {
   return <main className="min-h-screen bg-[#070a0f] text-white">
     {model.service ? <RealtimeRefresh serviceId={model.service.id} /> : <AutoRefresh intervalMs={15_000} />}
     <StudioMobileNav capabilities={model.capabilities} />
     <CommandPalette />
+    <AttentionLayer items={model.attention} />
     <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
       <StudioSidebar capabilities={model.capabilities} />
       <section className="min-w-0 pb-20 md:pb-0">

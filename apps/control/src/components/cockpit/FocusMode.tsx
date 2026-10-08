@@ -14,7 +14,7 @@ export function FocusMode({ model, onExit }: { model: CockpitViewModel; onExit: 
           <div className="mt-1 truncate text-sm font-black">{model.service?.title ?? "Service Cockpit"}</div>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"><HeartPulse size={15}/> Attention</button>
+          <button type="button" onClick={() => window.dispatchEvent(new Event("ipresenterplux:attention-open"))} className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"><HeartPulse size={15}/> Attention{model.attention.length ? ` · ${model.attention.length}` : ""}</button>
           <button type="button" onClick={() => window.dispatchEvent(new Event("ipresenterplux:command-open"))} className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"><Command size={15}/> Command</button>
           <button type="button" onClick={onExit} className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.12] bg-white/[.04] px-3 text-xs font-black text-white/75 hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2b85f]"><Minimize2 size={15}/> Exit Focus</button>
         </div>

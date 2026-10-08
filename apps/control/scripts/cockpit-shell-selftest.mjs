@@ -6,6 +6,7 @@ const files = {
   dashboard: "../src/app/DashboardPage.tsx",
   operator: "../src/app/operator/page.tsx",
   workspace: "../src/components/cockpit/CockpitWorkspace.tsx",
+  depth: "../src/components/cockpit/CockpitDepthControls.tsx",
   stage: "../src/components/cockpit/ProgramPreviewStage.tsx",
   now: "../src/components/cockpit/NowRail.tsx",
   next: "../src/components/cockpit/NextRail.tsx",
@@ -19,9 +20,10 @@ for (const page of [source.dashboard, source.operator]) {
   assert.match(page, /CockpitWorkspace/, "both entry routes must render the same Cockpit workspace");
 }
 assert.doesNotMatch(source.operator, /ScriptureOperatorWorkspace/, "operator compatibility route must not keep a second UI architecture");
-assert.match(source.workspace, /ProgramPreviewStage/);
-assert.match(source.workspace, /NowRail/);
-assert.match(source.workspace, /NextRail/);
+assert.match(source.workspace, /CockpitDepthControls/, "Cockpit shell must delegate live layout to the shared depth/focus controller");
+assert.match(source.depth, /ProgramPreviewStage/);
+assert.match(source.depth, /NowRail/);
+assert.match(source.depth, /NextRail/);
 assert.match(source.workspace, /CockpitHeader/);
 assert.match(source.stage, />TAKE</, "TAKE must remain an explicit live action");
 assert.match(source.stage, /Clear Program/, "Clear Program must remain explicit");

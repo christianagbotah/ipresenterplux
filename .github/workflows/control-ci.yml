@@ -160,6 +160,8 @@ jobs:
         run: pnpm test:cockpit-predictive-next
       - name: Cockpit typed command self-test
         run: pnpm test:cockpit-command
+      - name: Cockpit smart attention self-test
+        run: pnpm test:cockpit-attention
       - name: Predictive Next recommendation persistence self-test
         run: pnpm test:cockpit-recommendations
       - name: Intelligent Cockpit shell self-test
