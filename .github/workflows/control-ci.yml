@@ -95,6 +95,12 @@ jobs:
         run: pnpm lint
       - name: Writable database self-test safety guard
         run: pnpm test:db-selftest-safety
+      - name: Subscription entitlement schema self-test
+        run: pnpm test:subscription-schema
+      - name: Secure product-key self-test
+        run: pnpm test:product-key
+      - name: Signed entitlement envelope self-test
+        run: pnpm test:entitlement-signing
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
