@@ -60,6 +60,7 @@ export type CockpitSystemFreshness = {
 };
 
 export type CockpitViewModel = {
+  roles: string[];
   organization: { id: string; name: string };
   service: null | {
     id: string;

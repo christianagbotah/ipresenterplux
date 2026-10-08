@@ -8,6 +8,8 @@ const manifestPath=path.join(root,".next/server/app-paths-manifest.json");
 assert.ok(existsSync(manifestPath),"Next.js production route manifest must exist; run next build first");
 const manifest=JSON.parse(readFileSync(manifestPath,"utf8"));
 const required={
+  "/page":"/",
+  "/operator/page":"/operator",
   "/media/page":"/media",
   "/cameras/page":"/cameras",
   "/ai-director/page":"/ai-director",

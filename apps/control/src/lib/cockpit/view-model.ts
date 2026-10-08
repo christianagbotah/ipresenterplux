@@ -208,6 +208,7 @@ export async function getCockpitViewModel(
     : [];
 
   return {
+    roles: [...context.roles],
     organization: { id: organizationId, name: context.organizationName },
     service: context.service ? {
       id: context.service.id,

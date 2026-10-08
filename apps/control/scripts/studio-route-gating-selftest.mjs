@@ -27,8 +27,6 @@ for (const [href, capability] of expectedRouteCapabilities) {
 assert.equal(isStudioRouteActive("/archive/00000000-0000-4000-8000-000000000001", "/archive"), true);
 
 for (const relative of [
-  "../src/app/DashboardPage.tsx",
-  "../src/app/operator/page.tsx",
   "../src/app/media/page.tsx",
   "../src/app/cameras/page.tsx",
   "../src/app/ai-director/page.tsx",
@@ -37,6 +35,12 @@ for (const relative of [
   const source = await readFile(new URL(relative, import.meta.url), "utf8");
   assert.match(source, /getCurrentServiceForUser/, `${relative} must use shared current-service context`);
 }
+for (const relative of ["../src/app/DashboardPage.tsx", "../src/app/operator/page.tsx"]) {
+  const source = await readFile(new URL(relative, import.meta.url), "utf8");
+  assert.match(source, /getCockpitViewModel/, `${relative} must use the authoritative Cockpit projection`);
+}
+const cockpitViewModelSource = await readFile(new URL("../src/lib/cockpit/view-model.ts", import.meta.url), "utf8");
+assert.match(cockpitViewModelSource, /getCurrentServiceForUser/, "Cockpit projection must delegate service selection to the shared current-service context");
 
 if (!process.env.DATABASE_URL) {
   console.log(JSON.stringify({
