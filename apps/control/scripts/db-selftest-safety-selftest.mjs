@@ -71,6 +71,7 @@ const protectedScripts = [
   "stream-fanout-selftest.mjs",
   "stream-provider-health-selftest.mjs",
   "studio-route-gating-selftest.mjs",
+  "switching-moat-acceptance-selftest.mjs",
   "stream-session-authority-selftest.mjs",
   "subscription-schema-selftest.mjs",
   "transcript-window-selftest.mjs",

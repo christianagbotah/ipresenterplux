@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { auth } from "@auth";
+import { CoexistenceBridge } from "@/components/imports/CoexistenceBridge";
 import { ImportWizard } from "@/components/imports/ImportWizard";
 import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 import { db } from "@/lib/db";
+import { listConfiguredCoexistenceBridges } from "@/lib/imports/coexistence";
 import { listPlannerServices, loadPlannerServiceDetail } from "@/lib/planner-service-queries";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,7 @@ export default async function MediaImportPage() {
       });
     }
 
+    const bridges = await listConfiguredCoexistenceBridges(client, context.organizationId);
     const organizationId = context.organizationId;
     return (
       <main className="min-h-screen bg-[#080b10] text-white">
@@ -62,6 +65,9 @@ export default async function MediaImportPage() {
                 organizationName={context.organizationName}
                 editableServices={editableServices}
               />
+              <div className="mt-6">
+                <CoexistenceBridge bridges={bridges} />
+              </div>
             </div>
           </section>
         </div>

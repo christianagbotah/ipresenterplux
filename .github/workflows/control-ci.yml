@@ -178,6 +178,8 @@ jobs:
         run: pnpm test:portable-import-service
       - name: Migration wizard and portable export self-test
         run: pnpm test:import-wizard
+      - name: Switching moat acceptance self-test
+        run: pnpm test:switching-moat-acceptance
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test

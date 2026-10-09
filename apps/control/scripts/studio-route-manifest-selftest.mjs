@@ -11,6 +11,7 @@ const required={
   "/page":"/",
   "/operator/page":"/operator",
   "/media/page":"/media",
+  "/media/import/page":"/media/import",
   "/cameras/page":"/cameras",
   "/ai-director/page":"/ai-director",
   "/archive/page":"/archive",
