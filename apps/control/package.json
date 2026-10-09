@@ -69,7 +69,8 @@
     "test:cockpit-role-projection": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-role-projection-selftest.mjs",
     "test:cockpit-acceptance": "node scripts/cockpit-acceptance-selftest.mjs",
     "test:portable-import-parser": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/portable-import-parser-selftest.mjs",
-    "test:portable-import-service": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/portable-import-service-selftest.mjs"
+    "test:portable-import-service": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/portable-import-service-selftest.mjs",
+    "test:import-wizard": "node scripts/import-wizard-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
