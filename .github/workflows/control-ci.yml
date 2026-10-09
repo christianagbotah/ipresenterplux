@@ -150,6 +150,8 @@ jobs:
         run: pnpm test:stream-provider-health
       - name: Demo account catalog and login UI self-test
         run: pnpm test:demo-accounts
+      - name: Public auth origin self-test
+        run: pnpm test:auth-public-origin
       - name: RBAC UI capability matrix self-test
         run: pnpm test:rbac-ui
       - name: Operator workspace safety self-test
