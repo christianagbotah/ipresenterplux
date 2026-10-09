@@ -138,26 +138,24 @@ async function archivedServiceRow(client: QueryClient, userId: string, serviceId
 
 export async function getArchivedService(client: QueryClient, userId: string, serviceId: string) {
   const service = await archivedServiceRow(client, userId, serviceId);
-  const [rundown, scripture, transcript, artifacts] = await Promise.all([
-    client.query<{ id:string; item_type:string; title:string; content:Record<string,unknown>; sort_order:number; state:string }>(
-      `select id::text,item_type,title,content,sort_order,state
-         from presentation_items where service_id=$1::uuid
-        order by sort_order,id`, [serviceId]),
-    client.query<{ id:string; scripture_reference:string; confidence:string; state:string; detection_method:string; source_text:string; source_observed_at:string }>(
-      `select id::text,scripture_reference,confidence::text,state,detection_method,source_text,source_observed_at::text
-         from scripture_detections where service_id=$1::uuid
-        order by source_observed_at,source_ordinal,detected_at,id`, [serviceId]),
-    client.query<{ count:string; first_observed_at:string|null; last_observed_at:string|null; preview:string|null }>(
-      `select count(*)::text as count,min(source_observed_at)::text as first_observed_at,
-              max(source_observed_at)::text as last_observed_at,
-              (array_agg(left(text,240) order by source_observed_at desc,id desc))[1] as preview
-         from transcript_segments where service_id=$1::uuid`, [serviceId]),
-    client.query<ArtifactRow>(
-      `select id::text,organization_id::text,service_id::text,artifact_type,status,storage_kind,storage_locator,
-              metadata,created_at::text,updated_at::text
-         from service_artifacts where organization_id=$1::uuid and service_id=$2::uuid
-        order by created_at desc,id desc`, [service.organization_id, serviceId])
-  ]);
+  const rundown = await client.query<{ id:string; item_type:string; title:string; content:Record<string,unknown>; sort_order:number; state:string }>(
+    `select id::text,item_type,title,content,sort_order,state
+       from presentation_items where service_id=$1::uuid
+      order by sort_order,id`, [serviceId]);
+  const scripture = await client.query<{ id:string; scripture_reference:string; confidence:string; state:string; detection_method:string; source_text:string; source_observed_at:string }>(
+    `select id::text,scripture_reference,confidence::text,state,detection_method,source_text,source_observed_at::text
+       from scripture_detections where service_id=$1::uuid
+      order by source_observed_at,source_ordinal,detected_at,id`, [serviceId]);
+  const transcript = await client.query<{ count:string; first_observed_at:string|null; last_observed_at:string|null; preview:string|null }>(
+    `select count(*)::text as count,min(source_observed_at)::text as first_observed_at,
+            max(source_observed_at)::text as last_observed_at,
+            (array_agg(left(text,240) order by source_observed_at desc,id desc))[1] as preview
+       from transcript_segments where service_id=$1::uuid`, [serviceId]);
+  const artifacts = await client.query<ArtifactRow>(
+    `select id::text,organization_id::text,service_id::text,artifact_type,status,storage_kind,storage_locator,
+            metadata,created_at::text,updated_at::text
+       from service_artifacts where organization_id=$1::uuid and service_id=$2::uuid
+      order by created_at desc,id desc`, [service.organization_id, serviceId]);
 
   return {
     service: {
