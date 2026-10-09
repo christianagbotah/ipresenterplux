@@ -118,6 +118,32 @@ try {
   assert.equal(undoResult.status, "undone");
   assert.equal(Number((await setup.query(`select count(*)::int as count from media_library_items where id=(select entity_id::uuid from portable_import_batch_items where batch_id=$1 and entity_type='media_library_item' limit 1)`, [undoable.batchId])).rows[0].count), 0, "safe undo removes untouched batch-created library entities");
 
+  const mediaUndoSource = { kind: "media_url_manifest", filename: "undo-media.json", content: JSON.stringify({ items: [{ title: "Undo Media", url: "https://cdn.example.test/undo-media.mp4", mediaType: "video" }] }) };
+  const mediaUndoBatch = await commitPortableImport(pool, user, { organizationId: org, source: mediaUndoSource });
+  const mediaUndoEntity = await setup.query(`select mli.id::text as library_id,mli.media_source_id::text as source_id from portable_import_batch_items pibi join media_library_items mli on mli.id=pibi.entity_id::uuid where pibi.batch_id=$1 and pibi.entity_type='media_library_item' limit 1`, [mediaUndoBatch.batchId]);
+  assert.ok(mediaUndoEntity.rows[0]?.source_id, "media manifest import must create or attach a media source");
+  const batchCreatedSourceId = mediaUndoEntity.rows[0].source_id;
+  assert.equal(Number((await setup.query(`select count(*)::int as count from media_sources where id=$1`, [batchCreatedSourceId])).rows[0].count), 1);
+  const mediaUndoResult = await undoPortableImport(pool, user, mediaUndoBatch.batchId);
+  assert.equal(mediaUndoResult.status, "undone");
+  assert.equal(Number((await setup.query(`select count(*)::int as count from media_library_items where id=$1`, [mediaUndoEntity.rows[0].library_id])).rows[0].count), 0, "media manifest undo must remove its untouched library item");
+  assert.equal(Number((await setup.query(`select count(*)::int as count from media_sources where id=$1`, [batchCreatedSourceId])).rows[0].count), 0, "media manifest undo must remove an untouched media source created by that batch");
+
+  const sharedMediaSource = { kind: "media_url_manifest", filename: "shared-media.json", content: JSON.stringify({ items: [{ title: "Shared Media", url: "https://cdn.example.test/shared-media.mp4", mediaType: "video" }] }) };
+  const sharedMediaFirst = await commitPortableImport(pool, user, { organizationId: org, source: sharedMediaSource });
+  const sharedMediaSecond = await commitPortableImport(pool, user, { organizationId: org, source: sharedMediaSource, duplicatePolicy: "import_copy" });
+  const sharedSources = await setup.query(`select pibi.batch_id::text,mli.media_source_id::text as source_id from portable_import_batch_items pibi join media_library_items mli on mli.id=pibi.entity_id::uuid where pibi.batch_id in ($1,$2) and pibi.entity_type='media_library_item' order by pibi.batch_id`, [sharedMediaFirst.batchId, sharedMediaSecond.batchId]);
+  assert.equal(sharedSources.rowCount, 2);
+  assert.equal(sharedSources.rows[0].source_id, sharedSources.rows[1].source_id, "import_copy may reuse the same portable media source identity");
+  await assert.rejects(
+    () => undoPortableImport(pool, user, sharedMediaFirst.batchId),
+    (error) => error?.code === "portable_import_undo_conflict",
+    "undo must refuse deleting a batch-created media source reused by a later import copy"
+  );
+  assert.equal((await undoPortableImport(pool, user, sharedMediaSecond.batchId)).status, "undone");
+  assert.equal((await undoPortableImport(pool, user, sharedMediaFirst.batchId)).status, "undone", "original media batch becomes safely undoable after later reuse is removed");
+  assert.equal(Number((await setup.query(`select count(*)::int as count from media_sources where id=$1`, [sharedSources.rows[0].source_id])).rows[0].count), 0);
+
   const edited = await commitPortableImport(pool, user, {
     organizationId: org,
     source: { kind: "song_text", filename: "edited.txt", content: `Edited Later\n\n[Verse 1]\nOriginal lyric` }
@@ -167,7 +193,9 @@ try {
     safeUndo: true,
     editedUndoConflict: true,
     usedUndoConflict: true,
-    domainRoutes: true
+    domainRoutes: true,
+    mediaSourceUndo: true,
+    mediaSourceReuseProtection: true
   }));
 } finally {
   await setup.query(`delete from organizations where id in ($1,$2)`, [org, otherOrg]).catch(() => {});

@@ -40,6 +40,7 @@ type BatchItemRow = {
   entity_id: string | null;
   entity_updated_at_snapshot: string | null;
   disposition: string;
+  provenance: Record<string, unknown>;
 };
 
 async function requireMutationMembership(client: QueryClient, userId: string, organizationId: string) {
@@ -186,27 +187,33 @@ async function ensurePortableMediaSource(
 ) {
   const url = String(input.candidate.input.url ?? "");
   const mediaKind = String(input.candidate.input.mediaType ?? "");
-  const name = `Portable · ${input.candidate.title} · ${input.candidate.candidateFingerprint.slice(0, 8)}`;
-  const result = await client.query<{ id: string }>(
+  const fingerprint = input.candidate.candidateFingerprint;
+  const name = `Portable · ${input.candidate.title} · ${fingerprint.slice(0, 8)}`;
+  const sourceKey = `portable:${fingerprint}`;
+  const publicConfig = JSON.stringify({ assetUrl: url, mediaKind });
+  const metadata = JSON.stringify({ origin: "portable_import", candidateFingerprint: fingerprint });
+  const inserted = await client.query<{ id: string }>(
     `insert into media_sources
       (organization_id,name,source_type,status,public_config,source_key,last_seen_at,metadata)
      values ($1,$2,'portable_asset','ready',$3::jsonb,$4,clock_timestamp(),$5::jsonb)
-     on conflict (organization_id,name) do update set
-       status='ready',
-       public_config=excluded.public_config,
-       source_key=excluded.source_key,
-       last_seen_at=excluded.last_seen_at,
-       metadata=excluded.metadata
+     on conflict (organization_id,name) do nothing
      returning id::text`,
-    [
-      input.organizationId,
-      name,
-      JSON.stringify({ assetUrl: url, mediaKind }),
-      `portable:${input.candidate.candidateFingerprint}`,
-      JSON.stringify({ origin: "portable_import", candidateFingerprint: input.candidate.candidateFingerprint })
-    ]
+    [input.organizationId, name, publicConfig, sourceKey, metadata]
   );
-  return result.rows[0].id;
+  if (inserted.rowCount) {
+    return { id: inserted.rows[0].id, created: true, sourceKey, url, mediaKind, fingerprint };
+  }
+  const updated = await client.query<{ id: string }>(
+    `update media_sources
+        set status='ready',public_config=$3::jsonb,source_key=$4,last_seen_at=clock_timestamp(),metadata=$5::jsonb
+      where organization_id=$1 and name=$2
+      returning id::text`,
+    [input.organizationId, name, publicConfig, sourceKey, metadata]
+  );
+  if (!updated.rowCount) {
+    throw new PortableImportServiceError(409, "portable_import_media_source_conflict", "Portable media source could not be resolved safely");
+  }
+  return { id: updated.rows[0].id, created: false, sourceKey, url, mediaKind, fingerprint };
 }
 
 async function entityTimestamp(client: PoolClient, table: "media_library_items" | "presentation_items", id: string) {
@@ -307,11 +314,12 @@ export async function commitPortableImport(pool: Pool, userId: string, input: Co
           continue;
         }
         let plannerInput = importedPlannerInput(item);
+        let portableMediaSource: Awaited<ReturnType<typeof ensurePortableMediaSource>> | null = null;
         if (preview.kind === "media_url_manifest") {
-          const sourceId = await ensurePortableMediaSource(client, { organizationId: input.organizationId, candidate: item });
+          portableMediaSource = await ensurePortableMediaSource(client, { organizationId: input.organizationId, candidate: item });
           plannerInput = {
             title: item.title,
-            sourceId,
+            sourceId: portableMediaSource.id,
             mediaKind: String(item.input.mediaType ?? "")
           };
         }
@@ -328,7 +336,17 @@ export async function commitPortableImport(pool: Pool, userId: string, input: Co
           entityType: "media_library_item",
           entityId: createdItem.id,
           updatedAt: createdItem.updatedAt,
-          provenance: { itemType: createdItem.itemType }
+          provenance: {
+            itemType: createdItem.itemType,
+            ...(portableMediaSource ? {
+              mediaSourceId: portableMediaSource.id,
+              mediaSourceCreated: portableMediaSource.created,
+              mediaSourceKey: portableMediaSource.sourceKey,
+              mediaSourceUrl: portableMediaSource.url,
+              mediaSourceKind: portableMediaSource.mediaKind,
+              mediaSourceFingerprint: portableMediaSource.fingerprint
+            } : {})
+          }
         });
         created += 1;
       }
@@ -375,7 +393,7 @@ async function loadUndoBatch(client: PoolClient, userId: string, batchId: string
   const batch = batchResult.rows[0];
   await requireMutationMembership(client, userId, batch.organization_id);
   const items = await client.query<BatchItemRow>(
-    `select id::text,ordinal,entity_type,entity_id,entity_updated_at_snapshot::text,disposition
+    `select id::text,ordinal,entity_type,entity_id,entity_updated_at_snapshot::text,disposition,provenance
        from portable_import_batch_items
       where batch_id=$1 and organization_id=$2
       order by ordinal desc,id desc`,
@@ -396,7 +414,38 @@ async function undoConflicts(client: PoolClient, items: BatchItemRow[]) {
           limit 1`,
         [item.entity_id, item.entity_updated_at_snapshot]
       );
-      if (!found.rowCount || !found.rows[0].unchanged) conflicts.push({ itemId: item.id, reason: "library_item_changed" });
+      if (!found.rowCount || !found.rows[0].unchanged) {
+        conflicts.push({ itemId: item.id, reason: "library_item_changed" });
+        continue;
+      }
+      const provenance = item.provenance ?? {};
+      const mediaSourceId = typeof provenance.mediaSourceId === "string" ? provenance.mediaSourceId : null;
+      if (provenance.mediaSourceCreated === true && mediaSourceId) {
+        const source = await client.query<{ source_key: string | null; public_config: Record<string, unknown>; metadata: Record<string, unknown>; reused: boolean }>(
+          `select ms.source_key,ms.public_config,ms.metadata,
+                  exists(select 1 from media_library_items other where other.media_source_id=ms.id and other.id<>$2::uuid) as reused
+             from media_sources ms
+            where ms.id=$1
+              and ms.organization_id=(select organization_id from media_library_items where id=$2::uuid)
+            for update of ms`,
+          [mediaSourceId, item.entity_id]
+        );
+        if (source.rowCount) {
+          const row = source.rows[0];
+          const expectedKey = typeof provenance.mediaSourceKey === "string" ? provenance.mediaSourceKey : null;
+          const expectedUrl = typeof provenance.mediaSourceUrl === "string" ? provenance.mediaSourceUrl : null;
+          const expectedKind = typeof provenance.mediaSourceKind === "string" ? provenance.mediaSourceKind : null;
+          const expectedFingerprint = typeof provenance.mediaSourceFingerprint === "string" ? provenance.mediaSourceFingerprint : null;
+          if (row.reused) conflicts.push({ itemId: item.id, reason: "media_source_used" });
+          else if (
+            !expectedKey || row.source_key !== expectedKey ||
+            row.metadata?.origin !== "portable_import" ||
+            row.metadata?.candidateFingerprint !== expectedFingerprint ||
+            row.public_config?.assetUrl !== expectedUrl ||
+            row.public_config?.mediaKind !== expectedKind
+          ) conflicts.push({ itemId: item.id, reason: "media_source_changed" });
+        }
+      }
     } else if (item.entity_type === "presentation_item") {
       const found = await client.query<{ unchanged: boolean; state: string }>(
         `select updated_at=$2::timestamptz as unchanged,state
@@ -463,6 +512,23 @@ export async function undoPortableImport(pool: Pool, userId: string, batchId: st
           );
           if (!deleted.rowCount) {
             throw new PortableImportServiceError(409, "portable_import_undo_conflict", "Imported library item changed before undo could complete");
+          }
+          const provenance = item.provenance ?? {};
+          const mediaSourceId = typeof provenance.mediaSourceId === "string" ? provenance.mediaSourceId : null;
+          if (provenance.mediaSourceCreated === true && mediaSourceId) {
+            const sourceKey = typeof provenance.mediaSourceKey === "string" ? provenance.mediaSourceKey : "";
+            const sourceUrl = typeof provenance.mediaSourceUrl === "string" ? provenance.mediaSourceUrl : "";
+            const sourceKind = typeof provenance.mediaSourceKind === "string" ? provenance.mediaSourceKind : "";
+            const sourceFingerprint = typeof provenance.mediaSourceFingerprint === "string" ? provenance.mediaSourceFingerprint : "";
+            await client.query(
+              `delete from media_sources ms
+                where ms.id=$1 and ms.organization_id=$2 and ms.source_type='portable_asset'
+                  and ms.source_key=$3 and ms.metadata->>'origin'='portable_import'
+                  and ms.metadata->>'candidateFingerprint'=$4
+                  and ms.public_config->>'assetUrl'=$5 and ms.public_config->>'mediaKind'=$6
+                  and not exists(select 1 from media_library_items other where other.media_source_id=ms.id)`,
+              [mediaSourceId, batch.organization_id, sourceKey, sourceFingerprint, sourceUrl, sourceKind]
+            );
           }
         }
         await client.query(
