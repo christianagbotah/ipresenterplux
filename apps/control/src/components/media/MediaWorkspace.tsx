@@ -186,6 +186,7 @@ export function MediaWorkspace({
             <p className="mt-1 text-xs text-white/35">Reusable worship content · Planner-safe rundown insertion · truthful Edge availability</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/media/import" className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.07] px-4 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.12]">Import existing content</Link>
             <Link href="/planner" className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white">Service Planner</Link>
             <Link href="/operator" className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110"><SquarePlay size={16} />Open Operator</Link>
           </div>
