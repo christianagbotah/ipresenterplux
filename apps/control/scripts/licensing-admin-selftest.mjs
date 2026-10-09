@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import { isProductAdminEmail, requireProductAdminEmail } from "../src/lib/licensing/product-admin.ts";
+import { DEMO_FULL_FEATURES, ensureDemoFullEntitlement } from "../src/lib/licensing/demo-bootstrap.ts";
 import {
   issueProductKeyForSubscription,
   listProductKeysForOrganization,
@@ -14,6 +15,7 @@ import {
   getOrganizationSubscriptionOverview,
   deactivateOrganizationActivation,
   listLicensingAudit,
+  createSubscriptionPlan,
   LicensingAdminError
 } from "../src/lib/licensing/licensing-admin-service.ts";
 
@@ -34,6 +36,7 @@ await client.query("begin");
 
 const orgA = randomUUID();
 const orgB = randomUUID();
+let demoOrg = randomUUID();
 const actorId = randomUUID();
 const planId = randomUUID();
 const subA = randomUUID();
@@ -59,11 +62,63 @@ try {
      values ($1,'owner@lightworldtech.com','Product Admin','active')`,
     [actorId]
   );
+  const existingDemoOrg = await client.query("select id::text from organizations where slug='demo-church' limit 1");
+  if (existingDemoOrg.rows[0]) demoOrg = existingDemoOrg.rows[0].id;
+  else await client.query(
+    `insert into organizations(id,name,slug,country_code,timezone) values ($1,'Demo Church','demo-church','GH','Africa/Accra')`,
+    [demoOrg]
+  );
   await client.query(
     `insert into subscription_plans(id,code,name,default_device_seat_limit,features,numeric_limits)
      values ($1,'admin-test','Admin Test',2,$2::jsonb,$3::jsonb)`,
     [planId, JSON.stringify({ "core.presentation": true }), JSON.stringify({ deviceSeats: 2 })]
   );
+
+  const createdPlan = await createSubscriptionPlan(client, {
+    code: "church-pro",
+    name: "Church Pro",
+    actorUserId: actorId,
+    billingInterval: "month",
+    defaultDeviceSeatLimit: 3,
+    features: { "core.presentation": true, "ai.director": true },
+    numericLimits: { deviceSeats: 3 }
+  }, { now });
+  assert.equal(createdPlan.code, "church-pro");
+  const createdPlanRow = await client.query(
+    "select code,name,billing_interval,default_device_seat_limit,features from subscription_plans where id=$1",
+    [createdPlan.id]
+  );
+  assert.equal(createdPlanRow.rows[0].name, "Church Pro");
+  assert.equal(createdPlanRow.rows[0].default_device_seat_limit, 3);
+  assert.equal(createdPlanRow.rows[0].features["ai.director"], true);
+  await expectAdminCode(
+    createSubscriptionPlan(client, { code: "church-pro", name: "Duplicate", actorUserId: actorId }, { now }),
+    "plan_code_exists"
+  );
+
+  const demoFirst = await ensureDemoFullEntitlement(client, { now });
+  assert.equal(demoFirst.organizationId, demoOrg);
+  assert.equal(demoFirst.planCode, "demo-full");
+  assert.equal(demoFirst.createdPlan, true);
+  assert.equal(demoFirst.createdSubscription, true);
+  const demoPlan = await client.query("select id::text,features,default_device_seat_limit,metadata from subscription_plans where code='demo-full'");
+  assert.equal(demoPlan.rowCount, 1);
+  assert.equal(demoPlan.rows[0].default_device_seat_limit, 10);
+  for (const feature of Object.keys(DEMO_FULL_FEATURES)) assert.equal(demoPlan.rows[0].features[feature], true, `demo-full missing ${feature}`);
+  assert.equal(demoPlan.rows[0].metadata.demo, true);
+  const demoSecond = await ensureDemoFullEntitlement(client, { now: new Date(now.getTime() + 1000) });
+  assert.equal(demoSecond.planId, demoFirst.planId);
+  assert.equal(demoSecond.subscriptionId, demoFirst.subscriptionId);
+  assert.equal(demoSecond.createdPlan, false);
+  assert.equal(demoSecond.createdSubscription, false);
+  await client.query("update organization_subscriptions set status='cancelled' where id=$1", [demoFirst.subscriptionId]);
+  const manualSub = randomUUID();
+  await client.query(`insert into organization_subscriptions(id,organization_id,plan_id,status,starts_at,device_seat_limit) values ($1,$2,$3,'active',$4,2)`, [manualSub,demoOrg,planId,new Date(now.getTime()+2000)]);
+  const protectedDemo = await ensureDemoFullEntitlement(client, { now: new Date(now.getTime() + 3000) });
+  assert.equal(protectedDemo.subscriptionId, manualSub, "demo bootstrap must preserve manually assigned current subscription");
+  assert.equal(protectedDemo.createdSubscription, false);
+  const demoAudit = await client.query("select count(*)::int as count from audit_events where organization_id=$1 and action='licensing.demo.bootstrap'", [demoOrg]);
+  assert.ok(demoAudit.rows[0].count >= 1);
   await client.query(
     `insert into organization_subscriptions(id,organization_id,plan_id,status,starts_at,expires_at,device_seat_limit)
      values ($1,$2,$3,'active',$6,$7,2),($4,$5,$3,'active',$6,$7,1)`,
@@ -180,7 +235,9 @@ try {
     keysRoute: await readFile(new URL("../src/app/api/v1/admin/licensing/keys/route.ts", import.meta.url), "utf8"),
     subscriptionsRoute: await readFile(new URL("../src/app/api/v1/admin/licensing/subscriptions/route.ts", import.meta.url), "utf8"),
     statusComponent: await readFile(new URL("../src/components/licensing/SubscriptionStatus.tsx", import.meta.url), "utf8"),
-    adminComponent: await readFile(new URL("../src/components/licensing/LicensingAdmin.tsx", import.meta.url), "utf8")
+    adminComponent: await readFile(new URL("../src/components/licensing/LicensingAdmin.tsx", import.meta.url), "utf8"),
+    demoBootstrapScript: await readFile(new URL("./bootstrap-demo-entitlements.mjs", import.meta.url), "utf8"),
+    packageJson: JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"))
   };
   assert.match(files.settingsRoot, /\/settings\/subscription/u, "Settings must expose Subscription");
   assert.match(files.settingsPage, /DEVICE_ADMIN_ROLES/u, "church subscription management must remain owner/admin gated");
@@ -194,7 +251,16 @@ try {
   assert.match(files.keysRoute, /displayKey/u, "issue/reset response may return plaintext once");
   assert.match(files.keysRoute, /listProductKeysForOrganization/u, "key lists must use prefix-only service output");
   assert.doesNotMatch(files.adminPage, /IPLX-[A-Z2-9]{4}/u, "full product keys must never be server-rendered into admin HTML");
+  assert.match(files.subscriptionsRoute, /create_plan/u, "product-admin API must expose subscription plan creation");
+  assert.match(files.subscriptionsRoute, /createSubscriptionPlan/u, "plan creation must use licensing service layer");
+  assert.match(files.adminComponent, /Create plan/u, "product-admin UI must recover from an empty plan catalog");
+  for (const feature of ["core.presentation","ai.director","translations.text","translations.audio","streaming.web","streaming.social"]) {
+    assert.match(files.adminComponent, new RegExp(feature.replaceAll(".", "\\."), "u"), `plan UI must expose ${feature}`);
+  }
   assert.match(files.statusComponent, /seat/iu);
+  assert.match(files.demoBootstrapScript, /IPRESENTERPLUX_ENABLE_DEMO_ACCOUNTS/u, "demo entitlement bootstrap must require demo mode");
+  assert.match(files.demoBootstrapScript, /--apply/u, "demo entitlement bootstrap must require explicit apply flag");
+  assert.equal(files.packageJson.scripts["demo:license"], "node scripts/bootstrap-demo-entitlements.mjs");
   assert.match(files.adminComponent, /issue/iu);
 
   console.log(JSON.stringify({

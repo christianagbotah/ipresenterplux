@@ -10,7 +10,8 @@ export type LicensingAdminErrorCode =
   | "not_found"
   | "tenant_mismatch"
   | "invalid_status"
-  | "current_subscription_exists";
+  | "current_subscription_exists"
+  | "plan_code_exists";
 
 export class LicensingAdminError extends Error {
   readonly code: LicensingAdminErrorCode;
@@ -325,6 +326,40 @@ export async function setSubscriptionSeatLimit(
     now
   });
   return { id: subscription.id, seatLimit };
+}
+
+export async function createSubscriptionPlan(
+  client: QueryClient,
+  input: {
+    code: string;
+    name: string;
+    actorUserId: string;
+    billingInterval?: "none" | "month" | "year" | "custom";
+    billingIntervalCount?: number;
+    defaultDeviceSeatLimit?: number;
+    features?: Record<string, boolean>;
+    numericLimits?: Record<string, number>;
+    metadata?: Record<string, unknown>;
+  },
+  context: AdminContext = {}
+) {
+  const now = nowFrom(context);
+  const code = input.code.trim().toLowerCase();
+  const existing = await client.query("select id from subscription_plans where code=$1 limit 1 for update", [code]);
+  if (existing.rowCount) throw new LicensingAdminError("plan_code_exists", "Subscription plan code already exists");
+  const id = randomUUID();
+  const billingInterval = input.billingInterval ?? "month";
+  const billingIntervalCount = Math.max(1, Math.trunc(input.billingIntervalCount ?? 1));
+  const defaultDeviceSeatLimit = Math.max(1, Math.trunc(input.defaultDeviceSeatLimit ?? 1));
+  const metadata = { ...(input.metadata ?? {}), createdBy: input.actorUserId };
+  await client.query(
+    `insert into subscription_plans
+      (id,code,name,enabled,billing_interval,billing_interval_count,default_device_seat_limit,features,numeric_limits,metadata,created_at,updated_at)
+     values ($1,$2,$3,true,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$10)`,
+    [id, code, input.name.trim(), billingInterval, billingIntervalCount, defaultDeviceSeatLimit,
+     JSON.stringify(input.features ?? {}), JSON.stringify(input.numericLimits ?? {}), JSON.stringify(metadata), now]
+  );
+  return { id, code, name: input.name.trim(), enabled: true, billingInterval, defaultDeviceSeatLimit };
 }
 
 export async function createOrganizationSubscription(
