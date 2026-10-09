@@ -176,6 +176,8 @@ jobs:
         run: pnpm test:portable-import-parser
       - name: Transactional portable import self-test
         run: pnpm test:portable-import-service
+      - name: Migration wizard and portable export self-test
+        run: pnpm test:import-wizard
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
