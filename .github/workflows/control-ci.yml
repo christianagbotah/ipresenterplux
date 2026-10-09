@@ -172,6 +172,8 @@ jobs:
         run: pnpm test:cockpit-role-projection
       - name: Intelligent Cockpit acceptance self-test
         run: pnpm test:cockpit-acceptance
+      - name: Portable import parser and migration self-test
+        run: pnpm test:portable-import-parser
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
