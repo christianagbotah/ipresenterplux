@@ -72,7 +72,8 @@
     "test:portable-import-service": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/portable-import-service-selftest.mjs",
     "test:import-wizard": "node scripts/import-wizard-selftest.mjs",
     "test:switching-moat-acceptance": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/switching-moat-acceptance-selftest.mjs",
-    "test:pwa-public-assets": "node scripts/pwa-public-assets-selftest.mjs"
+    "test:pwa-public-assets": "node scripts/pwa-public-assets-selftest.mjs",
+    "test:cockpit-field-uat": "node scripts/cockpit-field-uat-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

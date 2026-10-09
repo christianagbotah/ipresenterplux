@@ -168,6 +168,8 @@ jobs:
         run: pnpm test:cockpit-shell
       - name: Intelligent Cockpit focus-mode self-test
         run: pnpm test:cockpit-focus
+      - name: Cockpit ten-scenario field UAT
+        run: pnpm test:cockpit-field-uat
       - name: Cockpit role projection self-test
         run: pnpm test:cockpit-role-projection
       - name: Intelligent Cockpit acceptance self-test
