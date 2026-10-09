@@ -57,6 +57,45 @@ export async function reconcileStreamCommandResult(
   if (current.status !== expectedStatus) return null;
 
   if (result.success) {
+    if (result.commandType === "stream.stop") {
+      const updated = await client.query<StreamSessionRow>(
+        `update stream_sessions
+         set status='ended',
+             ended_at=coalesce(ended_at,now()),
+             error_code=null,
+             metrics=coalesce(metrics,'{}'::jsonb) || jsonb_build_object(
+               'edgeCommand',jsonb_build_object(
+                 'type',$2::text,
+                 'state','succeeded',
+                 'edgeDeviceId',$3::text,
+                 'at',clock_timestamp()
+               )
+             ),
+             updated_at=now()
+         where id=$1::uuid
+         returning id::text,service_id::text,status`,
+        [current.id, result.commandType, result.edgeDeviceId]
+      );
+
+      await client.query(
+        `update stream_session_destinations
+         set status='ended',ended_at=coalesce(ended_at,now()),updated_at=now()
+         where stream_session_id=$1::uuid
+           and status not in ('ended','skipped','error')`,
+        [current.id]
+      );
+
+      await client.query(
+        `update edge_stream_contribution_sessions
+         set revoked_at=coalesce(revoked_at,now()),updated_at=now()
+         where service_id=$1::uuid
+           and revoked_at is null`,
+        [result.serviceId]
+      );
+
+      return toTransition(updated.rows[0]);
+    }
+
     await client.query(
       `update stream_sessions
        set metrics=coalesce(metrics,'{}'::jsonb) || jsonb_build_object(
@@ -113,6 +152,91 @@ export async function reconcileStreamCommandResult(
      where service_id=$1::uuid
        and revoked_at is null`,
     [result.serviceId]
+  );
+
+  return toTransition(updated.rows[0]);
+}
+
+export async function reconcileStaleStreamSession(
+  client: PoolClient,
+  serviceId: string,
+  options: { startingTimeoutSeconds?: number; stoppingTimeoutSeconds?: number } = {}
+): Promise<TransitionResult> {
+  const startingTimeoutSeconds = Number.isInteger(options.startingTimeoutSeconds) && (options.startingTimeoutSeconds ?? 0) > 0
+    ? options.startingTimeoutSeconds!
+    : 120;
+  const stoppingTimeoutSeconds = Number.isInteger(options.stoppingTimeoutSeconds) && (options.stoppingTimeoutSeconds ?? 0) > 0
+    ? options.stoppingTimeoutSeconds!
+    : 120;
+
+  const found = await client.query<StreamSessionRow>(
+    `select id::text,service_id::text,status
+     from stream_sessions
+     where service_id=$1::uuid
+       and (
+         (status='starting' and updated_at <= clock_timestamp() - ($2::int * interval '1 second'))
+         or
+         (status='stopping' and updated_at <= clock_timestamp() - ($3::int * interval '1 second'))
+       )
+     order by created_at desc
+     limit 1
+     for update`,
+    [serviceId, startingTimeoutSeconds, stoppingTimeoutSeconds]
+  );
+  const current = found.rows[0];
+  if (!current) return null;
+
+  const staleStart = current.status === "starting";
+  const nextStatus: StreamSessionState = staleStart ? "error" : "ended";
+  const errorCode = staleStart ? "stream_start_timeout" : null;
+  const reason = staleStart ? "stale_start_timeout" : "stale_stop_finalized";
+  const timeoutSeconds = staleStart ? startingTimeoutSeconds : stoppingTimeoutSeconds;
+
+  const updated = await client.query<StreamSessionRow>(
+    `update stream_sessions
+     set status=$2,
+         ended_at=coalesce(ended_at,now()),
+         error_code=$3,
+         metrics=coalesce(metrics,'{}'::jsonb) || jsonb_build_object(
+           'reconciliation',jsonb_build_object(
+             'reason',$4::text,
+             'timeoutSeconds',$5::int,
+             'at',clock_timestamp()
+           )
+         ),
+         updated_at=now()
+     where id=$1::uuid
+     returning id::text,service_id::text,status`,
+    [current.id, nextStatus, errorCode, reason, timeoutSeconds]
+  );
+
+  if (staleStart) {
+    await client.query(
+      `update stream_session_destinations
+       set status=case when status='pending' then 'skipped' else 'error' end,
+           last_error_code=case when status='pending' then last_error_code else 'stream_start_timeout' end,
+           ended_at=coalesce(ended_at,now()),
+           updated_at=now()
+       where stream_session_id=$1::uuid
+         and status not in ('ended','skipped','error')`,
+      [current.id]
+    );
+  } else {
+    await client.query(
+      `update stream_session_destinations
+       set status='ended',ended_at=coalesce(ended_at,now()),updated_at=now()
+       where stream_session_id=$1::uuid
+         and status not in ('ended','skipped','error')`,
+      [current.id]
+    );
+  }
+
+  await client.query(
+    `update edge_stream_contribution_sessions
+     set revoked_at=coalesce(revoked_at,now()),updated_at=now()
+     where service_id=$1::uuid
+       and revoked_at is null`,
+    [serviceId]
   );
 
   return toTransition(updated.rows[0]);

@@ -4,6 +4,7 @@ import { auth } from "@auth";
 import { db } from "@/lib/db";
 import { SOCIAL_DESTINATION_TYPES } from "@/lib/destination-routing";
 import { enqueueServiceEdgeCommand } from "@/lib/edge-command-dispatch";
+import { EntitlementAccessError, requireEntitlementFeature } from "@/lib/licensing/entitlement-access";
 import { STREAM_OPERATOR_ROLES } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 import { streamPathForService, type StreamSessionState } from "@/lib/stream-session-authority";
@@ -128,27 +129,47 @@ export async function POST(request: Request, context: RouteContext) {
           return NextResponse.json({ ok: false, error: "No active Edge device is assigned to this service" }, { status: 409 });
         }
 
-        const destinations = await client.query<{ count: string }>(
-          `select count(*)::text as count
-           from output_destinations od
-           where od.organization_id=$1::uuid
-             and od.enabled=true
-             and (
-               od.destination_type='web_webrtc'
-               or (
-                 od.destination_type=any($2::text[])
+        const destinations = await client.query<{ count: string; web_count: string; social_count: string }>(
+          `select
+             count(*) filter (
+               where od.enabled=true and (
+                 od.destination_type='web_webrtc'
+                 or (
+                   od.destination_type=any($2::text[])
+                   and nullif(od.public_config->>'ingestUrl','') is not null
+                   and exists (
+                     select 1 from output_destination_credentials c
+                     where c.output_destination_id=od.id
+                   )
+                 )
+               )
+             )::text as count,
+             count(*) filter (
+               where od.enabled=true and od.destination_type='web_webrtc'
+             )::text as web_count,
+             count(*) filter (
+               where od.enabled=true
+                 and od.destination_type=any($2::text[])
                  and nullif(od.public_config->>'ingestUrl','') is not null
                  and exists (
                    select 1 from output_destination_credentials c
                    where c.output_destination_id=od.id
                  )
-               )
-             )`,
+             )::text as social_count
+           from output_destinations od
+           where od.organization_id=$1::uuid`,
           [service.organization_id, [...SOCIAL_DESTINATION_TYPES]]
         );
-        if (Number(destinations.rows[0]?.count ?? 0) < 1) {
+        const destinationState = destinations.rows[0];
+        if (Number(destinationState?.count ?? 0) < 1) {
           await client.query("rollback");
           return NextResponse.json({ ok: false, error: "Enable at least one configured broadcast destination before starting" }, { status: 409 });
+        }
+        if (Number(destinationState?.web_count ?? 0) > 0) {
+          await requireEntitlementFeature(service.organization_id, "streaming.web", { client });
+        }
+        if (Number(destinationState?.social_count ?? 0) > 0) {
+          await requireEntitlementFeature(service.organization_id, "streaming.social", { client });
         }
 
         const routerPath = streamPathForService(serviceId);
@@ -311,6 +332,9 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: "Invalid stream action", issues: error.issues }, { status: 400 });
+    }
+    if (error instanceof EntitlementAccessError) {
+      return NextResponse.json({ ok: false, error: error.message, code: error.code, featureId: error.featureId }, { status: error.httpStatus });
     }
     console.error("Stream session action failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ ok: false, error: "Stream session action failed" }, { status: 500 });

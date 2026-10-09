@@ -14,7 +14,7 @@ const javascript = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
 }).outputText;
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
-const { reconcileRouterReadyState, reconcileStreamCommandResult, streamPathForService } = await import(moduleUrl);
+const { reconcileRouterReadyState, reconcileStaleStreamSession, reconcileStreamCommandResult, streamPathForService } = await import(moduleUrl);
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
@@ -153,6 +153,7 @@ try {
   assert.equal((await destinationState(successSessionId)).status, "live", "WebRTC destination follows master availability");
 
   await client.query("update stream_sessions set status='stopping',updated_at=now() where id=$1::uuid", [successSessionId]);
+  const stopSuccessGrantId = await insertGrant(publisherId, "c");
   const stopAck = await reconcileStreamCommandResult(client, {
     serviceId,
     edgeDeviceId: publisherId,
@@ -160,15 +161,49 @@ try {
     success: true,
     errorCode: null
   });
-  assert.equal(stopAck?.status, "stopping", "Successful Edge stop ACK must remain stopping until router is unavailable");
-  assert.equal((await sessionState(successSessionId)).status, "stopping");
-
-  const ended = await reconcileRouterReadyState(client, routerPath, false);
-  assert.equal(ended?.status, "ended", "Router unavailable must complete an expected stop");
+  assert.equal(stopAck?.status, "ended", "Successful Edge stop ACK must terminalize the stopping session");
   const endedState = await sessionState(successSessionId);
   assert.equal(endedState.status, "ended");
-  assert.ok(endedState.ended_at, "Ended session must record ended_at");
-  assert.equal((await destinationState(successSessionId)).status, "ended");
+  assert.ok(endedState.ended_at, "Successful stop ACK must record ended_at");
+  assert.equal((await destinationState(successSessionId)).status, "ended", "Successful stop ACK ends nonterminal destinations");
+  const successGrant = await client.query("select revoked_at from edge_stream_contribution_sessions where id=$1::uuid", [stopSuccessGrantId]);
+  assert.ok(successGrant.rows[0].revoked_at, "Successful stop ACK must revoke the contribution grant");
+  const lateRouterStop = await reconcileRouterReadyState(client, routerPath, false);
+  assert.equal(lateRouterStop, null, "Router stop evidence after terminalization must be a no-op");
+  const lateStopAck = await reconcileStreamCommandResult(client, {
+    serviceId,
+    edgeDeviceId: publisherId,
+    commandType: "stream.stop",
+    success: true,
+    errorCode: null
+  });
+  assert.equal(lateStopAck, null, "Late stop acknowledgement for a terminal session must be a no-op");
+
+  const staleStartSessionId = await createSession("starting");
+  const staleStartGrantId = await insertGrant(publisherId, "d");
+  await client.query("update stream_sessions set updated_at=now()-interval '121 seconds' where id=$1::uuid", [staleStartSessionId]);
+  const staleStart = await reconcileStaleStreamSession(client, serviceId);
+  assert.equal(staleStart?.status, "error", "Stale starting session must become error");
+  const staleStartState = await sessionState(staleStartSessionId);
+  assert.equal(staleStartState.error_code, "stream_start_timeout");
+  assert.ok(staleStartState.ended_at, "Stale starting session must record ended_at");
+  assert.equal((await destinationState(staleStartSessionId)).status, "skipped");
+  const staleStartGrant = await client.query("select revoked_at from edge_stream_contribution_sessions where id=$1::uuid", [staleStartGrantId]);
+  assert.ok(staleStartGrant.rows[0].revoked_at, "Stale starting reconciliation must revoke contribution access");
+  assert.equal(await reconcileStaleStreamSession(client, serviceId), null, "Repeated stale-start reconciliation must be idempotent");
+
+  const staleStopSessionId = await createSession("stopping");
+  await client.query("update stream_session_destinations set status='live',started_at=now(),updated_at=now() where stream_session_id=$1::uuid", [staleStopSessionId]);
+  const staleStopGrantId = await insertGrant(publisherId, "e");
+  await client.query("update stream_sessions set updated_at=now()-interval '121 seconds' where id=$1::uuid", [staleStopSessionId]);
+  const staleStop = await reconcileStaleStreamSession(client, serviceId);
+  assert.equal(staleStop?.status, "ended", "Stale stopping session must become ended");
+  const staleStopState = await sessionState(staleStopSessionId);
+  assert.ok(staleStopState.ended_at, "Stale stopping session must record ended_at");
+  assert.equal((await destinationState(staleStopSessionId)).status, "ended");
+  const staleStopGrant = await client.query("select revoked_at from edge_stream_contribution_sessions where id=$1::uuid", [staleStopGrantId]);
+  assert.ok(staleStopGrant.rows[0].revoked_at, "Stale stopping reconciliation must revoke contribution access");
+  assert.equal(await reconcileStaleStreamSession(client, serviceId), null, "Repeated stale-stop reconciliation must be idempotent");
 
   // Start failure: session becomes error, pending destinations are skipped, and
   // any contribution right is revoked immediately.

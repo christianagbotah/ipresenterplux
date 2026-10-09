@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       service = await findServiceById(payload.serviceId);
     } else {
       const found = await query<ServiceContext>(
-        `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text
+        `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text,s.ai_enabled
          from services s
          where s.status in ('live','ready')
            and exists (

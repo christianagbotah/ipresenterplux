@@ -94,6 +94,9 @@ jobs:
           if (-not (Test-Path "publish/windows-app/iPresenterPlux.Edge.Desktop.exe")) { throw "Desktop shell executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/iPresenterPlux.Edge.Windows.exe")) { throw "Edge runtime executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/libSrt/srt.dll")) { throw "Bundled libsrt runtime is missing" }
+      - name: Scan Windows licensing package
+        shell: pwsh
+        run: python scripts/licensing-package-scan.py publish/windows-app
       - name: Smoke SRT contribution against MediaMTX
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
@@ -220,6 +223,9 @@ jobs:
           test -x publish/macos-app/runtime/iPresenterPlux.Edge.MacOS
           test -f publish/macos-app/runtime/libiPresenterPluxMediaBridge.dylib
           test -f publish/macos-app/runtime/libSrt/libsrt.dylib
+      - name: Scan macOS licensing package
+        shell: bash
+        run: python3 scripts/licensing-package-scan.py publish/macos-app
       - name: Smoke SRT contribution against MediaMTX
         shell: bash
         run: bash ./smoke/run-mediamtx-smoke.sh

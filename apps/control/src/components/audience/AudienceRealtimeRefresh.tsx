@@ -11,7 +11,7 @@ export function AudienceRealtimeRefresh({ serviceId }: { serviceId: string }) {
     const refresh = () => router.refresh();
 
     source.addEventListener("refresh", refresh);
-    const fallback = window.setInterval(refresh, 15_000);
+    const fallback = window.setInterval(refresh, 5_000);
 
     return () => {
       window.clearInterval(fallback);

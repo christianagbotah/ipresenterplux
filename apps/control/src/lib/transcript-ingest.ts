@@ -5,6 +5,7 @@ import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
 import { enqueueTranslationJobs } from "@/lib/translation-jobs";
 import { resolveSpeakerAttribution } from "@/lib/speaker-attribution";
+import { upsertCockpitRecommendation } from "./cockpit/recommendations.ts";
 import {
   detectContextualScriptureIntent,
   detectScriptureReferences,
@@ -20,6 +21,7 @@ export type ServiceContext = {
   campus_id: string | null;
   active_bible_version: string;
   auto_preview_threshold: string;
+  ai_enabled: boolean;
 };
 
 export type TranscriptInput = {
@@ -64,7 +66,7 @@ type BibleVerseRow = {
 
 export async function findServiceById(serviceId: string) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text
+    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
      from services where id=$1 limit 1`,
     [serviceId]
   );
@@ -73,7 +75,7 @@ export async function findServiceById(serviceId: string) {
 
 export async function findActiveServiceForDevice(organizationId: string, campusId: string | null) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text
+    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
      from services
      where organization_id=$1
        and status in ('live','ready')
@@ -393,7 +395,7 @@ export async function ingestTranscriptForService(
       (observedMs === cursorObservedMs && ordinal < cursorBeforeIngest.source_ordinal)
     );
     const staleForPreview = staleByTranscript || staleByCursor;
-    const nextState = !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
+    const nextState = service.ai_enabled && !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
       ? "preview"
       : "detected";
     if (nextState === "preview") {
@@ -414,6 +416,26 @@ export async function ingestTranscriptForService(
        bibleVersion,match.matchedSourceText ?? payload.text,match.confidence,nextState,match.detectionMethod,observedAt,ordinal]
     );
     inserted.push(result.rows[0]);
+    if (service.ai_enabled) {
+      await upsertCockpitRecommendation(client, {
+        organizationId: service.organization_id,
+        serviceId: service.id,
+        sourceKey: `scripture:${result.rows[0].id}`,
+        recommendationType: "scripture.detected",
+        targetType: "scripture_detection",
+        targetId: result.rows[0].id,
+        payload: { reference: match.reference, bibleVersion, method: match.detectionMethod },
+        confidence: match.confidence,
+        reason: `${match.reference} detected`,
+        evidence: (match.matchedSourceText ?? payload.text).trim().slice(0, 500),
+        sourceObservedAt: observedAt,
+        expiresAt: new Date(observedAt.getTime() + 120_000),
+        state: nextState === "preview" ? "prepared" : "suggested",
+        previewResultType: nextState === "preview" ? "scripture_detection" : null,
+        previewResultId: nextState === "preview" ? result.rows[0].id : null,
+        now: observedAt
+      });
+    }
     if (!staleForPreview) {
       await updateScriptureContext(client, service.id, match, bibleVersion, observedAt, ordinal);
     }

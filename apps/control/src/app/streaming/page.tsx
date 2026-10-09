@@ -15,15 +15,18 @@ import {
 } from "lucide-react";
 import { auth } from "@auth";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { StreamingBroadcastControl } from "@/components/StreamingBroadcastControl";
 import { StreamingDestinationControl } from "@/components/StreamingDestinationControl";
 import { StreamingDestinationCredentials } from "@/components/StreamingDestinationCredentials";
 import { StreamingProviderConnection } from "@/components/StreamingProviderConnection";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
 import { isSocialDestinationType } from "@/lib/destination-routing";
 import { STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { providerSecretKeyConfigured } from "@/lib/provider-secrets";
+import { publishServiceEvent } from "@/lib/realtime";
+import { reconcileStaleStreamSession } from "@/lib/stream-session-authority";
 import { youtubeOAuthConfigured } from "@/lib/youtube-oauth";
 
 export const dynamic = "force-dynamic";
@@ -67,6 +70,7 @@ type StreamSessionRow = {
   error_code: string | null;
   metrics: Record<string, unknown>;
   created_at: string;
+  updated_at: string;
 };
 
 function destinationLabel(type: string) {
@@ -149,10 +153,30 @@ async function streamingData(userId: string) {
   const service = services.rows[0];
   if (!service) return { service: undefined, outputs: [], streamSession: undefined, canControl: false };
 
+  const reconcileClient = await db.connect();
+  let recovered: Awaited<ReturnType<typeof reconcileStaleStreamSession>> = null;
+  try {
+    await reconcileClient.query("begin");
+    recovered = await reconcileStaleStreamSession(reconcileClient, service.id);
+    await reconcileClient.query("commit");
+  } catch (error) {
+    await reconcileClient.query("rollback");
+    throw error;
+  } finally {
+    reconcileClient.release();
+  }
+  if (recovered) {
+    await publishServiceEvent(service.id, "stream.session.changed", {
+      streamSessionId: recovered.sessionId,
+      status: recovered.status,
+      reason: "studio_reconciliation"
+    });
+  }
+
   const [sessions, canControl] = await Promise.all([
     query<StreamSessionRow>(
       `select id::text,status,video_profile,router_path,publisher_edge_device_id::text,
-              started_at::text,ended_at::text,error_code,metrics,created_at::text
+              started_at::text,ended_at::text,error_code,metrics,created_at::text,updated_at::text
        from stream_sessions
        where service_id=$1::uuid
        order by created_at desc
@@ -362,6 +386,17 @@ export default async function StreamingPage() {
           </div>
 
           <aside className="space-y-4">
+            <section className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-3">
+              <div className="mb-3 px-2 pt-1">
+                <div className="text-xs font-black uppercase tracking-[.14em] text-white/35">Program preview</div>
+                <p className="mt-1 text-xs leading-5 text-white/35">This is the authoritative service Program transport used by the public audience experience.</p>
+              </div>
+              <LiveProgramVideo serviceId={data.service.id} mode="operator" transportStatus={masterStatus} />
+              <div className="mt-3 rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-3 text-[11px] leading-5 text-white/38">
+                Automatic recovery boundary · 120 seconds. Starting and stopping sessions that do not receive expected Edge/router evidence are reconciled automatically instead of remaining stuck indefinitely.
+              </div>
+            </section>
+
             <section className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.055] p-5">
               <div className="flex items-center gap-2 text-[#efc86f]"><ShieldCheck size={17} /><span className="text-xs font-black uppercase tracking-[.14em]">Broadcast authority</span></div>
               <h2 className="mt-3 text-xl font-black">Master transport is authoritative</h2>

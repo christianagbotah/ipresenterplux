@@ -95,6 +95,20 @@ jobs:
         run: pnpm lint
       - name: Writable database self-test safety guard
         run: pnpm test:db-selftest-safety
+      - name: Subscription entitlement schema self-test
+        run: pnpm test:subscription-schema
+      - name: Secure product-key self-test
+        run: pnpm test:product-key
+      - name: Signed entitlement envelope self-test
+        run: pnpm test:entitlement-signing
+      - name: Activation and renewal API self-test
+        run: pnpm test:activation-api
+      - name: Licensing administration self-test
+        run: pnpm test:licensing-admin
+      - name: Entitlement operation gating self-test
+        run: pnpm test:entitlement-gating
+      - name: Licensing release-security self-test
+        run: pnpm test:licensing-release-security
       - name: Deployment handoff contract self-test
         working-directory: .
         run: |
@@ -102,6 +116,16 @@ jobs:
           node apps/control/scripts/deployment-contract-selftest.mjs
       - name: Scripture parser self-test
         run: pnpm test:scripture
+      - name: Studio navigation route self-test
+        run: pnpm test:studio-navigation
+      - name: Local Bible library self-test
+        run: pnpm test:bible-library
+      - name: Manual Scripture selection self-test
+        run: pnpm test:manual-scripture
+      - name: Scripture workspace UI self-test
+        run: pnpm test:scripture-workspace-ui
+      - name: Whole-chapter Scripture rendering self-test
+        run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test
         run: pnpm test:edge-operator-catalog
       - name: Scripture quote integration self-test
@@ -112,16 +136,68 @@ jobs:
         run: pnpm test:stream-contribution
       - name: Stream session authority lifecycle self-test
         run: pnpm test:stream-session-authority
+      - name: Service-end stream lifecycle self-test
+        run: pnpm test:service-stream-lifecycle
+      - name: Audience Studio contract self-test
+        run: pnpm test:audience-studio
+      - name: Public audience live-state self-test
+        run: pnpm test:audience-live-state
+      - name: Streaming Studio recovery self-test
+        run: pnpm test:streaming-studio-recovery
       - name: Destination fan-out lifecycle self-test
         run: pnpm test:stream-fanout
       - name: Provider destination health self-test
         run: pnpm test:stream-provider-health
       - name: Demo account catalog and login UI self-test
         run: pnpm test:demo-accounts
+      - name: Public auth origin self-test
+        run: pnpm test:auth-public-origin
       - name: RBAC UI capability matrix self-test
         run: pnpm test:rbac-ui
       - name: Operator workspace safety self-test
         run: pnpm test:operator-workspace
+      - name: Intelligent Cockpit view-model self-test
+        run: pnpm test:cockpit-view-model
+      - name: Predictive Next self-test
+        run: pnpm test:cockpit-predictive-next
+      - name: Cockpit typed command self-test
+        run: pnpm test:cockpit-command
+      - name: Cockpit smart attention self-test
+        run: pnpm test:cockpit-attention
+      - name: Predictive Next recommendation persistence self-test
+        run: pnpm test:cockpit-recommendations
+      - name: Intelligent Cockpit shell self-test
+        run: pnpm test:cockpit-shell
+      - name: Intelligent Cockpit focus-mode self-test
+        run: pnpm test:cockpit-focus
+      - name: Cockpit ten-scenario field UAT
+        run: pnpm test:cockpit-field-uat
+      - name: Cockpit role projection self-test
+        run: pnpm test:cockpit-role-projection
+      - name: Intelligent Cockpit acceptance self-test
+        run: pnpm test:cockpit-acceptance
+      - name: Portable import parser and migration self-test
+        run: pnpm test:portable-import-parser
+      - name: Transactional portable import self-test
+        run: pnpm test:portable-import-service
+      - name: Migration wizard and portable export self-test
+        run: pnpm test:import-wizard
+      - name: Switching moat acceptance self-test
+        run: pnpm test:switching-moat-acceptance
+      - name: Public PWA asset auth-boundary self-test
+        run: pnpm test:pwa-public-assets
+      - name: Songs and Media workspace self-test
+        run: pnpm test:media-workspace
+      - name: Cameras workspace self-test
+        run: pnpm test:camera-workspace
+      - name: AI Director workspace self-test
+        run: pnpm test:ai-director
+      - name: Service Archive workspace self-test
+        run: pnpm test:archive
+      - name: Studio route gating self-test
+        run: pnpm test:studio-route-gating
+      - name: Studio workspace acceptance self-test
+        run: pnpm test:studio-workspaces-ci
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
@@ -189,3 +265,5 @@ jobs:
           echo "MediaMTX v${version} accepted the production configuration."
       - name: Production build
         run: pnpm build
+      - name: Validate Studio route manifest
+        run: pnpm test:studio-route-manifest

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@auth";
 import { db } from "@/lib/db";
 import { isSocialDestinationType } from "@/lib/destination-routing";
+import { EntitlementAccessError, requireEntitlementFeature } from "@/lib/licensing/entitlement-access";
 import { STREAM_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 
@@ -78,7 +79,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         }, { status: 409 });
       }
 
+      if (enabled && row.destination_type === "web_webrtc") {
+        await requireEntitlementFeature(row.organization_id, "streaming.web", { client });
+      }
       if (enabled && isSocialDestinationType(row.destination_type)) {
+        await requireEntitlementFeature(row.organization_id, "streaming.social", { client });
         const credentials = await client.query<{ configured: boolean }>(
           `select exists(
              select 1 from output_destination_credentials
@@ -148,6 +153,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ ok: false, error: "Invalid output state", issues: error.issues }, { status: 400 });
+    }
+    if (error instanceof EntitlementAccessError) {
+      return NextResponse.json({ ok: false, error: error.message, code: error.code, featureId: error.featureId }, { status: error.httpStatus });
     }
     console.error("Output update failed", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ ok: false, error: "Output update failed" }, { status: 500 });
