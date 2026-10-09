@@ -59,6 +59,7 @@ const protectedScripts = [
   "licensing-admin-selftest.mjs",
   "media-workspace-selftest.mjs",
   "portable-import-parser-selftest.mjs",
+  "portable-import-service-selftest.mjs",
   "service-planner-item-selftest.mjs",
   "service-planner-mutation-selftest.mjs",
   "service-planner-readiness-selftest.mjs",
