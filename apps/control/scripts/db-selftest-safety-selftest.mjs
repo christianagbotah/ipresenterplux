@@ -58,6 +58,7 @@ const protectedScripts = [
   "edge-operator-catalog-selftest.mjs",
   "licensing-admin-selftest.mjs",
   "media-workspace-selftest.mjs",
+  "portable-import-parser-selftest.mjs",
   "service-planner-item-selftest.mjs",
   "service-planner-mutation-selftest.mjs",
   "service-planner-readiness-selftest.mjs",
