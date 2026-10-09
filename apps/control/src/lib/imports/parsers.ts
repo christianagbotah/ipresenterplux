@@ -47,7 +47,7 @@ function validateInput(input: PortableImportInput) {
   if (PROPRIETARY_EXTENSIONS.has(extension(input.filename))) {
     throw new PortableImportError(
       "portable_import_proprietary_format",
-      "This proprietary project format is not imported directly. Export a documented portable format first, then import that file into iPresenterPlux."
+      "This proprietary project format is not imported directly. Use a documented portable export from the source application, then import that file into iPresenterPlux."
     );
   }
   if (Buffer.byteLength(input.content, "utf8") > PORTABLE_IMPORT_LIMITS.maxBytes) {
