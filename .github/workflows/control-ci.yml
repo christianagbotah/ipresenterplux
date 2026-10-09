@@ -180,6 +180,8 @@ jobs:
         run: pnpm test:import-wizard
       - name: Switching moat acceptance self-test
         run: pnpm test:switching-moat-acceptance
+      - name: Public PWA asset auth-boundary self-test
+        run: pnpm test:pwa-public-assets
       - name: Songs and Media workspace self-test
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
