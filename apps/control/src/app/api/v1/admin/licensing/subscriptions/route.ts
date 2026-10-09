@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProductAdminEmail } from "@/lib/licensing/product-admin";
 import {
   configureSubscriptionPlan,
+  createSubscriptionPlan,
   createOrganizationSubscription,
   extendSubscription,
   getOrganizationSubscriptionOverview,
@@ -18,6 +19,7 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 
 const actionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("create_plan"), code: z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{1,63}$/u), name: z.string().trim().min(1).max(120), billingInterval: z.enum(["none","month","year","custom"]).default("month"), billingIntervalCount: z.number().int().min(1).max(120).default(1), defaultDeviceSeatLimit: z.number().int().min(1).max(1000).default(1), features: z.record(z.string(),z.boolean()).default({}), numericLimits: z.record(z.string(),z.number()).default({}) }),
   z.object({ action: z.literal("create"), organizationId: z.string().uuid(), planId: z.string().uuid(), status: z.enum(["trial","active","past_due","suspended","expired","cancelled"]).default("active"), deviceSeatLimit: z.number().int().min(1).max(1000).nullable().optional(), expiresAt: z.string().datetime().nullable().optional() }),
   z.object({ action: z.literal("set_status"), subscriptionId: z.string().uuid(), status: z.enum(["trial","active","past_due","suspended","expired","cancelled"]), reason: z.string().trim().max(240).optional() }),
   z.object({ action: z.literal("extend"), subscriptionId: z.string().uuid(), days: z.number().int().min(1).max(3650), reason: z.string().trim().max(240).optional() }),
@@ -64,6 +66,9 @@ export async function POST(request: Request) {
     await client.query("begin");
     let result;
     switch (parsed.data.action) {
+      case "create_plan":
+        result = await createSubscriptionPlan(client, { ...parsed.data, actorUserId: session.user.id });
+        break;
       case "create":
         result = await createOrganizationSubscription(client, { ...parsed.data, actorUserId: session.user.id });
         break;
@@ -84,7 +89,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, result }, { headers: NO_STORE });
   } catch (error) {
     await client.query("rollback");
-    const status = error instanceof LicensingAdminError && error.code === "not_found" ? 404 : 400;
+    const status = error instanceof LicensingAdminError
+      ? error.code === "not_found" ? 404 : error.code === "plan_code_exists" ? 409 : 400
+      : 400;
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Subscription administration failed" }, { status, headers: NO_STORE });
   } finally {
     client.release();

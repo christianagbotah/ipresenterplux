@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, KeyRound, LoaderCircle, RefreshCw, ShieldBan, Sparkles } from "lucide-react";
 
 type OrganizationOption = { id: string; name: string };
@@ -15,9 +16,12 @@ type Overview = {
   audit?: Array<{ id: string; action: string; createdAt: string }>;
 };
 
-type ApiResult = { ok?: boolean; error?: string; displayKey?: string; overview?: Overview; keys?: KeyItem[] } & Record<string, unknown>;
+type ApiResult = { ok?: boolean; error?: string; displayKey?: string; overview?: Overview; keys?: KeyItem[]; result?: Record<string, unknown> } & Record<string, unknown>;
+
+const PLAN_FEATURES = ["core.presentation","ai.director","translations.text","translations.audio","streaming.web","streaming.social"] as const;
 
 export function LicensingAdmin({ organizations, plans }: { organizations: OrganizationOption[]; plans: PlanOption[] }) {
+  const router = useRouter();
   const [organizationId, setOrganizationId] = useState(organizations[0]?.id ?? "");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [keys, setKeys] = useState<KeyItem[]>([]);
@@ -25,8 +29,13 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
   const [message, setMessage] = useState("");
   const [oneTimeKey, setOneTimeKey] = useState("");
   const [activationLimit, setActivationLimit] = useState(1);
+  const [planOptions, setPlanOptions] = useState(plans);
   const [planId, setPlanId] = useState(plans[0]?.id ?? "");
   const [seatLimit, setSeatLimit] = useState(1);
+  const [newPlanCode, setNewPlanCode] = useState("");
+  const [newPlanName, setNewPlanName] = useState("");
+  const [newPlanSeats, setNewPlanSeats] = useState(3);
+  const [newPlanFeatures, setNewPlanFeatures] = useState<Record<string, boolean>>(() => Object.fromEntries(PLAN_FEATURES.map((feature) => [feature, true])));
 
   const selectedOrganization = useMemo(() => organizations.find((item) => item.id === organizationId), [organizations, organizationId]);
 
@@ -106,6 +115,28 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
     await mutate("/api/v1/admin/licensing/keys", { action: "issue", subscriptionId: overview.subscription.id, activationLimit, note: "Issued from Lightworld licensing console" }, true);
   }
 
+
+  async function createPlan() {
+    if (!newPlanCode.trim() || !newPlanName.trim()) return;
+    setBusy(true); setMessage("");
+    try {
+      const data = await request("/api/v1/admin/licensing/subscriptions", { method: "POST", body: JSON.stringify({
+        action: "create_plan", code: newPlanCode.trim().toLowerCase(), name: newPlanName.trim(), billingInterval: "month",
+        defaultDeviceSeatLimit: newPlanSeats, features: newPlanFeatures, numericLimits: { deviceSeats: newPlanSeats }
+      }) });
+      const result = data.result as { id?: string; code?: string; name?: string; defaultDeviceSeatLimit?: number } | undefined;
+      if (result?.id && result.code && result.name) {
+        const next = { id: result.id, code: result.code, name: result.name, defaultDeviceSeatLimit: result.defaultDeviceSeatLimit ?? newPlanSeats };
+        setPlanOptions((items) => [...items, next].sort((a,b) => a.name.localeCompare(b.name)));
+        setPlanId(result.id);
+      }
+      setMessage("Plan created. You can assign it to a church now.");
+      setNewPlanCode(""); setNewPlanName("");
+      router.refresh();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Plan creation failed"); }
+    finally { setBusy(false); }
+  }
+
   async function createSubscription() {
     if (!organizationId || !planId) return;
     await mutate("/api/v1/admin/licensing/subscriptions", { action: "create", organizationId, planId, status: "active", deviceSeatLimit: seatLimit });
@@ -138,6 +169,17 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         </section>
       ) : null}
 
+      <section className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
+        <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Plan catalog</div><h2 className="mt-1 text-lg font-black">Create plan</h2><p className="mt-1 text-xs text-white/35">Create the commercial capability set before assigning subscriptions.</p></div><Sparkles size={18} className="text-[#d7a94a]" /></div>
+        <div className="mt-4 grid gap-3 lg:grid-cols-[.8fr_1.2fr_120px]">
+          <label className="text-xs font-bold text-white/40">Code<input value={newPlanCode} onChange={(e)=>setNewPlanCode(e.target.value)} placeholder="church-pro" className="mt-2 h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
+          <label className="text-xs font-bold text-white/40">Name<input value={newPlanName} onChange={(e)=>setNewPlanName(e.target.value)} placeholder="Church Pro" className="mt-2 h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
+          <label className="text-xs font-bold text-white/40">Default seats<input type="number" min={1} value={newPlanSeats} onChange={(e)=>setNewPlanSeats(Math.max(1,Number(e.target.value)||1))} className="mt-2 h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{PLAN_FEATURES.map((feature)=><label key={feature} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.02] px-3 text-xs font-bold text-white/55"><input type="checkbox" checked={newPlanFeatures[feature]===true} onChange={(e)=>setNewPlanFeatures((current)=>({...current,[feature]:e.target.checked}))} className="cursor-pointer"/><span>{feature}</span></label>)}</div>
+        <button type="button" disabled={busy || !newPlanCode.trim() || !newPlanName.trim()} onClick={()=>void createPlan()} className="mt-4 min-h-11 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:cursor-not-allowed disabled:opacity-40">Create plan</button>
+      </section>
+
       <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
         <div className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
           <div className="flex items-start justify-between gap-4">
@@ -169,7 +211,7 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
             <div className="mt-5 rounded-2xl border border-dashed border-white/[.1] p-5">
               <div className="text-sm font-bold">No current subscription</div>
               <div className="mt-4 flex flex-wrap items-end gap-3">
-                <label className="min-w-[220px] flex-1 text-xs font-bold text-white/40">Plan<select value={planId} onChange={(event) => setPlanId(event.target.value)} className="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
+                <label className="min-w-[220px] flex-1 text-xs font-bold text-white/40">Plan<select value={planId} onChange={(event) => setPlanId(event.target.value)} className="mt-2 h-10 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
                 <label className="text-xs font-bold text-white/40">Seats<input type="number" min={1} value={seatLimit} onChange={(event) => setSeatLimit(Number(event.target.value))} className="mt-2 h-10 w-24 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
                 <button type="button" onClick={() => void createSubscription()} disabled={busy || !planId} className="h-10 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:opacity-40">Create subscription</button>
               </div>
