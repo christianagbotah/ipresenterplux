@@ -78,6 +78,7 @@ try {
   assert.equal(copied.created, 1);
   assert.equal(Number((await setup.query(`select count(*)::int as count from media_library_items where organization_id=$1`, [org])).rows[0].count), 2, "import_copy must be explicit and auditable");
 
+  const atomicRevision = (await loadPlannerServiceDetail(setup, user, service)).revision;
   await assert.rejects(
     () => commitPortableImport(pool, user, {
       organizationId: org,
@@ -90,7 +91,7 @@ try {
         ] })
       },
       targetServiceId: service,
-      expectedRevision: (await loadPlannerServiceDetail(setup, user, service)).revision
+      expectedRevision: atomicRevision
     }),
     /unsupported|invalid|item/i,
     "a later domain validation failure must abort the entire batch"
