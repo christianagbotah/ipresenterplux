@@ -6,7 +6,7 @@ Scope: Windows-first native visual source discovery, capture, preview, health an
 
 ## 1. Purpose
 
-iPresenterPlux must become capable of owning live visual capture directly rather than depending on OBS, vMix, EasyWorship, ProPresenter or browser capture. The first production milestone is Native Edge Visual Capture v1: the Windows Edge runtime discovers real local cameras, displays and windows, captures them natively, reports authoritative source health to the control plane, and makes a selected source available to the existing iPresenterPlux video encoding and contribution pipeline.
+iPresenterPlux must become capable of owning live visual capture directly rather than depending on OBS, vMix, EasyWorship, ProPresenter or browser capture. The first production milestone is Native Edge Visual Capture v1: the Windows Edge runtime discovers real local cameras, displays and windows, captures them natively, reports authoritative source health to the control plane, and makes an explicitly taken source available to the existing iPresenterPlux video encoding and contribution pipeline.
 
 This milestone is deliberately narrower than a full video switcher. It establishes first-class native sources and safe routing primitives without introducing a scene compositor, effects engine, multi-layer mixer or third-party-first workflow.
 
@@ -42,12 +42,12 @@ The Cameras workspace already treats Edge as authoritative, supports status, pre
 - Windows-native display/window capture using Windows Graphics Capture.
 - Stable Edge-owned source identities.
 - Capture state, health, frame statistics and structured failure codes.
-- One selected visual source feeding the current `IProgramVideoSource`/H.264 contribution path.
+- Distinct Preview and Program source slots feeding the current `IProgramVideoSource`/H.264 contribution path.
 - Safe Preview selection distinct from Program TAKE.
 - Edge source telemetry into the existing media-source control-plane route or a strictly compatible extension.
 - Cameras workspace evolution into a visual-source operator workspace while preserving current camera preferences.
 - Rescan/recovery after devices appear, disappear or permissions change.
-- Offline continuity for an already-running local source.
+- Offline continuity for an already-running local Program source.
 - Windows CI/build validation plus unit/integration coverage using fake visual sources where physical hardware is unavailable in CI.
 
 ### Explicitly out of scope for v1
@@ -103,7 +103,7 @@ The control plane must never use display names as the sole source identity. Exis
 
 ## 6. Core contracts
 
-Add focused abstractions rather than overloading `IEncodedProgramVideoSource`:
+Add focused abstractions rather than overloading `IEncodedProgramVideoSource`.
 
 ### `IVisualSourceCatalog`
 
@@ -130,16 +130,25 @@ Represents one active native capture session and exposes:
 
 Creates a capture session for one source. Platform-specific implementations live outside Edge Core.
 
-### `ISelectableProgramVideoSource`
+### Preview/Program video router
 
-A Core routing primitive implementing the existing `IProgramVideoSource` consumption model. It holds the currently prepared native visual source and exposes BGRA32 `ProgramVideoFrame` data to the existing encoder. It must not itself perform Program TAKE.
+Add one Core routing component around the existing `IProgramVideoSource` contract. The router owns two explicit slots:
 
-The existing rendered presentation source remains valid. The routing layer must support at least two source families:
+- **Preview slot** — the source the operator has prepared and is inspecting;
+- **Program slot** — the source actually feeding the existing Program encoder/output path.
+
+Preview selection may start a capture session and update only the Preview slot. It must not alter the Program slot.
+
+TAKE is the only operation that may promote the current Preview slot into the Program slot. The promotion must be atomic from the operator's perspective: either the previous Program remains active or the confirmed Preview becomes Program; no intermediate selection request may leak into Program.
+
+The existing `WindowsMediaFoundationEncodedProgramVideoSource` must consume only the router's Program-side `IProgramVideoSource` view. It must never read directly from the Preview slot.
+
+The existing rendered presentation source remains valid. The router must support at least two Program source families:
 
 - presentation-rendered Program source;
 - native visual capture source.
 
-The implementation plan may choose a small selector/router around `IProgramVideoSource`; it must not duplicate the H.264 encoder.
+The implementation plan may choose concrete interface/class names, but it must preserve this two-slot boundary and must not duplicate the H.264 encoder.
 
 ## 7. Windows implementation
 
@@ -179,9 +188,10 @@ Native source selection follows the same deliberate operator safety model as pre
 1. Operator chooses a visual source in the control portal.
 2. Control plane sends a typed, idempotent Edge command scoped to the active service and assigned Edge device.
 3. Edge resolves the requested `SourceId` against its current local catalog.
-4. Edge starts or reuses a capture session and reports confirmed Preview readiness.
-5. Control portal displays the Edge-confirmed preview source/state.
-6. Existing TAKE remains the only action that promotes prepared content/source state to Program.
+4. Edge starts or reuses a capture session and binds it to the Preview slot only.
+5. Edge reports confirmed Preview readiness; the control portal displays that confirmed source/state.
+6. Existing TAKE promotes the confirmed Preview slot to the Program slot.
+7. Only after TAKE does the Program-side `IProgramVideoSource` expose that source to local Program/contribution encoding.
 
 Selecting a camera, display or window must never implicitly execute `program.take` or `program.show`.
 
@@ -195,7 +205,7 @@ The implementation should extend the existing durable Edge command pipeline with
 
 Exact command names may change during implementation if current command conventions require it, but semantics must remain typed, service-scoped, idempotent and auditable.
 
-`program.take` remains unchanged and separate.
+`program.take` remains the sole live-promotion authority. Its implementation may coordinate the video router's Preview-to-Program promotion in the same deliberate TAKE operation, but no new visual command may bypass it.
 
 ## 9. Source lifecycle and failure policy
 
@@ -211,9 +221,9 @@ Preview immediately transitions to unavailable/error. Program remains untouched.
 
 Safety policy for v1:
 
-1. Preserve the last valid frame for up to 2 seconds to absorb transient device renegotiation.
+1. Preserve the last valid Program frame for up to 2 seconds to absorb transient device renegotiation.
 2. If valid frames resume inside that window, continue without automatic Program mutation.
-3. If frames do not resume after 2 seconds, emit a deterministic safe black frame from the routing layer and mark the source `disconnected`/`error`.
+3. If valid frames do not resume after 2 seconds, emit a deterministic safe black Program frame from the routing layer and mark the Program source `disconnected`/`error`.
 4. Do not automatically switch to another camera or presentation source.
 5. Surface a high-priority operator attention event/recommendation.
 
@@ -221,7 +231,7 @@ This avoids both a hard encoder crash and an unsafe automatic switch.
 
 ### Control-plane disconnect
 
-The Edge continues the active source, local Program output and contribution/recording pipeline. Desired-state changes wait until authenticated connectivity returns. Edge continues journaling/reporting local state according to existing offline/durable patterns.
+The Edge continues the active Program slot, local Program output and contribution/recording pipeline. Desired-state changes wait until authenticated connectivity returns. Edge continues journaling/reporting local state according to existing offline/durable patterns.
 
 ### Encoder failure
 
@@ -245,10 +255,13 @@ Required normalized metadata may include:
 The control plane must distinguish:
 
 - desired source state requested by the operator;
-- Edge-confirmed current capture state;
+- Edge-confirmed Preview slot;
+- Edge-confirmed Program slot;
 - Program state confirmed by the existing presentation/output authority.
 
 The UI must not label a source Live merely because a request was sent.
+
+The current media-source upsert behavior must be reviewed because source identity may not safely rely on organization + friendly name. If schema/index changes are required, v1 should move source uniqueness to a stable Edge-device/source-key identity while preserving operator labels as mutable presentation metadata.
 
 ## 11. Control Portal UX
 
@@ -308,10 +321,11 @@ These are v1 engineering targets, not public SLA commitments:
 - stable source identity normalization;
 - catalog rescan and disappearance behavior;
 - source status transitions;
-- selector/routing state;
+- distinct Preview and Program routing state;
+- Preview selection cannot change Program output;
+- TAKE atomically promotes the confirmed Preview source to Program;
 - command idempotency;
-- Preview selection never triggers Program TAKE;
-- last-frame hold then black-frame fallback after source loss;
+- last-frame hold then black-frame fallback after Program source loss;
 - bounded-frame/drop behavior.
 
 ### Windows tests
@@ -320,7 +334,7 @@ These are v1 engineering targets, not public SLA commitments:
 - display/window catalog normalization;
 - Media Foundation capture adapter error mapping;
 - Windows Graphics Capture adapter error mapping;
-- fake/native-frame integration into the existing H.264 encoder;
+- fake/native-frame integration into the existing H.264 encoder through the Program slot;
 - start/stop/restart lifecycle and disposal.
 
 Physical hardware tests that cannot run deterministically in hosted CI must be isolated behind explicit Windows UAT scripts and never replaced with claims of successful physical capture.
@@ -342,13 +356,13 @@ On a real Windows production workstation:
 1. Discover an integrated/USB camera.
 2. Discover at least one monitor.
 3. Discover a capturable application window.
-4. Preview each source independently.
+4. Preview each source independently and confirm Program does not change.
 5. TAKE a prepared source to Program through the normal Cockpit action.
 6. Unplug/disconnect a live camera and observe 2-second hold followed by safe black plus attention state.
 7. Restore/rescan/reselect the source.
 8. Drop Internet/control-plane connectivity and confirm existing local Program/capture continues.
 9. Reconnect and confirm state reconciliation without duplicate commands.
-10. Confirm contribution H.264 frames continue through the existing publisher path.
+10. Confirm contribution H.264 frames continue through the existing publisher path and follow Program, not Preview.
 
 The existing external Windows Edge enrollment/UAT issue must remain open until these tests run on an actual Windows machine.
 
@@ -360,8 +374,8 @@ Implementation should be staged so every step preserves a working product:
 2. Windows source catalog discovery.
 3. Native camera capture.
 4. Native display/window capture.
-5. Selectable `IProgramVideoSource` routing into the existing encoder.
-6. Durable source Preview commands and Edge state reporting.
+5. Two-slot Preview/Program router feeding the existing Program-side `IProgramVideoSource` encoder path.
+6. Durable source Preview commands plus TAKE coordination and Edge state reporting.
 7. Control-plane telemetry/data-model compatibility adjustments.
 8. Cameras workspace operator controls and confirmed-state UX.
 9. Windows packaging/CI hardening.
@@ -389,10 +403,12 @@ Native Edge Visual Capture v1 is complete only when all of the following are tru
 - Windows Edge can enumerate real camera, display and window sources.
 - Operator-visible source identity is stable across ordinary rescans.
 - Camera and screen/window sources can produce normalized frames on Windows.
-- Existing H.264 contribution encoding consumes the selected native source without a second video encoder architecture.
+- Preview and Program maintain separate Edge-confirmed source slots.
+- Existing H.264 contribution encoding consumes only the Program slot and does not change when Preview selection changes.
 - Source selection prepares Preview only and cannot bypass TAKE.
+- TAKE atomically promotes the confirmed Preview visual source to Program when a visual source is armed.
 - Source failure does not crash the Edge runtime or silently switch Program.
-- Live source loss follows the defined 2-second hold then safe-black policy.
+- Live Program source loss follows the defined 2-second hold then safe-black policy.
 - Existing Program continues during temporary control-plane loss.
 - Control Portal displays Edge-confirmed source truth, including permission/busy/disconnect states.
 - Automated Core/Control tests and Windows build tests pass.
