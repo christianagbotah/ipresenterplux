@@ -148,6 +148,7 @@ export function CommandPalette() {
             <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘K</kbd> Command</span>
             <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘↵</kbd> Take to Program</span>
             <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘⌫</kbd> Clear Program</span>
+            <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">?</kbd> Shortcuts</span>
             <span className="ml-auto flex items-center gap-1 text-white/35">Program remains human-authorized</span>
           </div>
         </footer>
