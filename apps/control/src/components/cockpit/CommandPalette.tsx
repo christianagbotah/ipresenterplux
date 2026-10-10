@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 import { Command, Eye, Search, X } from "lucide-react";
+import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 
 const OPEN_EVENT = "ipresenterplux:command-open";
 
@@ -35,6 +36,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     function openPalette() {
+      if (hasBlockingModal()) return;
       setOpen(true);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
@@ -44,6 +46,7 @@ export function CommandPalette() {
         setOpen(false);
         return;
       }
+      if (!open && hasBlockingModal()) return;
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
       const target = event.target;
       if (target instanceof HTMLElement && target.closest("input,textarea,select,[contenteditable='true'],[role='textbox']")) return;

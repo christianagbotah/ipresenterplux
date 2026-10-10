@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Radio, Square, ShieldAlert } from "lucide-react";
 import type { CockpitStageState, CockpitViewModel } from "@/lib/cockpit/contracts";
+import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 
 function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "preview" | "program" }) {
   const program = kind === "program";
@@ -49,6 +50,7 @@ export function ProgramPreviewStage({ model }: { model: CockpitViewModel }) {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (hasBlockingModal()) return;
       const target = event.target;
       if (target instanceof HTMLElement && (target.isContentEditable || Boolean(target.closest("input,textarea,select,[role='textbox']")))) return;
       const command = event.ctrlKey || event.metaKey;

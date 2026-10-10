@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Keyboard, X } from "lucide-react";
+import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 
 // Keyboard shortcut help overlay. Press "?" (Shift+/) anywhere outside a text
 // input to surface every cockpit keyboard path. Makes the live operation
@@ -23,18 +24,20 @@ export function ShortcutsHelp() {
       );
     }
     function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && open) {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (!open && hasBlockingModal()) return;
       // Open on "?" (Shift+/ on US layouts) — bare, no modifier.
       if (event.key === "?" && !isTypingTarget(event.target)) {
         event.preventDefault();
         setOpen(true);
         return;
       }
-      if (event.key === "Escape" && open) {
-        event.preventDefault();
-        setOpen(false);
-      }
     }
-    function openFromEvent() { setOpen(true); }
+    function openFromEvent() { if (!hasBlockingModal()) setOpen(true); }
     window.addEventListener("keydown", onKey);
     window.addEventListener(OPEN_EVENT, openFromEvent);
     return () => {
@@ -93,6 +96,7 @@ export function ShortcutsHelp() {
             onClick={() => setOpen(false)}
             className="flex h-11 w-11 items-center justify-center rounded-xl text-white/55 transition hover:bg-white/[.05] hover:text-white ip-focus-gold"
             aria-label="Close shortcuts"
+            autoFocus
           >
             <X size={18} />
           </button>

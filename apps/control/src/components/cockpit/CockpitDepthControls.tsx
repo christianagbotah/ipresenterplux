@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { Crosshair, Gauge, SlidersHorizontal, Wrench } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
+import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 import { FocusMode } from "./FocusMode";
 import { NextRail } from "./NextRail";
 import { NowRail } from "./NowRail";
@@ -58,6 +59,7 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
   // browser-find, ⌘D bookmark, ⌘A select-all, etc. still work).
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
+      if (hasBlockingModal()) return;
       if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
       if (event.key === "f" || event.key === "F") {
         event.preventDefault();
