@@ -1,9 +1,10 @@
 import type { PoolClient } from "pg";
 import { listMediaLibrary } from "../media-library.ts";
+import { createPlannerItem } from "../planner-mutations.ts";
 import { loadPlannerServiceDetail } from "../planner-service-queries.ts";
 import { detectScriptureReferences } from "../scripture.ts";
 import type { ServicePreparationContext, ServicePreparationSuggestion } from "./contracts.ts";
-import { listServicePreparationNotes } from "./notes.ts";
+import { listServicePreparationNotes, ServiceIntelligenceError } from "./notes.ts";
 
 const EDGE_FRESHNESS_MS = 120_000;
 const HISTORY_LIMIT = 5;
@@ -130,4 +131,24 @@ export async function buildServicePreparationContext(
     readiness:{outputs:{enabled:Number(outputs.enabled),healthy:Number(outputs.healthy),degraded:Number(outputs.degraded)},languages:{enabled:Number(languages.enabled),listeners:Number(languages.listeners)},edge:{count:edges.rowCount??edges.rows.length,name:edge?.name??null,freshness:edgeFreshness,lastSeenAt:edge?.last_seen_at??null}},
     suggestions:sorted(suggestions)
   };
+}
+
+
+export async function applyServicePreparationSuggestion(
+  client: PoolClient,
+  userId: string,
+  input: { serviceId: string; suggestionId: string; expectedRevision: string; now?: Date }
+) {
+  const context = await buildServicePreparationContext(client, userId, input.serviceId, { now: input.now });
+  const suggestion = context.suggestions.find((item) => item.id === input.suggestionId);
+  if (!suggestion) {
+    throw new ServiceIntelligenceError(404, "service_preparation_suggestion_not_found", "Preparation suggestion was not found");
+  }
+  if (!suggestion.plannerCandidate) {
+    throw new ServiceIntelligenceError(409, "service_preparation_navigation_only", "This suggestion is context only and cannot be added to the service plan");
+  }
+  return createPlannerItem(client, userId, input.serviceId, input.expectedRevision, {
+    itemType: suggestion.plannerCandidate.itemType,
+    input: suggestion.plannerCandidate.input
+  });
 }

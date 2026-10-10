@@ -264,6 +264,8 @@ jobs:
         run: pnpm test:service-intelligence-schema
       - name: Service preparation intelligence self-test
         run: pnpm test:service-preparation
+      - name: Service preparation workspace self-test
+        run: pnpm test:service-preparation-ui
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
