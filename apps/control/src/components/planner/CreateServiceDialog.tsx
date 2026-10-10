@@ -91,11 +91,11 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-5" role="dialog" aria-modal="true" aria-labelledby="create-service-title">
-        <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border border-white/[.09] bg-[#0c1017] shadow-2xl sm:max-w-2xl sm:rounded-3xl ip-scrollbar-thin">
+        <div className="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto bg-black/70 p-0 backdrop-blur-sm sm:items-start sm:px-5 sm:pb-6 sm:pt-20" role="dialog" aria-modal="true" aria-labelledby="create-service-title">
+        <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/[.09] bg-[#0c1017] shadow-2xl sm:max-h-[calc(100dvh-7rem)] sm:max-w-2xl sm:rounded-3xl ip-scrollbar-thin">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/[.07] bg-[#0c1017]/95 px-5 py-5 backdrop-blur-xl sm:px-6">
               <div>
-                <div className="flex items-center gap-2 text-[#f2c765]"><CalendarPlus size={18} /><span className="text-[11px] font-bold uppercase tracking-[.18em]">Service Planner</span></div>
+                <div className="flex items-center gap-2 text-[#f2c765]"><CalendarPlus size={18} /><span className="text-xs font-bold uppercase tracking-[.18em]">Service Planner</span></div>
                 <h2 id="create-service-title" className="mt-2 text-xl font-black tracking-tight">Create a service plan</h2>
                 <p className="mt-1 text-sm text-white/55">Start in Draft. Add the rundown, validate readiness, then assign it to an Edge device.</p>
               </div>
@@ -104,7 +104,7 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
 
             <form onSubmit={createService} className="space-y-5 p-5 sm:p-6">
               <label className="block">
-                <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Service title</span>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/50">Service title</span>
                 <input
                   name="title"
                   value={title}
@@ -118,14 +118,14 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Service type</span>
+                  <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/50">Service type</span>
                   <select name="serviceType" value={serviceType} onChange={(event) => setServiceType(event.target.value)} className="min-h-12 w-full rounded-xl border border-white/[.09] bg-[#0a0d12] px-4 text-sm text-white outline-none transition ip-focus-gold">
                     {serviceTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Campus</span>
+                  <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/50">Campus</span>
                   <select name="campusId" value={campusId} onChange={(event) => setCampusId(event.target.value)} className="min-h-12 w-full rounded-xl border border-white/[.09] bg-[#0a0d12] px-4 text-sm text-white outline-none transition ip-focus-gold">
                     <option value="">All campuses</option>
                     {campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}
@@ -135,12 +135,12 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Scheduled start</span>
+                  <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/50">Scheduled start</span>
                   <input name="scheduledStart" type="datetime-local" value={scheduledStart} onChange={(event) => setScheduledStart(event.target.value)} className="min-h-12 w-full rounded-xl border border-white/[.09] bg-black/25 px-4 text-sm text-white outline-none transition ip-focus-gold" />
                 </label>
 
                 <label className="block">
-                  <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Bible version</span>
+                  <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/50">Bible version</span>
                   <select name="activeBibleVersion" value={activeBibleVersion} onChange={(event) => setActiveBibleVersion(event.target.value)} className="min-h-12 w-full rounded-xl border border-white/[.09] bg-[#0a0d12] px-4 text-sm text-white outline-none transition ip-focus-gold">
                     {bibleVersions.map((version) => <option key={version.id} value={version.id}>{version.abbreviation} · {version.name}</option>)}
                   </select>

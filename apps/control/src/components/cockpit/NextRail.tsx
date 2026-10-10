@@ -20,18 +20,18 @@ export function NextRail({ model }: { model: CockpitViewModel }) {
   return (
     <aside className="flex flex-col rounded-2xl border border-white/[.07] bg-white/[.018] p-4 xl:min-h-[600px]">
       <div className="flex items-center justify-between gap-3">
-        <div><div className="text-[11px] font-black uppercase tracking-[.2em] text-white/45">Next</div><div className="mt-1 text-sm font-bold text-white/75">Prepared service flow</div></div>
+        <div><div className="text-xs font-black uppercase tracking-[.2em] text-white/45">Next</div><div className="mt-1 text-sm font-bold text-white/75">Prepared service flow</div></div>
         <ListEnd size={17} className="text-[#e1b75e]" />
       </div>
       <div className="ip-scrollbar-thin mt-4 -mr-2 flex-1 space-y-2 overflow-y-auto pr-2">
         {model.next.length ? model.next.map((item, index) => (
           <div key={item.id} className="ip-ai-arrive rounded-xl border border-white/[.06] bg-black/25 p-3">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[.045] text-[10px] font-black text-white/45">{index + 1}</div>
+              <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[.045] text-xs font-black text-white/45">{index + 1}</div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-bold text-white/85">{item.title}</div>
-                <div className="mt-1 text-[11px] text-white/55">{item.targetType.replaceAll("_", " ")} · {item.reason ?? item.source}</div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-white/45">
+                <div className="mt-1 text-xs text-white/55">{item.targetType.replaceAll("_", " ")} · {item.reason ?? item.source}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/45">
                   {item.confidence !== null ? <span className="font-bold text-emerald-300/85">{Math.round(item.confidence)}% confidence</span> : null}
                   <span className="text-white/30">·</span>
                   <span>{freshnessLabel(item)}</span>
