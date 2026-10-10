@@ -246,6 +246,8 @@ jobs:
         run: pnpm test:studio-route-gating
       - name: Studio workspace acceptance self-test
         run: pnpm test:studio-workspaces-ci
+      - name: Service intelligence schema self-test
+        run: pnpm test:service-intelligence-schema
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
