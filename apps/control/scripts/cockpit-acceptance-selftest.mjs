@@ -19,7 +19,8 @@ assert.doesNotMatch(workspace, /grid-cols-4[^\n]*(KPI|Metric|Stats)/i, "default 
 
 const programSurface = stage.indexOf('kind === "program"');
 assert.ok(programSurface >= 0, "Program surface must be explicitly distinguished from Preview");
-assert.match(stage, /md:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.35fr\)\]/, "Program must remain visually dominant over Preview from desktop layouts onward");
+assert.match(stage, /md:grid-cols-2/, "Preview and Program must remain equal-size production monitors from desktop layouts onward");
+assert.doesNotMatch(stage, /1\.35fr/, "Program must not be wider than Preview");
 assert.match(stage, /min-h-14/, "TAKE must expose a touch-sized primary target");
 assert.match(stage, /min-h-12/, "Clear Program must expose a touch-sized primary target");
 assert.match(stage, /Ctrl\/⌘ \+ Enter/, "keyboard TAKE safety contract must remain visible");
@@ -53,4 +54,4 @@ for (const route of ["/scripture","/media","/cameras","/streaming","/audience","
   const escaped = route.replaceAll("/", "\\/");
   assert.ok(new RegExp(escaped).test(await read("../src/components/navigation/studio-routes.ts")), `${route} must remain a deep-work route`);
 }
-console.log(JSON.stringify({ok:true,sharedCockpit:true,programPreviewDominance:true,focusMode:true,predictiveSafety:true,typedCommands:true,impactRecovery:true,roleMobile:true,touchTargets:true,noHoverOnlyPrimary:true,noKpiWall:true,domainRoutesPreserved:true}));
+console.log(JSON.stringify({ok:true,sharedCockpit:true,programPreviewParity:true,focusMode:true,predictiveSafety:true,typedCommands:true,impactRecovery:true,roleMobile:true,touchTargets:true,noHoverOnlyPrimary:true,noKpiWall:true,domainRoutesPreserved:true}));

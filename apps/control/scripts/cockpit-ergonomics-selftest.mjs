@@ -19,6 +19,14 @@ assert.match(stage, /(?:aspect-video[^\"]*w-full|w-full[^\"]*aspect-video)/, "Pr
 for (const forcedHeight of ["min-h-60", "lg:min-h-[300px]", "lg:min-h-[360px]"]) {
   assert.equal(stage.includes(forcedHeight), false, `stage geometry must not include competing ${forcedHeight}`);
 }
+assert.match(stage, /md:grid-cols-2/, "Preview and Program monitors must have equal desktop width");
+assert.equal(stage.includes("1.35fr"), false, "Program must not be wider than Preview");
+assert.doesNotMatch(stage, /program \? [^\n]*text-3xl[^\n]*text-2xl/, "Preview and Program titles must use the same typography scale");
+assert.doesNotMatch(stage, /program \? [^\n]*text-lg[^\n]*text-base/, "Preview and Program bodies must use the same typography scale");
+assert.match(stage, /"Preview empty"/, "empty Preview monitor copy must stay concise");
+assert.match(stage, /"Program clear"/, "empty Program monitor copy must stay concise");
+assert.equal(stage.includes("Preview is your safe staging area. Prepare content here before taking it to Program — nothing goes live until you Take."), false, "long operator guidance must not live inside Preview");
+assert.equal(stage.includes("The audience sees black. Stage something into Preview, then Take it live."), false, "long operator guidance must not live inside Program");
 
 assert.match(depth, /md:sticky/, "desktop live stage must remain sticky while operators work in surrounding rails");
 assert.match(depth, /md:top-\[84px\]/, "sticky live stage must clear the 68px Cockpit header with breathing room");
