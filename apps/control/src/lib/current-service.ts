@@ -115,29 +115,27 @@ export async function getCurrentServiceForUser(userId: string, options: Options 
   if (!member) return null;
 
   const roles = member.roles ?? [];
-  const [serviceResult, subscriptionResult] = await Promise.all([
-    client.query<ServiceRow>(
-      `select s.id::text,s.organization_id::text,s.campus_id::text,c.name as campus_name,
-              s.title,s.status,s.active_bible_version,s.auto_preview_threshold,s.ai_enabled,s.updated_at::text
-         from services s
-         left join campuses c on c.id=s.campus_id
-        where s.organization_id=$1::uuid and s.status in ('live','ready')
-        order by case s.status when 'live' then 0 else 1 end,s.updated_at desc,s.id desc
-        limit 1`,
-      [member.organization_id]
-    ),
-    client.query<SubscriptionRow>(
-      `select os.status,os.starts_at,os.expires_at,os.grace_until,
-              sp.enabled as plan_enabled,sp.features
-         from organization_subscriptions os
-         join subscription_plans sp on sp.id=os.plan_id
-        where os.organization_id=$1::uuid
-        order by case when os.status in ('trial','active','past_due','suspended') then 0 else 1 end,
-                 os.created_at desc,os.id desc
-        limit 1`,
-      [member.organization_id]
-    )
-  ]);
+  const serviceResult = await client.query<ServiceRow>(
+    `select s.id::text,s.organization_id::text,s.campus_id::text,c.name as campus_name,
+            s.title,s.status,s.active_bible_version,s.auto_preview_threshold,s.ai_enabled,s.updated_at::text
+       from services s
+       left join campuses c on c.id=s.campus_id
+      where s.organization_id=$1::uuid and s.status in ('live','ready')
+      order by case s.status when 'live' then 0 else 1 end,s.updated_at desc,s.id desc
+      limit 1`,
+    [member.organization_id]
+  );
+  const subscriptionResult = await client.query<SubscriptionRow>(
+    `select os.status,os.starts_at,os.expires_at,os.grace_until,
+            sp.enabled as plan_enabled,sp.features
+       from organization_subscriptions os
+       join subscription_plans sp on sp.id=os.plan_id
+      where os.organization_id=$1::uuid
+      order by case when os.status in ('trial','active','past_due','suspended') then 0 else 1 end,
+               os.created_at desc,os.id desc
+      limit 1`,
+    [member.organization_id]
+  );
 
   const now = options.now ? new Date(options.now) : new Date();
   const entitlementFeatures = activeFeatures(subscriptionResult.rows[0], now);
