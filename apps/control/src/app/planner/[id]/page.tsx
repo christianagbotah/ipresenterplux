@@ -98,20 +98,20 @@ export default async function PlannerServicePage({ params }: PageProps) {
       <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <Link href="/planner" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] text-white/50 transition hover:bg-white/[.05] hover:text-white" aria-label="Back to Service Planner"><ArrowLeft size={18} /></Link>
+            <Link href="/planner" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] text-white/65 transition hover:bg-white/[.05] hover:text-white ip-focus-gold" aria-label="Back to Service Planner"><ArrowLeft size={18} /></Link>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-xl font-black tracking-tight sm:text-2xl">{detail.service.title}</h1>
                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${statusClass(detail.service.status)}`}>{detail.service.status}</span>
               </div>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/35">
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/55">
                 <span className="inline-flex items-center gap-1.5"><CalendarClock size={13} />{schedule(detail.service.scheduledStart, detail.service.timezone)}</span>
                 <span className="inline-flex items-center gap-1.5"><MapPin size={13} />{detail.service.campusName ?? "All campuses"}</span>
                 <span className="inline-flex items-center gap-1.5"><Radio size={13} />{detail.edgeAssignment.count} Edge assignment{detail.edgeAssignment.count === 1 ? "" : "s"}</span>
               </div>
             </div>
           </div>
-          <div className="rounded-xl border border-white/[.07] bg-white/[.025] px-3.5 py-2.5 text-xs text-white/40">
+          <div className="rounded-xl border border-white/[.07] bg-white/[.025] px-3.5 py-2.5 text-xs text-white/55">
             Revision <span className="ml-1 font-mono text-white/65">{detail.revision.slice(0, 10)}</span>
           </div>
         </div>

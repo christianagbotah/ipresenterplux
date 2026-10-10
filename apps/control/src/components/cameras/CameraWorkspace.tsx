@@ -138,6 +138,12 @@ export function CameraWorkspace({
 
   return (
     <main className="min-h-screen bg-[#080b10] text-white">
+      <a
+        href="#cameras-content"
+        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
+      >
+        Skip to Cameras content
+      </a>
       <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
@@ -145,20 +151,23 @@ export function CameraWorkspace({
             <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{organizationName}</h1>
             <p className="mt-1 text-xs text-white/35">Edge-owned capture truth · permissions · routing preference · no browser capture simulation</p>
           </div>
-          <Link href="/settings/devices" className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
+          <Link href="/settings/devices" className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        <section className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Available</div><div className="mt-2 text-3xl font-black">{counts.available}</div><div className="mt-1 text-xs text-white/30">Fresh Edge-reported camera sources</div></div>
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Needs attention</div><div className="mt-2 text-3xl font-black">{counts.attention}</div><div className="mt-1 text-xs text-white/30">Disconnected, permission or unsupported</div></div>
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Preferred source</div><div className="mt-2 text-3xl font-black">{counts.preferred}</div><div className="mt-1 text-xs text-white/30">Operator routing preference</div></div>
+      <div id="cameras-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-7">
+        <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-white/[.07] bg-white/[.02] px-4 py-3 text-xs">
+          <span className="flex items-center gap-2 font-bold text-white/70"><Camera size={14} className="text-[#d7a94a]" />{counts.available} available</span>
+          <span className="text-white/20">·</span>
+          <span className={counts.attention ? "font-bold text-amber-200" : "font-semibold text-emerald-200/80"}>{counts.attention ? `${counts.attention} need attention` : "all sources healthy"}</span>
+          <span className="text-white/20">·</span>
+          <span className="font-semibold text-white/55">{counts.preferred} preferred</span>
+          <span className="ml-auto text-[11px] text-white/40">Edge-reported capture truth · no browser capture</span>
         </section>
 
         {!hasPairedEdge && (
           <section className="rounded-3xl border border-amber-300/20 bg-amber-300/[.05] p-6">
-            <div className="flex items-start gap-4"><ShieldAlert size={24} className="mt-1 shrink-0 text-amber-200" /><div><h2 className="text-lg font-black text-amber-100">Pair a production computer first</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-white/45">Camera discovery and permission truth come from the Windows/macOS Edge application at the church. This browser does not request sanctuary camera access.</p><Link href="/settings/devices" className="mt-4 inline-flex min-h-10 cursor-pointer items-center rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#17120a] hover:brightness-110">Manage Edge Devices</Link></div></div>
+            <div className="flex items-start gap-4"><ShieldAlert size={24} className="mt-1 shrink-0 text-amber-200" /><div><h2 className="text-lg font-black text-amber-100">Pair a production computer first</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-white/45">Camera discovery and permission truth come from the Windows/macOS Edge application at the church. This browser does not request sanctuary camera access.</p><Link href="/settings/devices" className="ip-focus-gold mt-4 inline-flex min-h-10 cursor-pointer items-center rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#17120a] hover:brightness-110">Manage Edge Devices</Link></div></div>
           </section>
         )}
 
@@ -182,7 +191,7 @@ export function CameraWorkspace({
                     <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.09em] ${state.className}`}><StatusIcon size={12} />{state.label}</span>
                   </div>
 
-                  <div className="mt-4 grid gap-2 text-xs text-white/42">
+                  <div className="mt-4 grid gap-2 text-xs text-white/55">
                     <div className="flex items-center justify-between gap-3"><span>Reporting Edge</span><span className="truncate font-semibold text-white/65">{source.reportingDevice?.name || "Not linked"}</span></div>
                     <div className="flex items-center justify-between gap-3"><span>Edge platform</span><span className="font-semibold text-white/65">{source.reportingDevice?.platform || "—"}</span></div>
                     <div className="flex items-center justify-between gap-3"><span>Last source report</span><span className="text-right font-semibold text-white/65">{relativeTime(source.lastSeenAt)}</span></div>
@@ -190,13 +199,13 @@ export function CameraWorkspace({
                   </div>
 
                   {isEditing && canManage && (
-                    <div className="mt-4 rounded-xl border border-white/[.08] bg-black/20 p-3"><label className="text-[10px] font-bold uppercase tracking-[.12em] text-white/35">Operator label</label><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={160} className="mt-2 min-h-10 w-full rounded-lg border border-white/[.08] bg-white/[.04] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/50" placeholder={source.name} /><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => savePreference(source)} disabled={busy === source.id} className="min-h-9 cursor-pointer rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] disabled:cursor-not-allowed disabled:opacity-40">Save label</button><button type="button" onClick={() => clearPreference(source)} disabled={busy === source.id} className="min-h-9 cursor-pointer rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/55 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Clear preference</button></div></div>
+                    <div className="mt-4 rounded-xl border border-white/[.08] bg-black/20 p-3"><label className="text-[10px] font-bold uppercase tracking-[.12em] text-white/35">Operator label</label><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={160} className="ip-focus-gold mt-2 min-h-10 w-full rounded-lg border border-white/[.08] bg-white/[.04] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/50" placeholder={source.name} /><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => savePreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-9 cursor-pointer rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] disabled:cursor-not-allowed disabled:opacity-40">Save label</button><button type="button" onClick={() => clearPreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-9 cursor-pointer rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/55 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Clear preference</button></div></div>
                   )}
 
                   <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                    {source.previewUrl && <a href={source.previewUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-300/15 bg-emerald-300/[.06] px-3 text-xs font-bold text-emerald-100 hover:bg-emerald-300/[.10]"><ExternalLink size={13} />Open Edge preview</a>}
-                    {canManage && <button type="button" onClick={() => { setEditing(isEditing ? null : source.id); setLabel(source.operatorLabel || ""); }} className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:bg-white/[.05] hover:text-white"><Pencil size={13} />{isEditing ? "Close" : "Label"}</button>}
-                    {canManage && <button type="button" onClick={() => savePreference(source, !source.preferred)} disabled={busy === source.id} className="inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"><Star size={13} />{source.preferred ? "Remove preferred" : "Make preferred"}</button>}
+                    {source.previewUrl && <a href={source.previewUrl} target="_blank" rel="noreferrer" className="ip-focus-gold inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-emerald-300/15 bg-emerald-300/[.06] px-3 text-xs font-bold text-emerald-100 hover:bg-emerald-300/[.10]"><ExternalLink size={13} />Open Edge preview</a>}
+                    {canManage && <button type="button" onClick={() => { setEditing(isEditing ? null : source.id); setLabel(source.operatorLabel || ""); }} className="ip-focus-gold inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:bg-white/[.05] hover:text-white"><Pencil size={13} />{isEditing ? "Close" : "Label"}</button>}
+                    {canManage && <button type="button" onClick={() => savePreference(source, !source.preferred)} disabled={busy === source.id} className="ip-focus-gold inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"><Star size={13} />{source.preferred ? "Remove preferred" : "Make preferred"}</button>}
                   </div>
                 </article>
               );
@@ -204,7 +213,7 @@ export function CameraWorkspace({
           </div>
 
           {sources.length === 0 && hasPairedEdge && (
-            <div className="mt-5 rounded-2xl border border-dashed border-white/[.09] px-6 py-14 text-center"><Camera size={28} className="mx-auto text-white/15" /><div className="mt-3 text-sm font-bold">No camera sources reported yet</div><p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-white/35">Open the Edge application on the church production computer and verify camera permissions/capture support. Sources will appear here only after Edge reports them.</p><Link href="/settings/devices" className="mt-4 inline-flex cursor-pointer text-xs font-bold text-[#d7a94a] hover:underline">Manage Edge Devices →</Link></div>
+            <div className="mt-5 rounded-2xl border border-dashed border-white/[.09] px-6 py-14 text-center"><Camera size={28} className="mx-auto text-white/15" /><div className="mt-3 text-sm font-bold">No camera sources reported yet</div><p className="mx-auto mt-1 max-w-xl text-xs leading-5 text-white/35">Open the Edge application on the church production computer and verify camera permissions/capture support. Sources will appear here only after Edge reports them.</p><Link href="/settings/devices" className="ip-focus-gold mt-4 inline-flex cursor-pointer rounded text-xs font-bold text-[#d7a94a] hover:underline">Manage Edge Devices →</Link></div>
           )}
         </section>
       </div>

@@ -69,7 +69,7 @@ export default async function EdgeDevicesPage() {
         <div className="ip-card max-w-lg p-8 text-center">
           <MonitorCog className="mx-auto text-[#d7a94a]" />
           <h1 className="mt-4 text-xl font-black">No organization assigned</h1>
-          <p className="mt-2 text-sm leading-6 text-white/40">Your operator account is not attached to a church organization yet.</p>
+          <p className="mt-2 text-sm leading-6 text-white/55">Your operator account is not attached to a church organization yet.</p>
         </div>
       </main>
     );
@@ -131,7 +131,7 @@ export default async function EdgeDevicesPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/settings"
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/50 transition hover:bg-white/[.06] hover:text-white"
+              className="ip-focus-gold flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/70 transition hover:bg-white/[.06] hover:text-white"
               aria-label="Back to Control Room"
             >
               <ArrowLeft size={17} />
@@ -139,10 +139,10 @@ export default async function EdgeDevicesPage() {
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Settings · Church Edge</div>
               <h1 className="mt-1 text-2xl font-black tracking-tight">Edge Devices</h1>
-              <p className="mt-1 text-sm text-white/35">Pair church PCs and Macs with {organization.name}.</p>
+              <p className="mt-1 text-sm text-white/55">Pair church PCs and Macs with {organization.name}.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/45">
+          <div className="flex items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/65">
             <ShieldCheck size={14} className="text-emerald-300" />
             Credentials remain in OS-protected vaults
           </div>

@@ -57,8 +57,8 @@ export function ActiveSpeakerControl({ serviceId, serviceStatus, profiles }: Pro
             <Mic2 size={15} />
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-bold">Active speaker fallback</div>
-            <div className="mt-0.5 text-[10px] text-white/30">
+            <div className="text-xs font-bold text-white/85">Active speaker fallback</div>
+            <div className="mt-0.5 text-[11px] text-white/50">
               Used only when ASR/diarization does not identify a speaker.
             </div>
           </div>
@@ -68,7 +68,7 @@ export function ActiveSpeakerControl({ serviceId, serviceStatus, profiles }: Pro
             value={selected}
             disabled={!enabled || saving}
             onChange={(event) => void updateSpeaker(event.target.value)}
-            className="min-w-0 flex-1 rounded-lg border border-white/[.08] bg-[#080b10] px-3 py-2 text-xs text-white/70 outline-none disabled:cursor-not-allowed disabled:opacity-40 sm:w-64"
+            className="min-w-0 flex-1 rounded-lg border border-white/[.08] bg-[#080b10] px-3 py-2 text-xs text-white/75 outline-none transition ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40 sm:w-64"
             aria-label="Active speaker fallback"
           >
             <option value="">No manual speaker</option>
@@ -79,9 +79,9 @@ export function ActiveSpeakerControl({ serviceId, serviceStatus, profiles }: Pro
           {active ? <UserRoundCheck size={15} className="shrink-0 text-emerald-300" /> : null}
         </div>
       </div>
-      {error ? <div className="mt-2 text-[10px] text-red-200">{error}</div> : null}
+      {error ? <div className="mt-2 text-[11px] text-red-200">{error}</div> : null}
       {!profiles.length ? (
-        <div className="mt-2 text-[10px] text-amber-100/45">
+        <div className="mt-2 text-[11px] text-amber-100/70">
           No consented speaker profiles with speaker IDs are available. Add one in Settings → Voice Consent.
         </div>
       ) : null}

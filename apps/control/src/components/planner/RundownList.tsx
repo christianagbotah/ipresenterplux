@@ -74,21 +74,21 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
       <div className="border-b border-white/[.07] p-3 sm:p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-black text-white/85">Rundown</div>
-            <div className="mt-1 text-xs text-white/30">{items.length} cue{items.length === 1 ? "" : "s"}</div>
+            <div className="text-sm font-black text-white/90">Rundown</div>
+            <div className="mt-1 text-xs text-white/50">{items.length} cue{items.length === 1 ? "" : "s"}</div>
           </div>
           {canEdit ? (
             <div className="flex min-w-0 items-center gap-2">
-              <select value={newType} onChange={(event) => setNewType(event.target.value as PlannerCueType)} disabled={busy} className="min-h-10 min-w-0 rounded-lg border border-white/[.08] bg-[#0a0d12] px-2.5 text-xs text-white outline-none focus:border-[#d7a94a]/45 disabled:opacity-40">
+              <select value={newType} onChange={(event) => setNewType(event.target.value as PlannerCueType)} disabled={busy} className="min-h-10 min-w-0 rounded-lg border border-white/[.08] bg-[#0a0d12] px-2.5 text-xs text-white outline-none transition ip-focus-gold disabled:opacity-40">
                 {plannerCueTypes.map((type) => <option key={type} value={type}>{labels[type]}</option>)}
               </select>
-              <button type="button" onClick={() => onAdd(newType)} disabled={busy} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#d7a94a] px-3 text-xs font-extrabold text-[#161109] disabled:opacity-40"><Plus size={14} /> Add</button>
+              <button type="button" onClick={() => onAdd(newType)} disabled={busy} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#d7a94a] px-3 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:opacity-40"><Plus size={14} /> Add</button>
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5 sm:p-3 ip-scrollbar">
+      <div className="ip-scrollbar-thin min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5 sm:p-3">
         {items.length ? items.map((item, index) => {
           const selected = item.id === selectedId;
           const draggable = canEdit && !busy;
@@ -106,30 +106,30 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
               }}
               onDrop={(event) => dropOn(event, item.id)}
               className={
-                "group flex w-full min-w-0 items-stretch gap-1 rounded-xl border p-1.5 transition " +
+                "group ip-ai-arrive flex w-full min-w-0 items-stretch gap-1 rounded-xl border p-1.5 transition " +
                 (selected
                   ? "border-[#d7a94a]/35 bg-[#d7a94a]/10"
                   : draggedId === item.id
                     ? "border-white/[.12] bg-white/[.05] opacity-55"
-                    : "border-white/[.06] bg-white/[.02] hover:bg-white/[.04]")
+                    : "border-white/[.06] bg-white/[.02] hover:border-white/[.12] hover:bg-white/[.04]")
               }
             >
               <button
                 type="button"
                 onClick={() => onSelect(item.id)}
-                className="flex min-w-0 flex-1 items-start gap-3 rounded-lg p-1.5 text-left focus:outline-none focus:ring-2 focus:ring-[#d7a94a]/30"
+                className="flex min-w-0 flex-1 items-start gap-3 rounded-lg p-1.5 text-left ip-focus-gold"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[.07] bg-black/20 text-xs font-black text-white/45">{index + 1}</span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[.07] bg-black/20 text-xs font-black text-white/55">{index + 1}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.12em] text-white/30"><FileText size={11} />{labels[item.itemType as PlannerCueType] ?? item.itemType}</span>
-                  <span className="mt-1.5 block truncate text-sm font-bold text-white/80">{item.title || "Untitled cue"}</span>
-                  <span className="mt-1 block truncate text-[11px] text-white/25">{item.state}</span>
+                  <span className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.12em] text-white/50"><FileText size={11} />{labels[item.itemType as PlannerCueType] ?? item.itemType}</span>
+                  <span className="mt-1.5 block truncate text-sm font-bold text-white/85">{item.title || "Untitled cue"}</span>
+                  <span className="mt-1 block truncate text-[11px] text-white/45">{item.state}</span>
                 </span>
               </button>
 
               {canEdit ? (
                 <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 pr-0.5">
-                  <span title="Drag to reorder" aria-hidden="true" className="flex h-7 w-7 cursor-grab items-center justify-center rounded-md text-white/20 group-hover:text-white/35"><GripVertical size={14} /></span>
+                  <span title="Drag to reorder" aria-hidden="true" className="flex h-7 w-7 cursor-grab items-center justify-center rounded-md text-white/35 group-hover:text-white/55"><GripVertical size={14} /></span>
                   <div className="flex items-center gap-0.5">
                     <button
                       type="button"
@@ -137,7 +137,7 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
                       disabled={busy || index === 0}
                       aria-label={`Move up ${item.title || "cue"}`}
                       title="Move up"
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[.06] text-white/35 transition hover:bg-white/[.05] hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-20"
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[.06] text-white/55 transition hover:bg-white/[.05] hover:text-white ip-focus-gold disabled:cursor-not-allowed disabled:opacity-25"
                     >
                       <ArrowUp size={12} />
                     </button>
@@ -147,7 +147,7 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
                       disabled={busy || index === items.length - 1}
                       aria-label={`Move down ${item.title || "cue"}`}
                       title="Move down"
-                      className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[.06] text-white/35 transition hover:bg-white/[.05] hover:text-white/70 disabled:cursor-not-allowed disabled:opacity-20"
+                      className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[.06] text-white/55 transition hover:bg-white/[.05] hover:text-white ip-focus-gold disabled:cursor-not-allowed disabled:opacity-25"
                     >
                       <ArrowDown size={12} />
                     </button>
@@ -158,9 +158,9 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
           );
         }) : (
           <div className="rounded-2xl border border-dashed border-white/[.08] px-4 py-10 text-center">
-            <FileText size={24} className="mx-auto text-white/15" />
-            <div className="mt-3 text-sm font-bold text-white/55">No cues yet</div>
-            <div className="mt-1 text-xs leading-5 text-white/30">{canEdit ? "Choose a cue type above to begin the order of service." : "This service does not contain any rundown cues."}</div>
+            <FileText size={24} className="mx-auto text-white/30" />
+            <div className="mt-3 text-sm font-bold text-white/70">No cues yet</div>
+            <div className="mt-1 text-xs leading-5 text-white/50">{canEdit ? "Choose a cue type above to begin the order of service." : "This service does not contain any rundown cues."}</div>
           </div>
         )}
       </div>

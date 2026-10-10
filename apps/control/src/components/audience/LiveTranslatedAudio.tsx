@@ -123,7 +123,7 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
           <div className="flex items-center gap-2 text-xs font-bold text-[#efc76e]">
             <Headphones size={14} /> Live interpreted audio
           </div>
-          <div className="mt-1 text-[10px] leading-4 text-white/32">
+          <div className="mt-1 text-[11px] leading-4 text-white/55">
             {status === "playing" ? "Playing translated sermon audio"
               : status === "ready" ? "Audio is ready"
                 : status === "error" ? "Audio connection is retrying"
@@ -134,7 +134,7 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
         <button
           type="button"
           onClick={enabled ? stop : start}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/10 px-3 py-2 text-[10px] font-bold text-[#efc76e]"
+          className="ip-focus-gold min-h-9 flex shrink-0 items-center gap-1.5 rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/10 px-3 py-2 text-[11px] font-bold text-[#efc76e]"
         >
           {enabled ? <Pause size={12} /> : <Play size={12} />}
           {enabled ? "Pause" : "Start audio"}

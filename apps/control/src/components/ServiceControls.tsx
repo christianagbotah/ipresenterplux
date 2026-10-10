@@ -61,15 +61,15 @@ export function ServiceControls({
   const feedback = (
     <div className="min-h-5 text-xs leading-5" aria-live="polite" aria-atomic="true">
       {error ? <span role="alert" className="text-red-300">{error}</span> : null}
-      {!error && notice ? <span className="text-white/55">{notice}</span> : null}
-      {!error && !notice && isPending ? <span className="text-white/45">Updating service…</span> : null}
+      {!error && notice ? <span className="text-white/65">{notice}</span> : null}
+      {!error && !notice && isPending ? <span className="text-white/55">Updating service…</span> : null}
     </div>
   );
 
   const operatorLink = showOperatorLink ? (
     <Link
       href="/operator"
-      className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-3.5 py-2.5 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.13] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#efc86f]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12]"
+      className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-3.5 py-2.5 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.13] ip-focus-gold"
     >
       <MonitorPlay size={16} aria-hidden="true" />
       <span className="hidden lg:inline">Operator</span>
@@ -85,7 +85,7 @@ export function ServiceControls({
             type="button"
             disabled={isPending}
             onClick={() => changeState("ended")}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12] disabled:opacity-40"
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/10 px-4 py-2.5 text-sm font-bold text-red-100 transition hover:bg-red-400/15 ip-focus-gold disabled:opacity-40"
           >
             <CircleStop size={16} aria-hidden="true" />
             End service
@@ -105,7 +105,7 @@ export function ServiceControls({
             type="button"
             disabled={isPending}
             onClick={() => changeState("ready")}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.04] px-4 py-2.5 text-sm font-semibold text-white/75 transition hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-40"
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.04] px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/[.07] ip-focus-gold disabled:opacity-40"
           >
             <RotateCcw size={15} aria-hidden="true" />
             Prepare again
@@ -120,14 +120,14 @@ export function ServiceControls({
     <div className="flex min-w-0 flex-col items-end gap-1.5" aria-busy={isPending}>
       <div className="flex items-center gap-2">
         {operatorLink}
-        <div className="hidden min-h-11 items-center rounded-xl border border-white/[.08] bg-white/[.035] px-4 py-2.5 text-sm font-semibold text-white/50 md:flex">
+        <div className="hidden min-h-11 items-center rounded-xl border border-white/[.08] bg-white/[.035] px-4 py-2.5 text-sm font-semibold text-white/65 md:flex">
           Prepared
         </div>
         <button
           type="button"
           disabled={isPending}
           onClick={() => changeState("live")}
-          className="flex min-h-11 items-center gap-2 rounded-xl bg-red-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_10px_35px_rgba(239,68,68,.22)] transition hover:bg-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#090c12] disabled:opacity-40"
+          className="flex min-h-11 items-center gap-2 rounded-xl bg-red-400 px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_10px_35px_rgba(239,68,68,.22)] transition hover:bg-red-300 ip-focus-gold disabled:opacity-40"
         >
           <Radio size={16} aria-hidden="true" />
           Go live
