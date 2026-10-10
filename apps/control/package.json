@@ -103,7 +103,8 @@
     "theme-studio:field-uat": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs",
     "test:audience-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-session-selftest.mjs",
     "test:audience-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-readiness-selftest.mjs",
-    "test:service-intelligence-schema": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-intelligence-schema-selftest.mjs"
+    "test:service-intelligence-schema": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-intelligence-schema-selftest.mjs",
+    "test:service-preparation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-preparation-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
