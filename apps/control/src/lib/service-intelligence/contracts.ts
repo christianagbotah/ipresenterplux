@@ -49,3 +49,36 @@ export type ServiceMemoryChapter = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ServicePreparationSuggestion = {
+  id: string;
+  kind: "scripture_reference" | "history_reuse" | "history_context" | "library_reuse" | "readiness_attention";
+  title: string;
+  reason: string;
+  evidence: string;
+  confidence: number;
+  sourceServiceId: string | null;
+  sourceObservedAt: string | null;
+  plannerCandidate: null | { itemType: string; input: unknown };
+  navigationTarget: string | null;
+};
+
+export type ServicePreparationContext = {
+  organizationId: string;
+  service: {
+    id: string;
+    title: string;
+    serviceType: string;
+    status: string;
+    campusId: string | null;
+    activeBibleVersion: string;
+    scheduledStart: string | null;
+  };
+  notes: ServicePreparationNote[];
+  readiness: {
+    outputs: { enabled: number; healthy: number; degraded: number };
+    languages: { enabled: number; listeners: number };
+    edge: { count: number; name: string | null; freshness: "current" | "stale" | "unavailable"; lastSeenAt: string | null };
+  };
+  suggestions: ServicePreparationSuggestion[];
+};

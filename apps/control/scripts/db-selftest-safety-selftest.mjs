@@ -64,6 +64,7 @@ const protectedScripts = [
   "presentation-theme-selftest.mjs",
   "portable-import-service-selftest.mjs",
   "service-intelligence-schema-selftest.mjs",
+  "service-preparation-selftest.mjs",
   "service-planner-item-selftest.mjs",
   "service-planner-mutation-selftest.mjs",
   "service-planner-readiness-selftest.mjs",

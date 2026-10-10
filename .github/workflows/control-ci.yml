@@ -262,6 +262,8 @@ jobs:
         run: pnpm test:studio-workspaces-ci
       - name: Service intelligence schema self-test
         run: pnpm test:service-intelligence-schema
+      - name: Service preparation intelligence self-test
+        run: pnpm test:service-preparation
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test
