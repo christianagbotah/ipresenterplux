@@ -1,6 +1,6 @@
 "use client";
 
-import { plannerFieldLabel, plannerInput, plannerTextarea } from "../planner-fields";
+import { plannerFieldLabel, plannerInput, plannerSelect, plannerTextarea } from "../planner-fields";
 
 type TextCueType = "slide" | "announcement" | "custom";
 

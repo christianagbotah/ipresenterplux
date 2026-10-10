@@ -19,7 +19,7 @@ export function AttentionLayer({ items }: { items: CockpitAttentionItem[] }) {
   const label=items.length ? `${critical ? `${critical} critical` : `${warning} need attention`}` : "Systems quiet";
 
   return <>
-    <button type="button" onClick={()=>setOpen(true)} className={`fixed bottom-20 right-[178px] z-40 hidden min-h-11 items-center gap-2 rounded-xl border px-3 text-xs font-bold shadow-2xl backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 md:flex ${items.length ? critical ? "border-red-400/25 bg-red-950/90 text-red-100 focus-visible:ring-red-300" : "border-amber-400/20 bg-[#17130a]/95 text-amber-100 focus-visible:ring-amber-300" : "border-white/[.07] bg-[#10151e]/95 text-emerald-200/70 focus-visible:ring-emerald-300"}`}>
+    <button type="button" onClick={()=>setOpen(true)} className={`fixed bottom-20 right-20 z-40 hidden min-h-11 items-center gap-2 rounded-xl border px-3 text-xs font-bold shadow-2xl backdrop-blur-xl ip-focus-gold md:flex ${items.length ? critical ? "border-red-400/25 bg-red-950/90 text-red-100" : "border-amber-400/20 bg-[#17130a]/95 text-amber-100" : "border-white/[.07] bg-[#10151e]/95 text-emerald-200/70"}`}>
       {items.length ? critical ? <ShieldAlert size={15}/> : <AlertTriangle size={15}/> : <CheckCircle2 size={15}/>} {label}
     </button>
     {open ? <div className="fixed inset-0 z-[170] flex items-start justify-center overflow-y-auto bg-black/65 px-3 py-[8vh] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Production attention">

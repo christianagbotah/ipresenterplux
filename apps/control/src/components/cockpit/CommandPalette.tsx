@@ -120,7 +120,7 @@ export function CommandPalette() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="fixed bottom-20 right-4 z-40 hidden min-h-11 items-center gap-2 rounded-xl border border-white/[.08] bg-[#10151e]/95 px-3 text-xs font-bold text-white/55 shadow-2xl backdrop-blur-xl transition hover:bg-[#151b26] hover:text-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2b85f] md:flex"
+      className="fixed bottom-20 right-4 z-40 hidden min-h-11 items-center gap-2 rounded-xl border border-white/[.08] bg-[#10151e]/95 px-3 text-xs font-bold text-white/65 shadow-2xl backdrop-blur-xl transition hover:bg-[#151b26] hover:text-white/90 ip-focus-gold md:flex"
       aria-label="Open command palette"
     >
       <Command size={15}/><span>Command</span><kbd className="rounded border border-white/10 px-1.5 py-0.5 text-[10px] text-white/35">⌘/Ctrl K</kbd>
@@ -143,6 +143,14 @@ export function CommandPalette() {
           {response?.result?.kind === "status" ? <Link href={response.result.href} onClick={close} className="mt-3 flex min-h-11 items-center justify-between rounded-xl border border-white/[.07] px-3 text-sm text-white/65 hover:bg-white/[.04]"><span>{response.result.message}</span><span className="text-[#e2b85f]">Open</span></Link> : null}
           {message ? <div role="status" aria-live="polite" className="mt-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/65">{message}</div> : null}
         </div>
+        <footer className="border-t border-white/[.07] bg-[#070a0f]/60 px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-white/45">
+            <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘K</kbd> Command</span>
+            <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘↵</kbd> Take to Program</span>
+            <span className="flex items-center gap-1"><kbd className="rounded border border-white/10 bg-white/[.04] px-1.5 py-0.5 font-mono text-white/65">⌘⌫</kbd> Clear Program</span>
+            <span className="ml-auto flex items-center gap-1 text-white/35">Program remains human-authorized</span>
+          </div>
+        </footer>
       </section>
     </div> : null}
   </>;
