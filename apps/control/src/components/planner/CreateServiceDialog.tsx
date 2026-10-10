@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
 
 type CampusOption = { id: string; name: string };
@@ -90,8 +91,8 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
         New service
       </button>
 
-      {open ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto bg-black/70 p-0 backdrop-blur-sm sm:items-start sm:px-5 sm:pb-6 sm:pt-20" role="dialog" aria-modal="true" aria-labelledby="create-service-title">
+      {open ? createPortal(
+        <div className="fixed inset-0 z-[220] flex items-end justify-center overflow-y-auto bg-black/70 p-0 backdrop-blur-sm sm:items-start sm:px-5 sm:pb-6 sm:pt-20" role="dialog" aria-modal="true" aria-labelledby="create-service-title">
         <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/[.09] bg-[#0c1017] shadow-2xl sm:max-h-[calc(100dvh-7rem)] sm:max-w-2xl sm:rounded-3xl ip-scrollbar-thin">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/[.07] bg-[#0c1017]/95 px-5 py-5 backdrop-blur-xl sm:px-6">
               <div>
@@ -158,7 +159,8 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
