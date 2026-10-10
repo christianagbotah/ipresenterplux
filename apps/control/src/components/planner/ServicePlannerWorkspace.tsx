@@ -5,6 +5,8 @@ import { AlertTriangle, Copy, Eye, Loader2, RefreshCcw, Save, Trash2 } from "luc
 import { CueEditor, plannerCueTypes, type PlannerCueType } from "./CueEditor";
 import { CuePreview } from "./CuePreview";
 import { ReadinessPanel } from "./ReadinessPanel";
+import { ServicePreparationPanel, type PreparationApplyPayload } from "./ServicePreparationPanel";
+import type { ServicePreparationContext } from "@/lib/service-intelligence/contracts";
 import { RundownList } from "./RundownList";
 import type { BibleVersionOption } from "./editors/ScriptureCueEditor";
 import type { MediaSourceOption } from "./editors/MediaCueEditor";
@@ -19,6 +21,7 @@ import type {
 
 type Props = {
   initialDetail: PlannerDetailPayload;
+  initialPreparation: ServicePreparationContext;
   bibleVersions: BibleVersionOption[];
   mediaSources: MediaSourceOption[];
 };
@@ -103,7 +106,7 @@ function itemsInOrder(items: PlannerWorkspaceItem[], itemIds: string[]) {
   return ordered;
 }
 
-export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSources }: Props) {
+export function ServicePlannerWorkspace({ initialDetail, initialPreparation, bibleVersions, mediaSources }: Props) {
   const [service, setService] = useState(initialDetail.service);
   const [items, setItems] = useState(() => sortItems(initialDetail.items));
   const [revision, setRevision] = useState(initialDetail.revision);
@@ -356,6 +359,14 @@ export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSou
     }
   }
 
+  function handlePreparationApplied(payload: PreparationApplyPayload) {
+    acceptServerState(payload);
+    setReadiness({ status: "not_validated", issues: [] });
+    if (payload.item) {
+      setItems((current) => sortItems([...current.filter((item) => item.id !== payload.item!.id), payload.item!]));
+    }
+  }
+
   function focusReadinessCue(itemId: string) {
     selectItem(itemId);
   }
@@ -378,6 +389,14 @@ export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSou
           <button type="button" onClick={reloadLatest} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-200/25 bg-amber-200/[.08] px-3.5 text-xs font-extrabold text-amber-100 transition hover:bg-amber-200/[.14] ip-focus-gold"><RefreshCcw size={14} /> Reload latest</button>
         </div>
       ) : null}
+
+      <ServicePreparationPanel
+        serviceId={service.id}
+        revision={revision}
+        canEdit={canMutate}
+        initialPreparation={initialPreparation}
+        onApplied={handlePreparationApplied}
+      />
 
       <ReadinessPanel
         serviceStatus={service.status}
