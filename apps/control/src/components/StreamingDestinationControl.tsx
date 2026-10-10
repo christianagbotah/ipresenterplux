@@ -57,12 +57,12 @@ export function StreamingDestinationControl({
         onClick={toggle}
         disabled={disabled}
         aria-pressed={enabled}
-        className={`flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e7bd63] disabled:cursor-not-allowed disabled:opacity-40 ${failed ? "border-red-400/25 bg-red-400/10 text-red-100" : enabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : "border-white/[.1] bg-white/[.035] text-white/65 hover:bg-white/[.07]"}`}
+        className={`ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${failed ? "border-red-400/25 bg-red-400/10 text-red-100" : enabled ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100" : "border-white/[.1] bg-white/[.035] text-white/75 hover:bg-white/[.07]"}`}
       >
         {locked ? <LockKeyhole size={15} aria-hidden="true" /> : enabled ? <CheckCircle2 size={15} aria-hidden="true" /> : canControl ? <Power size={15} aria-hidden="true" /> : <ShieldAlert size={15} aria-hidden="true" />}
         {label}
       </button>
-      {feedback ? <span aria-live="polite" className={`max-w-64 text-right text-[11px] leading-4 ${failed ? "text-red-300" : "text-white/38"}`}>{feedback}</span> : null}
+      {feedback ? <span aria-live="polite" className={`max-w-64 text-right text-[11px] leading-4 ${failed ? "text-red-300" : "text-white/55"}`}>{feedback}</span> : null}
     </div>
   );
 }

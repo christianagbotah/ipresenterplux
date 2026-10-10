@@ -45,7 +45,7 @@ function statusIcon(status: TranslationJob["status"]) {
 
 function audioStatus(job: TranslationJob) {
   if (job.channel_mode !== "translation_audio") return null;
-  if (job.status !== "succeeded" && !job.synthesis_status) return { label: "Audio waits for translated text", tone: "text-white/30" };
+  if (job.status !== "succeeded" && !job.synthesis_status) return { label: "Audio waits for translated text", tone: "text-white/55" };
   if (job.synthesis_status === "succeeded") return { label: "Audio asset ready", tone: "text-emerald-300/80" };
   if (job.synthesis_status === "processing") return { label: "Audio synthesis processing", tone: "text-amber-200/80" };
   if (job.synthesis_status === "failed") return { label: `Audio failed${job.synthesis_error_code ? ` · ${job.synthesis_error_code}` : ""}`, tone: "text-red-200/80" };
@@ -98,13 +98,13 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
               key={itemStatus}
               type="button"
               onClick={() => router.push(`/translations?status=${itemStatus}&page=1`)}
-              className={"rounded-2xl border p-4 text-left transition " + (active ? "border-[#d7a94a]/30 bg-[#d7a94a]/10" : "border-white/[.07] bg-white/[.025] hover:bg-white/[.04]")}
+              className={"ip-focus-gold min-h-11 rounded-2xl border p-4 text-left transition " + (active ? "border-[#d7a94a]/30 bg-[#d7a94a]/10" : "border-white/[.07] bg-white/[.025] hover:bg-white/[.04]")}
             >
               <div className="flex items-center justify-between">
                 <Icon size={16} className={itemStatus === "failed" ? "text-red-300" : itemStatus === "succeeded" ? "text-emerald-300" : "text-[#e5b85c]"} />
                 <span className="text-2xl font-black">{counts[itemStatus] ?? 0}</span>
               </div>
-              <div className="mt-3 text-[10px] font-bold uppercase tracking-[.15em] text-white/35">{itemStatus}</div>
+              <div className="mt-3 text-[11px] font-bold uppercase tracking-[.15em] text-white/55">{itemStatus}</div>
             </button>
           );
         })}
@@ -116,9 +116,9 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-5 py-4">
           <div>
             <div className="flex items-center gap-2 text-sm font-bold"><Languages size={16} /> Translation queue</div>
-            <div className="mt-1 text-[11px] text-white/35">{serviceTitle ?? "Authorized organization"} · newest live speech first</div>
+            <div className="mt-1 text-[11px] text-white/55">{serviceTitle ?? "Authorized organization"} · newest live speech first</div>
           </div>
-          <button type="button" onClick={() => router.refresh()} className="flex items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/55 hover:text-white">
+          <button type="button" onClick={() => router.refresh()} className="ip-focus-gold min-h-11 flex items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/70 hover:text-white">
             <RefreshCw size={13} /> Refresh
           </button>
         </div>
@@ -129,15 +129,15 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
             const processing = job.status === "processing";
             const audio = audioStatus(job);
             return (
-              <article key={job.id} className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <article key={job.id} className="ip-ai-arrive grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#efc76e]">{job.language_name}</span>
-                    <span className="text-[10px] uppercase tracking-[.12em] text-white/28">{job.target_language_code}</span>
-                    {audio ? <span className={`flex items-center gap-1 text-[10px] ${audio.tone}`}><Volume2 size={11} /> {audio.label}</span> : null}
+                    <span className="rounded-full border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-[#efc76e]">{job.language_name}</span>
+                    <span className="text-[11px] uppercase tracking-[.12em] text-white/50">{job.target_language_code}</span>
+                    {audio ? <span className={`flex items-center gap-1 text-[11px] ${audio.tone}`}><Volume2 size={11} /> {audio.label}</span> : null}
                   </div>
-                  <p className="mt-4 text-sm leading-6 text-white/72">{job.source_text}</p>
-                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-white/28">
+                  <p className="mt-4 text-sm leading-6 text-white/80">{job.source_text}</p>
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/50">
                     <span>Source {job.source_language ?? "auto"}</span>
                     <span>{new Date(job.source_observed_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                     <span>Attempts {job.attempts}</span>
@@ -153,17 +153,17 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
                     onChange={(event) => setDrafts((current) => ({ ...current, [job.id]: event.target.value }))}
                     rows={4}
                     placeholder={`Translate into ${job.language_name}…`}
-                    className="w-full resize-y rounded-xl border border-white/[.08] bg-black/25 px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/20 focus:border-[#d7a94a]/35"
+                    className="ip-focus-gold w-full resize-y rounded-xl border border-white/[.08] bg-black/25 px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/35"
                   />
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-[10px] text-white/28">
+                    <div className="text-[11px] text-white/50">
                       {processing ? "Machine lease active · saving here safely takes over this job." : job.status === "succeeded" ? "Edit and save to correct the published translation." : "Completing publishes this caption to the matching audience channel."}
                     </div>
                     <button
                       type="button"
                       disabled={saving === job.id || !value.trim()}
                       onClick={() => void complete(job)}
-                      className="rounded-xl bg-[#d7a94a] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
+                      className="ip-focus-gold min-h-11 rounded-xl bg-[#d7a94a] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       {saving === job.id ? "Saving…" : job.status === "succeeded" ? "Save correction" : "Publish translation"}
                     </button>
@@ -173,17 +173,17 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
             );
           }) : (
             <div className="px-6 py-16 text-center">
-              <Languages size={22} className="mx-auto text-white/20" />
-              <div className="mt-3 text-sm font-semibold text-white/50">No {status} translation jobs</div>
-              <div className="mt-1 text-xs text-white/28">New sermon transcript segments will appear here automatically.</div>
+              <Languages size={22} className="mx-auto text-white/35" />
+              <div className="mt-3 text-sm font-semibold text-white/70">No {status} translation jobs</div>
+              <div className="mt-1 text-xs text-white/55">New sermon transcript segments will appear here automatically.</div>
             </div>
           )}
         </div>
         <div className="flex items-center justify-between gap-3 border-t border-white/[.07] px-5 py-4">
-          <div className="text-[11px] text-white/35">Page {page} of {totalPages} · {counts[status]} {status} jobs</div>
+          <div className="text-[11px] text-white/55">Page {page} of {totalPages} · {counts[status]} {status} jobs</div>
           <div className="flex gap-2">
-            <button type="button" disabled={page <= 1} onClick={() => router.push(`/translations?status=${status}&page=${page - 1}`)} className="rounded-lg border border-white/[.07] px-3 py-2 text-xs text-white/55 disabled:opacity-30">Previous</button>
-            <button type="button" disabled={page >= totalPages} onClick={() => router.push(`/translations?status=${status}&page=${page + 1}`)} className="rounded-lg border border-white/[.07] px-3 py-2 text-xs text-white/55 disabled:opacity-30">Next</button>
+            <button type="button" disabled={page <= 1} onClick={() => router.push(`/translations?status=${status}&page=${page - 1}`)} className="ip-focus-gold min-h-11 rounded-lg border border-white/[.07] px-3 py-2 text-xs text-white/70 disabled:opacity-30">Previous</button>
+            <button type="button" disabled={page >= totalPages} onClick={() => router.push(`/translations?status=${status}&page=${page + 1}`)} className="ip-focus-gold min-h-11 rounded-lg border border-white/[.07] px-3 py-2 text-xs text-white/70 disabled:opacity-30">Next</button>
           </div>
         </div>
       </section>

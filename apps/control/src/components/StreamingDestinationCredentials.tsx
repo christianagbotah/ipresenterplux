@@ -119,7 +119,7 @@ export function StreamingDestinationCredentials({
         type="button"
         onClick={openConfiguration}
         disabled={!canControl || locked || loading}
-        className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.035] px-3.5 py-2.5 text-sm font-black text-white/65 transition hover:bg-white/[.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e7bd63] disabled:cursor-not-allowed disabled:opacity-40"
+        className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl border border-white/[.1] bg-white/[.035] px-3.5 py-2.5 text-sm font-black text-white/75 transition hover:bg-white/[.07] disabled:cursor-not-allowed disabled:opacity-40"
       >
         {loading ? <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> : configured ? <KeyRound size={15} aria-hidden="true" /> : <Settings2 size={15} aria-hidden="true" />}
         {locked ? "Locked" : configured ? "RTMPS" : "Configure"}
@@ -130,21 +130,21 @@ export function StreamingDestinationCredentials({
           <div className="w-full max-w-lg rounded-2xl border border-white/[.1] bg-[#0b1018] p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[.16em] text-[#e7bd63]">Secure destination</div>
+                <div className="text-[11px] font-black uppercase tracking-[.16em] text-[#e7bd63]">Secure destination</div>
                 <h3 className="mt-1 text-lg font-black">{name}</h3>
-                <p className="mt-1 text-xs leading-5 text-white/38">The stream key is encrypted at rest and is never returned to this browser after saving.</p>
+                <p className="mt-1 text-xs leading-5 text-white/55">The stream key is encrypted at rest and is never returned to this browser after saving.</p>
               </div>
-              <button type="button" onClick={closeConfiguration} disabled={isPending} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[.08] text-white/45 hover:bg-white/[.06] hover:text-white disabled:opacity-40" aria-label="Close configuration">
+              <button type="button" onClick={closeConfiguration} disabled={isPending} className="ip-focus-gold flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[.08] text-white/65 hover:bg-white/[.06] hover:text-white disabled:opacity-40" aria-label="Close configuration">
                 <X size={16} />
               </button>
             </div>
 
             {loading ? (
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] p-4 text-sm text-white/45"><LoaderCircle size={16} className="animate-spin" /> Loading configuration…</div>
+              <div className="mt-5 flex items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] p-4 text-sm text-white/65"><LoaderCircle size={16} className="animate-spin" /> Loading configuration…</div>
             ) : (
               <form className="mt-5 space-y-4" onSubmit={save}>
                 <label className="block">
-                  <span className="text-xs font-bold text-white/55">RTMPS ingest URL</span>
+                  <span className="text-xs font-bold text-white/70">RTMPS ingest URL</span>
                   <input
                     type="url"
                     required
@@ -152,11 +152,11 @@ export function StreamingDestinationCredentials({
                     onChange={(event) => setIngestUrl(event.target.value)}
                     placeholder="rtmps://provider.example/live"
                     autoComplete="off"
-                    className="mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
+                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
                   />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-bold text-white/55">Stream key {configured ? "· enter a new value to rotate" : ""}</span>
+                  <span className="text-xs font-bold text-white/70">Stream key {configured ? "· enter a new value to rotate" : ""}</span>
                   <input
                     type="password"
                     required
@@ -164,7 +164,7 @@ export function StreamingDestinationCredentials({
                     onChange={(event) => setStreamKey(event.target.value)}
                     placeholder={configured ? "Stored key is hidden — enter replacement" : "Paste provider stream key"}
                     autoComplete="new-password"
-                    className="mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
+                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
                   />
                 </label>
 
