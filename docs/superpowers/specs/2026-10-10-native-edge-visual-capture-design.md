@@ -43,6 +43,7 @@ The Cameras workspace already treats Edge as authoritative, supports status, pre
 - Stable Edge-owned source identities.
 - Capture state, health, frame statistics and structured failure codes.
 - Distinct Preview and Program source slots feeding the current `IProgramVideoSource`/H.264 contribution path.
+- At most one active Program capture session plus one independently prepared Preview capture session; this enables safe source preview without introducing mixing/compositing.
 - Safe Preview selection distinct from Program TAKE.
 - Edge source telemetry into the existing media-source control-plane route or a strictly compatible extension.
 - Cameras workspace evolution into a visual-source operator workspace while preserving current camera preferences.
@@ -54,6 +55,7 @@ The Cameras workspace already treats Edge as authoritative, supports status, pre
 
 - Multi-camera scene composition.
 - Picture-in-picture, chroma key, transitions, DVE, overlays or graphics mixing.
+- More than the two operational capture slots required for current Program + next Preview.
 - PTZ movement/control.
 - ATEM switching.
 - NDI input/output.
@@ -139,7 +141,11 @@ Add one Core routing component around the existing `IProgramVideoSource` contrac
 
 Preview selection may start a capture session and update only the Preview slot. It must not alter the Program slot.
 
+The router may own up to two active native capture sessions: the current Program session and the next Preview session. If Preview selects the same physical source already on Program, the implementation should reuse/share the existing capture stream where safe rather than opening the device twice.
+
 TAKE is the only operation that may promote the current Preview slot into the Program slot. The promotion must be atomic from the operator's perspective: either the previous Program remains active or the confirmed Preview becomes Program; no intermediate selection request may leak into Program.
+
+After a successful visual TAKE, the promoted Preview session becomes the Program session and the Preview slot clears. The former Program native session is then released after the new Program route is confirmed. This keeps resource ownership bounded and deterministic; the operator can explicitly reselect the former source if it is needed again.
 
 The existing `WindowsMediaFoundationEncodedProgramVideoSource` must consume only the router's Program-side `IProgramVideoSource` view. It must never read directly from the Preview slot.
 
@@ -192,6 +198,7 @@ Native source selection follows the same deliberate operator safety model as pre
 5. Edge reports confirmed Preview readiness; the control portal displays that confirmed source/state.
 6. Existing TAKE promotes the confirmed Preview slot to the Program slot.
 7. Only after TAKE does the Program-side `IProgramVideoSource` expose that source to local Program/contribution encoding.
+8. On successful TAKE the Preview slot clears and the previous Program capture session is released once takeover is confirmed.
 
 Selecting a camera, display or window must never implicitly execute `program.take` or `program.show`.
 
@@ -215,7 +222,7 @@ Return a structured failure without changing the existing Program source. Previe
 
 ### Source disconnect while only in Preview
 
-Preview immediately transitions to unavailable/error. Program remains untouched.
+Preview immediately transitions to unavailable/error, releases its failed capture session and leaves Program untouched.
 
 ### Source disconnect while live on Program
 
@@ -311,6 +318,7 @@ These are v1 engineering targets, not public SLA commitments:
 - First preview frame after selecting an available source: target under 1 second for cameras and displays on supported hardware.
 - Default production capture profile: 1920x1080 at 30 fps where the source supports it.
 - Capture thread must not block command polling/heartbeat.
+- At most two native capture sessions may be active for the v1 operator flow: current Program and next Preview.
 - Sustained capture should use bounded buffering; stale frames are dropped rather than allowing unbounded memory growth.
 - Existing single-master-encode policy remains: do not independently re-encode the same Program for every destination.
 
@@ -323,7 +331,9 @@ These are v1 engineering targets, not public SLA commitments:
 - source status transitions;
 - distinct Preview and Program routing state;
 - Preview selection cannot change Program output;
-- TAKE atomically promotes the confirmed Preview source to Program;
+- a second Preview source may run while a different native source remains on Program;
+- same-source Preview/Program reuse does not open the physical device twice where sharing is supported;
+- TAKE atomically promotes the confirmed Preview source to Program, clears Preview and releases the prior Program session after confirmation;
 - command idempotency;
 - last-frame hold then black-frame fallback after Program source loss;
 - bounded-frame/drop behavior.
@@ -335,7 +345,8 @@ These are v1 engineering targets, not public SLA commitments:
 - Media Foundation capture adapter error mapping;
 - Windows Graphics Capture adapter error mapping;
 - fake/native-frame integration into the existing H.264 encoder through the Program slot;
-- start/stop/restart lifecycle and disposal.
+- start/stop/restart lifecycle and disposal;
+- Program + Preview concurrent session resource cleanup.
 
 Physical hardware tests that cannot run deterministically in hosted CI must be isolated behind explicit Windows UAT scripts and never replaced with claims of successful physical capture.
 
@@ -357,12 +368,13 @@ On a real Windows production workstation:
 2. Discover at least one monitor.
 3. Discover a capturable application window.
 4. Preview each source independently and confirm Program does not change.
-5. TAKE a prepared source to Program through the normal Cockpit action.
-6. Unplug/disconnect a live camera and observe 2-second hold followed by safe black plus attention state.
-7. Restore/rescan/reselect the source.
-8. Drop Internet/control-plane connectivity and confirm existing local Program/capture continues.
-9. Reconnect and confirm state reconciliation without duplicate commands.
-10. Confirm contribution H.264 frames continue through the existing publisher path and follow Program, not Preview.
+5. Put one native source on Program, then preview a different native source and confirm Program continues uninterrupted.
+6. TAKE the prepared second source to Program through the normal Cockpit action; confirm Preview clears and the old Program capture is released.
+7. Unplug/disconnect a live camera and observe 2-second hold followed by safe black plus attention state.
+8. Restore/rescan/reselect the source.
+9. Drop Internet/control-plane connectivity and confirm existing local Program/capture continues.
+10. Reconnect and confirm state reconciliation without duplicate commands.
+11. Confirm contribution H.264 frames continue through the existing publisher path and follow Program, not Preview.
 
 The existing external Windows Edge enrollment/UAT issue must remain open until these tests run on an actual Windows machine.
 
@@ -386,7 +398,7 @@ Implementation should be staged so every step preserves a working product:
 This design intentionally creates foundations for later work without implementing it now:
 
 - scene compositor and transitions;
-- multi-camera switching;
+- multi-camera switching beyond the bounded Program/Preview slots;
 - AI Director camera recommendations using live source health;
 - NDI/SRT source adapters;
 - PTZ and ATEM control;
@@ -404,9 +416,10 @@ Native Edge Visual Capture v1 is complete only when all of the following are tru
 - Operator-visible source identity is stable across ordinary rescans.
 - Camera and screen/window sources can produce normalized frames on Windows.
 - Preview and Program maintain separate Edge-confirmed source slots.
+- Program may remain on one native source while a second native source is independently prepared in Preview.
 - Existing H.264 contribution encoding consumes only the Program slot and does not change when Preview selection changes.
 - Source selection prepares Preview only and cannot bypass TAKE.
-- TAKE atomically promotes the confirmed Preview visual source to Program when a visual source is armed.
+- TAKE atomically promotes the confirmed Preview visual source to Program, clears Preview and releases the former Program session after takeover confirmation.
 - Source failure does not crash the Edge runtime or silently switch Program.
 - Live Program source loss follows the defined 2-second hold then safe-black policy.
 - Existing Program continues during temporary control-plane loss.
