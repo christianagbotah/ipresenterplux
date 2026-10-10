@@ -49,15 +49,24 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
   //  'D' — cycle cockpit depth essential→advanced→engineering→essential.
   //        Only fires when NOT in Focus Mode (Focus hides the depth control);
   //        parallels 'F' and the operator 'P' shortcut.
-  // Both are bare-key, guarded to ignore input/textarea/select/contenteditable
+  //  'A' — open the Attention layer. Works in both normal and Focus Mode
+  //        (Focus Mode has its own Attention button); dispatches the shared
+  //        'ipresenterplux:attention-open' event that AttentionLayer listens
+  //        for. Parallels F/D and the operator 'P' shortcut.
+  // All are bare-key, guarded to ignore input/textarea/select/contenteditable
   // focus so they never hijack typing, and to ignore modifier keys (so ⌘F
-  // browser-find, ⌘D bookmark, etc. still work).
+  // browser-find, ⌘D bookmark, ⌘A select-all, etc. still work).
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
       if (event.key === "f" || event.key === "F") {
         event.preventDefault();
         writePreference(FOCUS_KEY, focus ? "0" : "1");
+        return;
+      }
+      if (event.key === "a" || event.key === "A") {
+        event.preventDefault();
+        window.dispatchEvent(new Event("ipresenterplux:attention-open"));
         return;
       }
       if ((event.key === "d" || event.key === "D") && !focus) {

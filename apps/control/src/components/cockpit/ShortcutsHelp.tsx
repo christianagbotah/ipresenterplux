@@ -54,6 +54,7 @@ export function ShortcutsHelp() {
         ["⌘ / Ctrl + K", "Open the AI Command palette"],
         ["F", "Toggle Focus Mode"],
         ["D", "Cycle cockpit depth (Essential → Advanced → Engineering)"],
+        ["A", "Open the Attention layer"],
         ["?", "Show this shortcut list"],
         ["Esc", "Close overlays / exit Focus"],
       ],
