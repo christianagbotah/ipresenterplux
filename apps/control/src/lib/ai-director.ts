@@ -201,29 +201,27 @@ export async function getAIDirectorState(
   const now = options.now ? new Date(options.now) : new Date();
   const roles = await membershipRoles(client, userId, options.organizationId);
   const service = await loadService(client, userId, options.organizationId, options.serviceId);
-  const [audio, translation, tts, recommendations, entitled] = await Promise.all([
-    client.query<MediaHealthRow>(
-      `select name,status,last_seen_at::text,metadata
-         from media_sources
-        where organization_id=$1 and source_type='audio_input'
-        order by last_seen_at desc nulls last,id desc
-        limit 1`,
-      [options.organizationId]
-    ),
-    latestWorker(client, "translation_worker_status"),
-    latestWorker(client, "tts_worker_status"),
-    service
-      ? client.query<DetectionRow>(
-          `select id::text,scripture_reference,confidence,state,detection_method,source_text,source_observed_at::text
-             from scripture_detections
-            where service_id=$1 and state <> 'dismissed'
-            order by source_observed_at desc,source_ordinal desc,detected_at desc,id desc
-            limit $2`,
-          [service.id, RECOMMENDATION_LIMIT]
-        )
-      : Promise.resolve({ rows: [] as DetectionRow[] }),
-    entitlementAvailable(client, options.organizationId, now)
-  ]);
+  const audio = await client.query<MediaHealthRow>(
+    `select name,status,last_seen_at::text,metadata
+       from media_sources
+      where organization_id=$1 and source_type='audio_input'
+      order by last_seen_at desc nulls last,id desc
+      limit 1`,
+    [options.organizationId]
+  );
+  const translation = await latestWorker(client, "translation_worker_status");
+  const tts = await latestWorker(client, "tts_worker_status");
+  const recommendations = service
+    ? await client.query<DetectionRow>(
+        `select id::text,scripture_reference,confidence,state,detection_method,source_text,source_observed_at::text
+           from scripture_detections
+          where service_id=$1 and state <> 'dismissed'
+          order by source_observed_at desc,source_ordinal desc,detected_at desc,id desc
+          limit $2`,
+        [service.id, RECOMMENDATION_LIMIT]
+      )
+    : { rows: [] as DetectionRow[] };
+  const entitled = await entitlementAvailable(client, options.organizationId, now);
 
   return {
     organizationId: options.organizationId,

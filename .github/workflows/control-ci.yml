@@ -194,6 +194,8 @@ jobs:
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
         run: pnpm test:camera-workspace
+      - name: PostgreSQL client query serialization self-test
+        run: pnpm test:pg-client-serialization
       - name: AI Director workspace self-test
         run: pnpm test:ai-director
       - name: Service Archive workspace self-test
