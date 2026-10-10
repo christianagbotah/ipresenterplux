@@ -53,6 +53,7 @@ export function ShortcutsHelp() {
         ["⌘ / Ctrl + Backspace", "Clear Program"],
         ["⌘ / Ctrl + K", "Open the AI Command palette"],
         ["F", "Toggle Focus Mode"],
+        ["D", "Cycle cockpit depth (Essential → Advanced → Engineering)"],
         ["?", "Show this shortcut list"],
         ["Esc", "Close overlays / exit Focus"],
       ],

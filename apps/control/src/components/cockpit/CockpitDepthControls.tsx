@@ -42,20 +42,35 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
   const depth = storedDepth;
   const canControl = model.capabilities.canLiveControl;
 
-  // 'F' keyboard shortcut to toggle Focus Mode — parallels the operator
-  // workspace's 'P' preview shortcut. Bare-key, guarded to ignore text
-  // inputs so it never hijacks typing. Registered unconditionally (before
-  // the focus early-return) so 'F' can both enter AND exit Focus Mode.
+  // Keyboard shortcuts for the cockpit view.
+  //  'F' — toggle Focus Mode (registered unconditionally so 'F' can both
+  //        enter AND exit Focus Mode; parallels the operator 'P' preview
+  //        shortcut).
+  //  'D' — cycle cockpit depth essential→advanced→engineering→essential.
+  //        Only fires when NOT in Focus Mode (Focus hides the depth control);
+  //        parallels 'F' and the operator 'P' shortcut.
+  // Both are bare-key, guarded to ignore input/textarea/select/contenteditable
+  // focus so they never hijack typing, and to ignore modifier keys (so ⌘F
+  // browser-find, ⌘D bookmark, etc. still work).
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if ((event.key === "f" || event.key === "F") && !event.metaKey && !event.ctrlKey && !event.altKey && !isTypingTarget(event.target)) {
+      if (event.metaKey || event.ctrlKey || event.altKey || isTypingTarget(event.target)) return;
+      if (event.key === "f" || event.key === "F") {
         event.preventDefault();
         writePreference(FOCUS_KEY, focus ? "0" : "1");
+        return;
+      }
+      if ((event.key === "d" || event.key === "D") && !focus) {
+        event.preventDefault();
+        const order: CockpitDepth[] = ["essential", "advanced", "engineering"];
+        const current = order.indexOf(depth);
+        const next = order[(current + 1) % order.length];
+        writePreference(DEPTH_KEY, next);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focus]);
+  }, [focus, depth]);
 
   if (focus) return <FocusMode model={model} onExit={() => writePreference(FOCUS_KEY, "0")} />;
 
@@ -67,11 +82,12 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
 
   return <>
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div className="inline-flex min-h-11 items-center rounded-xl border border-white/[.07] bg-white/[.02] p-1" aria-label="Cockpit depth" role="group" aria-describedby="ip-cockpit-depth-hint">
+      <div className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-white/[.07] bg-white/[.02] p-1" aria-label="Cockpit depth (press D to cycle)" role="group" aria-describedby="ip-cockpit-depth-hint">
         {(["essential","advanced","engineering"] as CockpitDepth[]).map((value) => {
           const Icon = value === "essential" ? Gauge : value === "advanced" ? SlidersHorizontal : Wrench;
           return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
         })}
+        <kbd className="ml-1 hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-white/45 sm:inline-block" title="Press D to cycle depth">D</kbd>
       </div>
       <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-[#efc86f]/80">F</kbd></button>
     </div>
