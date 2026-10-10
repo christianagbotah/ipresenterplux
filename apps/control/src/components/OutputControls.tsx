@@ -39,16 +39,17 @@ export function OutputControls({
       onClick={toggle}
       disabled={isPending}
       title={error ? "Could not update this destination" : enabled ? "Disable destination" : "Enable destination"}
+      aria-label={error ? "Could not update this destination" : enabled ? "Disable destination" : "Enable destination"}
       className={
-        "flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:cursor-wait disabled:opacity-40 " +
+        "flex h-9 w-9 items-center justify-center rounded-lg border transition ip-focus-gold disabled:cursor-wait disabled:opacity-40 " +
         (error
-          ? "border-red-400/20 bg-red-400/10 text-red-300"
+          ? "border-red-400/25 bg-red-400/10 text-red-300"
           : enabled
-            ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-            : "border-white/[.07] bg-white/[.025] text-white/30 hover:text-white/60")
+            ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+            : "border-white/[.08] bg-white/[.025] text-white/45 hover:bg-white/[.05] hover:text-white/75")
       }
     >
-      <Power size={13} />
+      <Power size={14} />
     </button>
   );
 }
