@@ -1,0 +1,1 @@
+Self-review passed: no placeholders; scope remains v1; Preview/Program routing uses separate slots; v1 permits only Program + next Preview sessions; source-loss policy is deterministic; physical Windows capability remains unclaimed until hardware UAT.
