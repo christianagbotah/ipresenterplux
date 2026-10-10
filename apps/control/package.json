@@ -62,6 +62,7 @@
     "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs",
     "test:cockpit-view-model": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-view-model-selftest.mjs",
     "test:cockpit-shell": "node scripts/cockpit-shell-selftest.mjs",
+    "test:cockpit-ergonomics": "node scripts/cockpit-ergonomics-selftest.mjs",
     "test:cockpit-focus": "node scripts/cockpit-focus-mode-selftest.mjs",
     "test:cockpit-keyboard-safety": "node scripts/cockpit-keyboard-modal-safety-selftest.mjs",
     "test:ux-focus-consistency": "node scripts/ux-focus-consistency-selftest.mjs",
