@@ -52,6 +52,7 @@ export function ShortcutsHelp() {
         ["⌘ / Ctrl + Enter", "Take Preview to Program"],
         ["⌘ / Ctrl + Backspace", "Clear Program"],
         ["⌘ / Ctrl + K", "Open the AI Command palette"],
+        ["F", "Toggle Focus Mode"],
         ["?", "Show this shortcut list"],
         ["Esc", "Close overlays / exit Focus"],
       ],

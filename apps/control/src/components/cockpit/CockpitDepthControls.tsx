@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Crosshair, Gauge, SlidersHorizontal, Wrench } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { FocusMode } from "./FocusMode";
@@ -30,12 +30,32 @@ function writePreference(key: string, value: string) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("input,textarea,select,[contenteditable='true'],[role='textbox']"));
+}
+
 export function CockpitDepthControls({ model, initialFocusMode = false }: { model: CockpitViewModel; initialFocusMode?: boolean }) {
   const storedDepth = useSyncExternalStore(subscribe, depthSnapshot, serverDepth);
   const storedFocus = useSyncExternalStore(subscribe, focusSnapshot, serverFocus);
   const focus = initialFocusMode || storedFocus;
   const depth = storedDepth;
   const canControl = model.capabilities.canLiveControl;
+
+  // 'F' keyboard shortcut to toggle Focus Mode — parallels the operator
+  // workspace's 'P' preview shortcut. Bare-key, guarded to ignore text
+  // inputs so it never hijacks typing. Registered unconditionally (before
+  // the focus early-return) so 'F' can both enter AND exit Focus Mode.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.key === "f" || event.key === "F") && !event.metaKey && !event.ctrlKey && !event.altKey && !isTypingTarget(event.target)) {
+        event.preventDefault();
+        writePreference(FOCUS_KEY, focus ? "0" : "1");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focus]);
 
   if (focus) return <FocusMode model={model} onExit={() => writePreference(FOCUS_KEY, "0")} />;
 
@@ -53,7 +73,7 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
           return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
         })}
       </div>
-      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode</button>
+      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-[#efc86f]/80">F</kbd></button>
     </div>
     <p id="ip-cockpit-depth-hint" className="mb-3 -mt-1 px-1 text-[11px] leading-5 text-white/45">
       <span className="sr-only">Cockpit depth: </span>{depthHint[depth]}
