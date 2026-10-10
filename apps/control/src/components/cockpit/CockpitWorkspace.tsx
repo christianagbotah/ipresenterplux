@@ -24,7 +24,7 @@ export function CockpitWorkspace({ model, initialFocusMode = false }: { model: C
         <div className="mx-auto max-w-[1900px] p-3 sm:p-4 lg:p-5">
           <CockpitMobile model={model} projection={mobileProjection} />
           <div className="hidden md:block"><CockpitDepthControls model={model} initialFocusMode={initialFocusMode} /></div>
-          <div className="mt-4 flex items-center justify-between gap-3 px-1 text-[10px] uppercase tracking-[.15em] text-white/20"><span>Prepare → Assist → Preview → Program → Remember</span><span>Healthy systems stay quiet</span></div>
+          <div className="mt-4 flex items-center justify-between gap-3 px-1 text-[11px] font-semibold uppercase tracking-[.15em] text-white/40"><span>Prepare → Assist → Preview → Program → Remember</span><span className="text-white/30">Healthy systems stay quiet</span></div>
         </div>
       </section>
     </div>
