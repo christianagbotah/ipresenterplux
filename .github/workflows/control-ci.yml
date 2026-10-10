@@ -172,6 +172,8 @@ jobs:
         run: pnpm test:cockpit-focus
       - name: Cockpit modal keyboard safety self-test
         run: pnpm test:cockpit-keyboard-safety
+      - name: Critical keyboard focus consistency self-test
+        run: pnpm test:ux-focus-consistency
       - name: Cockpit ten-scenario field UAT
         run: pnpm test:cockpit-field-uat
       - name: Cockpit role projection self-test

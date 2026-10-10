@@ -140,7 +140,7 @@ export default async function ScripturePage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link href="/operator" className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/50 transition hover:text-white sm:flex">
+              <Link href="/operator" className="ip-focus-gold hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/50 transition hover:text-white sm:flex">
                 <MonitorPlay size={15} /> Operator
               </Link>
               <LogoutButton />
