@@ -18,9 +18,8 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
       <span className="text-xs text-white/45">{program ? (live ? "Audience output · ON AIR" : "Audience output · clear") : "Safe staging"}</span>
     </header>
     <div className="ip-grid flex w-full aspect-video items-center justify-center p-5 text-center">
-      {item ? <div className="max-w-2xl ip-preview-prep"><div className="text-xs font-bold uppercase tracking-[.18em] text-white/45">{item.contentType.replaceAll("_", " ")}</div><h2 className={`${program ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"} mt-3 font-black tracking-tight text-white/95`}>{item.title}</h2>{item.body ? <div className={`${program ? "text-lg sm:text-xl" : "text-base sm:text-lg"} mt-4 whitespace-pre-wrap leading-relaxed text-white/82`}>{item.body}</div> : null}{item.detail ? <div className="mt-3 text-sm text-white/55">{item.detail}</div> : null}</div> : <div className="max-w-md px-4">
-        <div className="text-sm font-bold text-white/70">{program ? "Program is clear" : "Preview is empty"}</div>
-        <p className="mt-2 text-sm leading-6 text-white/50">{program ? "The audience sees black. Stage something into Preview, then Take it live." : "Preview is your safe staging area. Prepare content here before taking it to Program — nothing goes live until you Take."}</p>
+      {item ? <div className="max-w-2xl ip-preview-prep"><div className="text-xs font-bold uppercase tracking-[.18em] text-white/45">{item.contentType.replaceAll("_", " ")}</div><h2 className="mt-3 text-2xl font-black tracking-tight text-white/95 sm:text-3xl">{item.title}</h2>{item.body ? <div className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-white/82 sm:text-lg">{item.body}</div> : null}{item.detail ? <div className="mt-3 text-sm text-white/55">{item.detail}</div> : null}</div> : <div className="max-w-md px-4">
+        <div className="text-sm font-bold text-white/70">{program ? "Program clear" : "Preview empty"}</div>
       </div>}
     </div>
   </section>;
@@ -61,7 +60,7 @@ export function ProgramPreviewStage({ model }: { model: CockpitViewModel }) {
   }, [canClear, canTake, mutateScripture, pending, preview, program]);
 
   return <div className="space-y-3">
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
+    <div className="grid gap-4 md:grid-cols-2">
       <StageSurface item={preview} kind="preview" />
       <StageSurface item={program} kind="program" />
     </div>
