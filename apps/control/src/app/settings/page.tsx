@@ -4,6 +4,7 @@ import { ArrowLeft, AudioLines, ChevronRight, CreditCard, MonitorCog, Settings2,
 import { auth } from "@auth";
 import { query } from "@/lib/db";
 import { DEVICE_ADMIN_ROLES, VOICE_ADMIN_ROLES } from "@/lib/rbac";
+import { MotionPreferences } from "@/components/settings/MotionPreferences";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,11 @@ export default async function SettingsPage() {
             Your current role has no organization-wide settings to manage.
           </div>
         )}
+
+        <div className="mt-6">
+          <div className="mb-3 text-[11px] font-bold uppercase tracking-[.16em] text-white/45">Operator preferences</div>
+          <MotionPreferences />
+        </div>
       </div>
     </main>
   );

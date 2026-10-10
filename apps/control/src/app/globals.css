@@ -133,7 +133,11 @@ button, input, select { font: inherit; }
   100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* Reduced motion: disable every state-clarifying animation above */
+/* Reduced motion: disable every state-clarifying animation above.
+   Two triggers: the OS preference (prefers-reduced-motion) AND a manual
+   .ip-reduce-motion class on <html> (set by the Settings toggle or the
+   early inline script in layout.tsx) for booth machines where the OS
+   pref isn't set. */
 @media (prefers-reduced-motion: reduce) {
   .ip-program-live,
   .ip-preview-prep,
@@ -144,6 +148,15 @@ button, input, select { font: inherit; }
   .ip-live-dot::after {
     animation: none !important;
   }
+}
+.ip-reduce-motion .ip-program-live,
+.ip-reduce-motion .ip-preview-prep,
+.ip-reduce-motion .ip-ai-arrive,
+.ip-reduce-motion .ip-attention-enter,
+.ip-reduce-motion .ip-focus-in,
+.ip-reduce-motion .ip-success-pulse,
+.ip-reduce-motion .ip-live-dot::after {
+  animation: none !important;
 }
 
 /* Thin scrollbar variant for dense rails */
