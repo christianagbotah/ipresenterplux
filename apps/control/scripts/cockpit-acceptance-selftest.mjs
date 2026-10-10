@@ -19,7 +19,7 @@ assert.doesNotMatch(workspace, /grid-cols-4[^\n]*(KPI|Metric|Stats)/i, "default 
 
 const programSurface = stage.indexOf('kind === "program"');
 assert.ok(programSurface >= 0, "Program surface must be explicitly distinguished from Preview");
-assert.match(stage, /lg:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.35fr\)\]/, "Program must remain visually dominant over Preview");
+assert.match(stage, /md:grid-cols-\[minmax\(0,1fr\)_minmax\(0,1\.35fr\)\]/, "Program must remain visually dominant over Preview from desktop layouts onward");
 assert.match(stage, /min-h-14/, "TAKE must expose a touch-sized primary target");
 assert.match(stage, /min-h-12/, "Clear Program must expose a touch-sized primary target");
 assert.match(stage, /Ctrl\/⌘ \+ Enter/, "keyboard TAKE safety contract must remain visible");

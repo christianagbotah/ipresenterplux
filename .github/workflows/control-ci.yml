@@ -168,6 +168,8 @@ jobs:
         run: pnpm test:cockpit-recommendations
       - name: Intelligent Cockpit shell self-test
         run: pnpm test:cockpit-shell
+      - name: Cockpit ergonomics self-test
+        run: pnpm test:cockpit-ergonomics
       - name: Intelligent Cockpit focus-mode self-test
         run: pnpm test:cockpit-focus
       - name: Cockpit modal keyboard safety self-test

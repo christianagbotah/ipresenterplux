@@ -96,27 +96,33 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
       <div className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-white/[.07] bg-white/[.02] p-1" aria-label="Cockpit depth (press D to cycle)" role="group" aria-describedby="ip-cockpit-depth-hint">
         {(["essential","advanced","engineering"] as CockpitDepth[]).map((value) => {
           const Icon = value === "essential" ? Gauge : value === "advanced" ? SlidersHorizontal : Wrench;
-          return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
+          return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
         })}
-        <kbd className="ml-1 hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-white/45 sm:inline-block" title="Press D to cycle depth">D</kbd>
+        <kbd className="ml-1 hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-white/45 sm:inline-block" title="Press D to cycle depth">D</kbd>
       </div>
-      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-[#efc86f]/80">F</kbd></button>
+      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-[#efc86f]/80">F</kbd></button>
     </div>
-    <p id="ip-cockpit-depth-hint" className="mb-3 -mt-1 px-1 text-[11px] leading-5 text-white/45">
+    <p id="ip-cockpit-depth-hint" className="mb-3 -mt-1 px-1 text-xs leading-5 text-white/45">
       <span className="sr-only">Cockpit depth: </span>{depthHint[depth]}
     </p>
-    <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
-      <NowRail model={model} />
-      <section className="min-w-0"><ProgramPreviewStage model={model} /></section>
-      <NextRail model={model} />
+    <div className="grid items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
+      <section className="min-w-0 md:sticky md:top-[84px] md:z-20 md:self-start xl:col-start-2 xl:row-start-1">
+        <ProgramPreviewStage model={model} />
+      </section>
+      <div className="min-h-0 xl:sticky xl:top-[84px] xl:col-start-1 xl:row-start-1 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 ip-scrollbar-thin">
+        <NowRail model={model} />
+      </div>
+      <div className="min-h-0 xl:sticky xl:top-[84px] xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pl-1 ip-scrollbar-thin">
+        <NextRail model={model} />
+      </div>
     </div>
     {depth !== "essential" ? <section className="ip-focus-in mt-4 rounded-2xl border border-white/[.07] bg-white/[.018] p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-[11px] font-black uppercase tracking-[.18em] text-white/45">{depth === "engineering" ? "Engineering detail" : "Advanced live systems"}</div><div className="mt-1 text-xs text-white/55">Presentation depth never changes server authority.</div></div><span className={`text-[11px] font-black uppercase tracking-[.12em] ${canControl ? "text-emerald-300" : "text-amber-300"}`}>{canControl ? "Live control authorized" : "View only"}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[.18em] text-white/45">{depth === "engineering" ? "Engineering detail" : "Advanced live systems"}</div><div className="mt-1 text-xs text-white/55">Presentation depth never changes server authority.</div></div><span className={`text-xs font-black uppercase tracking-[.12em] ${canControl ? "text-emerald-300" : "text-amber-300"}`}>{canControl ? "Live control authorized" : "View only"}</span></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
         <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Outputs</div><div className="mt-1 font-bold text-white/80">{model.systems.outputs.healthy}/{model.systems.outputs.enabled} healthy</div></div>
         <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Languages</div><div className="mt-1 font-bold text-white/80">{model.systems.languages.enabled} enabled</div></div>
-        <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Camera truth</div><div className="mt-1 font-bold text-white/80">{model.systems.camera.freshness}</div>{depth === "engineering" ? <div className="mt-1 text-[10px] text-white/45">{model.systems.camera.lastSeenAt ?? "No heartbeat"}</div> : null}</div>
-        <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Edge truth</div><div className="mt-1 font-bold text-white/80">{model.systems.edge.freshness}</div>{depth === "engineering" ? <div className="mt-1 text-[10px] text-white/45">{model.systems.edge.lastSeenAt ?? "No heartbeat"}</div> : null}</div>
+        <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Camera truth</div><div className="mt-1 font-bold text-white/80">{model.systems.camera.freshness}</div>{depth === "engineering" ? <div className="mt-1 text-xs text-white/45">{model.systems.camera.lastSeenAt ?? "No heartbeat"}</div> : null}</div>
+        <div className="rounded-xl bg-black/20 p-3"><div className="text-white/45">Edge truth</div><div className="mt-1 font-bold text-white/80">{model.systems.edge.freshness}</div>{depth === "engineering" ? <div className="mt-1 text-xs text-white/45">{model.systems.edge.lastSeenAt ?? "No heartbeat"}</div> : null}</div>
       </div>
     </section> : null}
   </>;

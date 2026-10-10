@@ -30,6 +30,20 @@ body {
 
 button, input, select { font: inherit; }
 
+@media (hover: hover) and (pointer: fine) {
+  a[href],
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+a[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 ::selection {
   background: rgba(215,169,74,.35);
 }
