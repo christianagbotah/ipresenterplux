@@ -7,6 +7,7 @@ import { CockpitHeader } from "./CockpitHeader";
 import { CockpitDepthControls } from "./CockpitDepthControls";
 import { CommandPalette } from "./CommandPalette";
 import { ShortcutsHelp } from "./ShortcutsHelp";
+import { WhatsNewToast } from "./WhatsNewToast";
 import { AttentionLayer } from "./AttentionLayer";
 import { CockpitMobile } from "./CockpitMobile";
 import { projectCockpitForRole } from "@/lib/cockpit/role-projection";
@@ -24,6 +25,7 @@ export function CockpitWorkspace({ model, initialFocusMode = false }: { model: C
     <StudioMobileNav capabilities={model.capabilities} />
     <CommandPalette />
     <ShortcutsHelp />
+    {!initialFocusMode ? <WhatsNewToast /> : null}
     <AttentionLayer items={model.attention} />
     <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
       <StudioSidebar capabilities={model.capabilities} />

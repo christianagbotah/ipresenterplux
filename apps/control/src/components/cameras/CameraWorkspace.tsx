@@ -138,6 +138,12 @@ export function CameraWorkspace({
 
   return (
     <main className="min-h-screen bg-[#080b10] text-white">
+      <a
+        href="#cameras-content"
+        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
+      >
+        Skip to Cameras content
+      </a>
       <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
@@ -149,7 +155,7 @@ export function CameraWorkspace({
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div id="cameras-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-7">
         <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-white/[.07] bg-white/[.02] px-4 py-3 text-xs">
           <span className="flex items-center gap-2 font-bold text-white/70"><Camera size={14} className="text-[#d7a94a]" />{counts.available} available</span>
           <span className="text-white/20">·</span>
