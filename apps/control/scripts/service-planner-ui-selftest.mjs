@@ -58,6 +58,9 @@ assert.match(createSource, /\/api\/v1\/planner\/services/, "create dialog must c
 assert.match(createSource, /router\.push\(`\/planner\/\$\{/, "successful create must navigate to service planner detail");
 assert.match(createSource, /400|403|409/, "create dialog must surface safe API validation/authorization/conflict failures");
 assert.doesNotMatch(createSource, /w-\[(?:[6-9]\d\d|\d{4,})px\]/, "create dialog must remain responsive");
+assert.match(createSource, /createPortal/, "create dialog must escape the sticky Planner header stacking context through a portal");
+assert.match(createSource, /document\.body/, "create dialog portal must mount at document.body");
+assert.match(createSource, /z-\[220\]/, "create dialog must use the top-level blocking-modal layer");
 
 const detailPage = await readRequired("../src/app/planner/[id]/page.tsx", "Planner detail page");
 assert.match(detailPage, /ServicePlannerWorkspace/, "Planner detail page must render the authoring workspace");
