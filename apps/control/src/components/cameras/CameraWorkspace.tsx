@@ -138,6 +138,12 @@ export function CameraWorkspace({
 
   return (
     <main className="min-h-screen bg-[#080b10] text-white">
+      <a
+        href="#cameras-content"
+        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
+      >
+        Skip to Cameras content
+      </a>
       <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
@@ -149,11 +155,14 @@ export function CameraWorkspace({
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        <section className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Available</div><div className="mt-2 text-3xl font-black">{counts.available}</div><div className="mt-1 text-xs text-white/30">Fresh Edge-reported camera sources</div></div>
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Needs attention</div><div className="mt-2 text-3xl font-black">{counts.attention}</div><div className="mt-1 text-xs text-white/30">Disconnected, permission or unsupported</div></div>
-          <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4"><div className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Preferred source</div><div className="mt-2 text-3xl font-black">{counts.preferred}</div><div className="mt-1 text-xs text-white/30">Operator routing preference</div></div>
+      <div id="cameras-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-7">
+        <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-white/[.07] bg-white/[.02] px-4 py-3 text-xs">
+          <span className="flex items-center gap-2 font-bold text-white/70"><Camera size={14} className="text-[#d7a94a]" />{counts.available} available</span>
+          <span className="text-white/20">·</span>
+          <span className={counts.attention ? "font-bold text-amber-200" : "font-semibold text-emerald-200/80"}>{counts.attention ? `${counts.attention} need attention` : "all sources healthy"}</span>
+          <span className="text-white/20">·</span>
+          <span className="font-semibold text-white/55">{counts.preferred} preferred</span>
+          <span className="ml-auto text-[11px] text-white/40">Edge-reported capture truth · no browser capture</span>
         </section>
 
         {!hasPairedEdge && (
@@ -182,7 +191,7 @@ export function CameraWorkspace({
                     <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.09em] ${state.className}`}><StatusIcon size={12} />{state.label}</span>
                   </div>
 
-                  <div className="mt-4 grid gap-2 text-xs text-white/42">
+                  <div className="mt-4 grid gap-2 text-xs text-white/55">
                     <div className="flex items-center justify-between gap-3"><span>Reporting Edge</span><span className="truncate font-semibold text-white/65">{source.reportingDevice?.name || "Not linked"}</span></div>
                     <div className="flex items-center justify-between gap-3"><span>Edge platform</span><span className="font-semibold text-white/65">{source.reportingDevice?.platform || "—"}</span></div>
                     <div className="flex items-center justify-between gap-3"><span>Last source report</span><span className="text-right font-semibold text-white/65">{relativeTime(source.lastSeenAt)}</span></div>

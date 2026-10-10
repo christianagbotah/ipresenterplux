@@ -187,7 +187,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
         {summaryCards.map(([label, value, Icon]) => (
           <div key={String(label)} className="ip-card flex items-center gap-4 p-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.04] text-[#d7a94a]"><Icon size={18} /></div>
-            <div><div className="text-2xl font-black">{String(value)}</div><div className="text-xs text-white/35">{String(label)}</div></div>
+            <div><div className="text-2xl font-black">{String(value)}</div><div className="text-xs text-white/55">{String(label)}</div></div>
           </div>
         ))}
       </section>
@@ -196,10 +196,10 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-4 sm:px-5">
           <div>
             <div className="text-sm font-bold">Church Edge computers</div>
-            <div className="mt-1 text-xs text-white/35">{devices.length} registered for {organizationName}</div>
+            <div className="mt-1 text-xs text-white/55">{devices.length} registered for {organizationName}</div>
           </div>
           {canManage ? (
-            <button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-[#171109] transition hover:bg-[#e6ba5e]">
+            <button onClick={openNew} className="ip-focus-gold min-h-11 flex items-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-[#171109] transition hover:bg-[#e6ba5e]">
               <Plus size={15} /> Pair a device
             </button>
           ) : null}
@@ -217,7 +217,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                     </div>
                     <div className="min-w-0">
                       <div className="truncate text-sm font-bold">{device.name}</div>
-                      <div className="mt-1 flex items-center gap-2 text-[10px] uppercase tracking-[.12em] text-white/30">
+                      <div className="mt-1 flex items-center gap-2 text-[11px] uppercase tracking-[.12em] text-white/50">
                         <span>{device.platform === "macos" ? "macOS" : "Windows"}</span><span>·</span><span>{device.campusName ?? "Organization-wide"}</span>
                       </div>
                     </div>
@@ -227,23 +227,23 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                     <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${state.className}`}>
                       {state.online ? <Wifi size={11} /> : <WifiOff size={11} />}{state.label}
                     </span>
-                    <div className="mt-2 text-[11px] text-white/30">Last seen {timeLabel(device.lastSeenAt)}</div>
+                    <div className="mt-2 text-[11px] text-white/50">Last seen {timeLabel(device.lastSeenAt)}</div>
                   </div>
 
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between gap-4"><span className="text-white/30">Agent</span><span className="font-semibold text-white/60">{device.softwareVersion ?? "Not enrolled"}</span></div>
-                    <div className="flex justify-between gap-4"><span className="text-white/30">Credential</span><span className="font-semibold capitalize text-white/60">{device.credentialState ?? "none"}</span></div>
-                    <div className="flex justify-between gap-4"><span className="text-white/30">Service</span><span className="max-w-[180px] truncate font-semibold text-white/60">{device.activeServiceTitle ?? "Unassigned"}</span></div>
-                    <div className="flex justify-between gap-4"><span className="text-white/30">Expires</span><span className="font-semibold text-white/60">{timeLabel(device.credentialExpiresAt)}</span></div>
-                    {device.pairingExpiresAt ? <div className="text-[10px] text-amber-200/70">Pairing code pending until {timeLabel(device.pairingExpiresAt)}</div> : null}
+                    <div className="flex justify-between gap-4"><span className="text-white/50">Agent</span><span className="font-semibold text-white/75">{device.softwareVersion ?? "Not enrolled"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-white/50">Credential</span><span className="font-semibold capitalize text-white/75">{device.credentialState ?? "none"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-white/50">Service</span><span className="max-w-[180px] truncate font-semibold text-white/75">{device.activeServiceTitle ?? "Unassigned"}</span></div>
+                    <div className="flex justify-between gap-4"><span className="text-white/50">Expires</span><span className="font-semibold text-white/75">{timeLabel(device.credentialExpiresAt)}</span></div>
+                    {device.pairingExpiresAt ? <div className="text-[11px] text-amber-200/80">Pairing code pending until {timeLabel(device.pairingExpiresAt)}</div> : null}
                   </div>
 
                   {canManage && device.status !== "revoked" ? (
                     <div className="flex gap-2 lg:justify-end">
-                      <button onClick={() => openRepair(device)} className="flex items-center gap-1.5 rounded-lg border border-white/[.08] bg-white/[.03] px-3 py-2 text-xs font-semibold text-white/50 hover:bg-white/[.06] hover:text-white/80">
+                      <button onClick={() => openRepair(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-white/[.08] bg-white/[.03] px-3 py-2 text-xs font-semibold text-white/65 hover:bg-white/[.06] hover:text-white/85">
                         <RefreshCw size={13} /> Re-pair
                       </button>
-                      <button onClick={() => setRevokeTarget(device)} className="flex items-center gap-1.5 rounded-lg border border-red-400/15 bg-red-400/[.05] px-3 py-2 text-xs font-semibold text-red-200/70 hover:bg-red-400/10 hover:text-red-100">
+                      <button onClick={() => setRevokeTarget(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-red-400/15 bg-red-400/[.05] px-3 py-2 text-xs font-semibold text-red-200/85 hover:bg-red-400/10 hover:text-red-100">
                         <ShieldX size={13} /> Revoke
                       </button>
                     </div>
@@ -251,24 +251,24 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
 
                   <div className="rounded-xl border border-white/[.06] bg-black/15 p-3 lg:col-span-4">
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
-                      <span className="font-bold uppercase tracking-[.12em] text-white/28">Diagnostics</span>
-                      <span className="text-white/38">CPU <b className="ml-1 text-white/65">{metric(device.lastHealth?.cpuPercent)}</b></span>
-                      <span className="text-white/38">Memory <b className="ml-1 text-white/65">{metric(device.lastHealth?.memoryPercent)}</b></span>
-                      <span className="text-white/38">Uplink <b className="ml-1 text-white/65">{metric(device.lastHealth?.uplinkMbps, " Mbps")}</b></span>
-                      <span className="text-white/38">Capabilities <b className="ml-1 text-white/65">{Object.keys(device.capabilities).length}</b></span>
-                      {device.lastHealth?.observedAt ? <span className="text-white/28">sampled {timeLabel(device.lastHealth.observedAt)}</span> : null}
+                      <span className="font-bold uppercase tracking-[.12em] text-white/50">Diagnostics</span>
+                      <span className="text-white/55">CPU <b className="ml-1 text-white/80">{metric(device.lastHealth?.cpuPercent)}</b></span>
+                      <span className="text-white/55">Memory <b className="ml-1 text-white/80">{metric(device.lastHealth?.memoryPercent)}</b></span>
+                      <span className="text-white/55">Uplink <b className="ml-1 text-white/80">{metric(device.lastHealth?.uplinkMbps, " Mbps")}</b></span>
+                      <span className="text-white/55">Capabilities <b className="ml-1 text-white/80">{Object.keys(device.capabilities).length}</b></span>
+                      {device.lastHealth?.observedAt ? <span className="text-white/50">sampled {timeLabel(device.lastHealth.observedAt)}</span> : null}
                     </div>
                     {device.recentCommand ? (
                       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[.05] pt-2 text-[11px]">
-                        <span className="text-white/30">Last command</span>
-                        <code className="font-semibold text-white/65">{device.recentCommand.type}</code>
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
-                        {device.recentCommand.resultingState ? <span className="text-white/38">{device.recentCommand.resultingState}</span> : null}
-                        {device.recentCommand.errorCode ? <span className="text-red-200/65">{device.recentCommand.errorCode}</span> : null}
-                        <span className="ml-auto text-white/25">{timeLabel(device.recentCommand.completedAt ?? device.recentCommand.issuedAt)}</span>
+                        <span className="text-white/50">Last command</span>
+                        <code className="font-semibold text-white/80">{device.recentCommand.type}</code>
+                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
+                        {device.recentCommand.resultingState ? <span className="text-white/55">{device.recentCommand.resultingState}</span> : null}
+                        {device.recentCommand.errorCode ? <span className="text-red-200/80">{device.recentCommand.errorCode}</span> : null}
+                        <span className="ml-auto text-white/50">{timeLabel(device.recentCommand.completedAt ?? device.recentCommand.issuedAt)}</span>
                       </div>
                     ) : (
-                      <div className="mt-2 border-t border-white/[.05] pt-2 text-[11px] text-white/25">No control commands have been issued to this device.</div>
+                      <div className="mt-2 border-t border-white/[.05] pt-2 text-[11px] text-white/55">No control commands have been issued to this device.</div>
                     )}
                   </div>
                 </div>
@@ -277,9 +277,9 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
           </div>
         ) : (
           <div className="px-6 py-16 text-center">
-            <MonitorUp className="mx-auto text-white/20" />
-            <div className="mt-4 text-sm font-bold text-white/65">No Edge devices yet</div>
-            <div className="mt-2 text-xs leading-5 text-white/30">Pair the presentation computer in the church auditorium to start audio, camera and local-output integration.</div>
+            <MonitorUp className="mx-auto text-white/35" />
+            <div className="mt-4 text-sm font-bold text-white/75">No Edge devices yet</div>
+            <div className="mt-2 text-xs leading-5 text-white/55">Pair the presentation computer in the church auditorium to start audio, camera and local-output integration.</div>
           </div>
         )}
       </section>
@@ -290,36 +290,36 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[22px] border border-white/[.09] bg-[#0c1119] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/[.07] px-5 py-4">
-              <div><div className="text-sm font-black">Pair Church Edge</div><div className="mt-1 text-[11px] text-white/35">One-time code · 15 minute validity</div></div>
-              <button onClick={() => setFormOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[.04] text-white/45 hover:text-white"><X size={15} /></button>
+              <div><div className="text-sm font-black">Pair Church Edge</div><div className="mt-1 text-[11px] text-white/55">One-time code · 15 minute validity</div></div>
+              <button onClick={() => setFormOpen(false)} className="ip-focus-gold flex h-8 w-8 items-center justify-center rounded-lg bg-white/[.04] text-white/65 hover:text-white"><X size={15} /></button>
             </div>
 
             <div className="space-y-4 p-5">
               {!pairing ? (
                 <>
                   <div>
-                    <label className="mb-2 block text-xs font-semibold text-white/45">Computer name</label>
-                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Main Auditorium PC" className="h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm outline-none focus:border-[#d7a94a]/40" />
+                    <label className="mb-2 block text-xs font-semibold text-white/65">Computer name</label>
+                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Main Auditorium PC" className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm outline-none placeholder:text-white/40 focus:border-[#d7a94a]/40" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div><label className="mb-2 block text-xs font-semibold text-white/45">Platform</label><select value={platform} onChange={(event) => setPlatform(event.target.value as "windows" | "macos")} className="h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="windows">Windows</option><option value="macos">macOS</option></select></div>
-                    <div><label className="mb-2 block text-xs font-semibold text-white/45">Campus</label><select value={campusId} onChange={(event) => setCampusId(event.target.value)} className="h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="">Organization-wide</option>{campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select></div>
+                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Platform</label><select value={platform} onChange={(event) => setPlatform(event.target.value as "windows" | "macos")} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="windows">Windows</option><option value="macos">macOS</option></select></div>
+                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Campus</label><select value={campusId} onChange={(event) => setCampusId(event.target.value)} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="">Organization-wide</option>{campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select></div>
                   </div>
                   {error ? <div className="rounded-xl border border-red-400/15 bg-red-400/[.06] px-3 py-2.5 text-xs text-red-200">{error}</div> : null}
-                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : "Generate pairing code"}</button>
+                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="ip-focus-gold min-h-11 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : "Generate pairing code"}</button>
                 </>
               ) : (
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] p-5 text-center">
-                    <div className="text-[10px] font-bold uppercase tracking-[.2em] text-[#d7a94a]">One-time pairing code</div>
+                    <div className="text-[11px] font-bold uppercase tracking-[.2em] text-[#d7a94a]">One-time pairing code</div>
                     <div className="mt-3 font-mono text-3xl font-black tracking-[.13em] text-[#f3ce74]">{pairing.pairingCode}</div>
-                    <div className="mt-3 text-xs text-white/35">Expires {timeLabel(pairing.expiresAt)}</div>
-                    <button onClick={copyCode} className="mx-auto mt-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.04] px-3 py-2 text-xs font-bold text-white/60 hover:text-white">{copied ? <Check size={13} /> : <Clipboard size={13} />}{copied ? "Copied" : "Copy code"}</button>
+                    <div className="mt-3 text-xs text-white/55">Expires {timeLabel(pairing.expiresAt)}</div>
+                    <button onClick={copyCode} className="ip-focus-gold min-h-9 mx-auto mt-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.04] px-3 py-2 text-xs font-bold text-white/75 hover:text-white">{copied ? <Check size={13} /> : <Clipboard size={13} />}{copied ? "Copied" : "Copy code"}</button>
                   </div>
-                  <div className="rounded-xl border border-white/[.06] bg-black/20 p-4 text-xs leading-6 text-white/45">
+                  <div className="rounded-xl border border-white/[.06] bg-black/20 p-4 text-xs leading-6 text-white/65">
                     Open iPresenterPlux Edge on <b className="text-white/70">{name}</b>, enter this code, and set the Control URL to this iPresenterPlux server. The long-lived credential returned after pairing is stored only in the computer&apos;s OS credential vault.
                   </div>
-                  <button onClick={() => setFormOpen(false)} className="h-11 w-full rounded-xl border border-white/[.08] bg-white/[.04] text-sm font-bold text-white/65 hover:bg-white/[.07]">Done</button>
+                  <button onClick={() => setFormOpen(false)} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.04] text-sm font-bold text-white/75 hover:bg-white/[.07]">Done</button>
                 </div>
               )}
             </div>
@@ -332,11 +332,11 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
           <div className="w-full max-w-md rounded-[22px] border border-red-400/15 bg-[#0c1119] p-5 shadow-2xl">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-400/10 text-red-300"><ShieldX size={19} /></div>
             <h2 className="mt-4 text-lg font-black">Revoke {revokeTarget.name}?</h2>
-            <p className="mt-2 text-sm leading-6 text-white/40">This immediately invalidates its active and grace credentials and cancels pending pairing codes. Re-enabling a hard-revoked device requires an administrator workflow.</p>
+            <p className="mt-2 text-sm leading-6 text-white/55">This immediately invalidates its active and grace credentials and cancels pending pairing codes. Re-enabling a hard-revoked device requires an administrator workflow.</p>
             {error ? <div className="mt-3 rounded-xl border border-red-400/15 bg-red-400/[.06] px-3 py-2 text-xs text-red-200">{error}</div> : null}
             <div className="mt-5 flex gap-2">
-              <button onClick={() => { setRevokeTarget(null); setError(null); }} className="h-10 flex-1 rounded-xl border border-white/[.08] bg-white/[.03] text-xs font-bold text-white/55">Cancel</button>
-              <button disabled={busy} onClick={revokeDevice} className="h-10 flex-1 rounded-xl bg-red-500/90 text-xs font-black text-white disabled:opacity-50">{busy ? "Revoking…" : "Revoke device"}</button>
+              <button onClick={() => { setRevokeTarget(null); setError(null); }} className="ip-focus-gold min-h-11 h-10 flex-1 rounded-xl border border-white/[.08] bg-white/[.03] text-xs font-bold text-white/70">Cancel</button>
+              <button disabled={busy} onClick={revokeDevice} className="ip-focus-gold min-h-11 h-10 flex-1 rounded-xl bg-red-500/90 text-xs font-black text-white disabled:opacity-50">{busy ? "Revoking…" : "Revoke device"}</button>
             </div>
           </div>
         </div>

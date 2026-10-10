@@ -71,7 +71,7 @@ export function StreamingBroadcastControl({
         type="button"
         onClick={submit}
         disabled={disabled}
-        className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e7bd63] disabled:cursor-not-allowed disabled:opacity-45 ${failed
+        className={`ip-focus-gold flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${failed
           ? "border-red-400/30 bg-red-400/10 text-red-100"
           : action === "start"
             ? "border-[#d7a94a]/35 bg-[#d7a94a]/15 text-[#f3ce7b] hover:bg-[#d7a94a]/20"
@@ -86,11 +86,11 @@ export function StreamingBroadcastControl({
       </button>
 
       {!canControl ? (
-        <p className="text-xs leading-5 text-white/38">Your role is view-only for broadcast control.</p>
+        <p className="text-xs leading-5 text-white/55">Your role is view-only for broadcast control.</p>
       ) : startDisabled ? (
         <p className="text-xs leading-5 text-amber-100/75">Enable at least one configured WebRTC or social destination before starting.</p>
       ) : (
-        <p className="text-xs leading-5 text-white/38">
+        <p className="text-xs leading-5 text-white/55">
           {active
             ? "Stop closes the authoritative Edge contribution; destination workers terminate with the master path."
             : "Live is shown only after the Edge contribution reaches MediaMTX. Social destinations report their own transport state independently."}
@@ -98,7 +98,7 @@ export function StreamingBroadcastControl({
       )}
 
       {feedback ? (
-        <p aria-live="polite" className={`text-xs leading-5 ${failed ? "text-red-300" : "text-white/48"}`}>{feedback}</p>
+        <p aria-live="polite" className={`text-xs leading-5 ${failed ? "text-red-300" : "text-white/65"}`}>{feedback}</p>
       ) : null}
     </div>
   );

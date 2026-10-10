@@ -51,3 +51,116 @@ button, input, select { font: inherit; }
 .ip-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
 .ip-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 999px; }
 .ip-scrollbar::-webkit-scrollbar-track { background: transparent; }
+
+/* --- iPresenterPlux live-state + motion utilities (additive) --- */
+
+/* Standardized gold keyboard focus ring — replaces ad-hoc ring colors */
+.ip-focus-gold:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(8,9,13,1), 0 0 0 4px rgba(226,184,95,.85);
+}
+
+/* Program "on air" heartbeat — slow, low-amplitude, border-only.
+   Never animates the content surface. Respects reduced motion. */
+.ip-program-live {
+  box-shadow: 0 0 0 1px rgba(255,107,107,.35), 0 0 0 0 rgba(255,107,107,.0);
+  animation: ip-program-heartbeat 2.6s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes ip-program-heartbeat {
+  0%   { box-shadow: 0 0 0 1px rgba(255,107,107,.35), 0 0 0 0 rgba(255,107,107,.0); }
+  60%  { box-shadow: 0 0 0 1px rgba(255,107,107,.55), 0 0 18px 1px rgba(255,107,107,.18); }
+  100% { box-shadow: 0 0 0 1px rgba(255,107,107,.35), 0 0 0 0 rgba(255,107,107,.0); }
+}
+
+/* Preview preparation entrance — content stages in, communicates "prepared" */
+.ip-preview-prep {
+  animation: ip-preview-in .42s cubic-bezier(.16,1,.3,1);
+}
+@keyframes ip-preview-in {
+  from { opacity: 0; transform: translateY(6px) scale(.997); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* AI recommendation arrival — gentle, slides up */
+.ip-ai-arrive {
+  animation: ip-ai-in .4s cubic-bezier(.16,1,.3,1);
+}
+@keyframes ip-ai-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Attention entrance — slides in from the right, not alarming */
+.ip-attention-enter {
+  animation: ip-attention-in .38s cubic-bezier(.16,1,.3,1);
+}
+@keyframes ip-attention-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Focus Mode transition — fades the stage in */
+.ip-focus-in {
+  animation: ip-focus-in .3s ease-out;
+}
+@keyframes ip-focus-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Success acknowledgement — brief gold pulse on a status chip */
+.ip-success-pulse {
+  animation: ip-success .8s ease-out;
+}
+@keyframes ip-success {
+  0%   { box-shadow: 0 0 0 0 rgba(73,209,125,.5); }
+  100% { box-shadow: 0 0 0 0 rgba(73,209,125,0); }
+}
+
+/* Live status dot — shared Program-live indicator */
+.ip-live-dot { position: relative; display: inline-flex; }
+.ip-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: rgba(255,107,107,.5);
+  animation: ip-dot-ping 2s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes ip-dot-ping {
+  0%   { transform: scale(1); opacity: .6; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Reduced motion: disable every state-clarifying animation above.
+   Two triggers: the OS preference (prefers-reduced-motion) AND a manual
+   .ip-reduce-motion class on <html> (set by the Settings toggle or the
+   early inline script in layout.tsx) for booth machines where the OS
+   pref isn't set. */
+@media (prefers-reduced-motion: reduce) {
+  .ip-program-live,
+  .ip-preview-prep,
+  .ip-ai-arrive,
+  .ip-attention-enter,
+  .ip-focus-in,
+  .ip-success-pulse,
+  .ip-live-dot::after {
+    animation: none !important;
+  }
+}
+.ip-reduce-motion .ip-program-live,
+.ip-reduce-motion .ip-preview-prep,
+.ip-reduce-motion .ip-ai-arrive,
+.ip-reduce-motion .ip-attention-enter,
+.ip-reduce-motion .ip-focus-in,
+.ip-reduce-motion .ip-success-pulse,
+.ip-reduce-motion .ip-live-dot::after {
+  animation: none !important;
+}
+
+/* Thin scrollbar variant for dense rails */
+.ip-scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.ip-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 999px; }
+.ip-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
+.ip-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }

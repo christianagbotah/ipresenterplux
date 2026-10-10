@@ -90,9 +90,9 @@ export function LiveAudience({
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-black tracking-tight">iPresenterPlux Live</div>
-            <div className="truncate text-[10px] uppercase tracking-[.16em] text-white/30">{serviceTitle}</div>
+            <div className="truncate text-[11px] uppercase tracking-[.16em] text-white/55">{serviceTitle}</div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/[.09] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.15em] text-red-200">
+          <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/[.09] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[.15em] text-red-200">
             <Radio size={12} />
             Live
           </div>
@@ -108,7 +108,7 @@ export function LiveAudience({
               <div className="truncate text-xs font-bold">
                 {selected?.name ?? "Original audio"}
               </div>
-              <div className="mt-0.5 text-[10px] uppercase tracking-[.12em] text-white/28">
+              <div className="mt-0.5 text-[11px] uppercase tracking-[.12em] text-white/55">
                 {selected?.mode.replaceAll("_", " ") ?? "original"}
               </div>
             </div>
@@ -121,7 +121,7 @@ export function LiveAudience({
             <Languages size={16} className="text-[#d7a94a]" />
             <div>
               <div className="text-sm font-bold">Listen in your language</div>
-              <div className="text-[11px] text-white/30">Choose a channel for this device</div>
+              <div className="text-[11px] text-white/55">Choose a channel for this device</div>
             </div>
           </div>
 
@@ -134,19 +134,19 @@ export function LiveAudience({
                   type="button"
                   onClick={() => selectLanguage(language.id)}
                   className={
-                    "flex items-center justify-between rounded-xl border px-3 py-3 text-left transition " +
+                    "ip-focus-gold min-h-11 flex items-center justify-between rounded-xl border px-3 py-3 text-left transition " +
                     (active
                       ? "border-[#d7a94a]/35 bg-[#d7a94a]/10 text-[#f0c66b]"
-                      : "border-white/[.06] bg-white/[.025] text-white/55 hover:bg-white/[.045]")
+                      : "border-white/[.06] bg-white/[.025] text-white/70 hover:bg-white/[.045]")
                   }
                 >
                   <div>
                     <div className="text-xs font-bold">{language.name}</div>
-                    <div className="mt-1 text-[10px] uppercase tracking-[.11em] opacity-55">
+                    <div className="mt-1 text-[11px] uppercase tracking-[.11em] opacity-70">
                       {language.mode.replaceAll("_", " ")}
                     </div>
                   </div>
-                  <span className="text-[10px] opacity-45">{language.listeners}</span>
+                  <span className="text-[11px] opacity-65">{language.listeners}</span>
                 </button>
               );
             })}
@@ -157,35 +157,35 @@ export function LiveAudience({
           <div className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-4">
             <div className="mb-3 flex items-center gap-2">
               <BookOpen size={16} className="text-[#d7a94a]" />
-              <div className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Current scripture</div>
+              <div className="text-xs font-bold uppercase tracking-[.12em] text-white/65">Current scripture</div>
             </div>
             {scriptureReference ? (
               <div>
                 <div className="text-2xl font-black tracking-tight">{scriptureReference}</div>
                 {scriptureText ? (
-                  <p className="mt-3 text-sm leading-6 text-white/62">{scriptureText}</p>
+                  <p className="mt-3 text-sm leading-6 text-white/75">{scriptureText}</p>
                 ) : (
-                  <p className="mt-3 text-xs text-white/28">Scripture text is loading from the selected Bible version.</p>
+                  <p className="mt-3 text-xs text-white/55">Scripture text is loading from the selected Bible version.</p>
                 )}
               </div>
             ) : (
-              <div className="text-sm text-white/30">No scripture is currently live.</div>
+              <div className="text-sm text-white/55">No scripture is currently live.</div>
             )}
           </div>
 
           <div className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-4">
             <div className="mb-3 flex items-center gap-2">
               <Captions size={16} className="text-[#d7a94a]" />
-              <div className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Live captions</div>
+              <div className="text-xs font-bold uppercase tracking-[.12em] text-white/65">Live captions</div>
             </div>
-            <p className="text-sm leading-6 text-white/55">
+            <p className="text-sm leading-6 text-white/75">
               {captionText
                 ?? (sourceSelected
                   ? "Waiting for the next spoken segment…"
                   : "Translation is being prepared for this language…")}
             </p>
             {audioStatusText ? (
-              <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[10px] leading-4 text-white/30">
+              <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[11px] leading-4 text-white/55">
                 {audioStatusText}
               </div>
             ) : null}
@@ -193,14 +193,14 @@ export function LiveAudience({
               <LiveTranslatedAudio key={`${serviceId}:${selected.id}`} serviceId={serviceId} channelId={selected.id} />
             ) : null}
             {transcriptLanguage ? (
-              <div className="mt-3 text-[10px] uppercase tracking-[.12em] text-white/24">
+              <div className="mt-3 text-[11px] uppercase tracking-[.12em] text-white/50">
                 Source language · {transcriptLanguage}
               </div>
             ) : null}
           </div>
         </section>
 
-        <footer className="pb-5 pt-2 text-center text-[10px] leading-5 text-white/20">
+        <footer className="pb-5 pt-2 text-center text-[11px] leading-5 text-white/55">
           iPresenterPlux · Church presentation, interpretation and live engagement
         </footer>
       </div>

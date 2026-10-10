@@ -93,16 +93,16 @@ export default async function SubscriptionSettingsPage() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/settings" className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/50 transition hover:bg-white/[.06] hover:text-white" aria-label="Back to settings">
+            <Link href="/settings" className="ip-focus-gold flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/70 transition hover:bg-white/[.06] hover:text-white" aria-label="Back to settings">
               <ArrowLeft size={17} />
             </Link>
             <div>
               <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><CreditCard size={13} /> Settings · Subscription</div>
               <h1 className="mt-1 text-2xl font-black tracking-tight">Subscription & activation</h1>
-              <p className="mt-1 text-sm text-white/35">{organization.name}</p>
+              <p className="mt-1 text-sm text-white/55">{organization.name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-300/15 bg-emerald-300/[.05] px-3 py-2 text-xs text-emerald-100/75">
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-300/15 bg-emerald-300/[.05] px-3 py-2 text-xs text-emerald-100/85">
             <BadgeCheck size={14} /> Tenant-scoped commercial status
           </div>
         </header>
