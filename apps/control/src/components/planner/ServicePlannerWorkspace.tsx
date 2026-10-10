@@ -367,15 +367,15 @@ export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSou
   return (
     <div className="min-w-0">
       {conflictFrozen ? (
-        <div className="mb-3 flex flex-col gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="ip-attention-enter mb-3 flex flex-col gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[.06] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-300" />
             <div>
               <div className="text-sm font-black text-amber-100">Stale planner revision</div>
-              <div className="mt-1 text-xs leading-5 text-amber-100/60">Another session changed this service plan. Mutations are frozen so we never overwrite newer work.</div>
+              <div className="mt-1 text-xs leading-5 text-amber-100/75">Another session changed this service plan. Mutations are frozen so we never overwrite newer work.</div>
             </div>
           </div>
-          <button type="button" onClick={reloadLatest} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-200/20 bg-amber-200/[.07] px-3.5 text-xs font-extrabold text-amber-100 transition hover:bg-amber-200/[.12]"><RefreshCcw size={14} /> Reload latest</button>
+          <button type="button" onClick={reloadLatest} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-200/25 bg-amber-200/[.08] px-3.5 text-xs font-extrabold text-amber-100 transition hover:bg-amber-200/[.14] ip-focus-gold"><RefreshCcw size={14} /> Reload latest</button>
         </div>
       ) : null}
 
@@ -393,7 +393,7 @@ export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSou
 
       <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
         {(["Rundown", "Editor", "Preview"] as const).map((pane) => (
-          <button key={pane} type="button" onClick={() => setActivePane(pane)} className={"min-h-11 rounded-xl border px-3 text-sm font-bold transition " + (activePane === pane ? "border-[#d7a94a]/35 bg-[#d7a94a]/10 text-[#f2c765]" : "border-white/[.07] bg-white/[.025] text-white/45")}>{pane}</button>
+          <button key={pane} type="button" onClick={() => setActivePane(pane)} className={"min-h-11 rounded-xl border px-3 text-sm font-bold transition ip-focus-gold " + (activePane === pane ? "border-[#d7a94a]/35 bg-[#d7a94a]/10 text-[#f2c765]" : "border-white/[.07] bg-white/[.025] text-white/55 hover:bg-white/[.05] hover:text-white/85")}>{pane}</button>
         ))}
       </div>
 
@@ -405,22 +405,22 @@ export function ServicePlannerWorkspace({ initialDetail, bibleVersions, mediaSou
         <section className={(activePane === "Editor" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017] lg:block lg:min-h-0"}>
           <div className="flex flex-col gap-3 border-b border-white/[.07] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div className="min-w-0">
-              <div className="text-sm font-black text-white/85">{creating ? "New cue" : selectedItem?.title || "Cue editor"}</div>
-              <div className="mt-1 text-xs text-white/30">{conflictFrozen ? "Reload the latest plan before making more changes." : canEditForStatus ? "Changes stay in Draft until saved." : "Read-only service plan."}</div>
+              <div className="text-sm font-black text-white/90">{creating ? "New cue" : selectedItem?.title || "Cue editor"}</div>
+              <div className="mt-1 text-xs text-white/50">{conflictFrozen ? "Reload the latest plan before making more changes." : canEditForStatus ? "Changes stay in Draft until saved." : "Read-only service plan."}</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={previewCue} disabled={Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/65 disabled:opacity-35">{busy === "preview" ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}Preview</button>
-              <button type="button" onClick={saveCue} disabled={!canMutate || Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#d7a94a] px-3.5 text-xs font-extrabold text-[#161109] disabled:cursor-not-allowed disabled:opacity-35">{busy === "save" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{creating ? "Add cue" : "Save"}</button>
-              {selectedItem && !creating ? <button type="button" onClick={duplicateCue} disabled={!canMutate || Boolean(busy)} title="Duplicate cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/55 disabled:cursor-not-allowed disabled:opacity-35"><Copy size={14} />Duplicate</button> : null}
-              {selectedItem && !creating ? <button type="button" onClick={deleteCue} disabled={!canMutate || Boolean(busy)} title="Delete cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-400/20 px-3 text-xs font-bold text-red-200/70 disabled:cursor-not-allowed disabled:opacity-35"><Trash2 size={14} />Delete</button> : null}
+              <button type="button" onClick={previewCue} disabled={Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/75 transition hover:bg-white/[.05] ip-focus-gold disabled:opacity-35">{busy === "preview" ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}Preview</button>
+              <button type="button" onClick={saveCue} disabled={!canMutate || Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#d7a94a] px-3.5 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35">{busy === "save" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{creating ? "Add cue" : "Save"}</button>
+              {selectedItem && !creating ? <button type="button" onClick={duplicateCue} disabled={!canMutate || Boolean(busy)} title="Duplicate cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.05] hover:text-white ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"><Copy size={14} />Duplicate</button> : null}
+              {selectedItem && !creating ? <button type="button" onClick={deleteCue} disabled={!canMutate || Boolean(busy)} title="Delete cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-400/25 px-3 text-xs font-bold text-red-200/80 transition hover:bg-red-400/[.1] hover:text-red-100 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"><Trash2 size={14} />Delete</button> : null}
             </div>
           </div>
 
-          <div className="min-h-0 overflow-y-auto p-3 sm:p-4 lg:max-h-[760px] ip-scrollbar">
-            {error ? <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/[.07] px-4 py-3 text-sm leading-5 text-red-100">{error}</div> : null}
+          <div className="ip-scrollbar-thin min-h-0 overflow-y-auto p-3 sm:p-4 lg:max-h-[760px]">
+            {error ? <div className="ip-attention-enter mb-4 rounded-xl border border-red-400/20 bg-red-400/[.07] px-4 py-3 text-sm leading-5 text-red-100">{error}</div> : null}
             <label className="mb-5 block sm:max-w-xs">
-              <span className="mb-2 block text-xs font-bold uppercase tracking-[.12em] text-white/40">Cue type</span>
-              <select value={itemType} onChange={(event) => changeItemType(event.target.value as PlannerCueType)} disabled={!canMutate || Boolean(busy)} className="min-h-11 w-full rounded-xl border border-white/[.09] bg-[#0a0d12] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/45 disabled:opacity-50">
+              <span className="mb-2 block text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Cue type</span>
+              <select value={itemType} onChange={(event) => changeItemType(event.target.value as PlannerCueType)} disabled={!canMutate || Boolean(busy)} className="min-h-11 w-full rounded-xl border border-white/[.09] bg-[#0a0d12] px-3 text-sm text-white outline-none transition ip-focus-gold disabled:opacity-50">
                 {plannerCueTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}
               </select>
             </label>

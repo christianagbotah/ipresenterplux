@@ -35,10 +35,10 @@ export function ReadinessPanel({
     <section className="mb-3 overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017]">
       <div className="flex flex-col gap-3 border-b border-white/[.07] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + (isReady ? "border-emerald-400/20 bg-emerald-400/[.08] text-emerald-300" : "border-[#d7a94a]/20 bg-[#d7a94a]/[.08] text-[#f2c765]")}>{isReady ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}</span>
+          <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + (isReady ? "border-emerald-400/22 bg-emerald-400/[.08] text-emerald-300" : "border-[#d7a94a]/25 bg-[#d7a94a]/[.08] text-[#f2c765]")}>{isReady ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}</span>
           <div className="min-w-0">
-            <div className="text-sm font-black text-white/85">Service readiness</div>
-            <div className="mt-0.5 text-xs leading-5 text-white/35">
+            <div className="text-sm font-black text-white/90">Service readiness</div>
+            <div className="mt-0.5 text-xs leading-5 text-white/55">
               {isReady
                 ? `Ready for service · ${edgeAssignmentCount} Edge assignment${edgeAssignmentCount === 1 ? "" : "s"}`
                 : issues.length
@@ -54,7 +54,7 @@ export function ReadinessPanel({
               type="button"
               onClick={onReady}
               disabled={!canEdit || busy || conflictFrozen}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-400 px-3.5 text-xs font-extrabold text-[#07130d] disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-400 px-3.5 text-xs font-extrabold text-[#07130d] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"
             >
               <CheckCircle2 size={14} /> Ready for service
             </button>
@@ -64,12 +64,12 @@ export function ReadinessPanel({
               type="button"
               onClick={onReturnToDraft}
               disabled={!canEdit || busy || conflictFrozen}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3.5 text-xs font-bold text-white/65 disabled:cursor-not-allowed disabled:opacity-35"
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3.5 text-xs font-bold text-white/70 transition hover:bg-white/[.05] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"
             >
               <RotateCcw size={14} /> Return to draft
             </button>
           ) : null}
-          {!isDraft && !isReady ? <span className="rounded-xl border border-white/[.07] px-3 py-2 text-xs font-bold text-white/35">Lifecycle locked: {serviceStatus}</span> : null}
+          {!isDraft && !isReady ? <span className="rounded-xl border border-white/[.07] px-3 py-2 text-xs font-bold text-white/50">Lifecycle locked: {serviceStatus}</span> : null}
         </div>
       </div>
 
@@ -80,8 +80,8 @@ export function ReadinessPanel({
               <>
                 <AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-300" />
                 <span className="min-w-0">
-                  <span className="block text-[10px] font-black uppercase tracking-[.12em] text-amber-200/55">{issue.code.replaceAll("_", " ")}</span>
-                  <span className="mt-1 block text-xs leading-5 text-white/62">{issue.label}</span>
+                  <span className="block text-[11px] font-black uppercase tracking-[.12em] text-amber-200/75">{issue.code.replaceAll("_", " ")}</span>
+                  <span className="mt-1 block text-xs leading-5 text-white/70">{issue.label}</span>
                   {issue.itemId ? <span className="mt-1 block text-[11px] font-bold text-[#f2c765]">Open affected cue →</span> : null}
                 </span>
               </>
@@ -91,12 +91,12 @@ export function ReadinessPanel({
                 key={`${issue.code}-${issue.itemId}-${index}`}
                 type="button"
                 onClick={() => onFocusCue(issue.itemId!)}
-                className="flex min-w-0 items-start gap-2 rounded-xl border border-amber-300/15 bg-amber-300/[.045] p-3 text-left transition hover:bg-amber-300/[.075] focus:outline-none focus:ring-2 focus:ring-[#d7a94a]/35"
+                className="ip-attention-enter flex min-w-0 items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3 text-left transition hover:bg-amber-300/[.09] ip-focus-gold"
               >
                 {content}
               </button>
             ) : (
-              <div key={`${issue.code}-${index}`} className="flex min-w-0 items-start gap-2 rounded-xl border border-amber-300/15 bg-amber-300/[.045] p-3">
+              <div key={`${issue.code}-${index}`} className="ip-attention-enter flex min-w-0 items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3">
                 {content}
               </div>
             );
@@ -104,8 +104,8 @@ export function ReadinessPanel({
         </div>
       ) : null}
 
-      {!canEdit && (isDraft || isReady) ? <div className="border-t border-white/[.06] px-4 py-2.5 text-xs text-white/30">You can review readiness, but your current role cannot change the service lifecycle.</div> : null}
-      {conflictFrozen ? <div className="border-t border-amber-300/15 bg-amber-300/[.04] px-4 py-2.5 text-xs text-amber-100/65">Readiness actions are paused until the latest planner revision is reloaded.</div> : null}
+      {!canEdit && (isDraft || isReady) ? <div className="border-t border-white/[.06] px-4 py-2.5 text-xs text-white/50">You can review readiness, but your current role cannot change the service lifecycle.</div> : null}
+      {conflictFrozen ? <div className="border-t border-amber-300/15 bg-amber-300/[.04] px-4 py-2.5 text-xs text-amber-100/80">Readiness actions are paused until the latest planner revision is reloaded.</div> : null}
       <span className="sr-only">Mutation controls disabled: {String(mutationDisabled)}</span>
     </section>
   );
