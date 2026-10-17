@@ -62,7 +62,8 @@ internal static class WindowsVisualSourceMetadata
             null,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["displayPrimary"] = record.IsPrimary ? "true" : "false"
+                ["displayPrimary"] = record.IsPrimary ? "true" : "false",
+                ["nativeMonitorHandle"] = record.Handle.ToInt64().ToString("x", System.Globalization.CultureInfo.InvariantCulture)
             });
     }
 
