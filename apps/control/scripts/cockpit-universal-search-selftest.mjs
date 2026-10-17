@@ -7,6 +7,20 @@ import { searchCockpit, UNIVERSAL_SEARCH_GROUPS } from "../src/lib/cockpit/searc
 
 assert.deepEqual(UNIVERSAL_SEARCH_GROUPS.map((group) => group.label), ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"]);
 
+const { readFile } = await import("node:fs/promises");
+const searchRouteSource = await readFile(new URL("../src/app/api/v1/cockpit/search/route.ts", import.meta.url), "utf8").catch(() => null);
+assert.ok(searchRouteSource, "authenticated universal search API route must exist");
+assert.match(searchRouteSource, /export async function GET/);
+assert.match(searchRouteSource, /auth\(\)/);
+assert.match(searchRouteSource, /status:\s*401/);
+assert.match(searchRouteSource, /forcePasswordChange/);
+assert.match(searchRouteSource, /status:\s*403/);
+assert.match(searchRouteSource, /q:\s*z\.string\(\)\.trim\(\)\.min\(1\)\.max\(120\)/);
+assert.match(searchRouteSource, /limit:[\s\S]*?min\(1\)[\s\S]*?max\(8\)/);
+assert.match(searchRouteSource, /searchCockpit/);
+assert.match(searchRouteSource, /NextResponse\.json\(\{\s*ok:\s*true,\s*search/);
+assert.doesNotMatch(searchRouteSource, /client\.query\(["'`]\s*(?:begin|commit|insert|update|delete)/i, "search route must not create its own DB mutation path");
+
 const blankClient = { query: async () => { throw new Error("blank query must not touch the database"); } };
 const blank = await searchCockpit(blankClient, "00000000-0000-4000-8000-000000000001", { query: "   " });
 assert.equal(blank.query, "");
