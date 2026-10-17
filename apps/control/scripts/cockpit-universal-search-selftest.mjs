@@ -8,6 +8,8 @@ import { searchCockpit, UNIVERSAL_SEARCH_GROUPS } from "../src/lib/cockpit/searc
 assert.deepEqual(UNIVERSAL_SEARCH_GROUPS.map((group) => group.label), ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"]);
 
 const { readFile } = await import("node:fs/promises");
+const workflowSource = await readFile(new URL("../../../.github/workflows/control-ci.yml", import.meta.url), "utf8");
+assert.match(workflowSource, /test:cockpit-universal-search/, "Control Portal CI must run universal search contract");
 const searchRouteSource = await readFile(new URL("../src/app/api/v1/cockpit/search/route.ts", import.meta.url), "utf8").catch(() => null);
 assert.ok(searchRouteSource, "authenticated universal search API route must exist");
 assert.match(searchRouteSource, /export async function GET/);
@@ -35,12 +37,12 @@ assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
-const org=randomUUID(), campus=randomUUID(), operator=randomUUID(), viewer=randomUUID(), service=randomUUID(), plan=randomUUID(), subscription=randomUUID();
+const org=randomUUID(), otherOrg=randomUUID(), campus=randomUUID(), operator=randomUUID(), viewer=randomUUID(), service=randomUUID(), plan=randomUUID(), subscription=randomUUID(), foreignMedia=randomUUID();
 const song=randomUUID(), media=randomUUID(), slide=randomUUID(), edge=randomUUID(), visual=randomUUID();
 const now=new Date("2099-06-01T10:00:00.000Z");
 try {
   await client.query("begin");
-  await client.query(`insert into organizations(id,name,slug,country_code,timezone) values ($1,'Universal Search Church',$2,'GH','Africa/Accra')`,[org,`search-${org}`]);
+  await client.query(`insert into organizations(id,name,slug,country_code,timezone) values ($1,'Universal Search Church',$2,'GH','Africa/Accra'),($3,'Other Church',$4,'GH','Africa/Accra')`,[org,`search-${org}`,otherOrg,`search-${otherOrg}`]);
   await client.query(`insert into campuses(id,organization_id,name,slug,city,country_code) values ($1,$2,'Main','main','Accra','GH')`,[campus,org]);
   await client.query(`insert into users(id,email,display_name,status) values ($1,$2,'Search Operator','active'),($3,$4,'Search Viewer','active')`,[operator,`search-op-${operator}@example.invalid`,viewer,`search-view-${viewer}@example.invalid`]);
   await client.query(`insert into user_organization_roles(user_id,organization_id,role_id) values ($1,$2,'media_operator'),($3,$2,'viewer')`,[operator,org,viewer]);
@@ -56,6 +58,7 @@ try {
       JSON.stringify({title:"Welcome Video",sourceId:null,mediaKind:"video"}),operator,now,
       JSON.stringify({title:"Welcome Visitors",body:"We are glad you are here"})
     ]);
+  await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,created_by,updated_at) values ($1,$2,'media','Welcome Secret Other Church',$3::jsonb,$4,$5)`,[foreignMedia,otherOrg,JSON.stringify({title:"Welcome Secret Other Church",mediaKind:"video"}),operator,now]);
   await client.query(`insert into presentation_items(service_id,item_type,title,content,sort_order,state,updated_at) values ($1,'announcement','Offering Time',$2::jsonb,10,'queued',$3)`,[service,JSON.stringify({body:"Giving"}),now]);
   await client.query(`insert into edge_devices(id,organization_id,name,platform,status,last_seen_at,active_service_id) values ($1,$2,'Sanctuary PC','windows','active',$3,$4)`,[edge,org,now,service]);
   await client.query(`insert into media_sources(id,organization_id,name,source_type,status,last_seen_at,edge_device_id,source_key,metadata,public_config) values ($1,$2,'Pulpit Camera','camera','ready',$3,$4,'camera:pulpit',$5::jsonb,'{}'::jsonb)`,[visual,org,now,edge,JSON.stringify({captureStatus:"ready",reportedName:"Pulpit Camera"})]);
@@ -71,6 +74,7 @@ try {
   const mediaSearch = await searchCockpit(client,operator,{query:"Welcome",limitPerGroup:8});
   assert.ok(mediaSearch.groups.find((group)=>group.id==="media")?.items.some((item)=>item.id===media));
   assert.ok(mediaSearch.groups.find((group)=>group.id==="media")?.items.some((item)=>item.id===slide));
+  assert.ok(!mediaSearch.groups.some((group)=>group.items.some((item)=>item.id===foreignMedia)),"search must not leak results from another organization");
 
   const serviceSearch = await searchCockpit(client,operator,{query:"Offering",limitPerGroup:3});
   assert.ok(serviceSearch.groups.find((group)=>group.id==="service")?.items.some((item)=>item.title==="Offering Time"));
@@ -90,6 +94,7 @@ try {
   assert.equal(filtered.groups.some((group)=>group.id==="media"),false,"Media group must be omitted without capability");
   assert.equal(filtered.groups.some((group)=>group.id==="songs"),false,"Songs group must be omitted without capability");
   assert.equal(filtered.groups.some((group)=>group.id==="visual_sources"),false,"Visual Sources group must be omitted without capability");
+  assert.equal(filtered.groups.find((group)=>group.id==="actions")?.items.some((item)=>item.href==="/scripture"),false,"Scripture action must also obey core.presentation entitlement");
 
   const writesBefore = await client.query(`select count(*)::int as count from audit_events where organization_id=$1`,[org]);
   await searchCockpit(client,viewer,{query:"Offering",limitPerGroup:2,now});

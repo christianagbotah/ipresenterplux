@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { parseOperatorScriptureReference } from "../edge-operator-catalog.ts";
 import { getCurrentServiceForUser } from "../current-service.ts";
-import { resolveLocalScripture } from "../bible-library.ts";
+import { BibleLibraryError, resolveLocalScripture } from "../bible-library.ts";
 import { listMediaLibrary } from "../media-library.ts";
 import { listVisualSources } from "../camera-sources.ts";
 
@@ -60,9 +60,9 @@ function matchesQuery(query: string, ...values: Array<string | null | undefined>
   return values.some((value) => value?.toLocaleLowerCase().includes(needle));
 }
 
-function actionItems(query: string, capabilities: NonNullable<Awaited<ReturnType<typeof getCurrentServiceForUser>>>["capabilities"], limit: number): UniversalSearchItem[] {
+function actionItems(query: string, capabilities: NonNullable<Awaited<ReturnType<typeof getCurrentServiceForUser>>>["capabilities"], canScripture: boolean, limit: number): UniversalSearchItem[] {
   const candidates: UniversalSearchItem[] = [
-    { id: "action:scripture", group: "actions", title: "Open Scripture", subtitle: "Find or browse a passage", href: "/scripture", commandText: "open scripture" },
+    ...(canScripture ? [{ id: "action:scripture", group: "actions" as const, title: "Open Scripture", subtitle: "Find or browse a passage", href: "/scripture", commandText: "open scripture" }] : []),
     ...(capabilities.canMedia ? [{ id: "action:media", group: "actions" as const, title: "Open Songs & Media", subtitle: "Browse church songs, slides and media", href: "/media", commandText: "open media" }] : []),
     ...(capabilities.canCameras ? [{ id: "action:visual-sources", group: "actions" as const, title: "Open Visual Sources", subtitle: "Cameras, screens and windows", href: "/cameras", commandText: "open visual sources" }] : []),
     ...(capabilities.canViewPlanner ? [{ id: "action:planner", group: "actions" as const, title: "Open Service Planner", subtitle: "Review the current service rundown", href: "/planner", commandText: "open planner" }] : []),
@@ -100,7 +100,8 @@ export async function searchCockpit(
         href: `/scripture?reference=${encodeURIComponent(scripture.reference)}&version=${encodeURIComponent(scripture.version)}`,
         commandText: null
       }]);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof BibleLibraryError)) throw error;
       buckets.set("scripture", []);
     }
   } else if (context.capabilities.canViewPlanner && corePresentation) {
@@ -137,10 +138,10 @@ export async function searchCockpit(
          from presentation_items
         where service_id=$1
           and state <> 'dismissed'
-          and (title ilike $2 or content::text ilike $2)
+          and (title ilike $2 escape '\\' or content::text ilike $2 escape '\\')
         order by sort_order,id
         limit $3`,
-      [context.service.id, `%${query}%`, limit]
+      [context.service.id, `%${query.replace(/[\%_]/g, (character) => `\\${character}`)}%`, limit]
     ) : { rows: [] as ServiceItemRow[] };
     buckets.set("service", serviceItems.rows.map((item) => ({
       id: item.id,
@@ -167,7 +168,7 @@ export async function searchCockpit(
       })));
   }
 
-  buckets.set("actions", actionItems(query, context.capabilities, limit));
+  buckets.set("actions", actionItems(query, context.capabilities, context.capabilities.canViewPlanner && corePresentation, limit));
 
   const allowed = new Set<UniversalSearchGroupId>([
     ...(context.capabilities.canViewPlanner && corePresentation ? ["scripture" as const] : []),

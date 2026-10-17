@@ -4,6 +4,7 @@ import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { ServiceControls } from "@/components/ServiceControls";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SessionClock } from "./SessionClock";
+import { UniversalFindTrigger } from "./UniversalFindTrigger";
 
 const domainLinks = [
   ["Scripture", "/scripture"], ["Songs & Media", "/media"], ["Cameras", "/cameras"],
@@ -27,6 +28,7 @@ export function CockpitHeader({ model }: { model: CockpitViewModel }) {
         </div>
         <SessionClock live={live} />
       </div>
+      <UniversalFindTrigger />
       <div className="flex items-center gap-2">
         <details className="relative hidden lg:block">
           <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/55 transition hover:bg-white/[.05] hover:text-white/85 ip-focus-gold">
