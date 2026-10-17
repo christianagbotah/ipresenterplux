@@ -4,6 +4,7 @@ namespace iPresenterPlux.Edge.Core.Abstractions;
 
 public interface IVisualCaptureSession : IAsyncDisposable
 {
+    event EventHandler? StatusChanged;
     VisualSourceDescriptor Source { get; }
     VisualCaptureStatus Status { get; }
     ProgramVideoFrame? LatestFrame { get; }

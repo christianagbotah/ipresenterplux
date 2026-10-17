@@ -177,6 +177,7 @@ public sealed class VisualProgramRouterTests
         ProgramVideoFrame frame,
         VisualSourceAvailability startAvailability = VisualSourceAvailability.Available) : IVisualCaptureSession
     {
+        public event EventHandler? StatusChanged;
         public VisualSourceDescriptor Source { get; } = source;
         public ProgramVideoFrame? LatestFrame { get; private set; } = frame;
         public int StartCount { get; private set; }
@@ -189,12 +190,14 @@ public sealed class VisualProgramRouterTests
             Status = startAvailability == VisualSourceAvailability.Available
                 ? new(true, startAvailability, 1, 0, DateTimeOffset.UtcNow, null)
                 : new(false, startAvailability, 0, 0, null, startAvailability.ToString().ToLowerInvariant());
+            StatusChanged?.Invoke(this, EventArgs.Empty);
             return Task.FromResult(Status);
         }
 
         public Task<VisualCaptureStatus> StopAsync(CancellationToken cancellationToken)
         {
             Status = Status with { IsRunning = false };
+            StatusChanged?.Invoke(this, EventArgs.Empty);
             return Task.FromResult(Status);
         }
 
