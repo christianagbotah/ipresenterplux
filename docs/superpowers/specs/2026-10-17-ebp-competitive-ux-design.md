@@ -92,7 +92,7 @@ Presentation is one core capability inside a service-aware operating model that 
 
 ## Non-negotiable UX rules
 
-1. **Program is deliberate.** AI may search, rank, prepare and Preview. It must not silently TAKE to Program under the default product mode.
+1. **Program is deliberate by default, with an explicit Scripture automation exception.** Manual Preview -> TAKE remains the default. AI may promote detected Scripture to Program only when an authorized operator has deliberately armed Auto Scripture Live for the active service under the policy defined below; the automation must use the same audited Program authority path rather than a separate live-output bypass.
 2. **Preview is private.** A Preview action must never be visually or semantically confused with going live.
 3. **Physical truth comes from Edge.** Cameras, displays, windows and local output state use Edge-confirmed truth.
 4. **Healthy systems recede.** Green telemetry walls are not the default interface.
@@ -262,7 +262,7 @@ The operator can:
 - dismiss;
 - pin for later.
 
-The default path never auto-TAKEs the recommendation.
+The default path never auto-TAKEs the recommendation. When Auto Scripture Live is explicitly armed for the active service, eligible high-confidence detections may be promoted to Program automatically under the service automation policy described below.
 
 ### Context controls
 
@@ -292,9 +292,11 @@ Tenant-scoped preferences may remember:
 - preferred Scripture theme;
 - reference-format preference;
 - preacher-specific defaults where explicitly configured;
-- whether AI Scripture recommendations should auto-open in Preview or remain recommendation-only.
+- whether AI Scripture recommendations should remain recommendation-only or auto-open in Preview;
+- whether the organization permits Auto Scripture Live;
+- the allowed Auto Scripture Live detection policy and confidence thresholds.
 
-Any auto-Preview option still does not grant Program authority.
+Auto-Preview by itself does not grant Program authority. Auto Scripture Live is a separate, deliberately armed service mode with stricter authority, confidence, observability and fail-safe rules.
 
 ## Songs and media
 
@@ -483,7 +485,42 @@ The Scripture assistant combines:
 - active service plan;
 - recent Scripture history.
 
-A high-confidence detection may auto-prepare Preview only if the organization explicitly enables that behavior. It still cannot auto-TAKE in the default authority model.
+A high-confidence detection may auto-prepare Preview when the organization enables that behavior. The default authority model still stops at Preview. Auto Scripture Live is the only Scripture-specific exception: when explicitly armed for the active service, it may automatically promote an eligible detected passage through the existing Program authority path.
+
+### Auto Scripture Live
+
+Churches may opt into a real-time mode where AI-detected Scripture is sent directly to the live Program screen without waiting for a confirmation click. This is an optional automation mode, not the default behavior.
+
+The operating modes are:
+
+- **Manual** — detection appears in Next; the operator chooses Preview and TAKE.
+- **Auto Preview** — eligible detection is prepared in Preview automatically, but Program still waits for TAKE.
+- **Auto Scripture Live** — eligible detection may be promoted directly to Program in real time while the mode is armed.
+
+Auto Scripture Live must satisfy all of the following rules:
+
+1. The organization must explicitly permit the capability.
+2. An authorized live operator must arm it for the active service; enabling it in Settings alone is insufficient.
+3. The Cockpit and Live Assist UI must show a persistent, unmistakable `AUTO SCRIPTURE LIVE ARMED` state while it is active.
+4. The operator must have a one-action `DISARM AUTO LIVE` control and normal Clear/Black recovery controls.
+5. The mode automatically disarms when the service ends, the active service changes, the automation policy changes, or the Scripture/ASR authority pipeline experiences a failure that makes confidence unreliable. Recovery from such a disarm requires a deliberate re-arm.
+6. Automatic live promotion must use the existing audited Program mutation path. There is no separate unaudited `AI force live` channel.
+7. Every automatic TAKE records the detected reference, translation, confidence, evidence class, service, initiating automation policy and resulting Program state without persisting unnecessary raw audio.
+8. Tenant, entitlement and RBAC checks remain identical to manual live mutations.
+9. The automation must work through the local/Edge-safe control path once armed so a transient Internet outage does not disable local Sunday Scripture presentation.
+
+The first release should support two detection policies:
+
+- **Explicit spoken references only** — recommended default for Auto Scripture Live. Example: `Romans chapter eight verse twenty-eight`.
+- **Explicit references + high-confidence quote matching** — Advanced option for churches that want AI to recognize a verse from the preacher quoting the text without naming the reference.
+
+Quote/context matching must use a stricter confidence requirement than explicit reference parsing. Organization settings may raise confidence thresholds but must not lower them below the product safety floor. Ambiguous, partial, conflicting, stale or low-confidence detections never auto-TAKE; they fall back to Next/Preview.
+
+To avoid visual thrashing, the automation applies transcript stability, duplicate suppression and a short replacement cooldown. Repeating the same reference does not repeatedly TAKE it. Rapid conflicting candidates wait for a stable winner rather than flashing multiple passages live.
+
+The latency target for a stable, eligible explicit spoken reference is **Program update within 1.5 seconds of finalized recognition on supported local hardware**, without depending on a cloud round-trip. This is a target for field UAT, not permission to bypass confidence checks.
+
+The projected Bible version is fixed by the active Scripture policy unless an explicit spoken translation request is supported and confidently resolved. Audience-device language may remain independently translated.
 
 ### AI service commands
 
@@ -723,7 +760,7 @@ Add the shared command/search entry point and deterministic resolver for:
 
 Natural-language intent resolution is layered on after deterministic coverage is reliable.
 
-### Phase 3 — Scripture fast path
+### Phase 3 — Scripture fast path and Auto Scripture Live
 
 Refine Scripture around:
 
@@ -752,7 +789,11 @@ Continue audience-language, interpretation, service memory and AI automation aft
 
 Protect:
 
-- Preview/Program authority;
+- Preview/Program authority, including the narrowly scoped armed Auto Scripture Live exception;
+- Auto Scripture Live cannot operate unless organization permission + active-service arming + confidence policy all pass;
+- automatic Scripture TAKE uses the existing Program mutation/audit path;
+- auto-live disarms on service end/change and confidence-pipeline failure;
+- low-confidence/ambiguous Scripture never auto-TAKEs;
 - no visual-source Go Live command;
 - RBAC on all live mutations;
 - tenant/service/source ownership;
@@ -792,7 +833,9 @@ Measure:
 - number of accidental live-action attempts;
 - ability to recover from source/network/AI degradation;
 - time to locate Scripture, song, media and source;
-- subjective confidence after the service.
+- subjective confidence after the service;
+- Auto Scripture Live false-take rate, missed eligible take rate and median recognition-to-Program latency;
+- successful one-action disarm and fallback to manual Preview/TAKE.
 
 ## Non-goals for this design
 
@@ -800,7 +843,7 @@ This design does not:
 
 - clone EBP, EasyWorship, ProPresenter, OBS or vMix;
 - replace the native Edge architecture with browser capture;
-- introduce unrestricted AI Program authority;
+- introduce unrestricted AI Program authority outside the explicitly armed, Scripture-only Auto Scripture Live policy;
 - expose a node-based scene compositor in Essential mode;
 - require every advanced feature to ship before the simpler Cockpit is useful;
 - make Theme Studio a full general-purpose graphic design application;
@@ -816,7 +859,7 @@ This design is accepted when:
 - EBP-class baseline workflows are accounted for without copying EBP implementation;
 - the universal find/command surface is the primary cross-domain discovery mechanism;
 - Essential/Advanced/Engineering depth is explicit;
-- Scripture has a faster sermon-aware Preview path;
+- Scripture has a faster sermon-aware Preview path plus an explicit service-scoped Auto Scripture Live option for churches that want real-time AI-to-Program presentation;
 - Visual Sources preserves Preview -> Program authority and Edge truth;
 - Theme Studio removes rich styling clutter from default live operation;
 - mobile becomes role-specific Live Assist;
