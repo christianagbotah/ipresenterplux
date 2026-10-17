@@ -43,15 +43,17 @@ function StudioRouteLink({ route, pathname }: { route: StudioRoute; pathname: st
   return (
     <Link
       href={route.href}
+      aria-label={route.label}
+      title={route.label}
       aria-current={active ? "page" : undefined}
       className={
-        "group flex w-full items-center justify-center gap-3 rounded-xl border px-3 py-3 text-left transition xl:justify-start " +
+        "ip-focus-gold group flex w-full items-center justify-center gap-3 rounded-xl border px-3 py-3 text-left transition xl:justify-start " +
         (active
           ? "border-[#d7a94a]/20 bg-[#d7a94a]/10 text-[#f2c765]"
           : "border-transparent text-white/45 hover:bg-white/[.04] hover:text-white/80")
       }
     >
-      <Icon size={18} />
+      <Icon size={18} className="shrink-0" aria-hidden="true" />
       <span className="hidden text-sm font-medium xl:inline">{route.label}</span>
     </Link>
   );
@@ -64,23 +66,23 @@ export function StudioSidebar({ capabilities }: { capabilities: StudioNavigation
   const settingsRoute = routes.find((route) => route.placement === "settings");
 
   return (
-    <aside className="sticky top-0 hidden h-screen border-r border-white/[.07] bg-[#080b10]/95 px-3 py-4 backdrop-blur-xl md:block xl:px-4">
-      <div className="mb-7 flex items-center gap-3 px-1 xl:px-2">
+    <aside className="sticky top-0 hidden h-dvh min-h-0 flex-col border-r border-white/[.07] bg-[#080b10]/95 px-3 py-4 backdrop-blur-xl md:flex xl:px-4">
+      <div className="mb-7 flex shrink-0 items-center gap-3 px-1 xl:px-2">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#d7a94a]/30 bg-[#d7a94a]/10 text-[#f2c765] shadow-[0_0_35px_rgba(215,169,74,.08)]">
           <MonitorPlay size={22} />
         </div>
         <div className="hidden min-w-0 xl:block">
           <div className="truncate text-sm font-extrabold tracking-tight">iPresenterPlux</div>
-          <div className="truncate text-[10px] uppercase tracking-[.22em] text-white/35">AI Church Studio</div>
+          <div className="mt-0.5 truncate text-xs text-white/45">AI Church Studio</div>
         </div>
       </div>
 
-      <nav className="space-y-1" aria-label="Studio navigation">
+      <nav className="ip-scrollbar-thin min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Studio navigation">
         {primaryRoutes.map((route) => <StudioRouteLink key={route.href} route={route} pathname={pathname} />)}
       </nav>
 
       {settingsRoute ? (
-        <div className="absolute bottom-4 left-3 right-3 xl:left-4 xl:right-4">
+        <div className="mt-4 shrink-0 border-t border-white/[.07] pt-3">
           <StudioRouteLink route={settingsRoute} pathname={pathname} />
         </div>
       ) : null}

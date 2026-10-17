@@ -65,13 +65,13 @@ export function NextItemActions({ item, organizationId, serviceId, canControl }:
     }, "Dismissed");
   }
 
-  const button = "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/[.08] px-2.5 text-[10px] font-bold text-white/48 transition hover:bg-white/[.05] hover:text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2b85f] disabled:cursor-not-allowed disabled:opacity-35";
+  const button = "inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-white/[.1] px-2.5 text-xs font-semibold text-white/65 transition hover:bg-white/[.06] hover:text-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2b85f] disabled:cursor-not-allowed disabled:opacity-35";
   return <div className="mt-2 flex flex-wrap items-center gap-1.5">
     <Link href={hrefFor(item, serviceId)} className={button}>Open</Link>
     {canControl && item.actions.includes("preview") ? <button type="button" disabled={pending} onClick={preview} className={button}><Eye size={12}/>Preview</button> : null}
     {canControl && item.actions.includes("pin") ? <button type="button" disabled={pending} onClick={() => run(() => updatePin(item.source !== "pinned"), item.source === "pinned" ? "Unpinned" : "Pinned")} className={button}>{item.source === "pinned" ? <PinOff size={12}/> : <Pin size={12}/>} {item.source === "pinned" ? "Unpin" : "Pin"}</button> : null}
     {canControl && item.actions.includes("use_instead") && item.source !== "pinned" ? <button type="button" disabled={pending} onClick={() => run(() => updatePin(true), "Moved to the top of Next")} className={button}><Sparkles size={12}/>Use next</button> : null}
     {canControl && item.actions.includes("dismiss") ? <button type="button" disabled={pending} onClick={dismiss} className={button}><X size={12}/>Dismiss</button> : null}
-    {message ? <span role="status" aria-live="polite" className="w-full pt-1 text-[10px] text-white/38">{message}</span> : null}
+    {message ? <span role="status" aria-live="polite" className="w-full pt-1 text-xs text-white/65">{message}</span> : null}
   </div>;
 }

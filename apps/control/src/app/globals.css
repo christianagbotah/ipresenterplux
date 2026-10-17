@@ -178,3 +178,46 @@ a[aria-disabled="true"] {
 .ip-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 999px; }
 .ip-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.16); }
 .ip-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* Studio monitors keep their landscape shape, including long passages.
+   Container-relative type scales with the monitor, not the whole screen. */
+.ip-stage-canvas {
+  position: relative;
+  container-type: inline-size;
+  overflow: hidden;
+  background-color: #080c13;
+}
+.ip-stage-copy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-wrap: anywhere;
+}
+.ip-stage-copy > * { flex-shrink: 0; }
+.ip-stage-copy > :first-child { margin-top: auto; }
+.ip-stage-copy > :last-child { margin-bottom: auto; }
+.ip-stage-title { font-size: clamp(1rem, 5cqw, 2rem); line-height: 1.2; }
+.ip-stage-body { font-size: clamp(.875rem, 3.6cqw, 1.5rem); }
+
+.ip-studio-tool {
+  display: flex;
+  min-height: 3.25rem;
+  min-width: 0;
+  align-items: center;
+  gap: .625rem;
+  padding: .75rem;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: .75rem;
+  background: rgba(255,255,255,.025);
+  font-size: .875rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+  transition: background-color .15s, border-color .15s;
+}
+.ip-studio-tool svg { flex-shrink: 0; }
+.ip-studio-tool:hover {
+  border-color: rgba(215,169,74,.3);
+  background: rgba(215,169,74,.06);
+  color: #f3ce74;
+}
