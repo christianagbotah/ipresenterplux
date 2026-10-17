@@ -56,6 +56,20 @@ public static class OutboundEventFactory
             state);
     }
 
+    public static OutboundEvent VisualMedia(
+        AgentIdentity identity,
+        Guid? serviceId,
+        VisualSourceDescriptor source,
+        VisualCaptureStatus? captureStatus,
+        Abstractions.VisualRouteSnapshot route,
+        Guid? eventId = null)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(route);
+        return Media(identity, MediaSourceState.FromVisual(serviceId, source, captureStatus, route), eventId);
+    }
+
     private static OutboundEvent Create<T>(
         AgentIdentity identity,
         Guid? eventId,

@@ -38,6 +38,8 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly IMediaOutputService? _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
     private readonly OperatorCatalogCoordinator? _operatorCatalog;
+    private readonly IVisualSourceCatalog? _visualSourceCatalog;
+    private readonly IVisualProgramRouter? _visualRouter;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
     private SpeechRecognitionHealth? _latestAsrWorkerHealth;
     private readonly object _audioGate = new();
@@ -61,7 +63,9 @@ public sealed class EdgeAgentRuntime : IDisposable
         ISpeechRecognitionEngine? speechRecognitionEngine = null,
         IMediaOutputService? mediaOutput = null,
         ILocalRecordingService? recordingService = null,
-        OperatorCatalogCoordinator? operatorCatalog = null)
+        OperatorCatalogCoordinator? operatorCatalog = null,
+        IVisualSourceCatalog? visualSourceCatalog = null,
+        IVisualProgramRouter? visualRouter = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
@@ -86,6 +90,8 @@ public sealed class EdgeAgentRuntime : IDisposable
         _mediaOutput = mediaOutput;
         _recordingService = recordingService;
         _operatorCatalog = operatorCatalog;
+        _visualSourceCatalog = visualSourceCatalog;
+        _visualRouter = visualRouter;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
         _pairingCode = string.IsNullOrWhiteSpace(options.PairingCode) ? null : options.PairingCode.Trim();
     }
@@ -137,7 +143,9 @@ public sealed class EdgeAgentRuntime : IDisposable
         var assignmentClient = new HttpEdgeAssignmentClient(_httpClient, identity, _credentialStore);
         var commandClient = new HttpEdgeCommandClient(_httpClient, identity, _credentialStore, _clock);
         var presentationClient = new HttpPresentationContentClient(_httpClient, identity, _credentialStore, _clock);
-        var commandProcessor = new ControlCommandProcessor(_state, _mediaOutput, presentationClient, _recordingService, _clock);
+        var commandProcessor = new ControlCommandProcessor(
+            _state, _mediaOutput, presentationClient, _recordingService, _clock,
+            visualSourceCatalog: _visualSourceCatalog, visualRouter: _visualRouter);
         if (_operatorCatalog is not null)
             _operatorCatalog.BindClient(new HttpOperatorCatalogClient(_httpClient, identity, _credentialStore, _clock));
 
@@ -184,6 +192,8 @@ public sealed class EdgeAgentRuntime : IDisposable
                     OutboundEventFactory.Media(identity, audioState),
                     cancellationToken).ConfigureAwait(false);
             }
+
+            await EnqueueVisualTelemetryAsync(identity, cancellationToken).ConfigureAwait(false);
 
             var result = await dispatcher.FlushAsync(scope, 100, cancellationToken).ConfigureAwait(false);
             var connection = result.Retried > 0 ? "Degraded" : "Connected";
@@ -390,6 +400,34 @@ public sealed class EdgeAgentRuntime : IDisposable
             AudioStatus = "Capturing",
             Sources = UpsertAudioSource(snapshot.Sources, input, level, "ready")
         });
+    }
+
+    private async Task EnqueueVisualTelemetryAsync(AgentIdentity identity, CancellationToken cancellationToken)
+    {
+        if (_visualSourceCatalog is null) return;
+        IReadOnlyList<VisualSourceDescriptor> sources;
+        try
+        {
+            sources = await _visualSourceCatalog.ScanAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine($"Visual source scan unavailable: {error.GetType().Name}");
+            return;
+        }
+
+        var route = _visualRouter?.Snapshot ?? new VisualRouteSnapshot(null, null, true);
+        var serviceId = _state.Snapshot.ActiveServiceId;
+        foreach (var source in sources)
+        {
+            await _queue.EnqueueAsync(
+                OutboundEventFactory.VisualMedia(identity, serviceId, source, null, route),
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private MediaSourceState? CurrentAudioTelemetry()

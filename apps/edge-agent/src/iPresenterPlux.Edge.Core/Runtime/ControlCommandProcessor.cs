@@ -10,13 +10,17 @@ public sealed class ControlCommandProcessor(
     IPresentationContentProvider? contentProvider = null,
     ILocalRecordingService? recordingService = null,
     TimeProvider? clock = null,
-    IMasterStreamPublisher? streamPublisher = null)
+    IMasterStreamPublisher? streamPublisher = null,
+    IVisualSourceCatalog? visualSourceCatalog = null,
+    IVisualProgramRouter? visualRouter = null)
 {
     private readonly AgentRuntimeState _state = state ?? throw new ArgumentNullException(nameof(state));
     private readonly IMediaOutputService? _mediaOutput = mediaOutput;
     private readonly IPresentationContentProvider? _contentProvider = contentProvider;
     private readonly ILocalRecordingService? _recordingService = recordingService;
     private readonly IMasterStreamPublisher? _streamPublisher = streamPublisher ?? (mediaOutput as IStreamPublishingMediaOutput)?.StreamPublisher;
+    private readonly IVisualSourceCatalog? _visualSourceCatalog = visualSourceCatalog;
+    private readonly IVisualProgramRouter? _visualRouter = visualRouter;
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
     public async Task<ControlCommandResult> ProcessAsync(ControlCommand command, CancellationToken cancellationToken)
@@ -41,6 +45,23 @@ public sealed class ControlCommandProcessor(
         {
             switch (command.Type)
             {
+                case "visual.rescan":
+                    if (_visualSourceCatalog is null) return Failure(command, "visual_catalog_unavailable");
+                    var sources = await _visualSourceCatalog.ScanAsync(cancellationToken).ConfigureAwait(false);
+                    return Success(command, $"visual_rescanned:{sources.Count}");
+
+                case "visual.preview.select":
+                    if (_visualRouter is null) return Failure(command, "visual_router_unavailable");
+                    if (!command.Arguments.TryGetValue("sourceId", out var sourceId) || string.IsNullOrWhiteSpace(sourceId))
+                        return Failure(command, "source_id_required");
+                    await _visualRouter.SelectPreviewAsync(sourceId, cancellationToken).ConfigureAwait(false);
+                    return Success(command, "visual_preview_ready");
+
+                case "visual.preview.clear":
+                    if (_visualRouter is null) return Failure(command, "visual_router_unavailable");
+                    await _visualRouter.ClearPreviewAsync(cancellationToken).ConfigureAwait(false);
+                    return Success(command, "visual_preview_clear");
+
                 case "preview.prepare":
                     if (_mediaOutput is null) return Failure(command, "output_unavailable");
                     if (!command.Arguments.TryGetValue("itemId", out var itemId) || string.IsNullOrWhiteSpace(itemId))
@@ -48,12 +69,21 @@ public sealed class ControlCommandProcessor(
                     if (_contentProvider is null) return Failure(command, "content_unavailable");
                     var previewItem = await _contentProvider.GetAsync(itemId, cancellationToken).ConfigureAwait(false);
                     if (snapshot.ActiveServiceId != previewItem.ServiceId) return Failure(command, "content_scope_mismatch");
+                    if (_visualRouter is not null)
+                        await _visualRouter.ClearPreviewAsync(cancellationToken).ConfigureAwait(false);
                     await _mediaOutput.SetPreviewAsync(previewItem, cancellationToken).ConfigureAwait(false);
                     return Success(command, "preview_prepared");
 
                 case "program.take":
+                    if (_visualRouter?.Snapshot.Preview is { Confirmed: true })
+                    {
+                        await _visualRouter.TakePreviewAsync(cancellationToken).ConfigureAwait(false);
+                        return Success(command, "program_live");
+                    }
                     if (_mediaOutput is null) return Failure(command, "output_unavailable");
                     await _mediaOutput.TakePreviewToProgramAsync(cancellationToken).ConfigureAwait(false);
+                    if (_visualRouter is not null)
+                        await _visualRouter.UseRenderedProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, "program_live");
 
                 case "program.show":
@@ -63,13 +93,19 @@ public sealed class ControlCommandProcessor(
                     if (_contentProvider is null) return Failure(command, "content_unavailable");
                     var liveItem = await _contentProvider.GetAsync(liveItemId, cancellationToken).ConfigureAwait(false);
                     if (snapshot.ActiveServiceId != liveItem.ServiceId) return Failure(command, "content_scope_mismatch");
+                    if (_visualRouter is not null)
+                        await _visualRouter.ClearPreviewAsync(cancellationToken).ConfigureAwait(false);
                     await _mediaOutput.SetPreviewAsync(liveItem, cancellationToken).ConfigureAwait(false);
                     await _mediaOutput.TakePreviewToProgramAsync(cancellationToken).ConfigureAwait(false);
+                    if (_visualRouter is not null)
+                        await _visualRouter.UseRenderedProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, "program_live");
 
                 case "program.clear":
                     if (_mediaOutput is null) return Failure(command, "output_unavailable");
                     await _mediaOutput.ClearProgramAsync(cancellationToken).ConfigureAwait(false);
+                    if (_visualRouter is not null)
+                        await _visualRouter.UseRenderedProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(command, "program_clear");
 
                 case "output.start":
