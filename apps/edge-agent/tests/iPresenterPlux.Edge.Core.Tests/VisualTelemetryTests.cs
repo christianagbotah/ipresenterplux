@@ -97,7 +97,8 @@ public sealed class VisualTelemetryTests
                 ["windowTitle"] = "Confidential board meeting",
                 ["path"] = @"C:\Users\Pastor\Secrets\slides.pptx",
                 ["token"] = "do-not-send",
-                ["frameBytes"] = "deadbeef"
+                ["frameBytes"] = "deadbeef",
+                ["nativeMonitorHandle"] = "deadbeef"
             });
         var capture = new VisualCaptureStatus(true, VisualSourceAvailability.Available, 123, 4, DateTimeOffset.UtcNow, "capture_problem");
         var route = new VisualRouteSnapshot(Slot(source), Slot(source), false);
@@ -119,6 +120,7 @@ public sealed class VisualTelemetryTests
         Assert.DoesNotContain("path", state.Metadata.Keys);
         Assert.DoesNotContain("token", state.Metadata.Keys);
         Assert.DoesNotContain("frameBytes", state.Metadata.Keys);
+        Assert.DoesNotContain("nativeMonitorHandle", state.Metadata.Keys);
     }
 
     [Fact]

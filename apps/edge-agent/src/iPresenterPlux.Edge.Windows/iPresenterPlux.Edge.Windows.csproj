@@ -6,6 +6,7 @@
     <AssemblyName>iPresenterPlux.Edge.Windows</AssemblyName>
     <UseWindowsForms>false</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

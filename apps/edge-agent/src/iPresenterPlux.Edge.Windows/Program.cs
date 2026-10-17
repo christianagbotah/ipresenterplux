@@ -78,10 +78,14 @@ static async Task<int> RunAsync()
         if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
     }
 
+    var renderedProgramSource = new RenderedProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer());
+    var visualCatalog = new WindowsVisualSourceCatalog();
+    var visualFactory = new WindowsVisualCaptureFactory();
+    await using var visualRouter = new VisualProgramRouter(visualCatalog, visualFactory, renderedProgramSource);
+
     var contributionAudioBuffer = new BoundedContributionAudioBuffer();
     var contributionTransport = new EncodedContributionStreamTransport(
-        new WindowsMediaFoundationEncodedProgramVideoSource(
-            new RenderedProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer())),
+        new WindowsMediaFoundationEncodedProgramVideoSource(visualRouter),
         new WindowsMediaFoundationEncodedProgramAudioSource(contributionAudioBuffer),
         new LibSrtContributionSender(),
         () => new ProgramVideoCaptureTarget(Environment.ProcessId, "iPresenterPlux program"));
@@ -116,7 +120,9 @@ static async Task<int> RunAsync()
         speechRecognitionEngine: speechRecognition,
         mediaOutput: runtimeMediaOutput,
         recordingService: recordingService,
-        operatorCatalog: operatorCatalog);
+        operatorCatalog: operatorCatalog,
+        visualSourceCatalog: visualCatalog,
+        visualRouter: visualRouter);
 
     await using var localOperatorIpc = new LocalOperatorIpcServer(
         dataDirectory,

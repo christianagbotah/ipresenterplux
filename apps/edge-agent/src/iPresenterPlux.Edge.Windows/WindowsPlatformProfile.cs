@@ -10,7 +10,8 @@ public static class WindowsPlatformProfile
         new[]
         {
             new PlatformCapability("audio.capture", "Mixer / microphone capture", "available", "WASAPI event-driven capture via NAudio.Wasapi 3.1.0"),
-            new PlatformCapability("screen.capture", "Screen / window capture", "planned", "Windows Graphics Capture"),
+            new PlatformCapability("screen.capture", "Screen / window capture", "planned", "Implemented Windows Graphics Capture adapters; pending physical Windows UAT"),
+            new PlatformCapability("camera.capture", "Camera capture", "planned", "Implemented Media Foundation camera adapters; pending physical Windows UAT"),
             new PlatformCapability("video.encode", "Hardware video encode", "planned", "Media Foundation / FFmpeg"),
             new PlatformCapability("ndi", "NDI input/output", "planned", "NDI SDK adapter"),
             new PlatformCapability("display.program", "Program display", "available", "Offline local renderer with managed Edge/Chrome kiosk output"),
