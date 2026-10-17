@@ -22,7 +22,7 @@ assert.doesNotMatch(componentSource, /import (?:an? )?(?:EasyWorship|ProPresente
 assert.doesNotMatch(componentSource, /program\.show|program\.clear|\/api\/v1\/scriptures\/.*state/, "coexistence guidance must never mutate Program");
 assert.match(pageSource, /listConfiguredCoexistenceBridges/, "import page must derive bridge availability from authoritative configuration");
 assert.match(pageSource, /CoexistenceBridge/, "import page must render the migration bridge");
-assert.match(cockpitSource, /Preview is the safety boundary before Program/, "existing Preview to Program authority must remain explicit");
+assert.match(cockpitSource, /Preview is safe\. Nothing reaches the audience until you take it live\./, "existing Preview to Program authority must remain explicit in plain operator language");
 
 if (!process.env.DATABASE_URL) {
   console.log(JSON.stringify({ok:true,mode:"local-contract",database:"deferred-to-ci",phases:["import","coexist","replace_later"],programAuthority:"unchanged"}));
