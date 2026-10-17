@@ -7,6 +7,7 @@ import type {
 } from "./contracts.ts";
 import { projectPredictiveNext } from "./predictive-next.ts";
 import { loadCockpitAttention } from "./attention.ts";
+import { reportedVisualSourceName, sanitizeVisualSourceMetadata, visualSourceKind } from "../visual-source-metadata.ts";
 
 const FRESHNESS_MS = 120_000;
 
@@ -44,6 +45,7 @@ type SourceRow = {
   source_type: string;
   status: string;
   last_seen_at: string | null;
+  metadata: unknown;
 };
 
 type EdgeRow = {
@@ -76,6 +78,26 @@ function newestSource(rows: SourceRow[], types: Set<string>) {
     return b - a;
   });
   return { count: matches.length, row: sorted[0] ?? null };
+}
+
+function confirmedVisualProgram(rows: SourceRow[], now: Date) {
+  return rows.flatMap((row) => {
+    const kind = visualSourceKind(row.source_type);
+    if (!kind || freshness(row.last_seen_at, now) !== "current") return [];
+    const metadata = sanitizeVisualSourceMetadata(row.metadata);
+    if (metadata.programActive !== true) return [];
+    return [{
+      id: row.id,
+      name: reportedVisualSourceName(row.metadata, row.name),
+      kind,
+      captureStatus: metadata.captureStatus ?? null,
+      lastSeenAt: row.last_seen_at
+    }];
+  }).sort((left, right) => {
+    const a = timestamp(left.lastSeenAt)?.getTime() ?? 0;
+    const b = timestamp(right.lastSeenAt)?.getTime() ?? 0;
+    return b - a;
+  })[0] ?? null;
 }
 
 function stageFromPresentation(row: PresentationRow | undefined): CockpitStageState | null {
@@ -169,7 +191,7 @@ export async function getCockpitViewModel(
       )
     : { rows: [] as TranscriptRow[] };
   const sourceResult = await client.query<SourceRow>(
-    `select id::text,name,source_type,status,last_seen_at::text
+    `select id::text,name,source_type,status,last_seen_at::text,metadata
        from media_sources
       where organization_id=$1
       order by last_seen_at desc nulls last,id`,
@@ -207,6 +229,7 @@ export async function getCockpitViewModel(
   const program = newestStage(stageFromPresentation(presentationProgram), stageFromScripture(scriptureProgram));
   const transcript = transcriptResult.rows[0] ?? null;
   const camera = newestSource(sourceResult.rows, new Set(["camera", "video_input", "video_capture"]));
+  const visualProgram = confirmedVisualProgram(sourceResult.rows, now);
   const audio = newestSource(sourceResult.rows, new Set(["audio_input"]));
   const edge = edgeResult.rows[0] ?? null;
   const outputs = outputResult.rows[0] ?? { total: 0, enabled: 0, healthy: 0, degraded: 0 };
@@ -259,6 +282,14 @@ export async function getCockpitViewModel(
         activeName: camera.row?.name ?? null,
         lastSeenAt: camera.row?.last_seen_at ?? null,
         freshness: freshness(camera.row?.last_seen_at ?? null, now)
+      },
+      visualProgram: {
+        id: visualProgram?.id ?? null,
+        name: visualProgram?.name ?? null,
+        kind: visualProgram?.kind ?? null,
+        captureStatus: visualProgram?.captureStatus ?? null,
+        lastSeenAt: visualProgram?.lastSeenAt ?? null,
+        freshness: freshness(visualProgram?.lastSeenAt ?? null, now)
       },
       audio: {
         count: audio.count,

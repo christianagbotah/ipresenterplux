@@ -34,6 +34,29 @@ for (const item of incidents.filter((item)=>item.severity!=="info")) {
   assert.ok(item.impact.trim()); assert.ok(item.containment.trim()); assert.ok(item.recommendedAction.trim());
 }
 assert.equal(incidents.some((item)=>item.recoveryIntent && !/^(status\.explain:|navigation\.open:)/.test(item.recoveryIntent)), false, "recovery intents must be safe registered read/navigation actions");
+
+const visualLossBase = {
+  now, serviceLive:true,
+  edge:{name:"Edge",status:"active",lastSeenAt:new Date(now.getTime()-5_000).toISOString()},
+  asr:null, translation:{languages:[],worker:null}, tts:{languages:[],worker:null}, streamDestinations:[], subscription:null
+};
+const confirmedVisualLoss = buildCockpitAttention({
+  ...visualLossBase,
+  programVisualSource:{name:"Pulpit Camera",kind:"camera",captureStatus:"disconnected",lastSeenAt:new Date(now.getTime()-5_000).toISOString()}
+});
+const visualIncident = confirmedVisualLoss.find((item)=>item.affectedCapability==="visual.program");
+assert.ok(visualIncident,"fresh Edge-confirmed Program visual loss must create attention");
+assert.match(visualIncident.impact,/Pulpit Camera/);
+assert.equal(visualIncident.detailHref,"/cameras");
+assert.match(visualIncident.containment,/no automatic source switch|not automatically switched/i);
+
+const staleVisualLoss = buildCockpitAttention({
+  ...visualLossBase,
+  programVisualSource:{name:"Pulpit Camera",kind:"camera",captureStatus:"error",lastSeenAt:new Date(now.getTime()-300_000).toISOString()}
+});
+assert.equal(staleVisualLoss.some((item)=>item.affectedCapability==="visual.program"),false,"stale telemetry must not claim current Program-source loss");
+const requestedOnly = buildCockpitAttention({...visualLossBase,programVisualSource:null});
+assert.equal(requestedOnly.some((item)=>item.affectedCapability==="visual.program"),false,"requested command state alone must never create Program-source loss attention");
 const healthy = buildCockpitAttention({
   now, serviceLive:true,
   edge:{name:"Edge",status:"active",lastSeenAt:new Date(now.getTime()-5_000).toISOString()},
@@ -47,6 +70,11 @@ assert.deepEqual(healthy,[],"resolved healthy telemetry must not leave a permane
 
 const viewSource = await readFile(new URL("../src/lib/cockpit/view-model.ts",import.meta.url),"utf8");
 assert.match(viewSource,/loadCockpitAttention/);
+const attentionSource = await readFile(new URL("../src/lib/cockpit/attention.ts",import.meta.url),"utf8");
+assert.match(attentionSource,/programVisualSource/);
+assert.match(attentionSource,/programActive/);
+assert.match(attentionSource,/sanitizeVisualSourceMetadata/);
+assert.doesNotMatch(attentionSource,/edge_control_commands/,"requested Edge commands must not be treated as confirmed Program truth");
 const workspaceSource = await readFile(new URL("../src/components/cockpit/CockpitWorkspace.tsx",import.meta.url),"utf8");
 assert.match(workspaceSource,/AttentionLayer/);
 const focusSource = await readFile(new URL("../src/components/cockpit/FocusMode.tsx",import.meta.url),"utf8");
@@ -58,7 +86,7 @@ if (!process.env.DATABASE_URL) {
 }
 assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 const {Pool}=pg; const pool=new Pool({connectionString:process.env.DATABASE_URL}); const client=await pool.connect();
-const org=randomUUID(), campus=randomUUID(), service=randomUUID(), edgeId=randomUUID(), audio=randomUUID(), plan=randomUUID(), sub=randomUUID(), output=randomUUID(), stream=randomUUID(), destination=randomUUID();
+const org=randomUUID(), campus=randomUUID(), service=randomUUID(), edgeId=randomUUID(), audio=randomUUID(), visual=randomUUID(), plan=randomUUID(), sub=randomUUID(), output=randomUUID(), stream=randomUUID(), destination=randomUUID();
 try {
   await client.query("begin");
   await client.query(`insert into organizations(id,name,slug,country_code,timezone) values ($1,'Attention Church',$2,'GH','Africa/Accra')`,[org,`attention-${org}`]);
@@ -66,6 +94,7 @@ try {
   await client.query(`insert into services(id,organization_id,campus_id,title,status,scheduled_start,started_at,active_bible_version,updated_at) values ($1,$2,$3,'Attention Live','live',$4,$4,'WEBP',$4)`,[service,org,campus,now]);
   await client.query(`insert into edge_devices(id,organization_id,campus_id,name,platform,status,credential_hash,last_seen_at,active_service_id) values ($1,$2,$3,'Attention Edge','windows','offline',repeat('a',64),$4,$5)`,[edgeId,org,campus,new Date(now.getTime()-300_000),service]);
   await client.query(`insert into media_sources(id,organization_id,name,source_type,status,public_config,edge_device_id,source_key,last_seen_at,metadata) values ($1,$2,'Mixer','audio_input','ready','{}'::jsonb,$3,'audio:mixer',$4,$5::jsonb)`,[audio,org,edgeId,new Date(now.getTime()-10_000),JSON.stringify({asrWorkerStatus:"degraded",asrWorkerEngine:"Whisper"})]);
+  await client.query(`insert into media_sources(id,organization_id,name,source_type,status,public_config,edge_device_id,source_key,last_seen_at,metadata) values ($1,$2,'Pulpit Camera','camera','error','{}'::jsonb,$3,'visual:camera:pulpit',$4,$5::jsonb)`,[visual,org,edgeId,new Date(now.getTime()-5_000),JSON.stringify({programActive:true,captureStatus:"disconnected"})]);
   await client.query(`insert into language_channels(organization_id,language_code,language_name,channel_mode,enabled,listener_count) values ($1,'fr','French','translation_text',true,3),($1,'ee','Ewe','translation_audio',true,2)`,[org]);
   await client.query(`insert into translation_worker_status(worker_id,provider,state,software_version,claimed_count,completed_count,failed_count,error_code,observed_at,updated_at) values ($1,'local','degraded','test',0,0,1,'worker_down',$2,$2) on conflict(worker_id) do update set state='degraded',error_code='worker_down',observed_at=$2,updated_at=$2`,[`attention-translation-${org}`,new Date(now.getTime()-10_000)]);
   await client.query(`insert into tts_worker_status(worker_id,provider,state,software_version,claimed_count,completed_count,failed_count,error_code,observed_at,updated_at) values ($1,'local','degraded','test',0,0,1,'voice_worker_down',$2,$2) on conflict(worker_id) do update set state='degraded',error_code='voice_worker_down',observed_at=$2,updated_at=$2`,[`attention-tts-${org}`,new Date(now.getTime()-10_000)]);
@@ -75,7 +104,7 @@ try {
   await client.query(`insert into subscription_plans(id,code,name,enabled,billing_interval,default_device_seat_limit,features,numeric_limits) values ($1,$2,'Attention Plan',true,'custom',3,'{}'::jsonb,'{}'::jsonb)`,[plan,`attention-${plan}`]);
   await client.query(`insert into organization_subscriptions(id,organization_id,plan_id,status,starts_at,expires_at,grace_until) values ($1,$2,$3,'past_due','2098-01-01T00:00:00Z',$4,$5)`,[sub,org,plan,new Date(now.getTime()-86_400_000),new Date(now.getTime()+3*86_400_000)]);
   const loaded=await loadCockpitAttention(client,{organizationId:org,serviceId:service,serviceLive:true,now});
-  for(const capability of ["edge","asr","translations.text","translations.audio","streaming.youtube","subscription"]){ assert.ok(loaded.some((item)=>item.affectedCapability===capability),`DB loader must project ${capability}`); }
+  for(const capability of ["edge","asr","translations.text","translations.audio","streaming.youtube","subscription","visual.program"]){ assert.ok(loaded.some((item)=>item.affectedCapability===capability),`DB loader must project ${capability}`); }
   await client.query("rollback");
   console.log(JSON.stringify({ok:true,impactFirst:true,containment:true,recovery:true,quietHealthy:true,dbProjection:true}));
 } catch(error){await client.query("rollback").catch(()=>{});throw error;} finally {client.release();await pool.end();}
