@@ -12,6 +12,8 @@ const header = read("src/components/cockpit/CockpitHeader.tsx");
 const workspace = read("src/components/cockpit/CockpitWorkspace.tsx");
 const nowRail = read("src/components/cockpit/NowRail.tsx");
 const nextRail = read("src/components/cockpit/NextRail.tsx");
+const nextActions = read("src/components/cockpit/NextItemActions.tsx");
+const sidebar = read("src/components/navigation/StudioSidebar.tsx");
 const dialog = read("src/components/planner/CreateServiceDialog.tsx");
 const css = read("src/app/globals.css");
 
@@ -46,6 +48,29 @@ assert.match(stage, /TAKE PREVIEW LIVE/, "the primary live action must say exact
 assert.match(stage, /CLEAR LIVE/, "the destructive live action must use plain operator language");
 assert.match(stage, /Nothing reaches the audience until you take it live\./, "stage guidance must explain the safety boundary in plain language");
 assert.equal(stage.includes("Cloud intent and physical Edge truth remain separate."), false, "technical architecture wording must not occupy the live operator control strip");
+
+assert.match(stage, /Program monitor/, "Program surface needs an explicit accessible monitor label");
+assert.match(stage, /Preview monitor/, "Preview surface needs an explicit accessible monitor label");
+assert.match(stage, /ON AIR/, "Program must expose an unmistakable on-air state");
+assert.match(stage, /Ready to take/, "Preview must expose a ready-to-take state");
+assert.match(stage, /ip-stage-canvas/, "monitor content must use the bounded stage canvas");
+assert.match(stage, /ip-stage-copy/, "long monitor content must use the bounded stage copy container");
+assert.match(stage, /overflow-y-auto/, "long monitor content must scroll inside the 16:9 surface instead of stretching it");
+
+assert.match(css, /\.ip-stage-canvas/, "stage canvas styling must be shared in globals.css");
+assert.match(css, /container-type:\s*inline-size/, "monitor typography must scale to monitor width rather than viewport width");
+assert.match(css, /\.ip-stage-copy[\s\S]*overflow-wrap:\s*anywhere/, "long stage copy must wrap safely inside the monitor");
+
+assert.match(nextRail, /index === 0/, "the first Next item must receive a stronger visual priority treatment");
+assert.match(nextRail, /break-words/, "long Next titles and reasons must wrap rather than truncate out of context");
+assert.match(nowRail, /Live context/, "Now rail must clearly identify its live-context role");
+assert.equal(/text-\[(?:10|11)px\]/.test(nextActions), false, "Next item actions must keep readable 12px-or-larger labels");
+
+assert.match(sidebar, /h-dvh/, "desktop Studio sidebar must follow the dynamic viewport height");
+assert.match(sidebar, /flex-col/, "desktop Studio sidebar must use a bounded flex column");
+assert.match(sidebar, /overflow-y-auto/, "Studio navigation must scroll when all workspaces do not fit vertically");
+assert.equal(sidebar.includes("absolute bottom-4"), false, "Settings must stay in normal sidebar flow instead of overlaying routes");
+assert.equal(fs.existsSync(path.join(root, "src/app/live/studio-review/page.tsx")), false, "internal Studio review fixtures must not ship as a production route");
 
 assert.match(dialog, /sm:items-start/, "Create Service must align safely from the top on desktop instead of vertical centering");
 assert.match(dialog, /sm:pt-20/, "Create Service must leave safe top clearance");

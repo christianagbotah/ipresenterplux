@@ -1,4 +1,4 @@
-import { AudioLines, Camera, Languages, RadioTower, UserRound } from "lucide-react";
+import { AudioLines, Camera, RadioTower, Users, UserRound } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 
 function freshnessMeta(value: string) {
@@ -11,22 +11,23 @@ export function NowRail({ model }: { model: CockpitViewModel }) {
   const camera = freshnessMeta(model.systems.camera.freshness);
   const audio = freshnessMeta(model.systems.audio.freshness);
   return (
-    <aside className="space-y-5 rounded-2xl border border-white/[.07] bg-white/[.018] p-4">
+    <aside className="space-y-4 rounded-2xl border border-white/[.08] bg-[#10151e] p-4">
       <div>
-        <div className="text-xs font-black uppercase tracking-[.2em] text-white/45">Now</div>
-        <div className="mt-2 text-lg font-black text-white/90">{model.now.currentContent?.title ?? "Program is clear"}</div>
-        <div className="mt-1 text-xs text-white/50">{model.now.currentContent ? model.now.currentContent.contentType.replaceAll("_", " ") : "Waiting for live content"}</div>
+        <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-bold text-white/85">Now</h2><span className="rounded-md bg-white/[.05] px-2 py-1 text-xs text-white/50">Live context</span></div>
+        <div className="mt-3 break-words text-lg font-bold leading-snug text-white/95">{model.now.currentContent?.title ?? "Program is clear"}</div>
+        <div className="mt-1 text-xs capitalize text-white/50">{model.now.currentContent ? model.now.currentContent.contentType.replaceAll("_", " ") : "Waiting for live content"}</div>
       </div>
-      <div className="border-t border-white/[.06] pt-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-white/65"><UserRound size={14} /> Speaker context</div>
-        <div className="mt-2 text-sm text-white/80">{model.now.speakerId ?? "Speaker not identified"}</div>
-        <p className="mt-2 line-clamp-5 text-xs leading-5 text-white/55">{model.now.transcriptText ?? "Listening for the next transcript segment…"}</p>
+      <div className="rounded-xl border border-white/[.05] bg-black/15 p-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-white/65"><UserRound size={14} aria-hidden="true" />{model.now.speakerId ? "Speaker identified" : "Live speech"}</div>
+        <p className="mt-2 line-clamp-4 text-sm leading-6 text-white/70">{model.now.transcriptText ?? "Speech will appear here when a transcript is available."}</p>
       </div>
-      <div className="border-t border-white/[.06] pt-4 text-xs">
-        <div className="flex items-center justify-between py-2"><span className="flex items-center gap-2 text-white/50"><Camera size={14}/> Camera</span><span className={`flex items-center gap-1.5 font-semibold ${camera.text}`}><span className={`size-1.5 rounded-full ${camera.dot}`} />{model.systems.camera.activeName ?? "Unavailable"}<span className="text-xs font-normal text-white/35">· {camera.label}</span></span></div>
-        <div className="flex items-center justify-between py-2"><span className="flex items-center gap-2 text-white/50"><AudioLines size={14}/> Audio</span><span className={`flex items-center gap-1.5 font-semibold ${audio.text}`}><span className={`size-1.5 rounded-full ${audio.dot}`} />{model.systems.audio.activeName ?? "Unavailable"}<span className="text-xs font-normal text-white/35">· {audio.label}</span></span></div>
-        <div className="flex items-center justify-between py-2"><span className="flex items-center gap-2 text-white/50"><RadioTower size={14}/> Outputs</span><span className="font-semibold text-white/70">{model.systems.outputs.enabled} active</span></div>
-        <div className="flex items-center justify-between py-2"><span className="flex items-center gap-2 text-white/50"><Languages size={14}/> Audience</span><span className="font-semibold text-white/70">{model.systems.audience.listeners} listeners</span></div>
+      <div className="space-y-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-white/55"><Camera size={14}/> Camera</span><span className={`flex min-w-0 items-center gap-1.5 font-semibold ${camera.text}`} title={model.systems.camera.activeName ?? camera.label}><span className={`size-1.5 shrink-0 rounded-full ${camera.dot}`} /><span className="max-w-32 truncate">{model.systems.camera.activeName ?? "Not connected"}</span><span className="sr-only"> · {camera.label}</span></span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-white/55"><AudioLines size={14}/> Audio</span><span className={`flex min-w-0 items-center gap-1.5 font-semibold ${audio.text}`} title={model.systems.audio.activeName ?? audio.label}><span className={`size-1.5 shrink-0 rounded-full ${audio.dot}`} /><span className="max-w-32 truncate">{model.systems.audio.activeName ?? "Not connected"}</span><span className="sr-only"> · {audio.label}</span></span></div>
+        <div className="grid grid-cols-2 gap-2 border-t border-white/[.06] pt-3">
+          <div className="rounded-lg bg-white/[.025] px-3 py-2.5"><span className="flex items-center gap-1.5 text-white/50"><RadioTower size={13}/>Outputs</span><div className="mt-1 text-sm font-semibold text-white/85">{model.systems.outputs.healthy}<span className="text-xs font-normal text-white/50"> / {model.systems.outputs.enabled} ready</span></div></div>
+          <div className="rounded-lg bg-white/[.025] px-3 py-2.5"><span className="flex items-center gap-1.5 text-white/50"><Users size={13}/>Audience</span><div className="mt-1 text-sm font-semibold text-white/85">{model.systems.audience.listeners}<span className="text-xs font-normal text-white/50"> listening</span></div></div>
+        </div>
       </div>
     </aside>
   );

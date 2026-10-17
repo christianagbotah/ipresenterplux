@@ -10,7 +10,7 @@ export function FocusMode({ model, onExit }: { model: CockpitViewModel; onExit: 
     <div className="ip-focus-in fixed inset-0 z-[100] overflow-y-auto bg-[#05070b] text-white">
       <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#05070b]/95 px-4 backdrop-blur-xl">
         <div className="min-w-0">
-          <div className="text-[11px] font-black uppercase tracking-[.22em] text-[#e2b85f]">Focus Mode</div>
+          <div className="text-xs font-bold uppercase tracking-[.18em] text-[#e2b85f]">Focus Mode</div>
           <div className="mt-1 truncate text-sm font-black text-white/90">{model.service?.title ?? "Service Cockpit"}</div>
         </div>
         <div className="flex items-center gap-2">
@@ -26,9 +26,9 @@ export function FocusMode({ model, onExit }: { model: CockpitViewModel; onExit: 
           <span><strong className="text-white/80">Audience:</strong> {model.systems.audience.listeners}</span>
           <span className={model.systems.edge.freshness === "current" ? "text-emerald-300" : "text-amber-300"}>Edge {model.systems.edge.freshness}</span>
         </div>
-        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_310px]">
-          <ProgramPreviewStage model={model} />
-          <NextRail model={model} />
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_310px]">
+          <div className="min-w-0 rounded-2xl bg-[#05070b] md:sticky md:top-20"><ProgramPreviewStage model={model} /></div>
+          <div className="ip-scrollbar-thin min-h-0 rounded-2xl xl:max-h-[calc(100dvh-12rem)] xl:overflow-y-auto xl:overscroll-contain"><NextRail model={model} /></div>
         </div>
       </main>
     </div>
