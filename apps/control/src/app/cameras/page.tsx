@@ -26,6 +26,7 @@ export default async function CamerasPage() {
       staleAfterSeconds={state.staleAfterSeconds}
       canManage={context.roleCapabilities.canSettings}
       canLiveControl={context.roleCapabilities.canLiveControl}
+      serviceId={context.service?.id ?? null}
     />;
   } finally {
     client.release();

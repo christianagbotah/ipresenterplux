@@ -32,6 +32,7 @@ type VisualSourceRow = {
   organization_id: string;
   name: string;
   source_type: string;
+  source_key: string | null;
   source_status: string;
   last_seen_at: string | null;
   metadata: unknown;
@@ -170,7 +171,7 @@ export async function listVisualSources(
     [organizationId]
   );
   const sources = await client.query<VisualSourceRow>(
-    `select ms.id::text,ms.organization_id::text,ms.name,ms.source_type,
+    `select ms.id::text,ms.organization_id::text,ms.name,ms.source_type,ms.source_key,
             ms.status as source_status,ms.last_seen_at::text,ms.metadata,ms.public_config,
             ed.id::text as edge_device_id,ed.name as edge_name,ed.platform as edge_platform,
             ed.status as edge_status,ed.last_seen_at::text as edge_last_seen_at,
@@ -212,6 +213,7 @@ export async function listVisualSources(
         displayName: operatorLabel?.trim() || reportedName,
         kind,
         sourceType: row.source_type,
+        sourceKey: row.source_key,
         sourceStatus: row.source_status,
         status,
         captureStatus,

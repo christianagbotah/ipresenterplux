@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { requestVisualAction, type VisualSourceAction } from "@/lib/visual-source-actions";
 import {
   AppWindow,
   Camera,
@@ -26,6 +27,7 @@ type VisualSource = {
   displayName: string;
   kind: VisualKind;
   sourceType: string;
+  sourceKey: string | null;
   sourceStatus: string;
   status: SourceStatus;
   captureStatus: string | null | undefined;
@@ -65,6 +67,7 @@ type Props = {
   staleAfterSeconds: number;
   canManage: boolean;
   canLiveControl: boolean;
+  serviceId: string | null;
 };
 
 const categories: Array<{ kind: VisualKind; label: string; icon: typeof Camera }> = [
@@ -109,7 +112,8 @@ export function VisualSourcesWorkspace({
   hasPairedEdge,
   staleAfterSeconds,
   canManage,
-  canLiveControl: _canLiveControl
+  canLiveControl,
+  serviceId
 }: Props) {
   const [sources, setSources] = useState(initialSources);
   const [activeKind, setActiveKind] = useState<VisualKind>("camera");
@@ -117,9 +121,46 @@ export function VisualSourcesWorkspace({
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [busyDevices, setBusyDevices] = useState<Record<string, VisualSourceAction>>({});
+  const [requestedPreviewByDevice, setRequestedPreviewByDevice] = useState<Record<string, string>>({});
+  const [requestedClearByDevice, setRequestedClearByDevice] = useState<Record<string, boolean>>({});
 
   const visibleSources = useMemo(() => sources.filter((source) => source.kind === activeKind), [sources, activeKind]);
   const counts = useMemo(() => Object.fromEntries(categories.map(({ kind }) => [kind, sources.filter((source) => source.kind === kind).length])) as Record<VisualKind, number>, [sources]);
+
+  async function runVisualAction(edgeDeviceId: string, action: VisualSourceAction, source?: VisualSource) {
+    if (!canLiveControl || busyDevices[edgeDeviceId]) return;
+    setBusyDevices((current) => ({ ...current, [edgeDeviceId]: action }));
+    setMessage(null);
+    try {
+      const result = await requestVisualAction({
+        edgeDeviceId,
+        serviceId,
+        action,
+        sourceId: source?.sourceKey ?? undefined
+      });
+      if (action === "preview" && source) {
+        setRequestedPreviewByDevice((current) => ({ ...current, [edgeDeviceId]: source.id }));
+        setRequestedClearByDevice((current) => ({ ...current, [edgeDeviceId]: false }));
+      } else if (action === "clear_preview") {
+        setRequestedPreviewByDevice((current) => {
+          const next = { ...current };
+          delete next[edgeDeviceId];
+          return next;
+        });
+        setRequestedClearByDevice((current) => ({ ...current, [edgeDeviceId]: true }));
+      }
+      setMessage(result.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not request visual source action");
+    } finally {
+      setBusyDevices((current) => {
+        const next = { ...current };
+        delete next[edgeDeviceId];
+        return next;
+      });
+    }
+  }
 
   async function savePreference(source: VisualSource, preferred = source.preferred) {
     if (!canManage || source.kind !== "camera") return;
@@ -218,6 +259,22 @@ export function VisualSourcesWorkspace({
 
           {message ? <div className="mt-4 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-4 py-3 text-sm text-[#f2dca9]">{message}</div> : null}
 
+          {canLiveControl && edgeDevices.length ? (
+            <div className="mt-4 grid gap-2 xl:grid-cols-2">
+              {edgeDevices.map((device) => {
+                const deviceBusy = Boolean(busyDevices[device.id]);
+                const active = device.status === "active";
+                return <div key={device.id} className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/[.07] bg-black/15 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0"><div className="break-words text-xs font-black text-white/75">{device.name}</div><div className="mt-1 text-xs text-white/40">{active ? "Edge ready for source commands" : `Edge ${device.status}`}</div></div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => runVisualAction(device.id, "rescan")} disabled={!active || deviceBusy} className="ip-focus-gold min-h-11 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/65 hover:bg-white/[.05] disabled:cursor-not-allowed disabled:opacity-40">{busyDevices[device.id] === "rescan" ? "Requesting…" : "Rescan sources"}</button>
+                    <button type="button" onClick={() => runVisualAction(device.id, "clear_preview")} disabled={!active || deviceBusy} className="ip-focus-gold min-h-11 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/65 hover:bg-white/[.05] disabled:cursor-not-allowed disabled:opacity-40">{busyDevices[device.id] === "clear_preview" ? "Requesting…" : "Clear Preview"}</button>
+                  </div>
+                </div>;
+              })}
+            </div>
+          ) : null}
+
           <div className="mt-5 grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
             {visibleSources.map((source) => {
               const state = statusCopy(source.status);
@@ -234,6 +291,8 @@ export function VisualSourcesWorkspace({
                   <div className="mt-4 flex flex-wrap gap-2">
                     {source.previewActive ? <span className="rounded-full border border-sky-300/20 bg-sky-300/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-sky-100">Preview · confirmed</span> : null}
                     {source.programActive ? <span className="rounded-full border border-red-300/20 bg-red-300/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-red-100">Program · confirmed</span> : null}
+                    {source.reportingDevice && requestedPreviewByDevice[source.reportingDevice.id] === source.id && !source.previewActive ? <span className="rounded-full border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-[#efd28b]">Preview requested · waiting for Edge</span> : null}
+                    {source.reportingDevice && requestedClearByDevice[source.reportingDevice.id] && source.previewActive ? <span className="rounded-full border border-amber-300/20 bg-amber-300/[.07] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-amber-100">Clear requested · waiting for Edge</span> : null}
                   </div>
 
                   <dl className="mt-4 grid gap-2 text-xs text-white/55">
@@ -250,12 +309,15 @@ export function VisualSourcesWorkspace({
                     <div className="mt-4 rounded-xl border border-white/[.08] bg-black/20 p-3"><label className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Operator label</label><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={160} className="ip-focus-gold mt-2 min-h-11 w-full rounded-lg border border-white/[.08] bg-white/[.04] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/50" placeholder={source.name} /><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => savePreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] disabled:cursor-not-allowed disabled:opacity-40">Save label</button><button type="button" onClick={() => clearPreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Clear preference</button></div></div>
                   ) : null}
 
+                  <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                    {canLiveControl && source.reportingDevice?.id && source.sourceKey ? <button type="button" onClick={() => runVisualAction(source.reportingDevice!.id, "preview", source)} disabled={Boolean(busyDevices[source.reportingDevice.id]) || source.status === "disconnected" || source.status === "unsupported" || source.status === "permission_required"} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">{busyDevices[source.reportingDevice.id] === "preview" ? "Preparing…" : "Preview"}</button> : null}
                   {source.kind === "camera" && canManage ? (
-                    <div className="mt-auto flex flex-wrap gap-2 pt-4">
+                    <>
                       <button type="button" onClick={() => { setEditing(isEditing ? null : source.id); setLabel(source.operatorLabel || ""); }} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/65 hover:bg-white/[.05] hover:text-white"><Pencil size={13} />{isEditing ? "Close" : "Label"}</button>
                       <button type="button" onClick={() => savePreference(source, !source.preferred)} disabled={busy === source.id} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/65 hover:bg-white/[.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"><Star size={13} />{source.preferred ? "Remove preferred" : "Make preferred"}</button>
-                    </div>
+                    </>
                   ) : null}
+                  </div>
                 </article>
               );
             })}

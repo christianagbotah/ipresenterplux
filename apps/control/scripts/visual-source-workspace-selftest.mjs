@@ -47,3 +47,21 @@ console.log(JSON.stringify({
   browserCaptureClaimed: false,
   livePromotionFromSourceCard: false
 }));
+
+const actions = await readFile(new URL("../src/lib/visual-source-actions.ts", import.meta.url), "utf8");
+const cameraSources = await readFile(new URL("../src/lib/camera-sources.ts", import.meta.url), "utf8");
+for (const command of ["visual.rescan", "visual.preview.select", "visual.preview.clear"]) {
+  assert.ok(actions.includes(command), `visual action client must map '${command}' exactly`);
+}
+assert.match(actions, /edgeDeviceId/);
+assert.match(actions, /serviceId/);
+assert.match(actions, /sourceId/);
+assert.doesNotMatch(actions, /program\.take|program\.show/);
+assert.match(cameraSources, /sourceKey/, "visual listing must expose the stable non-native Edge source id needed by Preview selection");
+assert.match(workspace, /requestVisualAction/);
+assert.match(workspace, /canLiveControl/);
+assert.match(workspace, /Preparing|Requested|Requesting/);
+assert.match(workspace, /Rescan sources/);
+assert.match(workspace, /Clear Preview/);
+assert.match(workspace, /source\.sourceKey/);
+assert.match(workspace, /busyDevice/);
