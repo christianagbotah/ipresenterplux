@@ -35,8 +35,8 @@ assert.match(depth, /aria-label=\"Now and next assistant rail\"/, "Now and Next 
 assert.ok(count(depth, /xl:max-h-\[calc\(100dvh-7rem\)\]/g) >= 1, "assistant rail must be viewport-bounded at xl");
 assert.ok(count(depth, /xl:overflow-y-auto/g) >= 1, "assistant rail must scroll independently at xl");
 assert.ok(count(depth, /xl:overscroll-contain/g) >= 1, "assistant rail scrolling must be contained instead of pulling the live stage away");
-assert.equal(depth.includes("xl:col-start-1"), false, "Now must no longer occupy a separate left rail that shrinks the live stage");
-assert.equal(depth.includes("xl:col-start-3"), false, "Next must no longer occupy a separate right rail separate from Now");
+assert.equal(depth.includes("xl:grid-cols-[260px_minmax(0,1fr)_300px]"), false, "the old three-column Now/live/Next layout must not return");
+assert.equal(depth.includes("xl:col-start-3"), false, "Next must no longer occupy a separate third rail away from Now");
 assert.match(depth, /href=\"\/scripture\"/, "operators need one-tap Scripture access beside the live stage");
 assert.match(depth, /href=\"\/media\"/, "operators need one-tap Media access beside the live stage");
 assert.match(depth, /href=\"\/cameras\"/, "operators need one-tap Cameras access beside the live stage");

@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
-import { Crosshair, Gauge, SlidersHorizontal, Wrench } from "lucide-react";
+import { BookOpenText, Camera, Clapperboard, Crosshair, Gauge, SlidersHorizontal, Sparkles, Wrench } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 import { FocusMode } from "./FocusMode";
@@ -102,19 +103,24 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
       </div>
       <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-[#efc86f]/80">F</kbd></button>
     </div>
+    <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Operator source shortcuts">
+      <span className="mr-1 text-xs font-black uppercase tracking-[.16em] text-white/40">Open source</span>
+      <Link href="/scripture" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><BookOpenText size={14}/> Scripture</Link>
+      {model.capabilities.canMedia ? <Link href="/media" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Clapperboard size={14}/> Media</Link> : null}
+      {model.capabilities.canCameras ? <Link href="/cameras" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Camera size={14}/> Cameras</Link> : null}
+      {model.capabilities.canAIDirector ? <Link href="/ai-director" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.045] px-3 text-xs font-bold text-[#efc86f]/85 transition hover:bg-[#d7a94a]/[.09] hover:text-[#efc86f]"><Sparkles size={14}/> AI Director</Link> : null}
+    </div>
     <p id="ip-cockpit-depth-hint" className="mb-3 -mt-1 px-1 text-xs leading-5 text-white/45">
       <span className="sr-only">Cockpit depth: </span>{depthHint[depth]}
     </p>
-    <div className="grid items-start gap-4 xl:grid-cols-[260px_minmax(0,1fr)_300px]">
-      <section className="min-w-0 md:sticky md:top-[84px] md:z-20 md:self-start xl:col-start-2 xl:row-start-1">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <section className="min-w-0 md:sticky md:top-[84px] md:z-20 md:self-start xl:col-start-1 xl:row-start-1">
         <ProgramPreviewStage model={model} />
       </section>
-      <div className="min-h-0 xl:sticky xl:top-[84px] xl:col-start-1 xl:row-start-1 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 ip-scrollbar-thin">
+      <aside aria-label="Now and next assistant rail" className="min-h-0 space-y-4 xl:sticky xl:top-[84px] xl:col-start-2 xl:row-start-1 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pl-1 ip-scrollbar-thin">
         <NowRail model={model} />
-      </div>
-      <div className="min-h-0 xl:sticky xl:top-[84px] xl:col-start-3 xl:row-start-1 xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto xl:overscroll-contain xl:pl-1 ip-scrollbar-thin">
         <NextRail model={model} />
-      </div>
+      </aside>
     </div>
     {depth !== "essential" ? <section className="ip-focus-in mt-4 rounded-2xl border border-white/[.07] bg-white/[.018] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><div><div className="text-xs font-black uppercase tracking-[.18em] text-white/45">{depth === "engineering" ? "Engineering detail" : "Advanced live systems"}</div><div className="mt-1 text-xs text-white/55">Presentation depth never changes server authority.</div></div><span className={`text-xs font-black uppercase tracking-[.12em] ${canControl ? "text-emerald-300" : "text-amber-300"}`}>{canControl ? "Live control authorized" : "View only"}</span></div>

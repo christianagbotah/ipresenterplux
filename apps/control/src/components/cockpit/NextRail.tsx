@@ -18,12 +18,12 @@ function freshnessLabel(item: { observedAt: string | null; freshUntil: string | 
 
 export function NextRail({ model }: { model: CockpitViewModel }) {
   return (
-    <aside className="flex flex-col rounded-2xl border border-white/[.07] bg-white/[.018] p-4 xl:min-h-[600px]">
+    <aside className="flex flex-col rounded-2xl border border-white/[.07] bg-white/[.018] p-4">
       <div className="flex items-center justify-between gap-3">
         <div><div className="text-xs font-black uppercase tracking-[.2em] text-white/45">Next</div><div className="mt-1 text-sm font-bold text-white/75">Prepared service flow</div></div>
         <ListEnd size={17} className="text-[#e1b75e]" />
       </div>
-      <div className="ip-scrollbar-thin mt-4 -mr-2 flex-1 space-y-2 overflow-y-auto pr-2">
+      <div className="mt-4 space-y-2">
         {model.next.length ? model.next.map((item, index) => (
           <div key={item.id} className="ip-ai-arrive rounded-xl border border-white/[.06] bg-black/25 p-3">
             <div className="flex items-start gap-3">

@@ -11,7 +11,7 @@ export function NowRail({ model }: { model: CockpitViewModel }) {
   const camera = freshnessMeta(model.systems.camera.freshness);
   const audio = freshnessMeta(model.systems.audio.freshness);
   return (
-    <aside className="space-y-5 rounded-2xl border border-white/[.07] bg-white/[.018] p-4 xl:min-h-[600px]">
+    <aside className="space-y-5 rounded-2xl border border-white/[.07] bg-white/[.018] p-4">
       <div>
         <div className="text-xs font-black uppercase tracking-[.2em] text-white/45">Now</div>
         <div className="mt-2 text-lg font-black text-white/90">{model.now.currentContent?.title ?? "Program is clear"}</div>
