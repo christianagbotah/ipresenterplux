@@ -30,9 +30,22 @@ assert.equal(stage.includes("The audience sees black. Stage something into Previ
 
 assert.match(depth, /md:sticky/, "desktop live stage must remain sticky while operators work in surrounding rails");
 assert.match(depth, /md:top-\[84px\]/, "sticky live stage must clear the 68px Cockpit header with breathing room");
-assert.ok(count(depth, /xl:max-h-\[calc\(100dvh-7rem\)\]/g) >= 2, "Now and Next rails must both be viewport-bounded at xl");
-assert.ok(count(depth, /xl:overflow-y-auto/g) >= 2, "Now and Next rails must both scroll independently at xl");
-assert.ok(count(depth, /xl:overscroll-contain/g) >= 2, "rail scrolling must be contained instead of pulling the live stage away");
+assert.match(depth, /xl:grid-cols-\[minmax\(0,1fr\)_330px\]/, "live monitors must keep the dominant desktop width beside one compact assistant rail");
+assert.match(depth, /aria-label=\"Now and next assistant rail\"/, "Now and Next must share one clearly labelled side rail");
+assert.ok(count(depth, /xl:max-h-\[calc\(100dvh-7rem\)\]/g) >= 1, "assistant rail must be viewport-bounded at xl");
+assert.ok(count(depth, /xl:overflow-y-auto/g) >= 1, "assistant rail must scroll independently at xl");
+assert.ok(count(depth, /xl:overscroll-contain/g) >= 1, "assistant rail scrolling must be contained instead of pulling the live stage away");
+assert.equal(depth.includes("xl:col-start-1"), false, "Now must no longer occupy a separate left rail that shrinks the live stage");
+assert.equal(depth.includes("xl:col-start-3"), false, "Next must no longer occupy a separate right rail separate from Now");
+assert.match(depth, /href=\"\/scripture\"/, "operators need one-tap Scripture access beside the live stage");
+assert.match(depth, /href=\"\/media\"/, "operators need one-tap Media access beside the live stage");
+assert.match(depth, /href=\"\/cameras\"/, "operators need one-tap Cameras access beside the live stage");
+assert.match(depth, /href=\"\/ai-director\"/, "operators need one-tap AI Director access beside the live stage");
+
+assert.match(stage, /TAKE PREVIEW LIVE/, "the primary live action must say exactly what will happen");
+assert.match(stage, /CLEAR LIVE/, "the destructive live action must use plain operator language");
+assert.match(stage, /Nothing reaches the audience until you take it live\./, "stage guidance must explain the safety boundary in plain language");
+assert.equal(stage.includes("Cloud intent and physical Edge truth remain separate."), false, "technical architecture wording must not occupy the live operator control strip");
 
 assert.match(dialog, /sm:items-start/, "Create Service must align safely from the top on desktop instead of vertical centering");
 assert.match(dialog, /sm:pt-20/, "Create Service must leave safe top clearance");
