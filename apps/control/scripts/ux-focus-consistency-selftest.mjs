@@ -23,7 +23,7 @@ expectFocus(files.visualSources, "Visual Sources Clear Preview", '"Clear Preview
 expectFocus(files.visualSources, "Visual Sources Preview", 'runVisualAction(source.reportingDevice!.id, "preview", source)');
 expectFocus(files.visualSources, "Visual Sources camera label action", '"Label"');
 expectFocus(files.visualSources, "Visual Sources preferred action", "Make preferred");
-expectFocus(files.command, "Command Run", 'pending ? "Working…" : "Run"');
+expectFocus(files.command, "Universal find Run command", 'pending ? "Working…" : "Run command"');
 expectFocus(files.command, "Command media result", 'kind === "media_search"');
 expectFocus(files.command, "Command status result", 'kind === "status"');
 

@@ -162,6 +162,10 @@ jobs:
         run: pnpm test:cockpit-predictive-next
       - name: Cockpit typed command self-test
         run: pnpm test:cockpit-command
+      - name: Cockpit universal search self-test
+        run: pnpm test:cockpit-universal-search
+      - name: Cockpit universal command surface self-test
+        run: pnpm test:cockpit-command-surface
       - name: Cockpit smart attention self-test
         run: pnpm test:cockpit-attention
       - name: Predictive Next recommendation persistence self-test

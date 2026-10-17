@@ -83,7 +83,9 @@
     "test:cockpit-field-uat": "node scripts/cockpit-field-uat-selftest.mjs",
     "test:auth-public-origin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/auth-public-origin-selftest.mjs",
     "demo:license": "node scripts/bootstrap-demo-entitlements.mjs",
-    "test:visual-source-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-workspace-selftest.mjs"
+    "test:visual-source-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-workspace-selftest.mjs",
+    "test:cockpit-universal-search": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-universal-search-selftest.mjs",
+    "test:cockpit-command-surface": "node scripts/cockpit-command-surface-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
