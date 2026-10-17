@@ -20,7 +20,7 @@ export type EdgeMediaSourceUpsertInput = {
   sourceType: string;
   status: "offline" | "ready" | "live" | "warning" | "error";
   observedAt: Date | string;
-  metadata: Record<string, string>;
+  metadata: Record<string, unknown>;
   publicConfig: Record<string, unknown>;
 };
 

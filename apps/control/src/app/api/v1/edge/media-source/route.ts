@@ -6,13 +6,14 @@ import { registerEdgeEvent } from "@/lib/edge-events";
 import { publishServiceEvent } from "@/lib/realtime";
 import { upsertCockpitRecommendation } from "@/lib/cockpit/recommendations";
 import { upsertEdgeMediaSource } from "@/lib/edge-media-source-persistence";
+import { sanitizeVisualSourceMetadata } from "@/lib/visual-source-metadata";
 
 const schema = z.object({
   eventId: z.string().uuid(),
   serviceId: z.string().uuid().nullable().default(null),
   sourceId: z.string().trim().min(1).max(160),
   name: z.string().trim().min(1).max(160),
-  sourceType: z.string().trim().min(1).max(80),
+  sourceType: z.enum(["camera", "video_input", "video_capture", "display", "window"]),
   status: z.enum(["offline", "ready", "live", "warning", "error"]),
   observedAt: z.string().datetime(),
   metadata: z.record(z.string(), z.string()).default({})
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         await client.query("commit");
         return NextResponse.json({ ok: true, duplicate: true, eventId: payload.eventId });
       }
+      const sanitizedMetadata = sanitizeVisualSourceMetadata(payload.metadata);
       const updated = await upsertEdgeMediaSource(client, {
         organizationId: device.organizationId,
         deviceId: device.deviceId,
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
         sourceType: payload.sourceType,
         status: payload.status,
         observedAt: payload.observedAt,
-        metadata: payload.metadata,
+        metadata: sanitizedMetadata,
         publicConfig: { edgeDeviceId: device.deviceId, sourceId: payload.sourceId }
       });
       const active = await client.query<{ id: string; ai_enabled: boolean }>(

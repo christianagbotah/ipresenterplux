@@ -1,10 +1,19 @@
 import type { PoolClient } from "pg";
 import { DEVICE_ADMIN_ROLES } from "./role-policy.js";
+import {
+  VISUAL_SOURCE_TYPES,
+  reportedVisualSourceName,
+  sanitizeVisualSourceMetadata,
+  visualCaptureStatusCopy,
+  visualSourceKind,
+  type VisualCaptureStatus
+} from "./visual-source-metadata.ts";
 
 const CAMERA_SOURCE_TYPES = ["camera", "video_input", "video_capture"] as const;
 const DEFAULT_STALE_AFTER_SECONDS = 120;
 
 export type CameraSourceStatus = "available" | "disconnected" | "permission_required" | "unsupported";
+export type VisualSourceStatus = CameraSourceStatus | "busy" | "error";
 
 export class CameraSourceError extends Error {
   status: number;
@@ -18,7 +27,7 @@ export class CameraSourceError extends Error {
   }
 }
 
-type CameraRow = {
+type VisualSourceRow = {
   id: string;
   organization_id: string;
   name: string;
@@ -79,10 +88,15 @@ function parseTime(value: string | null) {
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
 
-function deriveStatus(row: CameraRow, now: Date, staleAfterSeconds: number): CameraSourceStatus {
-  const metadata = asObject(row.metadata);
-  if (captureUnsupported(metadata)) return "unsupported";
-  if (permissionRequired(metadata)) return "permission_required";
+function deriveVisualStatus(
+  row: VisualSourceRow,
+  captureStatus: VisualCaptureStatus | undefined,
+  now: Date,
+  staleAfterSeconds: number
+): VisualSourceStatus {
+  const rawMetadata = asObject(row.metadata);
+  if (captureStatus === "unsupported" || captureUnsupported(rawMetadata)) return "unsupported";
+  if (captureStatus === "permission_required" || permissionRequired(rawMetadata)) return "permission_required";
 
   const sourceSeen = parseTime(row.last_seen_at);
   const edgeSeen = parseTime(row.edge_last_seen_at);
@@ -90,9 +104,17 @@ function deriveStatus(row: CameraRow, now: Date, staleAfterSeconds: number): Cam
   const sourceStale = !sourceSeen || sourceSeen.getTime() < cutoff;
   const edgeStale = !edgeSeen || edgeSeen.getTime() < cutoff;
   const edgeUnavailable = row.edge_status !== "active";
-  const sourceUnavailable = ["offline", "error"].includes(row.source_status);
-  if (sourceStale || edgeStale || edgeUnavailable || sourceUnavailable) return "disconnected";
+  if (sourceStale || edgeStale || edgeUnavailable) return "disconnected";
+
+  if (captureStatus === "busy") return "busy";
+  if (captureStatus === "disconnected" || row.source_status === "offline") return "disconnected";
+  if (captureStatus === "error" || row.source_status === "error") return "error";
   return "available";
+}
+
+function cameraCompatibleStatus(status: VisualSourceStatus): CameraSourceStatus {
+  if (status === "busy" || status === "error") return "disconnected";
+  return status;
 }
 
 async function rolesFor(client: PoolClient, userId: string, organizationId: string) {
@@ -130,7 +152,7 @@ async function requireCameraSource(client: PoolClient, organizationId: string, m
   }
 }
 
-export async function listCameraSources(
+export async function listVisualSources(
   client: PoolClient,
   userId: string,
   organizationId: string,
@@ -147,7 +169,7 @@ export async function listCameraSources(
      order by case status when 'active' then 0 when 'offline' then 1 else 2 end,last_seen_at desc nulls last,name,id`,
     [organizationId]
   );
-  const sources = await client.query<CameraRow>(
+  const sources = await client.query<VisualSourceRow>(
     `select ms.id::text,ms.organization_id::text,ms.name,ms.source_type,
             ms.status as source_status,ms.last_seen_at::text,ms.metadata,ms.public_config,
             ed.id::text as edge_device_id,ed.name as edge_name,ed.platform as edge_platform,
@@ -160,7 +182,7 @@ export async function listCameraSources(
      where ms.organization_id=$1
        and ms.source_type = any($2::text[])
      order by coalesce(csp.preferred,false) desc,coalesce(nullif(csp.operator_label,''),ms.name),ms.id`,
-    [organizationId, [...CAMERA_SOURCE_TYPES]]
+    [organizationId, [...VISUAL_SOURCE_TYPES]]
   );
 
   return {
@@ -173,19 +195,38 @@ export async function listCameraSources(
       lastSeenAt: device.last_seen_at
     })),
     staleAfterSeconds,
-    sources: sources.rows.map((row) => {
-      const status = deriveStatus(row, now, staleAfterSeconds);
+    sources: sources.rows.flatMap((row) => {
+      const kind = visualSourceKind(row.source_type);
+      if (!kind) return [];
+      const metadata = sanitizeVisualSourceMetadata(row.metadata);
+      const status = deriveVisualStatus(row, metadata.captureStatus, now, staleAfterSeconds);
+      const captureStatus = metadata.captureStatus;
       const config = asObject(row.public_config);
-      return {
+      const reportedName = reportedVisualSourceName(row.metadata, row.name);
+      const operatorLabel = kind === "camera" ? row.operator_label : null;
+      return [{
         id: row.id,
         organizationId: row.organization_id,
-        name: row.name,
-        operatorLabel: row.operator_label,
-        displayName: row.operator_label?.trim() || row.name,
+        name: reportedName,
+        operatorLabel,
+        displayName: operatorLabel?.trim() || reportedName,
+        kind,
         sourceType: row.source_type,
         sourceStatus: row.source_status,
         status,
-        preferred: Boolean(row.preferred),
+        captureStatus,
+        captureStatusLabel: visualCaptureStatusCopy(captureStatus),
+        previewActive: metadata.previewActive ?? false,
+        programActive: metadata.programActive ?? false,
+        width: metadata.width ?? null,
+        height: metadata.height ?? null,
+        fps: metadata.fps ?? null,
+        framesCaptured: metadata.framesCaptured ?? null,
+        droppedFrames: metadata.droppedFrames ?? null,
+        errorCode: metadata.errorCode ?? null,
+        processName: metadata.processName ?? null,
+        displayPrimary: metadata.displayPrimary ?? null,
+        preferred: kind === "camera" && Boolean(row.preferred),
         lastSeenAt: row.last_seen_at,
         previewUrl: status === "available" ? safeHttpsUrl(config.previewUrl) : null,
         reportingDevice: row.edge_device_id ? {
@@ -195,8 +236,23 @@ export async function listCameraSources(
           status: row.edge_status,
           lastSeenAt: row.edge_last_seen_at
         } : null
-      };
+      }];
     })
+  };
+}
+
+export async function listCameraSources(
+  client: PoolClient,
+  userId: string,
+  organizationId: string,
+  options: { now?: Date; staleAfterSeconds?: number } = {}
+) {
+  const result = await listVisualSources(client, userId, organizationId, options);
+  return {
+    ...result,
+    sources: result.sources
+      .filter((source) => source.kind === "camera")
+      .map((source) => ({ ...source, status: cameraCompatibleStatus(source.status) }))
   };
 }
 
