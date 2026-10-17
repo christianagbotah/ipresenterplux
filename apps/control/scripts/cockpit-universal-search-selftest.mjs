@@ -64,29 +64,29 @@ try {
   await client.query(`insert into edge_devices(id,organization_id,name,platform,status,last_seen_at,active_service_id) values ($1,$2,'Sanctuary PC','windows','active',$3,$4)`,[edge,org,now,service]);
   await client.query(`insert into media_sources(id,organization_id,name,source_type,status,last_seen_at,edge_device_id,source_key,metadata,public_config) values ($1,$2,'Pulpit Camera','camera','ready',$3,$4,'camera:pulpit',$5::jsonb,'{}'::jsonb)`,[visual,org,now,edge,JSON.stringify({captureStatus:"ready",reportedName:"Pulpit Camera"})]);
 
-  const scripture = await searchCockpit(client,operator,{query:"John 3:16",limitPerGroup:3});
+  const scripture = await searchCockpit(client,operator,{query:"John 3:16",limitPerGroup:3,now});
   assert.equal(scripture.query,"John 3:16");
   assert.ok(scripture.groups.find((group)=>group.id==="scripture")?.items.some((item)=>item.title.includes("John 3:16")),"direct Scripture reference must resolve locally");
 
-  const songSearch = await searchCockpit(client,operator,{query:"Way Maker",limitPerGroup:3});
+  const songSearch = await searchCockpit(client,operator,{query:"Way Maker",limitPerGroup:3,now});
   assert.ok(songSearch.groups.find((group)=>group.id==="songs")?.items.some((item)=>item.id===song));
   assert.ok(!songSearch.groups.find((group)=>group.id==="media")?.items.some((item)=>item.id===song),"song must not leak into Media group");
 
-  const mediaSearch = await searchCockpit(client,operator,{query:"Welcome",limitPerGroup:8});
+  const mediaSearch = await searchCockpit(client,operator,{query:"Welcome",limitPerGroup:8,now});
   assert.ok(mediaSearch.groups.find((group)=>group.id==="media")?.items.some((item)=>item.id===media));
   assert.ok(mediaSearch.groups.find((group)=>group.id==="media")?.items.some((item)=>item.id===slide));
   assert.ok(!mediaSearch.groups.some((group)=>group.items.some((item)=>item.id===foreignMedia)),"search must not leak results from another organization");
 
-  const serviceSearch = await searchCockpit(client,operator,{query:"Offering",limitPerGroup:3});
+  const serviceSearch = await searchCockpit(client,operator,{query:"Offering",limitPerGroup:3,now});
   assert.ok(serviceSearch.groups.find((group)=>group.id==="service")?.items.some((item)=>item.title==="Offering Time"));
 
   const visualSearch = await searchCockpit(client,operator,{query:"Pulpit",limitPerGroup:3,now});
   assert.ok(visualSearch.groups.find((group)=>group.id==="visual_sources")?.items.some((item)=>item.id===visual));
 
-  const zero = await searchCockpit(client,operator,{query:"zzzz-no-match-zzzz",limitPerGroup:2});
+  const zero = await searchCockpit(client,operator,{query:"zzzz-no-match-zzzz",limitPerGroup:2,now});
   assert.ok(zero.groups.some((group)=>group.items.length===0),"accessible zero-result groups must be preserved by the service");
 
-  const bounded = await searchCockpit(client,operator,{query:`  ${"x".repeat(180)}  `,limitPerGroup:999});
+  const bounded = await searchCockpit(client,operator,{query:`  ${"x".repeat(180)}  `,limitPerGroup:999,now});
   assert.equal(bounded.query.length,120);
   for (const group of bounded.groups) assert.ok(group.items.length<=8,"limitPerGroup must clamp to 8");
 
