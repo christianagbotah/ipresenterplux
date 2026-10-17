@@ -50,9 +50,9 @@ try {
   );
   await client.query(
     `insert into edge_devices(id,organization_id,name,platform,status,last_seen_at,capabilities) values
-      ($1,$3,'Edge A','windows','active',$5,'{}'::jsonb),
-      ($2,$3,'Edge B','windows','active',$5,'{}'::jsonb)`,
-    [edgeA, edgeB, organizationId, null, firstObservedAt]
+      ($1,$3,'Edge A','windows','active',$4::timestamptz,'{}'::jsonb),
+      ($2,$3,'Edge B','windows','active',$4::timestamptz,'{}'::jsonb)`,
+    [edgeA, edgeB, organizationId, firstObservedAt]
   );
   await client.query(
     `insert into media_sources(id,organization_id,name,source_type,status,metadata,public_config)
