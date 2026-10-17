@@ -58,6 +58,9 @@
     "test:licensing-release-security": "node scripts/licensing-release-security-selftest.mjs",
     "test:media-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/media-workspace-selftest.mjs",
     "test:camera-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/camera-workspace-selftest.mjs",
+    "test:visual-source-identity": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-identity-selftest.mjs",
+    "test:visual-source-telemetry": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-telemetry-selftest.mjs",
+    "test:visual-edge-command": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-edge-command-selftest.mjs",
     "test:ai-director": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-director-selftest.mjs",
     "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs",
     "test:cockpit-view-model": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-view-model-selftest.mjs",
@@ -79,7 +82,8 @@
     "test:pwa-public-assets": "node scripts/pwa-public-assets-selftest.mjs",
     "test:cockpit-field-uat": "node scripts/cockpit-field-uat-selftest.mjs",
     "test:auth-public-origin": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/auth-public-origin-selftest.mjs",
-    "demo:license": "node scripts/bootstrap-demo-entitlements.mjs"
+    "demo:license": "node scripts/bootstrap-demo-entitlements.mjs",
+    "test:visual-source-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-workspace-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

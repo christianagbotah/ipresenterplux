@@ -1,9 +1,19 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import pg from "pg";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import { getCockpitViewModel } from "../src/lib/cockpit/view-model.ts";
+
+const viewModelSource = await readFile(new URL("../src/lib/cockpit/view-model.ts", import.meta.url), "utf8");
+assert.match(viewModelSource,/programActive/);
+assert.match(viewModelSource,/sanitizeVisualSourceMetadata/);
+assert.match(viewModelSource,/visualProgram/);
+assert.match(viewModelSource,/active_service_id/);
+assert.match(viewModelSource,/active_service_id !== serviceId/);
+const nowRailSource = await readFile(new URL("../src/components/cockpit/NowRail.tsx", import.meta.url), "utf8");
+assert.match(nowRailSource,/Visual Program|Program source/);
 
 if (!process.env.DATABASE_URL) {
   console.log(JSON.stringify({ ok: true, mode: "local-contract", database: "deferred-to-ci" }));
@@ -26,6 +36,7 @@ const queuedItem = randomUUID();
 const liveScripture = randomUUID();
 const edge = randomUUID();
 const camera = randomUUID();
+const display = randomUUID();
 const audio = randomUUID();
 const outputReady = randomUUID();
 const outputFailed = randomUUID();
@@ -101,8 +112,9 @@ try {
   await client.query(
     `insert into media_sources(id,organization_id,name,source_type,status,public_config,edge_device_id,source_key,last_seen_at,metadata) values
        ($1,$2,'Pulpit Camera','camera','ready','{}'::jsonb,$3,'cam:pulpit','2099-04-12T09:57:20Z','{}'::jsonb),
-       ($4,$2,'Mixer Audio','audio_input','ready','{}'::jsonb,$3,'audio:mixer','2099-04-12T09:59:50Z',$5::jsonb)`,
-    [camera, org, edge, audio, JSON.stringify({ asrWorkerStatus: "ready", asrStatus: "ready" })]
+       ($4,$2,'Sanctuary Screen','display','ready','{}'::jsonb,$3,'display:main','2099-04-12T09:59:55Z',$5::jsonb),
+       ($6,$2,'Mixer Audio','audio_input','ready','{}'::jsonb,$3,'audio:mixer','2099-04-12T09:59:50Z',$7::jsonb)`,
+    [camera, org, edge, display, JSON.stringify({ programActive: true, captureStatus: "available" }), audio, JSON.stringify({ asrWorkerStatus: "ready", asrStatus: "ready" })]
   );
   await client.query(
     `insert into output_destinations(id,organization_id,name,destination_type,enabled,status,public_config) values
@@ -142,6 +154,10 @@ try {
   assert.equal(model.now.transcriptText, "For God so loved the world");
   assert.equal(model.next.some((item) => item.id === queuedItem && item.source === "planned"), true, "queued Planner neighborhood must be present");
   assert.equal(model.systems.camera.freshness, "stale", "camera older than 120 seconds must be non-current");
+  assert.equal(model.systems.visualProgram.name, "Sanctuary Screen", "fresh Edge telemetry with programActive=true must identify the visual Program source");
+  assert.equal(model.systems.visualProgram.kind, "display");
+  assert.equal(model.systems.visualProgram.captureStatus, "available");
+  assert.equal(model.systems.visualProgram.freshness, "current");
   assert.equal(model.systems.edge.freshness, "stale", "Edge older than 120 seconds must be non-current");
   assert.equal(model.systems.audio.freshness, "current", "fresh audio telemetry must remain current");
   assert.deepEqual(model.systems.outputs, { total: 2, enabled: 2, healthy: 1, degraded: 1 });

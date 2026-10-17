@@ -1,4 +1,4 @@
-import { AudioLines, Camera, RadioTower, Users, UserRound } from "lucide-react";
+import { AudioLines, Camera, MonitorPlay, RadioTower, Users, UserRound } from "lucide-react";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 
 function freshnessMeta(value: string) {
@@ -9,6 +9,8 @@ function freshnessMeta(value: string) {
 
 export function NowRail({ model }: { model: CockpitViewModel }) {
   const camera = freshnessMeta(model.systems.camera.freshness);
+  const visualProgram = freshnessMeta(model.systems.visualProgram.freshness);
+  const visualProgramProblem = ["disconnected", "error"].includes(model.systems.visualProgram.captureStatus ?? "");
   const audio = freshnessMeta(model.systems.audio.freshness);
   return (
     <aside className="space-y-4 rounded-2xl border border-white/[.08] bg-[#10151e] p-4">
@@ -23,6 +25,7 @@ export function NowRail({ model }: { model: CockpitViewModel }) {
       </div>
       <div className="space-y-3 text-xs">
         <div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-white/55"><Camera size={14}/> Camera</span><span className={`flex min-w-0 items-center gap-1.5 font-semibold ${camera.text}`} title={model.systems.camera.activeName ?? camera.label}><span className={`size-1.5 shrink-0 rounded-full ${camera.dot}`} /><span className="max-w-32 truncate">{model.systems.camera.activeName ?? "Not connected"}</span><span className="sr-only"> · {camera.label}</span></span></div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-white/55"><MonitorPlay size={14}/> Visual Program</span><span className={`flex min-w-0 items-center gap-1.5 font-semibold ${visualProgramProblem ? "text-red-300" : visualProgram.text}`} title={model.systems.visualProgram.name ?? "No Edge-confirmed Program source"}><span className={`size-1.5 shrink-0 rounded-full ${visualProgramProblem ? "bg-red-400" : visualProgram.dot}`} /><span className="max-w-32 truncate">{model.systems.visualProgram.name ?? "Not confirmed"}</span><span className="sr-only"> · Program source · {model.systems.visualProgram.captureStatus ?? visualProgram.label}</span></span></div>
         <div className="flex flex-wrap items-center justify-between gap-2"><span className="flex items-center gap-2 text-white/55"><AudioLines size={14}/> Audio</span><span className={`flex min-w-0 items-center gap-1.5 font-semibold ${audio.text}`} title={model.systems.audio.activeName ?? audio.label}><span className={`size-1.5 shrink-0 rounded-full ${audio.dot}`} /><span className="max-w-32 truncate">{model.systems.audio.activeName ?? "Not connected"}</span><span className="sr-only"> · {audio.label}</span></span></div>
         <div className="grid grid-cols-2 gap-2 border-t border-white/[.06] pt-3">
           <div className="rounded-lg bg-white/[.025] px-3 py-2.5"><span className="flex items-center gap-1.5 text-white/50"><RadioTower size={13}/>Outputs</span><div className="mt-1 text-sm font-semibold text-white/85">{model.systems.outputs.healthy}<span className="text-xs font-normal text-white/50"> / {model.systems.outputs.enabled} ready</span></div></div>

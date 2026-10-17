@@ -4,6 +4,12 @@ import { auth } from "@auth";
 import { db } from "@/lib/db";
 import { EDGE_COMMAND_TYPES, rolesForEdgeCommand } from "@/lib/edge-commands";
 import { userHasAnyRole } from "@/lib/rbac";
+import {
+  VisualEdgeCommandError,
+  normalizeVisualCommandArguments,
+  requireVisualCommandService,
+  requireVisualPreviewSourceForDevice
+} from "@/lib/visual-edge-commands";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,6 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const payload = schema.parse(await request.json());
+    const commandArguments = normalizeVisualCommandArguments(payload.type, payload.arguments);
     const client = await db.connect();
     try {
       await client.query("begin");
@@ -46,7 +53,7 @@ export async function POST(request: Request, context: RouteContext) {
         return NextResponse.json({ ok: false, error: "You are not allowed to issue this Edge command" }, { status: 403 });
       }
 
-      const serviceId = payload.serviceId ?? device.active_service_id;
+      const serviceId = requireVisualCommandService(payload.type, payload.serviceId, device.active_service_id);
       if (serviceId) {
         const service = await client.query("select 1 from services where id=$1 and organization_id=$2 limit 1", [serviceId, device.organization_id]);
         if (!service.rowCount) {
@@ -55,12 +62,24 @@ export async function POST(request: Request, context: RouteContext) {
         }
       }
 
+      if (payload.type === "visual.preview.select") {
+        const sourceId = commandArguments.sourceId;
+        if (!sourceId) {
+          throw new VisualEdgeCommandError(400, "visual_source_required", "A visual source is required for Preview selection");
+        }
+        await requireVisualPreviewSourceForDevice(client, {
+          organizationId: device.organization_id,
+          deviceId: id,
+          sourceId
+        });
+      }
+
       const inserted = await client.query<{ id: string; issued_at: string; expires_at: string }>(
         `insert into edge_control_commands
           (organization_id,edge_device_id,service_id,command_type,arguments,issued_by,expires_at)
          values ($1,$2,$3,$4,$5::jsonb,$6,now()+($7::text || ' seconds')::interval)
          returning id::text,issued_at::text,expires_at::text`,
-        [device.organization_id, id, serviceId, payload.type, JSON.stringify(payload.arguments), session.user.id, payload.ttlSeconds]
+        [device.organization_id, id, serviceId, payload.type, JSON.stringify(commandArguments), session.user.id, payload.ttlSeconds]
       );
       const command = inserted.rows[0];
       await client.query(
@@ -77,6 +96,9 @@ export async function POST(request: Request, context: RouteContext) {
       client.release();
     }
   } catch (error) {
+    if (error instanceof VisualEdgeCommandError) {
+      return NextResponse.json({ ok: false, error: error.message, code: error.code }, { status: error.status });
+    }
     if (error instanceof z.ZodError) return NextResponse.json({ ok: false, error: "Invalid Edge command", issues: error.issues }, { status: 400 });
     console.error("Edge command creation failed", error);
     return NextResponse.json({ ok: false, error: "Could not issue Edge command" }, { status: 500 });
