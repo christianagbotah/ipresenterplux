@@ -196,6 +196,8 @@ jobs:
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
         run: pnpm test:camera-workspace
+      - name: Visual Sources workspace self-test
+        run: pnpm test:visual-source-workspace
       - name: Visual source stable identity self-test
         run: pnpm test:visual-source-identity
       - name: Visual source telemetry sanitization self-test

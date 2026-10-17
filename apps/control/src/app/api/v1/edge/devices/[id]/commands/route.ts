@@ -7,6 +7,7 @@ import { userHasAnyRole } from "@/lib/rbac";
 import {
   VisualEdgeCommandError,
   normalizeVisualCommandArguments,
+  requireVisualCommandService,
   requireVisualPreviewSourceForDevice
 } from "@/lib/visual-edge-commands";
 
@@ -52,7 +53,7 @@ export async function POST(request: Request, context: RouteContext) {
         return NextResponse.json({ ok: false, error: "You are not allowed to issue this Edge command" }, { status: 403 });
       }
 
-      const serviceId = payload.serviceId ?? device.active_service_id;
+      const serviceId = requireVisualCommandService(payload.type, payload.serviceId, device.active_service_id);
       if (serviceId) {
         const service = await client.query("select 1 from services where id=$1 and organization_id=$2 limit 1", [serviceId, device.organization_id]);
         if (!service.rowCount) {

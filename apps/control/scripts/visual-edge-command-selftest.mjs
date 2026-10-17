@@ -7,6 +7,7 @@ import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import {
   VisualEdgeCommandError,
   normalizeVisualCommandArguments,
+  requireVisualCommandService,
   requireVisualPreviewSourceForDevice
 } from "../src/lib/visual-edge-commands.ts";
 
@@ -25,6 +26,7 @@ assert.match(routeSource, /userHasAnyRole\(session\.user\.id, device\.organizati
   "command creation must keep organization-scoped RBAC");
 assert.match(routeSource, /Service does not belong to this organization/,
   "service scope must remain organization-bound");
+assert.match(routeSource, /requireVisualCommandService/, "visual Preview/Clear must match the Edge active service");
 assert.match(routeSource, /requireVisualPreviewSourceForDevice/,
   "visual Preview selection must validate source ownership before insertion");
 assert.match(routeSource, /JSON\.stringify\(commandArguments\)/,
@@ -32,6 +34,12 @@ assert.match(routeSource, /JSON\.stringify\(commandArguments\)/,
 const auditBlock = routeSource.slice(routeSource.indexOf("insert into audit_events"));
 assert.doesNotMatch(auditBlock, /payload\.arguments|commandArguments/,
   "audit detail must not copy visual source arguments/native metadata");
+
+assert.equal(requireVisualCommandService("visual.rescan", null, null), null);
+assert.equal(requireVisualCommandService("visual.rescan", null, "11111111-1111-4111-8111-111111111111"), "11111111-1111-4111-8111-111111111111");
+assert.equal(requireVisualCommandService("visual.preview.select", "11111111-1111-4111-8111-111111111111", "11111111-1111-4111-8111-111111111111"), "11111111-1111-4111-8111-111111111111");
+assert.throws(() => requireVisualCommandService("visual.preview.select", "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222"), (error) => error instanceof VisualEdgeCommandError && error.code === "visual_service_mismatch");
+assert.throws(() => requireVisualCommandService("visual.preview.clear", null, null), (error) => error instanceof VisualEdgeCommandError && error.code === "visual_service_required");
 
 assert.deepEqual(normalizeVisualCommandArguments("visual.rescan", {}), {});
 assert.deepEqual(normalizeVisualCommandArguments("visual.preview.clear", {}), {});

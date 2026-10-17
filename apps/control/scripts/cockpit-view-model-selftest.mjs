@@ -10,6 +10,8 @@ const viewModelSource = await readFile(new URL("../src/lib/cockpit/view-model.ts
 assert.match(viewModelSource,/programActive/);
 assert.match(viewModelSource,/sanitizeVisualSourceMetadata/);
 assert.match(viewModelSource,/visualProgram/);
+assert.match(viewModelSource,/active_service_id/);
+assert.match(viewModelSource,/active_service_id !== serviceId/);
 const nowRailSource = await readFile(new URL("../src/components/cockpit/NowRail.tsx", import.meta.url), "utf8");
 assert.match(nowRailSource,/Visual Program|Program source/);
 

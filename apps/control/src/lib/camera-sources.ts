@@ -42,6 +42,7 @@ type VisualSourceRow = {
   edge_platform: string | null;
   edge_status: string | null;
   edge_last_seen_at: string | null;
+  edge_active_service_id: string | null;
   operator_label: string | null;
   preferred: boolean | null;
 };
@@ -163,8 +164,8 @@ export async function listVisualSources(
   const now = options.now ? new Date(options.now) : new Date();
   const staleAfterSeconds = Math.max(30, Math.min(900, Math.trunc(options.staleAfterSeconds ?? DEFAULT_STALE_AFTER_SECONDS)));
 
-  const devices = await client.query<{ id: string; name: string; platform: string; status: string; last_seen_at: string | null }>(
-    `select id::text,name,platform,status,last_seen_at::text
+  const devices = await client.query<{ id: string; name: string; platform: string; status: string; last_seen_at: string | null; active_service_id: string | null }>(
+    `select id::text,name,platform,status,last_seen_at::text,active_service_id::text
      from edge_devices
      where organization_id=$1 and status <> 'revoked'
      order by case status when 'active' then 0 when 'offline' then 1 else 2 end,last_seen_at desc nulls last,name,id`,
@@ -174,7 +175,7 @@ export async function listVisualSources(
     `select ms.id::text,ms.organization_id::text,ms.name,ms.source_type,ms.source_key,
             ms.status as source_status,ms.last_seen_at::text,ms.metadata,ms.public_config,
             ed.id::text as edge_device_id,ed.name as edge_name,ed.platform as edge_platform,
-            ed.status as edge_status,ed.last_seen_at::text as edge_last_seen_at,
+            ed.status as edge_status,ed.last_seen_at::text as edge_last_seen_at,ed.active_service_id::text as edge_active_service_id,
             csp.operator_label,csp.preferred
      from media_sources ms
      left join edge_devices ed on ed.id=ms.edge_device_id and ed.organization_id=ms.organization_id
@@ -193,7 +194,8 @@ export async function listVisualSources(
       name: device.name,
       platform: device.platform,
       status: device.status,
-      lastSeenAt: device.last_seen_at
+      lastSeenAt: device.last_seen_at,
+      activeServiceId: device.active_service_id
     })),
     staleAfterSeconds,
     sources: sources.rows.flatMap((row) => {
@@ -236,7 +238,8 @@ export async function listVisualSources(
           name: row.edge_name,
           platform: row.edge_platform,
           status: row.edge_status,
-          lastSeenAt: row.edge_last_seen_at
+          lastSeenAt: row.edge_last_seen_at,
+          activeServiceId: row.edge_active_service_id
         } : null
       }];
     })

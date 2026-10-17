@@ -65,3 +65,18 @@ assert.match(workspace, /Rescan sources/);
 assert.match(workspace, /Clear Preview/);
 assert.match(workspace, /source\.sourceKey/);
 assert.match(workspace, /busyDevice/);
+
+assert.match(workspace, /useRouter/);
+assert.match(workspace, /EventSource/);
+assert.match(workspace, /\/api\/v1\/events\?serviceId=/);
+assert.match(workspace, /router\.refresh\(\)/);
+assert.match(workspace, /const sources = initialSources/);
+assert.doesNotMatch(workspace, /useState\(initialSources\)|setSources\(/, "Edge/server source truth must not be duplicated into sync-on-effect client state");
+assert.match(workspace, /setTimeout[\s\S]*15_000/, "requested state must expire if Edge never confirms it");
+assert.match(workspace, /setInterval\(refresh, 5_000\)/);
+assert.match(workspace, /activeServiceId/);
+assert.match(workspace, /source\.reportingDevice\.activeServiceId === serviceId/);
+assert.match(workspace, /device\.activeServiceId === serviceId/);
+
+const workflow = await readFile(new URL("../../../.github/workflows/control-ci.yml", import.meta.url), "utf8");
+assert.match(workflow, /test:visual-source-workspace/, "Control Portal CI must run the Visual Sources workspace contract");

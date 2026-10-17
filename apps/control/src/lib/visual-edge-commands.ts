@@ -19,6 +19,18 @@ export class VisualEdgeCommandError extends Error {
   }
 }
 
+export function requireVisualCommandService(type: string, requestedServiceId: string | null | undefined, activeServiceId: string | null) {
+  const serviceId = requestedServiceId ?? activeServiceId;
+  if (type !== "visual.preview.select" && type !== "visual.preview.clear") return serviceId ?? null;
+  if (!serviceId) {
+    throw new VisualEdgeCommandError(409, "visual_service_required", "An active service is required for visual Preview control");
+  }
+  if (!activeServiceId || activeServiceId !== serviceId) {
+    throw new VisualEdgeCommandError(409, "visual_service_mismatch", "This Edge device is not assigned to the selected service");
+  }
+  return serviceId;
+}
+
 export function normalizeVisualCommandArguments(type: string, argumentsValue: Record<string, string>) {
   if (!VISUAL_COMMAND_TYPES.has(type)) return { ...argumentsValue };
 

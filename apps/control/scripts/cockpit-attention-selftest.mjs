@@ -74,6 +74,7 @@ const attentionSource = await readFile(new URL("../src/lib/cockpit/attention.ts"
 assert.match(attentionSource,/programVisualSource/);
 assert.match(attentionSource,/programActive/);
 assert.match(attentionSource,/sanitizeVisualSourceMetadata/);
+assert.match(attentionSource,/const visuals = await client\.query<[\s\S]*?join edge_devices[\s\S]*?active_service_id=\$2/, "visual Program attention must be scoped to the Edge assigned to this service");
 assert.doesNotMatch(attentionSource,/edge_control_commands/,"requested Edge commands must not be treated as confirmed Program truth");
 const workspaceSource = await readFile(new URL("../src/components/cockpit/CockpitWorkspace.tsx",import.meta.url),"utf8");
 assert.match(workspaceSource,/AttentionLayer/);

@@ -46,6 +46,7 @@ type SourceRow = {
   status: string;
   last_seen_at: string | null;
   metadata: unknown;
+  active_service_id: string | null;
 };
 
 type EdgeRow = {
@@ -80,8 +81,9 @@ function newestSource(rows: SourceRow[], types: Set<string>) {
   return { count: matches.length, row: sorted[0] ?? null };
 }
 
-function confirmedVisualProgram(rows: SourceRow[], now: Date) {
+function confirmedVisualProgram(rows: SourceRow[], serviceId: string | null, now: Date) {
   return rows.flatMap((row) => {
+    if (!serviceId || row.active_service_id !== serviceId) return [];
     const kind = visualSourceKind(row.source_type);
     if (!kind || freshness(row.last_seen_at, now) !== "current") return [];
     const metadata = sanitizeVisualSourceMetadata(row.metadata);
@@ -191,10 +193,12 @@ export async function getCockpitViewModel(
       )
     : { rows: [] as TranscriptRow[] };
   const sourceResult = await client.query<SourceRow>(
-    `select id::text,name,source_type,status,last_seen_at::text,metadata
-       from media_sources
-      where organization_id=$1
-      order by last_seen_at desc nulls last,id`,
+    `select ms.id::text,ms.name,ms.source_type,ms.status,ms.last_seen_at::text,ms.metadata,
+            ed.active_service_id::text
+       from media_sources ms
+       left join edge_devices ed on ed.id=ms.edge_device_id and ed.organization_id=ms.organization_id
+      where ms.organization_id=$1
+      order by ms.last_seen_at desc nulls last,ms.id`,
     [organizationId]
   );
   const edgeResult = await client.query<EdgeRow>(
@@ -229,7 +233,7 @@ export async function getCockpitViewModel(
   const program = newestStage(stageFromPresentation(presentationProgram), stageFromScripture(scriptureProgram));
   const transcript = transcriptResult.rows[0] ?? null;
   const camera = newestSource(sourceResult.rows, new Set(["camera", "video_input", "video_capture"]));
-  const visualProgram = confirmedVisualProgram(sourceResult.rows, now);
+  const visualProgram = confirmedVisualProgram(sourceResult.rows, serviceId, now);
   const audio = newestSource(sourceResult.rows, new Set(["audio_input"]));
   const edge = edgeResult.rows[0] ?? null;
   const outputs = outputResult.rows[0] ?? { total: 0, enabled: 0, healthy: 0, degraded: 0 };

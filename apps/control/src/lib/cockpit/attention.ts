@@ -248,10 +248,14 @@ export async function loadCockpitAttention(
     [input.organizationId]
   );
   const visuals = await client.query<VisualRow>(
-    `select name,source_type,last_seen_at::text,metadata from media_sources
-      where organization_id=$1 and source_type = any($2::text[])
-      order by last_seen_at desc nulls last,id`,
-    [input.organizationId,[...VISUAL_SOURCE_TYPES]]
+    `select ms.name,ms.source_type,ms.last_seen_at::text,ms.metadata
+       from media_sources ms
+       join edge_devices ed on ed.id=ms.edge_device_id and ed.organization_id=ms.organization_id
+      where ms.organization_id=$1
+        and ed.active_service_id=$2
+        and ms.source_type = any($3::text[])
+      order by ms.last_seen_at desc nulls last,ms.id`,
+    [input.organizationId,input.serviceId,[...VISUAL_SOURCE_TYPES]]
   );
   const translation = await client.query<WorkerRow>(
     `select provider,state,error_code,observed_at::text from translation_worker_status order by observed_at desc,worker_id limit 1`
