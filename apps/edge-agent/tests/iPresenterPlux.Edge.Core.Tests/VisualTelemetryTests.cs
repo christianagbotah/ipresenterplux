@@ -44,6 +44,46 @@ public sealed class VisualTelemetryTests
         Assert.Equal(expected, state.Status);
     }
 
+
+    [Fact]
+    public void WindowTelemetryUsesProcessIdentityInsteadOfArbitraryDescriptorTitle()
+    {
+        var source = new VisualSourceDescriptor(
+            VisualSourceIdentity.Create("windows", VisualSourceKind.Window, "window-1"),
+            VisualSourceKind.Window,
+            "Board Meeting - confidential payroll.xlsx",
+            "window-1",
+            VisualSourceAvailability.Available,
+            [new VisualCaptureMode(1920, 1080, 30, "bgra32")],
+            DateTimeOffset.Parse("2026-10-17T12:00:00Z"),
+            null,
+            new Dictionary<string, string> { ["processName"] = "Microsoft Excel" });
+
+        var state = MediaSourceState.FromVisual(null, source, null, new VisualRouteSnapshot(null, null, true));
+
+        Assert.Equal("Microsoft Excel", state.Name);
+        Assert.DoesNotContain("payroll", state.Name, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void WindowTelemetryFallsBackToGenericNameWhenProcessIdentityIsUnavailable()
+    {
+        var source = new VisualSourceDescriptor(
+            VisualSourceIdentity.Create("windows", VisualSourceKind.Window, "window-2"),
+            VisualSourceKind.Window,
+            "Private sermon notes - salary review",
+            "window-2",
+            VisualSourceAvailability.Available,
+            [new VisualCaptureMode(1920, 1080, 30, "bgra32")],
+            DateTimeOffset.Parse("2026-10-17T12:00:00Z"),
+            null,
+            new Dictionary<string, string>());
+
+        var state = MediaSourceState.FromVisual(null, source, null, new VisualRouteSnapshot(null, null, true));
+
+        Assert.Equal("Application window", state.Name);
+    }
+
     [Fact]
     public void EmitsOnlyAllowlistedBoundedVisualMetadata()
     {

@@ -54,10 +54,16 @@ public sealed record MediaSourceState(
             _ => "warning"
         };
 
+        var wireName = source.Kind == VisualSourceKind.Window
+            ? source.Metadata.TryGetValue("processName", out var safeProcessName) && !string.IsNullOrWhiteSpace(safeProcessName)
+                ? Bound(safeProcessName, 160)
+                : "Application window"
+            : Bound(source.Name, 160);
+
         return new MediaSourceState(
             serviceId,
             source.SourceId,
-            Bound(source.Name, 160),
+            wireName,
             source.Kind.ToString().ToLowerInvariant(),
             wireStatus,
             source.ObservedAt,

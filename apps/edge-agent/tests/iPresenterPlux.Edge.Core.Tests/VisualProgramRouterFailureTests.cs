@@ -20,6 +20,8 @@ public sealed class VisualProgramRouterFailureTests
         Assert.Equal(lastGood, router.GetCurrentFrame());
 
         session.Disconnect();
+        Assert.Equal(VisualSourceAvailability.Disconnected, router.Snapshot.Program?.Availability);
+        Assert.Equal("source_disconnected", router.Snapshot.Program?.ErrorCode);
         clock.Advance(TimeSpan.FromMilliseconds(1999));
 
         Assert.Equal(lastGood, router.GetCurrentFrame());
@@ -64,6 +66,8 @@ public sealed class VisualProgramRouterFailureTests
         clock.Advance(TimeSpan.FromMilliseconds(1500));
         var resumed = Frame("camera-a-2", clock.GetUtcNow());
         session.Resume(resumed);
+        Assert.Equal(VisualSourceAvailability.Available, router.Snapshot.Program?.Availability);
+        Assert.Null(router.Snapshot.Program?.ErrorCode);
         clock.Advance(TimeSpan.FromSeconds(1));
 
         Assert.Equal(resumed, router.GetCurrentFrame());

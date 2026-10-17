@@ -18,7 +18,7 @@ public sealed class VisualProgramRouter : IVisualProgramRouter
     private VisualRouteSnapshot _snapshot = new(null, null, true);
     private ProgramVideoFrame? _lastGoodProgramFrame;
     private DateTimeOffset? _programLossStartedAt;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public VisualProgramRouter(
         IVisualSourceCatalog catalog,
@@ -237,6 +237,8 @@ public sealed class VisualProgramRouter : IVisualProgramRouter
         var status = session.Status;
         if (ReferenceEquals(session, Volatile.Read(ref _programSession)))
         {
+            var currentSnapshot = Snapshot;
+            Volatile.Write(ref _snapshot, currentSnapshot with { Program = Slot(session.Source, status, confirmed: true) });
             lock (_frameGate)
             {
                 if (status.IsRunning && status.Availability == VisualSourceAvailability.Available && session.LatestFrame is { } frame)

@@ -94,6 +94,23 @@ public sealed class VisualControlCommandProcessorTests
         Assert.Equal("visual:camera:abc", router.Snapshot.Program?.SourceId);
     }
 
+
+    [Fact]
+    public async Task ProgramTakeIgnoresUnconfirmedVisualPreview()
+    {
+        var state = LiveState(out var serviceId);
+        var router = new FakeRouter(previewSourceId: "visual:camera:abc", previewConfirmed: false);
+        var output = new FakeMediaOutput();
+        var processor = new ControlCommandProcessor(state, output, visualRouter: router);
+
+        var result = await processor.ProcessAsync(Command(serviceId, "program.take"), CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, router.TakeCount);
+        Assert.Equal(1, output.TakeCount);
+        Assert.Equal(1, router.UseRenderedCount);
+    }
+
     [Fact]
     public async Task ProgramTakeWithoutVisualPreviewUsesPresentationTakeAndRenderedProgram()
     {
@@ -188,11 +205,11 @@ public sealed class VisualControlCommandProcessorTests
     private sealed class FakeRouter : IVisualProgramRouter
     {
         private readonly List<string>? _order;
-        public FakeRouter(string? previewSourceId = null, string? programSourceId = null, List<string>? order = null)
+        public FakeRouter(string? previewSourceId = null, string? programSourceId = null, List<string>? order = null, bool previewConfirmed = true)
         {
             _order = order;
             Snapshot = new(
-                previewSourceId is null ? null : Slot(previewSourceId),
+                previewSourceId is null ? null : Slot(previewSourceId, previewConfirmed),
                 programSourceId is null ? null : Slot(programSourceId),
                 programSourceId is null);
         }
@@ -239,7 +256,7 @@ public sealed class VisualControlCommandProcessorTests
 
         public ProgramVideoFrame GetCurrentFrame() => new(2, 2, 8, "bgra32", new byte[16], null, DateTimeOffset.UtcNow);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        private static VisualRouteSlot Slot(string sourceId) => new(sourceId, VisualSourceKind.Camera, VisualSourceAvailability.Available, true, null);
+        private static VisualRouteSlot Slot(string sourceId, bool confirmed = true) => new(sourceId, VisualSourceKind.Camera, VisualSourceAvailability.Available, confirmed, null);
     }
 
     private sealed class FakeContentProvider(PresentationRenderItem item) : IPresentationContentProvider

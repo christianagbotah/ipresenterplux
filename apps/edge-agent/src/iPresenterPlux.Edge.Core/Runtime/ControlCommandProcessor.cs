@@ -75,7 +75,7 @@ public sealed class ControlCommandProcessor(
                     return Success(command, "preview_prepared");
 
                 case "program.take":
-                    if (_visualRouter?.Snapshot.Preview is not null)
+                    if (_visualRouter?.Snapshot.Preview is { Confirmed: true })
                     {
                         await _visualRouter.TakePreviewAsync(cancellationToken).ConfigureAwait(false);
                         return Success(command, "program_live");
