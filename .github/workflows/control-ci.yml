@@ -200,6 +200,8 @@ jobs:
         run: pnpm test:visual-source-identity
       - name: Visual source telemetry sanitization self-test
         run: pnpm test:visual-source-telemetry
+      - name: Visual Edge command authorization self-test
+        run: pnpm test:visual-edge-command
       - name: PostgreSQL client query serialization self-test
         run: pnpm test:pg-client-serialization
       - name: AI Director workspace self-test
