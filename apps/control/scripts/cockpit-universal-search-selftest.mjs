@@ -38,7 +38,7 @@ const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
 const org=randomUUID(), otherOrg=randomUUID(), campus=randomUUID(), operator=randomUUID(), viewer=randomUUID(), service=randomUUID(), plan=randomUUID(), subscription=randomUUID(), foreignMedia=randomUUID();
-const song=randomUUID(), media=randomUUID(), slide=randomUUID(), edge=randomUUID(), visual=randomUUID();
+const song=randomUUID(), media=randomUUID(), slide=randomUUID(), mediaSource=randomUUID(), edge=randomUUID(), visual=randomUUID();
 const now=new Date("2099-06-01T10:00:00.000Z");
 try {
   await client.query("begin");
@@ -49,16 +49,17 @@ try {
   await client.query(`insert into services(id,organization_id,campus_id,title,status,scheduled_start,started_at,active_bible_version,ai_enabled,updated_at) values ($1,$2,$3,'Sunday Celebration','live',$4,$4,'WEBP',true,$4)`,[service,org,campus,now]);
   await client.query(`insert into subscription_plans(id,code,name,enabled,billing_interval,default_device_seat_limit,features,numeric_limits) values ($1,$2,'Search Plan',true,'custom',3,$3::jsonb,'{}'::jsonb)`,[plan,`search-${plan}`,JSON.stringify({"core.presentation":true,"ai.director":true,"streaming.web":true,"streaming.social":true})]);
   await client.query(`insert into organization_subscriptions(id,organization_id,plan_id,status,starts_at,expires_at,grace_until) values ($1,$2,$3,'active','2098-01-01T00:00:00Z','2100-01-01T00:00:00Z','2100-01-08T00:00:00Z')`,[subscription,org,plan]);
-  await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,created_by,updated_at) values
-    ($1,$4,'song','Way Maker',$5::jsonb,$7,$8),
-    ($2,$4,'media','Welcome Video',$6::jsonb,$7,$8),
-    ($3,$4,'slide','Welcome Visitors',$9::jsonb,$7,$8)`,[
+  await client.query(`insert into media_sources(id,organization_id,name,source_type,status,public_config) values ($1,$2,'Welcome Video Asset','media_file','ready',$3::jsonb)`,[mediaSource,org,JSON.stringify({assetUrl:'https://example.invalid/welcome.mp4',mediaKind:'video'})]);
+  await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,media_source_id,created_by,updated_at) values
+    ($1,$4,'song','Way Maker',$5::jsonb,null,$8,$9),
+    ($2,$4,'media','Welcome Video',$6::jsonb,$7,$8,$9),
+    ($3,$4,'slide','Welcome Visitors',$10::jsonb,null,$8,$9)`,[
       song,media,slide,org,
       JSON.stringify({title:"Way Maker",sections:[{label:"Verse",text:"Way maker"}]}),
-      JSON.stringify({title:"Welcome Video",sourceId:null,mediaKind:"video"}),operator,now,
+      JSON.stringify({title:"Welcome Video",sourceId:mediaSource,mediaKind:"video"}),mediaSource,operator,now,
       JSON.stringify({title:"Welcome Visitors",body:"We are glad you are here"})
     ]);
-  await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,created_by,updated_at) values ($1,$2,'media','Welcome Secret Other Church',$3::jsonb,$4,$5)`,[foreignMedia,otherOrg,JSON.stringify({title:"Welcome Secret Other Church",mediaKind:"video"}),operator,now]);
+  await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,created_by,updated_at) values ($1,$2,'slide','Welcome Secret Other Church',$3::jsonb,$4,$5)`,[foreignMedia,otherOrg,JSON.stringify({title:"Welcome Secret Other Church",body:"Private other church slide"}),operator,now]);
   await client.query(`insert into presentation_items(service_id,item_type,title,content,sort_order,state,updated_at) values ($1,'announcement','Offering Time',$2::jsonb,10,'queued',$3)`,[service,JSON.stringify({body:"Giving"}),now]);
   await client.query(`insert into edge_devices(id,organization_id,name,platform,status,last_seen_at,active_service_id) values ($1,$2,'Sanctuary PC','windows','active',$3,$4)`,[edge,org,now,service]);
   await client.query(`insert into media_sources(id,organization_id,name,source_type,status,last_seen_at,edge_device_id,source_key,metadata,public_config) values ($1,$2,'Pulpit Camera','camera','ready',$3,$4,'camera:pulpit',$5::jsonb,'{}'::jsonb)`,[visual,org,now,edge,JSON.stringify({captureStatus:"ready",reportedName:"Pulpit Camera"})]);
