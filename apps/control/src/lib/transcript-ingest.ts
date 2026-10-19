@@ -415,7 +415,8 @@ export async function ingestTranscriptForService(
 
   const inserted: TranscriptResult["inserted"] = [];
   const stateChanges: TranscriptResult["stateChanges"] = [];
-  const activeEdgeCount = service.scripture_automation_mode === "auto_live"
+  const scriptureAutomationEnabled = service.ai_enabled && service.scripture_automation_mode !== "manual";
+  const activeEdgeCount = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
     ? await activeAssignedEdgeCount(client, service.organization_id, service.id)
     : 0;
 
@@ -428,25 +429,27 @@ export async function ingestTranscriptForService(
       (observedMs === cursorObservedMs && ordinal < cursorBeforeIngest.source_ordinal)
     );
     const stale = staleByTranscript || staleByCursor;
-    const sameReferenceAlreadyLive = service.scripture_automation_mode === "auto_live"
+    const sameReferenceAlreadyLive = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
       ? await recentlyLiveReference(client, service.id, match.reference, new Date())
       : false;
-    const automation = decideScriptureAutomation({
-      mode: service.scripture_automation_mode,
-      organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
-      serviceStatus: service.status,
-      armed: Boolean(service.scripture_automation_armed_at && service.scripture_automation_armed_by),
-      detectionMethod: match.detectionMethod,
-      confidence: match.confidence,
-      referenceThreshold: Number(service.auto_scripture_reference_threshold),
-      quoteThreshold: Number(service.auto_scripture_quote_threshold),
-      stale,
-      competingMatches: matches.length,
-      alreadyLiveSameReference: sameReferenceAlreadyLive,
-      activeEdgeCount,
-      localBibleReady: hasLocalBible,
-      asrConfidence: payload.confidence ?? null
-    });
+    const automation = scriptureAutomationEnabled
+      ? decideScriptureAutomation({
+          mode: service.scripture_automation_mode,
+          organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
+          serviceStatus: service.status,
+          armed: Boolean(service.scripture_automation_armed_at && service.scripture_automation_armed_by),
+          detectionMethod: match.detectionMethod,
+          confidence: match.confidence,
+          referenceThreshold: Number(service.auto_scripture_reference_threshold),
+          quoteThreshold: Number(service.auto_scripture_quote_threshold),
+          stale,
+          competingMatches: matches.length,
+          alreadyLiveSameReference: sameReferenceAlreadyLive,
+          activeEdgeCount,
+          localBibleReady: hasLocalBible,
+          asrConfidence: payload.confidence ?? null
+        })
+      : { action: "detect" as const, reason: service.ai_enabled ? "manual_mode" : "ai_disabled" };
     const nextState = automation.action === "preview" ? "preview" : "detected";
     if (nextState === "preview") {
       await execute(

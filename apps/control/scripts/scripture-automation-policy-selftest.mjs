@@ -53,6 +53,7 @@ for (const [name, override, action, reason] of cases) {
 
 const ingestSource = await readFile(new URL("../src/lib/transcript-ingest.ts", import.meta.url), "utf8");
 assert.match(ingestSource, /decideScriptureAutomation/, "transcript ingest must use the deterministic policy evaluator");
+assert.match(ingestSource, /service\.ai_enabled\s*&&/i, "AI Director disable must gate automation before Preview or Program");
 assert.match(ingestSource, /activeAssignedEdgeCount/, "transcript ingest must gate auto-live on assigned active Edge truth");
 assert.match(ingestSource, /recentlyLiveReference/, "transcript ingest must suppress repeated live references");
 assert.match(ingestSource, /transitionScriptureState/, "auto-live must use the shared Scripture state authority");
