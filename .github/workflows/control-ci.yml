@@ -132,6 +132,8 @@ jobs:
         run: pnpm test:scripture-state-authority
       - name: Scripture workspace UI self-test
         run: pnpm test:scripture-workspace-ui
+      - name: Scripture Auto Live UI self-test
+        run: pnpm test:scripture-auto-live-ui
       - name: Whole-chapter Scripture rendering self-test
         run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test

@@ -73,6 +73,16 @@ export type CockpitViewModel = {
     activeBibleVersion: string;
     aiEnabled: boolean;
     autoPreviewThreshold: number;
+    scriptureAutomation: {
+      mode: "manual" | "auto_preview" | "auto_live";
+      armed: boolean;
+      armedAt: string | null;
+      armedBy: string | null;
+      referenceThreshold: number;
+      quoteThreshold: number;
+      organizationAutoLiveEnabled: boolean;
+      suspendedReason: string | null;
+    };
   };
   capabilities: CurrentServiceCapabilities;
   program: CockpitProgramState | null;

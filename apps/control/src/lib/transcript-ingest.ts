@@ -507,7 +507,9 @@ export async function ingestTranscriptForService(
         confidence: match.confidence,
         reason: automation.action === "live"
           ? `${match.reference} sent live automatically`
-          : `${match.reference} detected`,
+          : automation.action === "preview"
+            ? `${match.reference} sent to Preview · ${automation.reason.replaceAll("_", " ")}`
+            : `${match.reference} kept in Next · ${automation.reason.replaceAll("_", " ")}`,
         evidence: (match.matchedSourceText ?? payload.text).trim().slice(0, 500),
         sourceObservedAt: observedAt,
         expiresAt: new Date(observedAt.getTime() + 120_000),
