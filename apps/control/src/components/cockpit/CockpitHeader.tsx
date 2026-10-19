@@ -5,6 +5,7 @@ import { ServiceControls } from "@/components/ServiceControls";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SessionClock } from "./SessionClock";
 import { UniversalFindTrigger } from "./UniversalFindTrigger";
+import { ScriptureAutomationControl } from "@/components/scripture/ScriptureAutomationControl";
 
 const domainLinks = [
   ["Scripture", "/scripture"], ["Songs & Media", "/media"], ["Cameras", "/cameras"],
@@ -29,6 +30,13 @@ export function CockpitHeader({ model }: { model: CockpitViewModel }) {
         <SessionClock live={live} />
       </div>
       <UniversalFindTrigger />
+      {service?.scriptureAutomation.armed ? <div className="hidden md:block"><ScriptureAutomationControl
+        scope="service" serviceId={service.id} serviceStatus={service.status}
+        mode={service.scriptureAutomation.mode} armed={service.scriptureAutomation.armed}
+        referenceThreshold={service.scriptureAutomation.referenceThreshold} quoteThreshold={service.scriptureAutomation.quoteThreshold}
+        organizationAutoLiveEnabled={service.scriptureAutomation.organizationAutoLiveEnabled}
+        suspendedReason={service.scriptureAutomation.suspendedReason} canControl={model.capabilities.canLiveControl} compact
+      /></div> : null}
       <div className="flex items-center gap-2">
         <details className="relative hidden lg:block">
           <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/55 transition hover:bg-white/[.05] hover:text-white/85 ip-focus-gold">

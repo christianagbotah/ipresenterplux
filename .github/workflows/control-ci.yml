@@ -97,6 +97,12 @@ jobs:
         run: pnpm test:db-selftest-safety
       - name: Subscription entitlement schema self-test
         run: pnpm test:subscription-schema
+      - name: Scripture automation schema self-test
+        run: pnpm test:scripture-automation-schema
+      - name: Scripture automation policy self-test
+        run: pnpm test:scripture-automation-policy
+      - name: Scripture automation API self-test
+        run: pnpm test:scripture-automation-api
       - name: Secure product-key self-test
         run: pnpm test:product-key
       - name: Signed entitlement envelope self-test
@@ -122,8 +128,16 @@ jobs:
         run: pnpm test:bible-library
       - name: Manual Scripture selection self-test
         run: pnpm test:manual-scripture
+      - name: Scripture state authority self-test
+        run: pnpm test:scripture-state-authority
       - name: Scripture workspace UI self-test
         run: pnpm test:scripture-workspace-ui
+      - name: Scripture Auto Live UI self-test
+        run: pnpm test:scripture-auto-live-ui
+      - name: Scripture Auto Live acceptance self-test
+        run: pnpm test:scripture-auto-live-acceptance
+      - name: Scripture Auto Live field-UAT release-gate self-test
+        run: pnpm test:scripture-auto-live-field-uat-gate
       - name: Whole-chapter Scripture rendering self-test
         run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test

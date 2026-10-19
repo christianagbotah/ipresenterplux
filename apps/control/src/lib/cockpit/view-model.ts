@@ -257,7 +257,8 @@ export async function getCockpitViewModel(
       campusName: context.service.campusName,
       activeBibleVersion: context.service.activeBibleVersion,
       aiEnabled: context.service.aiEnabled,
-      autoPreviewThreshold: context.service.autoPreviewThreshold
+      autoPreviewThreshold: context.service.autoPreviewThreshold,
+      scriptureAutomation: context.service.scriptureAutomation
     } : null,
     capabilities: context.capabilities,
     program,

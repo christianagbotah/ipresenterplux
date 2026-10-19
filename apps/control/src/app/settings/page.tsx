@@ -34,8 +34,15 @@ export default async function SettingsPage() {
   const canDevices = roles.some((role) => DEVICE_ADMIN_ROLES.includes(role as never));
   const canVoices = roles.some((role) => VOICE_ADMIN_ROLES.includes(role as never));
   const canSubscription = canDevices;
+  const canScriptureAutomation = roles.some((role) => role === "owner" || role === "admin");
 
   const cards = [
+    canScriptureAutomation ? {
+      href: "/settings/scripture-automation",
+      title: "Scripture Automation",
+      description: "Permit Auto Scripture Live for this church. Live services still require a separate operator arm action.",
+      icon: ShieldCheck
+    } : null,
     canDevices ? {
       href: "/settings/devices",
       title: "Edge Devices",

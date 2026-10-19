@@ -85,7 +85,15 @@
     "demo:license": "node scripts/bootstrap-demo-entitlements.mjs",
     "test:visual-source-workspace": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-source-workspace-selftest.mjs",
     "test:cockpit-universal-search": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-universal-search-selftest.mjs",
-    "test:cockpit-command-surface": "node scripts/cockpit-command-surface-selftest.mjs"
+    "test:cockpit-command-surface": "node scripts/cockpit-command-surface-selftest.mjs",
+    "test:scripture-automation-schema": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-automation-schema-selftest.mjs",
+    "test:scripture-state-authority": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-state-authority-selftest.mjs",
+    "test:scripture-automation-policy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-automation-policy-selftest.mjs",
+    "test:scripture-automation-api": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-automation-api-selftest.mjs",
+    "test:scripture-auto-live-ui": "node scripts/scripture-auto-live-ui-selftest.mjs",
+    "test:scripture-auto-live-acceptance": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-auto-live-acceptance-selftest.mjs",
+    "test:scripture-auto-live-field-uat-gate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-auto-live-field-uat-gate-selftest.mjs",
+    "uat:scripture-auto-live": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-auto-live-field-uat-gate.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

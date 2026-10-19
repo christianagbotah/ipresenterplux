@@ -1,6 +1,9 @@
 import type { PoolClient, QueryResultRow } from "pg";
 import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
+import { activeAssignedEdgeCount, decideScriptureAutomation, fatalAutoLivePrerequisite, recentlyLiveReference, type ScriptureAutomationMode } from "@/lib/scripture-automation";
+import { applyScriptureAutomationCircuitBreaker, recordAutoScriptureLiveTake } from "@/lib/scripture-automation-telemetry";
+import { ScriptureStateError, transitionScriptureState } from "@/lib/scripture-state";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
 import { enqueueTranslationJobs } from "@/lib/translation-jobs";
@@ -22,6 +25,13 @@ export type ServiceContext = {
   active_bible_version: string;
   auto_preview_threshold: string;
   ai_enabled: boolean;
+  status: string;
+  scripture_automation_mode: ScriptureAutomationMode;
+  auto_scripture_reference_threshold: string;
+  auto_scripture_quote_threshold: string;
+  scripture_automation_armed_at: string | null;
+  scripture_automation_armed_by: string | null;
+  auto_scripture_live_enabled: boolean;
 };
 
 export type TranscriptInput = {
@@ -47,6 +57,13 @@ type TranscriptResult = {
     detection_method: string;
     detected_at: string;
   }>;
+  stateChanges: Array<{
+    id: string;
+    reference: string;
+    from: string;
+    to: string;
+    edgeCommandsQueued: number;
+  }>;
 };
 
 type ScriptureContextRow = {
@@ -66,8 +83,12 @@ type BibleVerseRow = {
 
 export async function findServiceById(serviceId: string) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
-     from services where id=$1 limit 1`,
+    `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text,s.ai_enabled,
+            s.status,s.scripture_automation_mode,s.auto_scripture_reference_threshold::text,s.auto_scripture_quote_threshold::text,
+            s.scripture_automation_armed_at::text,s.scripture_automation_armed_by::text,o.auto_scripture_live_enabled
+       from services s
+       join organizations o on o.id=s.organization_id
+      where s.id=$1 limit 1`,
     [serviceId]
   );
   return found.rows[0];
@@ -75,13 +96,16 @@ export async function findServiceById(serviceId: string) {
 
 export async function findActiveServiceForDevice(organizationId: string, campusId: string | null) {
   const found = await query<ServiceContext>(
-    `select id,organization_id::text,campus_id::text,active_bible_version,auto_preview_threshold::text,ai_enabled
-     from services
-     where organization_id=$1
-       and status in ('live','ready')
-       and ($2::uuid is null or campus_id=$2::uuid)
-     order by case when status='live' then 0 else 1 end, created_at desc
-     limit 1`,
+    `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text,s.ai_enabled,
+            s.status,s.scripture_automation_mode,s.auto_scripture_reference_threshold::text,s.auto_scripture_quote_threshold::text,
+            s.scripture_automation_armed_at::text,s.scripture_automation_armed_by::text,o.auto_scripture_live_enabled
+       from services s
+       join organizations o on o.id=s.organization_id
+      where s.organization_id=$1
+        and s.status in ('live','ready')
+        and ($2::uuid is null or s.campus_id=$2::uuid)
+      order by case when s.status='live' then 0 else 1 end,s.created_at desc
+      limit 1`,
     [organizationId, campusId]
   );
   return found.rows[0];
@@ -298,32 +322,38 @@ export async function publishTranscriptIngestResult(result: TranscriptResult) {
     translationJobsQueued: result.translationJobsQueued
   });
 
-  if (!result.inserted.length) return;
-  await publishServiceEvent(result.serviceId, "scripture.detected", {
-    detections: result.inserted.map((item) => ({
-      id: item.id,
-      reference: item.scripture_reference,
-      confidence: item.confidence,
-      state: item.state,
-      method: item.detection_method
-    }))
-  });
+  if (result.inserted.length) {
+    await publishServiceEvent(result.serviceId, "scripture.detected", {
+      detections: result.inserted.map((item) => ({
+        id: item.id,
+        reference: item.scripture_reference,
+        confidence: item.confidence,
+        state: item.state,
+        method: item.detection_method
+      }))
+    });
+  }
+
+  for (const change of result.stateChanges) {
+    await publishServiceEvent(result.serviceId, "scripture.state.changed", change);
+  }
 }
 
 export async function ingestTranscriptForService(
   service: ServiceContext,
   payload: TranscriptInput,
-  client?: PoolClient
+  client?: PoolClient,
+  finalizedRecognitionAt: Date = new Date()
 ): Promise<TranscriptResult> {
   if (!payload.text.trim()) {
-    return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, translationJobsQueued: 0, inserted: [] };
+    return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, translationJobsQueued: 0, inserted: [], stateChanges: [] };
   }
 
   if (!client) {
     const ownedClient = await db.connect();
     try {
       await ownedClient.query("begin");
-      const result = await ingestTranscriptForService(service, payload, ownedClient);
+      const result = await ingestTranscriptForService(service, payload, ownedClient, finalizedRecognitionAt);
       await ownedClient.query("commit");
       await publishTranscriptIngestResult(result);
       return result;
@@ -386,6 +416,33 @@ export async function ingestTranscriptForService(
   }
 
   const inserted: TranscriptResult["inserted"] = [];
+  const stateChanges: TranscriptResult["stateChanges"] = [];
+  const scriptureAutomationEnabled = service.ai_enabled && service.scripture_automation_mode !== "manual";
+  const activeEdgeCount = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
+    ? await activeAssignedEdgeCount(client, service.organization_id, service.id)
+    : 0;
+  const automationArmed = Boolean(service.scripture_automation_armed_at && service.scripture_automation_armed_by);
+  const fatalPrerequisite = scriptureAutomationEnabled
+    ? fatalAutoLivePrerequisite({
+        mode: service.scripture_automation_mode,
+        armed: automationArmed,
+        organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
+        serviceStatus: service.status,
+        activeEdgeCount,
+        localBibleReady: hasLocalBible
+      })
+    : null;
+  if (fatalPrerequisite && service.scripture_automation_armed_by) {
+    await applyScriptureAutomationCircuitBreaker(client, {
+      organizationId: service.organization_id,
+      serviceId: service.id,
+      actorUserId: service.scripture_automation_armed_by,
+      mode: service.scripture_automation_mode,
+      armed: automationArmed,
+      reason: fatalPrerequisite
+    });
+  }
+
   for (const [ordinal, match] of matches.entries()) {
     const observedMs = observedAt.getTime();
     const latestTranscriptMs = latestTranscriptBefore ? new Date(latestTranscriptBefore).getTime() : null;
@@ -394,10 +451,29 @@ export async function ingestTranscriptForService(
       observedMs < cursorObservedMs ||
       (observedMs === cursorObservedMs && ordinal < cursorBeforeIngest.source_ordinal)
     );
-    const staleForPreview = staleByTranscript || staleByCursor;
-    const nextState = service.ai_enabled && !staleForPreview && match.confidence >= Number(service.auto_preview_threshold)
-      ? "preview"
-      : "detected";
+    const stale = staleByTranscript || staleByCursor;
+    const sameReferenceAlreadyLive = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
+      ? await recentlyLiveReference(client, service.id, match.reference, new Date())
+      : false;
+    let automation = scriptureAutomationEnabled
+      ? decideScriptureAutomation({
+          mode: service.scripture_automation_mode,
+          organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
+          serviceStatus: service.status,
+          armed: Boolean(service.scripture_automation_armed_at && service.scripture_automation_armed_by),
+          detectionMethod: match.detectionMethod,
+          confidence: match.confidence,
+          referenceThreshold: Number(service.auto_scripture_reference_threshold),
+          quoteThreshold: Number(service.auto_scripture_quote_threshold),
+          stale,
+          competingMatches: matches.length,
+          alreadyLiveSameReference: sameReferenceAlreadyLive,
+          activeEdgeCount,
+          localBibleReady: hasLocalBible,
+          asrConfidence: payload.confidence ?? null
+        })
+      : { action: "detect" as const, reason: service.ai_enabled ? "manual_mode" : "ai_disabled" };
+    let nextState = automation.action === "preview" ? "preview" : "detected";
     if (nextState === "preview") {
       await execute(
         client,
@@ -415,28 +491,102 @@ export async function ingestTranscriptForService(
       [service.id,match.reference,match.book,match.chapter,match.verseStart,match.verseEnd ?? null,
        bibleVersion,match.matchedSourceText ?? payload.text,match.confidence,nextState,match.detectionMethod,observedAt,ordinal]
     );
-    inserted.push(result.rows[0]);
+    const insertedDetection = result.rows[0];
+
+    if (automation.action === "live" && service.scripture_automation_armed_by) {
+      try {
+        const transition = await transitionScriptureState(client, {
+          detectionId: insertedDetection.id,
+          targetState: "live",
+          actor: { type: "automation", userId: service.scripture_automation_armed_by, reason: "auto_scripture_live" },
+          source: "scripture.auto_live",
+          requireEdgeForLive: true
+        });
+        insertedDetection.state = transition.scripture.state;
+        const programCommandQueuedAt = new Date();
+        await recordAutoScriptureLiveTake(client, {
+          organizationId: service.organization_id,
+          serviceId: service.id,
+          actorUserId: service.scripture_automation_armed_by,
+          detectionId: insertedDetection.id,
+          reference: match.reference,
+          bibleVersion,
+          detectionMethod: match.detectionMethod,
+          confidence: match.confidence,
+          observedAt,
+          decisionReason: automation.reason,
+          edgeCommandsQueued: transition.edgeCommandsQueued,
+          finalizedRecognitionAt,
+          programCommandQueuedAt
+        });
+        stateChanges.push({
+          id: transition.scripture.id,
+          reference: transition.scripture.reference,
+          from: transition.fromState,
+          to: transition.scripture.state,
+          edgeCommandsQueued: transition.edgeCommandsQueued
+        });
+      } catch (error) {
+        if (!(error instanceof ScriptureStateError) || error.code !== "active_edge_required") throw error;
+        automation = { action: "preview", reason: "no_active_edge" };
+        await applyScriptureAutomationCircuitBreaker(client, {
+          organizationId: service.organization_id,
+          serviceId: service.id,
+          actorUserId: service.scripture_automation_armed_by,
+          mode: service.scripture_automation_mode,
+          armed: true,
+          reason: "no_active_edge"
+        });
+        const fallback = await transitionScriptureState(client, {
+          detectionId: insertedDetection.id,
+          targetState: "preview",
+          actor: { type: "automation", userId: service.scripture_automation_armed_by, reason: "auto_scripture_live" },
+          source: "scripture.auto_live.edge_fallback"
+        });
+        insertedDetection.state = fallback.scripture.state;
+        nextState = "preview";
+        stateChanges.push({
+          id: fallback.scripture.id,
+          reference: fallback.scripture.reference,
+          from: fallback.fromState,
+          to: fallback.scripture.state,
+          edgeCommandsQueued: fallback.edgeCommandsQueued
+        });
+      }
+    }
+
+    inserted.push(insertedDetection);
     if (service.ai_enabled) {
       await upsertCockpitRecommendation(client, {
         organizationId: service.organization_id,
         serviceId: service.id,
-        sourceKey: `scripture:${result.rows[0].id}`,
+        sourceKey: `scripture:${insertedDetection.id}`,
         recommendationType: "scripture.detected",
         targetType: "scripture_detection",
-        targetId: result.rows[0].id,
-        payload: { reference: match.reference, bibleVersion, method: match.detectionMethod },
+        targetId: insertedDetection.id,
+        payload: {
+          reference: match.reference,
+          bibleVersion,
+          method: match.detectionMethod,
+          automationAction: automation.action,
+          automationReason: automation.reason
+        },
         confidence: match.confidence,
-        reason: `${match.reference} detected`,
+        reason: automation.action === "live"
+          ? `${match.reference} sent live automatically`
+          : automation.action === "preview"
+            ? `${match.reference} sent to Preview · ${automation.reason.replaceAll("_", " ")}`
+            : `${match.reference} kept in Next · ${automation.reason.replaceAll("_", " ")}`,
         evidence: (match.matchedSourceText ?? payload.text).trim().slice(0, 500),
         sourceObservedAt: observedAt,
         expiresAt: new Date(observedAt.getTime() + 120_000),
-        state: nextState === "preview" ? "prepared" : "suggested",
+        state: automation.action === "live" ? "accepted" : nextState === "preview" ? "prepared" : "suggested",
         previewResultType: nextState === "preview" ? "scripture_detection" : null,
-        previewResultId: nextState === "preview" ? result.rows[0].id : null,
+        previewResultId: nextState === "preview" ? insertedDetection.id : null,
         now: observedAt
       });
     }
-    if (!staleForPreview) {
+    if (!stale) {
       await updateScriptureContext(client, service.id, match, bibleVersion, observedAt, ordinal);
     }
   }
@@ -447,7 +597,8 @@ export async function ingestTranscriptForService(
     transcript: payload.text,
     detected: matches.length,
     translationJobsQueued: translationJobs.length,
-    inserted
+    inserted,
+    stateChanges
   };
   return result;
 }
