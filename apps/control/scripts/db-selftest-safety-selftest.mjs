@@ -49,6 +49,7 @@ const protectedScripts = [
   "ai-director-selftest.mjs",
   "archive-selftest.mjs",
   "audience-live-state-selftest.mjs",
+  "audience-session-selftest.mjs",
   "camera-workspace-selftest.mjs",
   "cockpit-view-model-selftest.mjs",
   "cockpit-field-uat-selftest.mjs",

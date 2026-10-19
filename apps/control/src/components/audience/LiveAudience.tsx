@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { LiveTranslatedAudio } from "@/components/audience/LiveTranslatedAudio";
 import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import type { PublicAudienceVideoStatus } from "@/lib/public-audience-video-state";
@@ -48,16 +48,30 @@ export function LiveAudience({
   languages
 }: Props) {
   const fallbackChannelId = languages[0]?.id ?? "";
+  const languageStorageKey=`ipresenterplux-language:${serviceId}`;
+  const audienceSessionStorageKey=`ipresenterplux-audience-session:${serviceId}`;
   const selectedChannelId = useSyncExternalStore(
     (onStoreChange) => {
       window.addEventListener("ipresenterplux-language-change", onStoreChange);
       return () => window.removeEventListener("ipresenterplux-language-change", onStoreChange);
     },
     () => {
-      const saved = window.localStorage.getItem("ipresenterplux-language");
+      const saved = window.localStorage.getItem(languageStorageKey);
       return languages.some((item) => item.id === saved) ? saved ?? fallbackChannelId : fallbackChannelId;
     },
     () => fallbackChannelId
+  );
+
+  const audienceSessionId=useSyncExternalStore(
+    () => () => {},
+    () => {
+      const saved=window.localStorage.getItem(audienceSessionStorageKey);
+      if(saved && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)) return saved;
+      const created=crypto.randomUUID();
+      window.localStorage.setItem(audienceSessionStorageKey,created);
+      return created;
+    },
+    () => ""
   );
 
   const selected = useMemo(
@@ -66,9 +80,25 @@ export function LiveAudience({
   );
 
   function selectLanguage(id: string) {
-    window.localStorage.setItem("ipresenterplux-language", id);
+    window.localStorage.setItem(languageStorageKey, id);
     window.dispatchEvent(new Event("ipresenterplux-language-change"));
   }
+
+  useEffect(() => {
+    if(!audienceSessionId) return;
+    let stopped=false;
+    const heartbeat=async () => {
+      if(stopped || navigator.onLine===false) return;
+      try {
+        await fetch("/api/v1/audience/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({serviceId,sessionId:audienceSessionId,channelId:selectedChannelId||null}),cache:"no-store",keepalive:true});
+      } catch { /* Public audience remains usable even if presence telemetry is unavailable. */ }
+    };
+    void heartbeat();
+    const timer=window.setInterval(()=>void heartbeat(),20_000);
+    const onVisible=()=>{ if(document.visibilityState==="visible") void heartbeat(); };
+    document.addEventListener("visibilitychange",onVisible);
+    return ()=>{ stopped=true; window.clearInterval(timer); document.removeEventListener("visibilitychange",onVisible); };
+  },[audienceSessionId,selectedChannelId,serviceId]);
 
   const sourceSelected = selected?.mode === "original"
     || Boolean(transcriptLanguage && selected?.code === transcriptLanguage);

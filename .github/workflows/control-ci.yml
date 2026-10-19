@@ -178,6 +178,8 @@ jobs:
         run: pnpm test:audience-live-state
       - name: Public audience Program video-state self-test
         run: pnpm test:audience-program-video-state
+      - name: Audience language session self-test
+        run: pnpm test:audience-session
       - name: Streaming Studio recovery self-test
         run: pnpm test:streaming-studio-recovery
       - name: Destination fan-out lifecycle self-test

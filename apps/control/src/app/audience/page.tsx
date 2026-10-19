@@ -14,7 +14,7 @@ import { getCurrentServiceForUser } from "@/lib/current-service";
 export const dynamic = "force-dynamic";
 
 type ServiceRow = { id: string; organization_id: string; title: string; status: string };
-type LanguageRow = { language_name: string; channel_mode: string; listener_count: number };
+type LanguageRow = { language_name: string; channel_mode: string; listeners: number };
 type ScriptureRow = { scripture_reference: string; passage_text: string | null };
 type TranscriptRow = { text: string };
 type StreamRow = { status: string };
@@ -40,10 +40,14 @@ async function audiencePageData(userId: string) {
 
   const [languages, scriptures, transcripts, streams] = await Promise.all([
     query<LanguageRow>(
-      `select language_name,channel_mode,listener_count from language_channels
-       where organization_id=$1::uuid and enabled=true
-       order by case channel_mode when 'original' then 0 when 'captions' then 1 when 'translation_audio' then 2 else 3 end,language_name`,
-      [organizationId]
+      `select lc.language_name,lc.channel_mode,
+              (select count(*)::int from audience_sessions aus
+               where aus.service_id=$2::uuid and aus.language_channel_id=lc.id
+                 and aus.last_seen_at >= clock_timestamp()-interval '45 seconds') as listeners
+       from language_channels lc
+       where lc.organization_id=$1::uuid and lc.enabled=true
+       order by case lc.channel_mode when 'original' then 0 when 'captions' then 1 when 'translation_audio' then 2 else 3 end,lc.language_name`,
+      [organizationId,service.id]
     ),
     query<ScriptureRow>(
       `select sd.scripture_reference,
@@ -71,7 +75,7 @@ async function audiencePageData(userId: string) {
     service,
     capabilities,
     navigationCapabilities,
-    languages: languages.rows.map((row) => ({ name: row.language_name, mode: row.channel_mode, listeners: row.listener_count })),
+    languages: languages.rows.map((row) => ({ name: row.language_name, mode: row.channel_mode, listeners: row.listeners })),
     scripture: scriptures.rows[0] ? { reference: scriptures.rows[0].scripture_reference, text: scriptures.rows[0].passage_text } : null,
     caption: transcripts.rows[0]?.text ?? null,
     streamStatus: streams.rows[0]?.status ?? "idle"
