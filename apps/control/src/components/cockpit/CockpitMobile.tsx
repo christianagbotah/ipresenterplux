@@ -6,6 +6,7 @@ import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { NextRail } from "./NextRail";
 import { ProgramPreviewStage } from "./ProgramPreviewStage";
 import { MobileBottomNav } from "./mobile/MobileBottomNav";
+import { MobileFindBar } from "./mobile/MobileFindBar";
 import { MobileLiveStrip } from "./mobile/MobileLiveStrip";
 import { MobileQuickActions } from "./mobile/MobileQuickActions";
 
@@ -72,6 +73,7 @@ function MobileBody({ model, projection }: { model: CockpitViewModel; projection
 export function CockpitMobile({ model, projection }: { model: CockpitViewModel; projection: CockpitRoleProjection }) {
   return <div className="space-y-3 pb-20 md:hidden" data-cockpit-mobile-profile={projection.kind}>
     <MobileLiveStrip model={model} projection={projection}/>
+    <MobileFindBar/>
     <MobileBody model={model} projection={projection}/>
     <MobileBottomNav projection={projection} active="live"/>
   </div>;

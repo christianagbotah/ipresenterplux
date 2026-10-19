@@ -234,14 +234,6 @@ export function CommandPalette() {
   }
 
   return <>
-    <button
-      type="button"
-      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="ip-focus-gold fixed bottom-20 right-4 z-40 flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-[#10151e]/95 px-3 text-xs font-bold text-white/75 shadow-2xl backdrop-blur-xl transition hover:bg-[#151b26] hover:text-white md:hidden"
-      aria-label="What do you need next?"
-    >
-      <Search size={16}/><span>Find</span>
-    </button>
     {open ? <div className="fixed inset-0 z-[160] flex items-start justify-center bg-black/65 px-3 pt-[7vh] backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="What do you need next?">
       <section className="w-full max-w-3xl overflow-hidden rounded-2xl border border-white/[.1] bg-[#0a0f17] shadow-[0_30px_120px_rgba(0,0,0,.65)]">
         <form onSubmit={submit} className="border-b border-white/[.07] p-3">

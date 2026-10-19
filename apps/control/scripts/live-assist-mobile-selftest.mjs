@@ -8,6 +8,8 @@ const files = {
   strip: "../src/components/cockpit/mobile/MobileLiveStrip.tsx",
   nav: "../src/components/cockpit/mobile/MobileBottomNav.tsx",
   actions: "../src/components/cockpit/mobile/MobileQuickActions.tsx",
+  find: "../src/components/cockpit/mobile/MobileFindBar.tsx",
+  palette: "../src/components/cockpit/CommandPalette.tsx",
   projection: "../src/lib/cockpit/role-projection.ts"
 };
 for (const relative of Object.values(files)) await access(new URL(relative, import.meta.url));
@@ -40,5 +42,19 @@ assert.match(source.projection, /canOpenService/, "role projection must own Serv
 assert.match(source.projection, /canOpenAudience/, "role projection must own Audience visibility");
 assert.doesNotMatch(source.actions, /engineering|bitrate|encoder/i, "quick actions must not expose engineering clutter");
 assert.match(source.actions, /min-h-11|min-h-12|h-11|h-12/, "quick actions must use touch-sized targets");
+
+assert.match(source.cockpit, /MobileFindBar/, "CockpitMobile must expose mobile Universal Find");
+assert.match(source.find, /What do you need next\?/, "mobile find entry must use the approved prompt");
+assert.match(source.find, /min-h-11|min-h-12|h-11|h-12/, "mobile find entry must be at least 44px");
+assert.match(source.find, /ipresenterplux:command-open/, "mobile find must open the shared Universal Find surface");
+assert.doesNotMatch(source.find, /\/api\/v1\/cockpit\/command|method:\s*["']POST["']/, "mobile find trigger must not mutate while typing or opening");
+for (const label of ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"]) assert.ok(source.palette.includes(label), `shared mobile search must retain ${label} grouping`);
+assert.match(source.palette, /onSubmit=\{submit\}/, "mobile search sheet must support keyboard/form submission");
+assert.match(source.palette, /event\.key === ["']Escape["']/, "mobile search sheet must close safely with Escape");
+assert.match(source.palette, /aria-label=["']Close universal find["']/, "mobile search sheet must expose an explicit back/close action");
+assert.match(source.palette, /Search is temporarily unavailable\. Live controls remain available\./, "network loss must preserve live-control guidance");
+assert.match(source.palette, /\/api\/v1\/cockpit\/search\?q=/, "typing must use the read-only search endpoint");
+assert.match(source.palette, /\/api\/v1\/cockpit\/command/, "explicit submit must reuse the safe command endpoint");
+assert.doesNotMatch(source.palette, /onChange=.*runCommand/, "typing must never execute a command");
 
 console.log(JSON.stringify({ ok: true, shellSplit: true, persistentLiveStrip: true, roleFilteredNav: true, touchTargets: 44, noEngineeringKpis: true }));
