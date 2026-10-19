@@ -14,9 +14,11 @@ import {
 const orgRoute = await readFile(new URL("../src/app/api/v1/settings/scripture-automation/route.ts", import.meta.url), "utf8");
 const serviceRoute = await readFile(new URL("../src/app/api/v1/services/[id]/scripture-automation/route.ts", import.meta.url), "utf8");
 const serviceStateRoute = await readFile(new URL("../src/app/api/v1/services/[id]/state/route.ts", import.meta.url), "utf8");
+const settingsSource = await readFile(new URL("../src/lib/scripture-automation-settings.ts", import.meta.url), "utf8");
 assert.match(orgRoute, /setOrganizationScriptureAutomationPermission/, "organization route must delegate to centralized settings authority");
 assert.match(serviceRoute, /setServiceScriptureAutomation/, "service route must delegate to centralized settings authority");
 assert.match(serviceStateRoute, /suspendServiceScriptureAutomation[\s\S]*service_ended/, "service end must disarm Scripture automation through shared helper");
+assert.match(settingsSource, /policy_changed/, "changing an already-armed automation policy must force disarm");
 
 if (!process.env.DATABASE_URL) {
   console.log(JSON.stringify({ ok: true, mode: "local-contract", database: "deferred-to-ci" }));
@@ -65,6 +67,16 @@ try {
   assert.equal(armed.armedBy, operator);
   assert.equal(armed.referenceThreshold, 98);
   assert.equal(armed.quoteThreshold, 96);
+
+  const changedWhileArmed = await setServiceScriptureAutomation(client, operator, liveService, {
+    mode: "auto_live", armed: true, referenceThreshold: 99
+  });
+  assert.equal(changedWhileArmed.armed, false, "policy change while armed must force disarm even when request asks to stay armed");
+  assert.equal(changedWhileArmed.suspendedReason, "policy_changed");
+  const afterPolicyChange = await client.query(`select scripture_automation_armed_at,scripture_automation_armed_by,scripture_automation_suspended_reason from services where id=$1`, [liveService]);
+  assert.equal(afterPolicyChange.rows[0].scripture_automation_armed_at, null);
+  assert.equal(afterPolicyChange.rows[0].scripture_automation_armed_by, null);
+  assert.equal(afterPolicyChange.rows[0].scripture_automation_suspended_reason, "policy_changed");
 
   await assert.rejects(
     () => setServiceScriptureAutomation(client, operator, liveService, { mode: "auto_live", armed: true, referenceThreshold: 97.99 }),

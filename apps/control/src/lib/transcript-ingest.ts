@@ -3,7 +3,7 @@ import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
 import { activeAssignedEdgeCount, decideScriptureAutomation, fatalAutoLivePrerequisite, recentlyLiveReference, type ScriptureAutomationMode } from "@/lib/scripture-automation";
 import { applyScriptureAutomationCircuitBreaker, recordAutoScriptureLiveTake } from "@/lib/scripture-automation-telemetry";
-import { transitionScriptureState } from "@/lib/scripture-state";
+import { ScriptureStateError, transitionScriptureState } from "@/lib/scripture-state";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
 import { enqueueTranslationJobs } from "@/lib/translation-jobs";
@@ -455,7 +455,7 @@ export async function ingestTranscriptForService(
     const sameReferenceAlreadyLive = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
       ? await recentlyLiveReference(client, service.id, match.reference, new Date())
       : false;
-    const automation = scriptureAutomationEnabled
+    let automation = scriptureAutomationEnabled
       ? decideScriptureAutomation({
           mode: service.scripture_automation_mode,
           organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
@@ -473,7 +473,7 @@ export async function ingestTranscriptForService(
           asrConfidence: payload.confidence ?? null
         })
       : { action: "detect" as const, reason: service.ai_enabled ? "manual_mode" : "ai_disabled" };
-    const nextState = automation.action === "preview" ? "preview" : "detected";
+    let nextState = automation.action === "preview" ? "preview" : "detected";
     if (nextState === "preview") {
       await execute(
         client,
@@ -494,36 +494,65 @@ export async function ingestTranscriptForService(
     const insertedDetection = result.rows[0];
 
     if (automation.action === "live" && service.scripture_automation_armed_by) {
-      const transition = await transitionScriptureState(client, {
-        detectionId: insertedDetection.id,
-        targetState: "live",
-        actor: { type: "automation", userId: service.scripture_automation_armed_by, reason: "auto_scripture_live" },
-        source: "scripture.auto_live",
-        requireEdgeForLive: true
-      });
-      insertedDetection.state = transition.scripture.state;
-      const programCommandQueuedAt = new Date();
-      await recordAutoScriptureLiveTake(client, {
-        organizationId: service.organization_id,
-        serviceId: service.id,
-        actorUserId: service.scripture_automation_armed_by,
-        detectionId: insertedDetection.id,
-        reference: match.reference,
-        detectionMethod: match.detectionMethod,
-        confidence: match.confidence,
-        observedAt,
-        decisionReason: automation.reason,
-        edgeCommandsQueued: transition.edgeCommandsQueued,
-        finalizedRecognitionAt,
-        programCommandQueuedAt
-      });
-      stateChanges.push({
-        id: transition.scripture.id,
-        reference: transition.scripture.reference,
-        from: transition.fromState,
-        to: transition.scripture.state,
-        edgeCommandsQueued: transition.edgeCommandsQueued
-      });
+      try {
+        const transition = await transitionScriptureState(client, {
+          detectionId: insertedDetection.id,
+          targetState: "live",
+          actor: { type: "automation", userId: service.scripture_automation_armed_by, reason: "auto_scripture_live" },
+          source: "scripture.auto_live",
+          requireEdgeForLive: true
+        });
+        insertedDetection.state = transition.scripture.state;
+        const programCommandQueuedAt = new Date();
+        await recordAutoScriptureLiveTake(client, {
+          organizationId: service.organization_id,
+          serviceId: service.id,
+          actorUserId: service.scripture_automation_armed_by,
+          detectionId: insertedDetection.id,
+          reference: match.reference,
+          bibleVersion,
+          detectionMethod: match.detectionMethod,
+          confidence: match.confidence,
+          observedAt,
+          decisionReason: automation.reason,
+          edgeCommandsQueued: transition.edgeCommandsQueued,
+          finalizedRecognitionAt,
+          programCommandQueuedAt
+        });
+        stateChanges.push({
+          id: transition.scripture.id,
+          reference: transition.scripture.reference,
+          from: transition.fromState,
+          to: transition.scripture.state,
+          edgeCommandsQueued: transition.edgeCommandsQueued
+        });
+      } catch (error) {
+        if (!(error instanceof ScriptureStateError) || error.code !== "active_edge_required") throw error;
+        automation = { action: "preview", reason: "no_active_edge" };
+        await applyScriptureAutomationCircuitBreaker(client, {
+          organizationId: service.organization_id,
+          serviceId: service.id,
+          actorUserId: service.scripture_automation_armed_by,
+          mode: service.scripture_automation_mode,
+          armed: true,
+          reason: "no_active_edge"
+        });
+        const fallback = await transitionScriptureState(client, {
+          detectionId: insertedDetection.id,
+          targetState: "preview",
+          actor: { type: "automation", userId: service.scripture_automation_armed_by, reason: "auto_scripture_live" },
+          source: "scripture.auto_live.edge_fallback"
+        });
+        insertedDetection.state = fallback.scripture.state;
+        nextState = "preview";
+        stateChanges.push({
+          id: fallback.scripture.id,
+          reference: fallback.scripture.reference,
+          from: fallback.fromState,
+          to: fallback.scripture.state,
+          edgeCommandsQueued: fallback.edgeCommandsQueued
+        });
+      }
     }
 
     inserted.push(insertedDetection);

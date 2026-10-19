@@ -19,7 +19,13 @@ const telemetrySource = await readFile(new URL("../src/lib/scripture-automation-
 assert.match(ingestSource, /applyScriptureAutomationCircuitBreaker/, "transcript ingest must apply fatal circuit breaking");
 assert.match(ingestSource, /recordAutoScriptureLiveTake/, "eligible auto-live must record safe latency/audit telemetry");
 assert.match(ingestSource, /finalizedRecognitionAt/, "ingest must capture finalized recognition time before the auto-live path");
+assert.match(ingestSource, /ScriptureStateError[\s\S]*active_edge_required[\s\S]*no_active_edge/, "Edge loss between preflight and Program transition must be converted into safe no-Edge fallback");
+assert.match(ingestSource, /active_edge_required[\s\S]*targetState:\s*"preview"/, "Edge-race fallback must retain the passage in Preview instead of aborting transcript ingest");
 assert.match(telemetrySource, /programCommandQueuedAt/, "telemetry must record the Program-command queued timestamp");
+assert.match(telemetrySource, /serviceId:\s*input\.serviceId/, "auto-take audit details must identify the service");
+assert.match(telemetrySource, /bibleVersion:\s*input\.bibleVersion/, "auto-take audit details must identify the projected Bible translation");
+assert.match(telemetrySource, /automationMode:\s*"auto_live"/, "auto-take audit details must identify the initiating automation mode");
+assert.match(telemetrySource, /programState:\s*"live"/, "auto-take audit details must record resulting Program state");
 assert.doesNotMatch(telemetrySource, /source_text|rawAudio|credential|token/i, "auto-live telemetry must not persist raw audio/text credentials or tokens");
 
 for (const reason of ["local_bible_unavailable", "no_active_edge", "organization_auto_live_disabled", "service_not_live"]) {
@@ -96,6 +102,7 @@ try {
     actorUserId: armer,
     detectionId: detection,
     reference: "John 3:16",
+    bibleVersion: "WEBP",
     detectionMethod: "reference",
     confidence: 98,
     observedAt: new Date("2099-01-01T09:59:59.950Z"),
@@ -112,6 +119,10 @@ try {
   assert.equal(audit.rows[0].actor_id, armer);
   assert.equal(audit.rows[0].details.detectionId, detection);
   assert.equal(audit.rows[0].details.reference, "John 3:16");
+  assert.equal(audit.rows[0].details.serviceId, service);
+  assert.equal(audit.rows[0].details.bibleVersion, "WEBP");
+  assert.equal(audit.rows[0].details.automationMode, "auto_live");
+  assert.equal(audit.rows[0].details.programState, "live");
   assert.equal(audit.rows[0].details.detectionMethod, "reference");
   assert.equal(Number(audit.rows[0].details.confidence), 98);
   assert.equal(audit.rows[0].details.decisionReason, "eligible_auto_live");

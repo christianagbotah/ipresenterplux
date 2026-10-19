@@ -174,12 +174,24 @@ export async function setServiceScriptureAutomation(
     "quote_threshold_below_floor",
     "Quote confidence threshold"
   );
+  const wasArmed = Boolean(current.scripture_automation_armed_at && current.scripture_automation_armed_by);
+  const policyChanged = input.mode !== current.scripture_automation_mode
+    || referenceThreshold !== Number(current.auto_scripture_reference_threshold)
+    || quoteThreshold !== Number(current.auto_scripture_quote_threshold);
+  const effectiveArmed = input.armed && !(wasArmed && policyChanged);
+  const suspensionReason = effectiveArmed
+    ? null
+    : wasArmed && policyChanged
+      ? "policy_changed"
+      : wasArmed && !input.armed
+        ? "operator_disarmed"
+        : null;
 
   if (input.armed && input.mode !== "auto_live") {
     throw new ScriptureAutomationSettingsError(409, "auto_live_required_to_arm", "Only Auto Scripture Live mode can be armed");
   }
 
-  if (input.armed) {
+  if (effectiveArmed) {
     if (!current.auto_scripture_live_enabled) {
       throw new ScriptureAutomationSettingsError(409, "organization_auto_live_disabled", "Auto Scripture Live is disabled for this organization");
     }
@@ -209,19 +221,15 @@ export async function setServiceScriptureAutomation(
         set scripture_automation_mode=$2,
             auto_scripture_reference_threshold=$3,
             auto_scripture_quote_threshold=$4,
-            scripture_automation_armed_at=case when $5 then clock_timestamp() else null end,
+            scripture_automation_armed_at=case when $5 then coalesce(scripture_automation_armed_at,clock_timestamp()) else null end,
             scripture_automation_armed_by=case when $5 then $6::uuid else null end,
-            scripture_automation_suspended_reason=case
-              when $5 then null
-              when $2='auto_live' then 'operator_disarmed'
-              else null
-            end,
+            scripture_automation_suspended_reason=$7,
             updated_at=clock_timestamp()
       where id=$1::uuid
       returning scripture_automation_mode,auto_scripture_reference_threshold::text,
                 auto_scripture_quote_threshold::text,scripture_automation_armed_at::text,
                 scripture_automation_armed_by::text,scripture_automation_suspended_reason`,
-    [serviceId, input.mode, referenceThreshold, quoteThreshold, input.armed, actorUserId]
+    [serviceId, input.mode, referenceThreshold, quoteThreshold, effectiveArmed, actorUserId, suspensionReason]
   );
   const next = updated.rows[0];
 
@@ -240,7 +248,7 @@ export async function setServiceScriptureAutomation(
           referenceThreshold: Number(current.auto_scripture_reference_threshold),
           quoteThreshold: Number(current.auto_scripture_quote_threshold)
         },
-        to: { mode: next.scripture_automation_mode, armed: input.armed, referenceThreshold, quoteThreshold }
+        to: { mode: next.scripture_automation_mode, armed: effectiveArmed, referenceThreshold, quoteThreshold, suspendedReason: suspensionReason }
       })
     ]
   );

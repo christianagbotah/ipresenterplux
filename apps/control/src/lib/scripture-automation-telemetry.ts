@@ -47,6 +47,7 @@ export async function recordAutoScriptureLiveTake(
     actorUserId: string;
     detectionId: string;
     reference: string;
+    bibleVersion: string;
     detectionMethod: string;
     confidence: number;
     observedAt: Date;
@@ -60,7 +61,11 @@ export async function recordAutoScriptureLiveTake(
   const withinTarget = latencyMs <= AUTO_LIVE_LATENCY_TARGET_MS;
   const details = {
     detectionId: input.detectionId,
+    serviceId: input.serviceId,
     reference: input.reference,
+    bibleVersion: input.bibleVersion,
+    automationMode: "auto_live",
+    programState: "live",
     detectionMethod: input.detectionMethod,
     confidence: input.confidence,
     observedAt: input.observedAt.toISOString(),
