@@ -115,7 +115,7 @@ export async function setOrganizationScriptureAutomationPermission(
   await client.query(
     `insert into audit_events
       (organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
-     values ($1,'operator',$2,'scripture.automation.organization.changed','organization',$1::text,$3::jsonb)`,
+     values ($1::uuid,'operator',$2,'scripture.automation.organization.changed','organization',($1::uuid)::text,$3::jsonb)`,
     [organizationId, actorUserId, JSON.stringify({ from: current.auto_scripture_live_enabled, to: enabled, disarmedServices })]
   );
 
