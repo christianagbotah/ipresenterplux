@@ -26,19 +26,22 @@ if (!process.env.DATABASE_URL) {
 assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
-const org = randomUUID(), otherOrg = randomUUID(), campus = randomUUID(), otherCampus = randomUUID();
+const org = randomUUID(), otherOrg = randomUUID(), campus = randomUUID(), noEdgeCampus = randomUUID(), otherCampus = randomUUID();
 const owner = randomUUID(), operator = randomUUID(), outsider = randomUUID();
 const liveService = randomUUID(), readyService = randomUUID(), noEdgeService = randomUUID(), edge = randomUUID();
 try {
   await client.query("begin");
   await client.query(`insert into organizations(id,name,slug,country_code,timezone) values ($1,'Automation Admin Church',$2,'GH','Africa/Accra'),($3,'Other Church',$4,'GH','Africa/Accra')`, [org, `auto-admin-${org}`, otherOrg, `auto-admin-${otherOrg}`]);
-  await client.query(`insert into campuses(id,organization_id,name,slug,city,country_code) values ($1,$2,'Main','main','Accra','GH'),($3,$4,'Other','other','Accra','GH')`, [campus, org, otherCampus, otherOrg]);
+  await client.query(`insert into campuses(id,organization_id,name,slug,city,country_code) values
+    ($1,$2,'Main','main','Accra','GH'),
+    ($3,$2,'Annex','annex','Accra','GH'),
+    ($4,$5,'Other','other','Accra','GH')`, [campus, org, noEdgeCampus, otherCampus, otherOrg]);
   await client.query(`insert into users(id,email,display_name,status) values ($1,$2,'Owner','active'),($3,$4,'Operator','active'),($5,$6,'Outsider','active')`, [owner, `owner-${owner}@example.invalid`, operator, `operator-${operator}@example.invalid`, outsider, `outsider-${outsider}@example.invalid`]);
   await client.query(`insert into user_organization_roles(user_id,organization_id,role_id) values ($1,$2,'owner'),($3,$2,'presenter_operator'),($4,$5,'presenter_operator')`, [owner, org, operator, outsider, otherOrg]);
   await client.query(`insert into services(id,organization_id,campus_id,title,status,scheduled_start,started_at,active_bible_version) values
     ($1,$4,$5,'Live Service','live',now(),now(),'WEBP'),
     ($2,$4,$5,'Ready Service','ready',now(),null,'WEBP'),
-    ($3,$4,$5,'No Edge Service','live',now(),now(),'WEBP')`, [liveService, readyService, noEdgeService, org, campus]);
+    ($3,$4,$6,'No Edge Service','live',now(),now(),'WEBP')`, [liveService, readyService, noEdgeService, org, campus, noEdgeCampus]);
   await client.query(`insert into edge_devices(id,organization_id,campus_id,name,platform,status,last_seen_at,active_service_id) values ($1,$2,$3,'Sanctuary Edge','windows','active',now(),$4)`, [edge, org, campus, liveService]);
 
   await assert.rejects(
