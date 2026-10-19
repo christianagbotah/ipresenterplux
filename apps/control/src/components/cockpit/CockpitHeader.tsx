@@ -24,7 +24,7 @@ export function CockpitHeader({ model }: { model: CockpitViewModel }) {
             <CircleDot size={13} className={live ? "text-red-400" : "text-emerald-400"} />
             <h1 className="truncate text-sm font-black tracking-tight sm:text-base">{service?.title ?? "Service Cockpit"}</h1>
             {service ? <span className="rounded-full border border-white/10 bg-white/[.04] px-2 py-0.5 text-xs font-black uppercase tracking-[.14em] text-white/55">{service.status}</span> : null}
-            {service ? <span className="hidden rounded-full border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-2 py-0.5 text-[10px] font-bold text-[#e5b95e] sm:inline-flex">Theme · {service.activeThemeName ?? "Sunday Modern"}</span> : null}
+            {service ? <span className="hidden rounded-full border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-2 py-0.5 text-xs font-bold text-[#e5b95e] sm:inline-flex">Theme · {service.activeThemeName ?? "Sunday Modern"}</span> : null}
           </div>
           <div className="mt-1 truncate text-xs text-white/50">{model.organization.name}{service?.campusName ? ` · ${service.campusName}` : ""}</div>
         </div>
