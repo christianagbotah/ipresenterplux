@@ -28,16 +28,16 @@ function AttentionSummary({ model }: { model: CockpitViewModel }) {
 
 function MobileBody({ model, projection }: { model: CockpitViewModel; projection: CockpitRoleProjection }) {
   if (projection.kind === "producer") return <>
-    <ProgramPreviewStage model={model}/>
+    <ProgramPreviewStage model={model} showControls={projection.actions.canTake || projection.actions.canClear}/>
     {projection.showAttention ? <AttentionSummary model={model}/> : null}
     <NextRail model={model}/>
-    <MobileQuickActions projection={projection}/>
+    <MobileQuickActions model={model} projection={projection}/>
   </>;
 
   if (projection.kind === "pastor_service_leader") return <>
-    <ProgramPreviewStage model={model}/>
+    <ProgramPreviewStage model={model} showControls={false}/>
     <NextRail model={model}/>
-    <MobileQuickActions projection={projection}/>
+    <MobileQuickActions model={model} projection={projection}/>
     {projection.showAttention ? <AttentionSummary model={model}/> : null}
   </>;
 
@@ -48,7 +48,7 @@ function MobileBody({ model, projection }: { model: CockpitViewModel; projection
       <div className="mt-3 text-sm leading-6 text-white/82">{model.now.transcriptText ?? "Waiting for live speech…"}</div>
       <div className="mt-3 text-[11px] text-white/50">Source {model.now.sourceLanguage?.toUpperCase() ?? "—"} · {model.systems.languages.listeners} language listeners</div>
     </section>
-    <MobileQuickActions projection={projection}/>
+    <MobileQuickActions model={model} projection={projection}/>
     {projection.showAttention ? <AttentionSummary model={model}/> : null}
   </>;
 
@@ -59,7 +59,7 @@ function MobileBody({ model, projection }: { model: CockpitViewModel; projection
       <div className="rounded-xl border border-white/[.07] bg-white/[.02] p-3"><div className="text-[11px] uppercase tracking-[.14em] text-white/45">Media</div><div className="mt-2 text-sm font-black text-white/80">{model.next.length} queued</div><div className="mt-1 text-[11px] text-white/45">service-ready items</div></div>
     </section>
     <NextRail model={model}/>
-    <MobileQuickActions projection={projection}/>
+    <MobileQuickActions model={model} projection={projection}/>
     {projection.showAttention ? <AttentionSummary model={model}/> : null}
   </>;
 

@@ -8,6 +8,8 @@ const files = {
   scripturePage: "../src/app/scripture/page.tsx",
   header: "../src/components/cockpit/CockpitHeader.tsx",
   mobile: "../src/components/cockpit/CockpitMobile.tsx",
+  mobileActions: "../src/components/cockpit/mobile/MobileQuickActions.tsx",
+  mobileStrip: "../src/components/cockpit/mobile/MobileLiveStrip.tsx",
   contracts: "../src/lib/cockpit/contracts.ts",
   viewModel: "../src/lib/cockpit/view-model.ts",
   currentService: "../src/lib/current-service.ts",
@@ -35,10 +37,15 @@ assert.match(source.workspace, /ScriptureAutomationControl/, "Scripture workspac
 assert.match(source.scripturePage, /scriptureAutomation/, "Scripture page must project service automation policy into the workspace");
 
 assert.match(source.control, /AUTO SCRIPTURE LIVE ARMED/, "shared control must render the unmistakable armed state");
-for (const cockpit of [source.header, source.mobile]) {
-  assert.match(cockpit, /ScriptureAutomationControl/, "Cockpit desktop/mobile must reuse one-action disarm control");
-  assert.match(cockpit, /scriptureAutomation\.armed/, "Cockpit desktop/mobile must project armed state persistently");
-}
+assert.match(source.header, /ScriptureAutomationControl/, "Cockpit desktop must reuse the one-action disarm control");
+assert.match(source.header, /scriptureAutomation\.armed/, "Cockpit desktop must project armed state persistently");
+assert.match(source.mobile, /MobileQuickActions/, "Cockpit mobile must compose governed quick actions");
+assert.match(source.mobile, /MobileLiveStrip/, "Cockpit mobile must compose persistent live status");
+assert.match(source.mobileActions, /ScriptureAutomationControl/, "mobile quick actions must reuse the one-action disarm control");
+assert.match(source.mobileActions, /scriptureAutomation\.armed/, "mobile quick actions must only show Disarm while armed");
+assert.match(source.mobileActions, /compact/, "mobile Disarm must use the compact one-action control");
+assert.match(source.mobileStrip, /AUTO SCRIPTURE LIVE ARMED/, "mobile live strip must keep armed state unmistakable");
+assert.match(source.mobileStrip, /scriptureAutomation\.armed/, "mobile live strip must derive persistent armed state from the Cockpit model");
 assert.match(source.contracts, /scriptureAutomation/, "Cockpit service contract must include automation state");
 for (const token of ["mode", "armed", "referenceThreshold", "quoteThreshold", "organizationAutoLiveEnabled", "suspendedReason"]) {
   assert.match(source.contracts + source.currentService + source.viewModel, new RegExp(token), `automation projection must include ${token}`);

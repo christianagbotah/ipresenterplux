@@ -10,6 +10,7 @@ const files = {
   actions: "../src/components/cockpit/mobile/MobileQuickActions.tsx",
   find: "../src/components/cockpit/mobile/MobileFindBar.tsx",
   palette: "../src/components/cockpit/CommandPalette.tsx",
+  stage: "../src/components/cockpit/ProgramPreviewStage.tsx",
   projection: "../src/lib/cockpit/role-projection.ts"
 };
 for (const relative of Object.values(files)) await access(new URL(relative, import.meta.url));
@@ -56,5 +57,15 @@ assert.match(source.palette, /Search is temporarily unavailable\. Live controls 
 assert.match(source.palette, /\/api\/v1\/cockpit\/search\?q=/, "typing must use the read-only search endpoint");
 assert.match(source.palette, /\/api\/v1\/cockpit\/command/, "explicit submit must reuse the safe command endpoint");
 assert.doesNotMatch(source.palette, /onChange=.*runCommand/, "typing must never execute a command");
+
+assert.match(source.stage, /showControls/, "ProgramPreviewStage must support hiding Program controls for role-projected mobile views");
+assert.match(source.stage, /showControls && model\.capabilities\.canLiveControl/, "TAKE/Clear authority must require both projection visibility and existing live capability");
+assert.match(source.cockpit, /showControls=\{projection\.actions\.canTake \|\| projection\.actions\.canClear\}/, "producer mobile stage must project TAKE/Clear visibility from role actions");
+assert.match(source.cockpit, /showControls=\{false\}/, "pastor/service-leader mobile stage must omit Program controls");
+assert.match(source.actions, /ScriptureAutomationControl/, "mobile quick actions must reuse governed Auto Scripture Live control");
+assert.match(source.actions, /compact/, "armed automation action must expose the compact one-tap Disarm control");
+assert.match(source.actions, /scriptureAutomation\.armed/, "Disarm must only surface while Auto Scripture Live is armed");
+assert.match(source.actions, /\/cameras/, "visual source quick action must route to the governed Visual Sources workspace");
+assert.doesNotMatch(source.actions, /program\.show|program\.take|state:\s*["']live["']|\/api\/v1\/scriptures\//, "mobile quick actions must not create a direct Program mutation path");
 
 console.log(JSON.stringify({ ok: true, shellSplit: true, persistentLiveStrip: true, roleFilteredNav: true, touchTargets: 44, noEngineeringKpis: true }));
