@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import { z } from "zod";
+import { LIVE_OPERATOR_ROLES, PLANNER_VIEW_ROLES, THEME_ADMIN_ROLES } from "./role-policy.js";
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Expected a six-digit hex color");
 const backgroundValue = z.string().trim().min(1).max(500);
@@ -127,4 +128,183 @@ export async function resolveServicePresentationTheme(client: QueryClient, organ
     theme: { id: row.theme_id, name: row.theme_name!, templateKey: row.template_key!, isBuiltin: Boolean(row.is_builtin) },
     appearance: resolvePresentationAppearance(row.appearance)
   };
+}
+
+
+export const presentationThemeCreateSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  templateKey: z.string().trim().min(1).max(80).regex(/^[a-z0-9][a-z0-9_-]*$/),
+  appearance: presentationAppearanceSchema
+}).strict();
+
+export const presentationThemeUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  templateKey: z.string().trim().min(1).max(80).regex(/^[a-z0-9][a-z0-9_-]*$/).optional(),
+  appearance: presentationAppearanceSchema.optional()
+}).strict().refine((value) => Object.keys(value).length > 0, { message: "At least one theme field is required" });
+
+export class PresentationThemeError extends Error {
+  status: number;
+  code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "PresentationThemeError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+type PresentationThemeRow = {
+  id: string;
+  organization_id: string;
+  name: string;
+  template_key: string;
+  appearance: unknown;
+  is_builtin: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function themeDto(row: PresentationThemeRow) {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    name: row.name,
+    templateKey: row.template_key,
+    appearance: resolvePresentationAppearance(row.appearance),
+    isBuiltin: row.is_builtin,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+async function requireThemeRole(client: QueryClient, userId: string, organizationId: string, roles: readonly string[], code: string, message: string) {
+  const allowed = await client.query<{ allowed: boolean }>(
+    `select exists(
+       select 1 from user_organization_roles
+       where user_id=$1::uuid and organization_id=$2::uuid and role_id=any($3::text[])
+     ) as allowed`,
+    [userId, organizationId, [...roles]]
+  );
+  if (!allowed.rows[0]?.allowed) throw new PresentationThemeError(403, code, message);
+}
+
+async function themeRowById(client: QueryClient, themeId: string) {
+  const found = await client.query<PresentationThemeRow>(
+    `select id::text,organization_id::text,name,template_key,appearance,is_builtin,created_by::text,created_at::text,updated_at::text
+       from presentation_themes where id=$1::uuid limit 1`,
+    [themeId]
+  );
+  return found.rows[0] ?? null;
+}
+
+async function writeThemeAudit(client: QueryClient, organizationId: string, actorUserId: string, action: string, entityId: string, details: Record<string, unknown>, entityType = "presentation_theme") {
+  await client.query(
+    `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
+     values ($1::uuid,'operator',$2,$3,$4,$5,$6::jsonb)`,
+    [organizationId, actorUserId, action, entityType, entityId, JSON.stringify(details)]
+  );
+}
+
+export async function listPresentationThemes(client: QueryClient, actorUserId: string, organizationId: string) {
+  await requireThemeRole(client, actorUserId, organizationId, PLANNER_VIEW_ROLES, "theme_view_forbidden", "You are not allowed to view presentation themes for this organization");
+  const result = await client.query<PresentationThemeRow>(
+    `select id::text,organization_id::text,name,template_key,appearance,is_builtin,created_by::text,created_at::text,updated_at::text
+       from presentation_themes
+      where organization_id=$1::uuid
+      order by is_builtin desc,name,id`,
+    [organizationId]
+  );
+  return result.rows.map(themeDto);
+}
+
+export async function getPresentationTheme(client: QueryClient, actorUserId: string, themeId: string) {
+  const row = await themeRowById(client, themeId);
+  if (!row) throw new PresentationThemeError(404, "theme_not_found", "Presentation theme not found");
+  await requireThemeRole(client, actorUserId, row.organization_id, PLANNER_VIEW_ROLES, "theme_view_forbidden", "You are not allowed to view this presentation theme");
+  return themeDto(row);
+}
+
+export async function createPresentationTheme(client: QueryClient, actorUserId: string, organizationId: string, input: z.input<typeof presentationThemeCreateSchema>) {
+  await requireThemeRole(client, actorUserId, organizationId, THEME_ADMIN_ROLES, "theme_edit_forbidden", "Only owners, administrators and media operators can create presentation themes");
+  const data = presentationThemeCreateSchema.parse(input);
+  let result;
+  try {
+    result = await client.query<PresentationThemeRow>(
+      `insert into presentation_themes(organization_id,name,template_key,appearance,is_builtin,created_by)
+       values ($1::uuid,$2,$3,$4::jsonb,false,$5::uuid)
+       returning id::text,organization_id::text,name,template_key,appearance,is_builtin,created_by::text,created_at::text,updated_at::text`,
+      [organizationId, data.name, data.templateKey, JSON.stringify(data.appearance), actorUserId]
+    );
+  } catch (error: unknown) {
+    if (typeof error === "object" && error && "code" in error && error.code === "23505") {
+      throw new PresentationThemeError(409, "theme_name_conflict", "A presentation theme with this name already exists");
+    }
+    throw error;
+  }
+  const row = result.rows[0];
+  await writeThemeAudit(client, organizationId, actorUserId, "presentation.theme.created", row.id, { name: row.name, templateKey: row.template_key });
+  return themeDto(row);
+}
+
+export async function updatePresentationTheme(client: QueryClient, actorUserId: string, themeId: string, input: z.input<typeof presentationThemeUpdateSchema>) {
+  const current = await themeRowById(client, themeId);
+  if (!current) throw new PresentationThemeError(404, "theme_not_found", "Presentation theme not found");
+  await requireThemeRole(client, actorUserId, current.organization_id, THEME_ADMIN_ROLES, "theme_edit_forbidden", "Only owners, administrators and media operators can edit presentation themes");
+  if (current.is_builtin) throw new PresentationThemeError(409, "builtin_theme_immutable", "Built-in presentation themes cannot be edited");
+  const data = presentationThemeUpdateSchema.parse(input);
+  let result;
+  try {
+    result = await client.query<PresentationThemeRow>(
+      `update presentation_themes
+          set name=coalesce($2,name),
+              template_key=coalesce($3,template_key),
+              appearance=coalesce($4::jsonb,appearance),
+              updated_at=clock_timestamp()
+        where id=$1::uuid and organization_id=$5::uuid
+        returning id::text,organization_id::text,name,template_key,appearance,is_builtin,created_by::text,created_at::text,updated_at::text`,
+      [themeId, data.name ?? null, data.templateKey ?? null, data.appearance ? JSON.stringify(data.appearance) : null, current.organization_id]
+    );
+  } catch (error: unknown) {
+    if (typeof error === "object" && error && "code" in error && error.code === "23505") {
+      throw new PresentationThemeError(409, "theme_name_conflict", "A presentation theme with this name already exists");
+    }
+    throw error;
+  }
+  const row = result.rows[0];
+  await writeThemeAudit(client, current.organization_id, actorUserId, "presentation.theme.updated", themeId, { fields: Object.keys(data), name: row.name, templateKey: row.template_key });
+  return themeDto(row);
+}
+
+export async function deletePresentationTheme(client: QueryClient, actorUserId: string, themeId: string) {
+  const current = await themeRowById(client, themeId);
+  if (!current) throw new PresentationThemeError(404, "theme_not_found", "Presentation theme not found");
+  await requireThemeRole(client, actorUserId, current.organization_id, THEME_ADMIN_ROLES, "theme_edit_forbidden", "Only owners, administrators and media operators can delete presentation themes");
+  if (current.is_builtin) throw new PresentationThemeError(409, "builtin_theme_immutable", "Built-in presentation themes cannot be deleted");
+  await client.query(`delete from presentation_themes where id=$1::uuid and organization_id=$2::uuid`, [themeId, current.organization_id]);
+  await writeThemeAudit(client, current.organization_id, actorUserId, "presentation.theme.deleted", themeId, { name: current.name, templateKey: current.template_key });
+  return { id: themeId, organizationId: current.organization_id, deleted: true };
+}
+
+export async function assignServicePresentationTheme(client: QueryClient, actorUserId: string, serviceId: string, themeId: string | null) {
+  const service = await client.query<{ organization_id: string; active_theme_id: string | null }>(
+    `select organization_id::text,active_theme_id::text from services where id=$1::uuid for update`,
+    [serviceId]
+  );
+  const row = service.rows[0];
+  if (!row) throw new PresentationThemeError(404, "service_not_found", "Service not found");
+  await requireThemeRole(client, actorUserId, row.organization_id, LIVE_OPERATOR_ROLES, "theme_assignment_forbidden", "You are not allowed to assign the service presentation theme");
+  if (themeId) {
+    const theme = await client.query<{ id: string }>(
+      `select id::text from presentation_themes where id=$1::uuid and organization_id=$2::uuid limit 1`,
+      [themeId, row.organization_id]
+    );
+    if (!theme.rows[0]) throw new PresentationThemeError(404, "theme_not_found", "Presentation theme not found for this organization");
+  }
+  await client.query(`update services set active_theme_id=$2::uuid,updated_at=clock_timestamp() where id=$1::uuid`, [serviceId, themeId]);
+  await writeThemeAudit(client, row.organization_id, actorUserId, "presentation.theme.assigned", serviceId, { fromThemeId: row.active_theme_id, toThemeId: themeId }, "service");
+  return { serviceId, organizationId: row.organization_id, themeId };
 }
