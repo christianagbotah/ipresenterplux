@@ -129,6 +129,32 @@ public sealed class LocalWebProgramOutputServiceTests
     }
 
 
+    [Fact]
+    public async Task ProgramStateExposesOnlySanitizedThemeRenderState()
+    {
+        var port = FreePort();
+        await using var output = new LocalWebProgramOutputService(port);
+        var serviceId = Guid.NewGuid();
+        var metadata = new Dictionary<string,string>
+        {
+            ["themeAppearanceV1"] = "{\"version\":1,\"background\":{\"kind\":\"gradient\",\"value\":\"violet_pink\"},\"primaryTextColor\":\"#ffffff\",\"secondaryTextColor\":\"#fde047\",\"fontFamily\":\"Inter\",\"titleSizeScale\":1,\"bodySizeScale\":1.2,\"footerSizeScale\":1,\"horizontalAlignment\":\"center\",\"verticalAlignment\":\"center\",\"shadow\":true,\"backingOpacity\":0.18,\"safeAreaPercent\":6,\"animation\":\"fade\",\"lowerThird\":{\"mode\":\"auto\",\"position\":\"bottom_left\"},\"logo\":{\"mediaId\":null,\"position\":\"top_right\",\"sizePercent\":8}}"
+        };
+        var item = new PresentationRenderItem(Guid.NewGuid().ToString("D"), serviceId, "scripture", "John 3:16", "For God so loved the world", "WEBP", metadata);
+        await output.SetPreviewAsync(item, CancellationToken.None);
+        await output.TakePreviewToProgramAsync(CancellationToken.None);
+        await output.StartProgramOutputAsync(CancellationToken.None);
+        using var client = new HttpClient();
+
+        var state = await client.GetStringAsync($"http://127.0.0.1:{port}/api/state/program");
+        var page = await client.GetStringAsync($"http://127.0.0.1:{port}/program");
+
+        Assert.Contains("\"theme\"", state);
+        Assert.Contains("\"violet_pink\"", state);
+        Assert.Contains("applyTheme", page);
+        Assert.DoesNotContain("innerhtml", page.ToLowerInvariant());
+        Assert.DoesNotContain("eval(", page.ToLowerInvariant());
+    }
+
     private static int FreePort()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);

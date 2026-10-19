@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { query } from "@/lib/db";
+import { db, query } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
+import { resolveServicePresentationTheme, resolveThemeAppearance } from "@/lib/presentation-themes";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -54,6 +55,9 @@ export async function GET(request: Request, context: RouteContext) {
   const row = found.rows[0];
   if (!row) return NextResponse.json({ ok: false, error: "Presentation item not available for this device" }, { status: 404 });
 
+  const serviceTheme = await resolveServicePresentationTheme(db, device.organizationId, row.service_id);
+  const projectorTheme = resolveThemeAppearance(serviceTheme.appearance, { contentType: "scripture", output: "projector" });
+
   const verseLabel = row.verse_start === null
     ? null
     : row.verse_end && row.verse_end !== row.verse_start
@@ -73,7 +77,8 @@ export async function GET(request: Request, context: RouteContext) {
         book: row.book,
         chapter: String(row.chapter),
         verses: verseLabel ?? "",
-        bibleVersion: row.bible_version
+        bibleVersion: row.bible_version,
+        themeAppearanceV1: JSON.stringify(projectorTheme)
       }
     }
   }, { headers: { "Cache-Control": "no-store" } });

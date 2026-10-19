@@ -37,6 +37,11 @@ assert.match(rolesSource, /THEME_ADMIN_ROLES/);
 for (const role of ["owner","admin","media_operator"]) assert.match(rolesSource, new RegExp(`THEME_ADMIN_ROLES[^;]*["\']${role}["\']`));
 const rbacSource = await readFile(new URL("../src/lib/rbac.ts", import.meta.url), "utf8");
 assert.match(rbacSource, /THEME_ADMIN_ROLES/);
+const edgePresentationRoute = await readFile(new URL("../src/app/api/v1/edge/presentation/items/[id]/route.ts", import.meta.url), "utf8");
+assert.match(edgePresentationRoute, /resolveServicePresentationTheme/, "Edge presentation content must resolve the active service Theme inside tenant scope");
+assert.match(edgePresentationRoute, /resolveThemeAppearance/, "Edge presentation content must resolve content/output variants before transport");
+assert.match(edgePresentationRoute, /themeAppearanceV1/, "Edge presentation metadata must carry one versioned bounded Theme payload");
+
 for (const relative of ["../src/app/api/v1/themes/route.ts","../src/app/api/v1/themes/[id]/route.ts","../src/app/api/v1/services/[id]/theme/route.ts"]) {
   const route = await readFile(new URL(relative, import.meta.url), "utf8");
   assert.match(route, /auth\(\)/, `${relative} must authenticate`);

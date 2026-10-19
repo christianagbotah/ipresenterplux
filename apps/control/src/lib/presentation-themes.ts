@@ -97,7 +97,9 @@ function themeAppearance(overrides: Partial<PresentationAppearance>): Presentati
 }
 
 function resolvedBaseAppearance(appearance: PresentationAppearance): ResolvedPresentationAppearance {
-  const { contentVariants: _contentVariants, outputVariants: _outputVariants, ...base } = appearance;
+  const { contentVariants, outputVariants, ...base } = appearance;
+  void contentVariants;
+  void outputVariants;
   return base;
 }
 
