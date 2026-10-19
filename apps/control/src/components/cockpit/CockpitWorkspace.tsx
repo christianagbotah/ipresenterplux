@@ -1,6 +1,5 @@
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
-import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
 import { CockpitHeader } from "./CockpitHeader";
@@ -22,7 +21,6 @@ export function CockpitWorkspace({ model, initialFocusMode = false }: { model: C
       Skip to live cockpit content
     </a>
     {model.service ? <RealtimeRefresh serviceId={model.service.id} /> : <AutoRefresh intervalMs={15_000} />}
-    <StudioMobileNav capabilities={model.capabilities} />
     <CommandPalette />
     <ShortcutsHelp />
     {!initialFocusMode ? <WhatsNewToast /> : null}

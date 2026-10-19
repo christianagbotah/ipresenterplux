@@ -8,7 +8,7 @@ const [dashboard, operator, workspace, stage, focus, nextRail, nextActions, comm
   read("../src/components/cockpit/ProgramPreviewStage.tsx"), read("../src/components/cockpit/FocusMode.tsx"),
   read("../src/components/cockpit/NextRail.tsx"), read("../src/components/cockpit/NextItemActions.tsx"),
   read("../src/lib/cockpit/commands.ts"), read("../src/lib/cockpit/attention.ts"), read("../src/components/cockpit/CockpitMobile.tsx"),
-  read("../src/components/navigation/StudioMobileNav.tsx"), read("./studio-route-manifest-selftest.mjs")
+  read("../src/components/cockpit/mobile/MobileBottomNav.tsx"), read("./studio-route-manifest-selftest.mjs")
 ]);
 
 assert.match(dashboard, /CockpitWorkspace/, "Control Room must use the shared Cockpit");
@@ -40,11 +40,13 @@ assert.match(attention, /impact:/, "attention items must explain impact");
 assert.match(attention, /containment:/, "attention items must explain containment");
 assert.match(attention, /recommendedAction:/, "attention items must recommend recovery");
 
-for (const profile of ["producer","pastor_service_leader","interpreter","media_lead","restricted"]) {
-  assert.match(mobile, new RegExp(`data-cockpit-mobile-profile=["']${profile}["']`), `mobile profile ${profile} must be explicitly rendered`);
+assert.match(mobile, /data-cockpit-mobile-profile=\{projection\.kind\}/, "mobile shell must expose the authoritative projected role profile");
+for (const profile of ["producer","pastor_service_leader","interpreter","media_lead"]) {
+  assert.match(mobile, new RegExp(`projection\\.kind === ["']${profile}["']`), `mobile profile ${profile} must keep an explicit role branch`);
 }
+assert.match(mobile, /return <>[\s\S]*ProgramSummary/, "restricted mobile profile must retain a safe read-only fallback");
 assert.doesNotMatch(mobile, /Engineering detail|Advanced live systems/, "mobile must not be a compressed engineering console");
-assert.match(mobileNav, /min-h-12/, "mobile navigation targets must remain touch-sized");
+assert.match(mobileNav, /min-h-11|min-h-12/, "Live Assist navigation targets must remain touch-sized");
 assert.doesNotMatch(stage, /group-hover:[^\s]*(TAKE|Clear)/i, "primary live controls must not depend on hover");
 
 assert.match(routeManifestTest, /"\/page":"\/"/, "post-build manifest gate must verify the main Cockpit route");

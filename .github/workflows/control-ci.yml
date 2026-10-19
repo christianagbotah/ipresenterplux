@@ -198,6 +198,8 @@ jobs:
         run: pnpm test:cockpit-field-uat
       - name: Cockpit role projection self-test
         run: pnpm test:cockpit-role-projection
+      - name: Live Assist mobile self-test
+        run: pnpm test:live-assist-mobile
       - name: Intelligent Cockpit acceptance self-test
         run: pnpm test:cockpit-acceptance
       - name: Portable import parser and migration self-test

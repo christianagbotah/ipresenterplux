@@ -31,7 +31,8 @@ assert.match(source.stage, /Program/);
 assert.match(source.stage, /Preview/);
 assert.match(source.stage, /Ctrl\/⌘ \+ Enter|Ctrl\/Cmd\+Enter|metaKey|ctrlKey/, "safe Take keyboard path must remain visible in implementation");
 assert.match(source.workspace, /StudioSidebar/);
-assert.match(source.workspace, /StudioMobileNav/);
+assert.match(source.workspace, /CockpitMobile/, "Cockpit must retain the role-projected mobile surface");
+assert.doesNotMatch(source.workspace, /<StudioMobileNav\b/, "Cockpit mobile navigation is owned by Live Assist, not the legacy floating menu");
 for (const href of ["/scripture", "/media", "/cameras", "/streaming", "/audience", "/archive", "/settings"]) {
   assert.match(source.workspace + source.header, new RegExp(href.replaceAll("/", "\\/")), `Cockpit must keep ${href} reachable`);
 }
