@@ -53,6 +53,7 @@ assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION
 assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, bodySizeScale: 0.1 }), /too_small|minimum|0\.5/i);
 assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, fontFamily: "Comic Sans MS" }), /invalid|option/i);
 assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, primaryTextColor: "red" }), /invalid|string|regex/i);
+assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, background:{ kind:"gradient", value:"url(https://example.invalid/x)" } }), /invalid|option/i, "background must use portable bounded tokens, not arbitrary CSS/URLs");
 assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, animation: "spin" }), /invalid|option/i);
 assert.equal(parsePresentationAppearance(DEFAULT_PRESENTATION_APPEARANCE).animation, "fade");
 assert.deepEqual(resolvePresentationAppearance({ version: 99, arbitrary: true }), DEFAULT_PRESENTATION_APPEARANCE, "invalid/unknown appearance must fail closed to built-in default");

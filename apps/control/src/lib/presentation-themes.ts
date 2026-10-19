@@ -3,15 +3,16 @@ import { z } from "zod";
 import { LIVE_OPERATOR_ROLES, PLANNER_VIEW_ROLES, THEME_ADMIN_ROLES } from "./role-policy.js";
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Expected a six-digit hex color");
-const backgroundValue = z.string().trim().min(1).max(500);
+const gradientToken = z.enum(["midnight", "violet_pink", "navy_teal", "ivory_rose"]);
 const fontFamily = z.enum(["Inter", "Arial", "Verdana", "Trebuchet MS", "Georgia", "Times New Roman", "Noto Sans", "Noto Serif"]);
 
 export const presentationAppearanceSchema = z.object({
   version: z.literal(1),
-  background: z.object({
-    kind: z.enum(["solid", "gradient", "image"]),
-    value: backgroundValue
-  }).strict(),
+  background: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("solid"), value: hexColor }).strict(),
+    z.object({ kind: z.literal("gradient"), value: gradientToken }).strict(),
+    z.object({ kind: z.literal("image"), value: z.string().uuid() }).strict()
+  ]),
   primaryTextColor: hexColor,
   secondaryTextColor: hexColor,
   fontFamily,
@@ -39,7 +40,7 @@ export type PresentationAppearance = z.infer<typeof presentationAppearanceSchema
 
 export const DEFAULT_PRESENTATION_APPEARANCE: PresentationAppearance = {
   version: 1,
-  background: { kind: "gradient", value: "linear-gradient(135deg,#090d14,#121b2a)" },
+  background: { kind: "gradient", value: "midnight" },
   primaryTextColor: "#ffffff",
   secondaryTextColor: "#e5b95e",
   fontFamily: "Inter",
@@ -72,10 +73,10 @@ export const BUILTIN_PRESENTATION_THEMES: ReadonlyArray<{ name: string; template
   { name: "Sermon Scripture", templateKey: "sermon_scripture", appearance: themeAppearance({ bodySizeScale: 1.18, safeAreaPercent: 8, animation: "fade" }) },
   { name: "Worship Lyrics", templateKey: "worship_lyrics", appearance: themeAppearance({ bodySizeScale: 1.3, secondaryTextColor: "#dbeafe", animation: "slide" }) },
   { name: "Announcement", templateKey: "announcement", appearance: themeAppearance({ horizontalAlignment: "left", titleSizeScale: 1.25, bodySizeScale: 0.9, safeAreaPercent: 9 }) },
-  { name: "Youth Service", templateKey: "youth_service", appearance: themeAppearance({ background: { kind: "gradient", value: "linear-gradient(135deg,#312e81,#7c3aed,#db2777)" }, secondaryTextColor: "#fde047", animation: "zoom" }) },
-  { name: "Conference", templateKey: "conference", appearance: themeAppearance({ background: { kind: "gradient", value: "linear-gradient(135deg,#07111f,#0f3d56)" }, horizontalAlignment: "left", secondaryTextColor: "#67e8f9", safeAreaPercent: 7 }) },
+  { name: "Youth Service", templateKey: "youth_service", appearance: themeAppearance({ background: { kind: "gradient", value: "violet_pink" }, secondaryTextColor: "#fde047", animation: "zoom" }) },
+  { name: "Conference", templateKey: "conference", appearance: themeAppearance({ background: { kind: "gradient", value: "navy_teal" }, horizontalAlignment: "left", secondaryTextColor: "#67e8f9", safeAreaPercent: 7 }) },
   { name: "Funeral", templateKey: "funeral", appearance: themeAppearance({ background: { kind: "solid", value: "#111827" }, secondaryTextColor: "#d1d5db", animation: "fade", shadow: false }) },
-  { name: "Wedding", templateKey: "wedding", appearance: themeAppearance({ background: { kind: "gradient", value: "linear-gradient(135deg,#fff7ed,#fce7f3)" }, primaryTextColor: "#3f2d2d", secondaryTextColor: "#9f1239", fontFamily: "Georgia", shadow: false }) }
+  { name: "Wedding", templateKey: "wedding", appearance: themeAppearance({ background: { kind: "gradient", value: "ivory_rose" }, primaryTextColor: "#3f2d2d", secondaryTextColor: "#9f1239", fontFamily: "Georgia", shadow: false }) }
 ] as const;
 
 type QueryClient = Pick<PoolClient, "query">;
