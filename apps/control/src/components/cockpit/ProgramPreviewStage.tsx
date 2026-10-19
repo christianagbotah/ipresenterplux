@@ -1,10 +1,56 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, MonitorPlay, Radio, Square, ShieldAlert } from "lucide-react";
 import type { CockpitStageState, CockpitViewModel } from "@/lib/cockpit/contracts";
 import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
+
+function StageFittedContent({ item, label }: { item: CockpitStageState; label: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const fitContent = useCallback(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    content.style.transform = "scale(1)";
+    const styles = window.getComputedStyle(viewport);
+    const horizontalPadding = Number.parseFloat(styles.paddingLeft) + Number.parseFloat(styles.paddingRight);
+    const verticalPadding = Number.parseFloat(styles.paddingTop) + Number.parseFloat(styles.paddingBottom);
+    const availableWidth = Math.max(1, viewport.clientWidth - horizontalPadding);
+    const availableHeight = Math.max(1, viewport.clientHeight - verticalPadding);
+    const contentWidth = Math.max(1, content.scrollWidth);
+    const contentHeight = Math.max(1, content.scrollHeight);
+    const scale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+    content.style.transform = `scale(${scale})`;
+  }, []);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    const frame = window.requestAnimationFrame(fitContent);
+    const observer = new ResizeObserver(fitContent);
+    observer.observe(viewport);
+    observer.observe(content);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [fitContent, item.body, item.contentType, item.detail, item.id, item.title]);
+
+  return <div ref={viewportRef} className="ip-stage-copy ip-preview-prep" aria-label={label}>
+    <div ref={contentRef} className="ip-stage-fit-content">
+      <div className="text-xs font-semibold uppercase tracking-[.16em] text-white/45">{item.contentType.replaceAll("_", " ")}</div>
+      <h2 className="ip-stage-title mt-2 font-bold tracking-tight text-white/95">{item.title}</h2>
+      {item.body ? <div className="ip-stage-body mt-3 whitespace-pre-wrap leading-relaxed text-white/85">{item.body}</div> : null}
+      {item.detail ? <div className="mt-3 text-xs text-white/50">{item.detail}</div> : null}
+    </div>
+  </div>;
+}
 
 function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "preview" | "program" }) {
   const program = kind === "program";
@@ -20,13 +66,8 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
         {program ? (live ? "ON AIR" : "Clear") : item ? "Ready to take" : "Not on air"}
       </span>
     </header>
-    <div className="ip-stage-canvas ip-grid flex w-full aspect-video items-center justify-center text-center">
-      {item ? <div className="ip-stage-copy ip-preview-prep ip-scrollbar-thin max-h-full w-full overflow-y-auto p-5" tabIndex={0} aria-label={`${program ? "Program" : "Preview"} content`}>
-        <div className="text-xs font-semibold uppercase tracking-[.16em] text-white/45">{item.contentType.replaceAll("_", " ")}</div>
-        <h2 className="ip-stage-title mt-2 font-bold tracking-tight text-white/95">{item.title}</h2>
-        {item.body ? <div className="ip-stage-body mt-3 whitespace-pre-wrap leading-relaxed text-white/85">{item.body}</div> : null}
-        {item.detail ? <div className="mt-3 text-xs text-white/50">{item.detail}</div> : null}
-      </div> : <div className="px-4">
+    <div className="ip-stage-canvas ip-grid flex w-full aspect-video items-center justify-center overflow-hidden text-center">
+      {item ? <StageFittedContent item={item} label={`${program ? "Program" : "Preview"} content`} /> : <div className="px-4">
         <span className={`mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl border ${program ? "border-white/10 bg-white/[.025] text-white/30" : "border-[#d7a94a]/15 bg-[#d7a94a]/[.04] text-[#efc86f]/60"}`}><Icon size={23} aria-hidden="true" /></span>
         <div className="text-sm font-semibold text-white/65">{program ? "Program clear" : "Preview empty"}</div>
       </div>}
