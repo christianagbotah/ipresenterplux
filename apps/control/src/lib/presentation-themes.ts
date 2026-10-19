@@ -273,6 +273,71 @@ export async function listPresentationThemes(client: QueryClient, actorUserId: s
   return result.rows.map(themeDto);
 }
 
+
+type PresentationThemeImageAssetRow = {
+  id: string;
+  name: string;
+  status: string;
+  public_config: unknown;
+};
+
+function approvedThemeAssetUrl(publicConfig: unknown) {
+  if (!publicConfig || typeof publicConfig !== "object" || Array.isArray(publicConfig)) return null;
+  const config = publicConfig as Record<string, unknown>;
+  if (config.mediaKind !== "image" || typeof config.assetUrl !== "string") return null;
+  try {
+    const url = new URL(config.assetUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+export async function listPresentationThemeImageAssets(client: QueryClient, actorUserId: string, organizationId: string) {
+  await requireThemeRole(client, actorUserId, organizationId, PLANNER_VIEW_ROLES, "theme_view_forbidden", "You are not allowed to view presentation theme assets for this organization");
+  const result = await client.query<PresentationThemeImageAssetRow>(
+    `select id::text,name,status,public_config
+       from media_sources
+      where organization_id=$1::uuid
+        and source_type='library_media'
+        and status in ('ready','live')
+        and public_config->>'mediaKind'='image'
+      order by case status when 'live' then 0 else 1 end,name,id`,
+    [organizationId]
+  );
+  return result.rows.flatMap((row) => approvedThemeAssetUrl(row.public_config)
+    ? [{ id: row.id, name: row.name, status: row.status }]
+    : []);
+}
+
+export async function resolveThemeAssetManifest(
+  client: QueryClient,
+  organizationId: string,
+  appearance: Pick<ResolvedPresentationAppearance, "background" | "logo">
+) {
+  const ids = new Set<string>();
+  if (appearance.background.kind === "image") ids.add(appearance.background.value);
+  if (appearance.logo.mediaId) ids.add(appearance.logo.mediaId);
+  if (!ids.size) return {} as Record<string, string>;
+  const result = await client.query<PresentationThemeImageAssetRow>(
+    `select id::text,name,status,public_config
+       from media_sources
+      where organization_id=$1::uuid
+        and id=any($2::uuid[])
+        and source_type='library_media'
+        and status in ('ready','live')
+        and public_config->>'mediaKind'='image'`,
+    [organizationId, [...ids]]
+  );
+  const manifest: Record<string, string> = {};
+  for (const row of result.rows) {
+    const url = approvedThemeAssetUrl(row.public_config);
+    if (url) manifest[row.id] = url;
+  }
+  return manifest;
+}
+
 export async function getPresentationTheme(client: QueryClient, actorUserId: string, themeId: string) {
   const row = await themeRowById(client, themeId);
   if (!row) throw new PresentationThemeError(404, "theme_not_found", "Presentation theme not found");

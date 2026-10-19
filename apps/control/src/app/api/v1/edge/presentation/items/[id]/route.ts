@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db, query } from "@/lib/db";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
-import { resolveServicePresentationTheme, resolveThemeAppearance } from "@/lib/presentation-themes";
+import { resolveServicePresentationTheme, resolveThemeAppearance, resolveThemeAssetManifest } from "@/lib/presentation-themes";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -57,6 +57,7 @@ export async function GET(request: Request, context: RouteContext) {
 
   const serviceTheme = await resolveServicePresentationTheme(db, device.organizationId, row.service_id);
   const projectorTheme = resolveThemeAppearance(serviceTheme.appearance, { contentType: "scripture", output: "projector" });
+  const themeAssets = await resolveThemeAssetManifest(db, device.organizationId, projectorTheme);
 
   const verseLabel = row.verse_start === null
     ? null
@@ -78,7 +79,8 @@ export async function GET(request: Request, context: RouteContext) {
         chapter: String(row.chapter),
         verses: verseLabel ?? "",
         bibleVersion: row.bible_version,
-        themeAppearanceV1: JSON.stringify(projectorTheme)
+        themeAppearanceV1: JSON.stringify(projectorTheme),
+        themeAssetsV1: JSON.stringify(themeAssets)
       }
     }
   }, { headers: { "Cache-Control": "no-store" } });

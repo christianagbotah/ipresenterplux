@@ -14,7 +14,8 @@ type Theme = {
 };
 type Service = { id:string; title:string; activeThemeId:string|null };
 
-type Props = { organizationId:string; initialThemes:Theme[]; service:Service|null; canEdit:boolean; canAssign:boolean };
+type ImageAsset = { id:string; name:string; status:string };
+type Props = { organizationId:string; initialThemes:Theme[]; imageAssets:ImageAsset[]; service:Service|null; canEdit:boolean; canAssign:boolean };
 
 const gradientOptions = ["midnight","violet_pink","navy_teal","ivory_rose"] as const;
 const fixtureOptions: ThemePreviewFixture[] = ["Scripture","Lyrics","Announcement","Lower Third"];
@@ -26,7 +27,7 @@ function slug(value:string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,48) || "custom_theme";
 }
 
-export function ThemeStudio({ organizationId, initialThemes, service, canEdit, canAssign }:Props) {
+export function ThemeStudio({ organizationId, initialThemes, imageAssets, service, canEdit, canAssign }:Props) {
   const router=useRouter();
   const [themes,setThemes]=useState(initialThemes);
   const firstId=service?.activeThemeId && initialThemes.some((item)=>item.id===service.activeThemeId) ? service.activeThemeId : initialThemes[0]?.id ?? "";
@@ -51,7 +52,8 @@ export function ThemeStudio({ organizationId, initialThemes, service, canEdit, c
   function resetDraft() { if (selected) choose(selected); }
   function patch(next:Partial<PresentationAppearance>) { setDraft((current)=>({...current,...next})); setDirty(true); }
   function patchBackground(kind:PresentationAppearance["background"]["kind"]) {
-    const value = kind==="solid" ? "#111827" : kind==="gradient" ? "midnight" : "00000000-0000-4000-8000-000000000000";
+    const value = kind==="solid" ? "#111827" : kind==="gradient" ? "midnight" : imageAssets[0]?.id;
+    if (!value) { setMessage("Add an approved image asset in Media before selecting an image background."); return; }
     patch({ background:{ kind, value } as PresentationAppearance["background"] });
   }
 
@@ -124,10 +126,10 @@ export function ThemeStudio({ organizationId, initialThemes, service, canEdit, c
         </EditorSection>
 
         <EditorSection title="Background">
-          <Field label="Kind"><select value={draft.background.kind} onChange={(e)=>patchBackground(e.target.value as PresentationAppearance["background"]["kind"])} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option value="solid">Solid</option><option value="gradient">Gradient</option><option value="image">Image asset</option></select></Field>
+          <Field label="Kind"><select value={draft.background.kind} onChange={(e)=>patchBackground(e.target.value as PresentationAppearance["background"]["kind"])} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option value="solid">Solid</option><option value="gradient">Gradient</option><option value="image" disabled={!imageAssets.length}>Image asset</option></select></Field>
           {draft.background.kind==="solid"?<Field label="Color"><input type="color" value={draft.background.value} onChange={(e)=>patch({background:{kind:"solid",value:e.target.value}})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 p-2"/></Field>:null}
           {draft.background.kind==="gradient"?<Field label="Gradient"><select value={draft.background.value} onChange={(e)=>patch({background:{kind:"gradient",value:e.target.value as typeof gradientOptions[number]}})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm">{gradientOptions.map((item)=><option key={item} value={item}>{item.replaceAll("_"," ")}</option>)}</select></Field>:null}
-          {draft.background.kind==="image"?<Field label="Media asset UUID"><input value={draft.background.value} onChange={(e)=>patch({background:{kind:"image",value:e.target.value}})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"/></Field>:null}
+          {draft.background.kind==="image"?<Field label="Image asset"><select value={draft.background.value} onChange={(e)=>patch({background:{kind:"image",value:e.target.value}})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm">{imageAssets.map((asset)=><option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></Field>:null}
         </EditorSection>
 
         <EditorSection title="Layout">
@@ -143,7 +145,7 @@ export function ThemeStudio({ organizationId, initialThemes, service, canEdit, c
         </EditorSection>
 
         <EditorSection title="Logo">
-          <Field label="Media asset UUID"><input value={draft.logo.mediaId ?? ""} onChange={(e)=>{setDraft((c)=>({...c,logo:{...c.logo,mediaId:e.target.value||null}}));setDirty(true)}} disabled={!canEdit} placeholder="Optional" className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"/></Field>
+          <Field label="Logo image"><select value={draft.logo.mediaId ?? ""} onChange={(e)=>{setDraft((c)=>({...c,logo:{...c.logo,mediaId:e.target.value||null}}));setDirty(true)}} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option value="">No logo</option>{imageAssets.map((asset)=><option key={asset.id} value={asset.id}>{asset.name}</option>)}</select></Field>
           <Field label="Position"><select value={draft.logo.position} onChange={(e)=>{setDraft((c)=>({...c,logo:{...c.logo,position:e.target.value as PresentationAppearance["logo"]["position"]}}));setDirty(true)}} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option value="top_left">top left</option><option value="top_right">top right</option><option value="bottom_left">bottom left</option><option value="bottom_right">bottom right</option></select></Field>
           <Range label="Logo size %" value={draft.logo.sizePercent} min={1} max={30} step={1} disabled={!canEdit} onChange={(value)=>{setDraft((c)=>({...c,logo:{...c.logo,sizePercent:value}}));setDirty(true)}}/>
         </EditorSection>

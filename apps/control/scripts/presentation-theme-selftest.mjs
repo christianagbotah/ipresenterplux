@@ -14,10 +14,12 @@ import {
   ensureBuiltinPresentationThemes,
   getPresentationTheme,
   listPresentationThemes,
+  listPresentationThemeImageAssets,
   parsePresentationAppearance,
   presentationAppearanceSchema,
   resolvePresentationAppearance,
   resolveThemeAppearance,
+  resolveThemeAssetManifest,
   resolveServicePresentationTheme,
   updatePresentationTheme
 } from "../src/lib/presentation-themes.ts";
@@ -41,6 +43,7 @@ const edgePresentationRoute = await readFile(new URL("../src/app/api/v1/edge/pre
 assert.match(edgePresentationRoute, /resolveServicePresentationTheme/, "Edge presentation content must resolve the active service Theme inside tenant scope");
 assert.match(edgePresentationRoute, /resolveThemeAppearance/, "Edge presentation content must resolve content/output variants before transport");
 assert.match(edgePresentationRoute, /themeAppearanceV1/, "Edge presentation metadata must carry one versioned bounded Theme payload");
+assert.match(edgePresentationRoute, /themeAssetsV1/, "Edge presentation metadata must carry only approved Theme asset descriptors");
 
 for (const relative of ["../src/app/api/v1/themes/route.ts","../src/app/api/v1/themes/[id]/route.ts","../src/app/api/v1/services/[id]/theme/route.ts"]) {
   const route = await readFile(new URL(relative, import.meta.url), "utf8");
@@ -105,6 +108,7 @@ assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 const orgA=randomUUID(), orgB=randomUUID(), campusA=randomUUID(), serviceA=randomUUID();
+const imageSource=randomUUID(), audioSource=randomUUID(), foreignImageSource=randomUUID();
 const ownerA=randomUUID(), mediaA=randomUUID(), presenterA=randomUUID(), viewerA=randomUUID(), outsiderB=randomUUID();
 try {
   await client.query("begin");
@@ -117,6 +121,23 @@ try {
     ($1,$2,'owner'),($3,$2,'media_operator'),($4,$2,'presenter_operator'),($5,$2,'viewer'),($6,$7,'owner')`,
     [ownerA,orgA,mediaA,presenterA,viewerA,outsiderB,orgB]);
   await client.query(`insert into services(id,organization_id,campus_id,title,status,scheduled_start) values ($1,$2,$3,'Theme Service','ready',now())`, [serviceA,orgA,campusA]);
+  await client.query(`insert into media_sources(id,organization_id,name,source_type,status,public_config) values
+    ($1,$4,'Theme Image','library_media','ready',$5::jsonb),
+    ($2,$4,'Wrong Kind','library_media','ready',$6::jsonb),
+    ($3,$7,'Foreign Image','library_media','ready',$8::jsonb)`, [
+      imageSource,audioSource,foreignImageSource,orgA,
+      JSON.stringify({mediaKind:"image",assetUrl:"https://cdn.example.invalid/theme.webp"}),
+      JSON.stringify({mediaKind:"audio",assetUrl:"https://cdn.example.invalid/theme.mp3"}),
+      orgB,JSON.stringify({mediaKind:"image",assetUrl:"https://cdn.example.invalid/foreign.webp"})
+    ]);
+  const imageAssets = await listPresentationThemeImageAssets(client, viewerA, orgA);
+  assert.deepEqual(imageAssets.map((item)=>item.id),[imageSource],"Theme Studio picker must expose only same-tenant approved image assets");
+  const manifest = await resolveThemeAssetManifest(client, orgA, {
+    ...DEFAULT_PRESENTATION_APPEARANCE,
+    background:{kind:"image",value:imageSource},
+    logo:{...DEFAULT_PRESENTATION_APPEARANCE.logo,mediaId:foreignImageSource}
+  });
+  assert.deepEqual(manifest,{[imageSource]:"https://cdn.example.invalid/theme.webp"},"asset manifest must exclude cross-tenant or non-image sources");
 
   await ensureBuiltinPresentationThemes(client, orgA, ownerA);
   await ensureBuiltinPresentationThemes(client, orgB, null);
