@@ -19,6 +19,7 @@ const expectedRoutes = [
   ["Control Room", "/"],
   ["Scripture", "/scripture"],
   ["Songs & Media", "/media"],
+  ["Theme Studio", "/themes"],
   ["Cameras", "/cameras"],
   ["AI Director", "/ai-director"],
   ["Translations", "/translations"],
