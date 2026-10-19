@@ -136,6 +136,8 @@ jobs:
         run: pnpm test:scripture-auto-live-ui
       - name: Scripture Auto Live acceptance self-test
         run: pnpm test:scripture-auto-live-acceptance
+      - name: Scripture Auto Live field-UAT release-gate self-test
+        run: pnpm test:scripture-auto-live-field-uat-gate
       - name: Whole-chapter Scripture rendering self-test
         run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test
