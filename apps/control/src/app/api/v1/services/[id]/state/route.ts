@@ -6,6 +6,7 @@ import { validatePlannerReadiness } from "@/lib/planner-readiness";
 import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 import { finalizeStreamsForEndedService, type EndedServiceStreamResult } from "@/lib/service-stream-lifecycle";
+import { suspendServiceScriptureAutomation } from "@/lib/scripture-automation-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           organizationId: row.organization_id,
           actorId: session.user.id
         });
+        await suspendServiceScriptureAutomation(client, id, "service_ended");
       }
 
       const updated = await client.query<{
