@@ -5,14 +5,22 @@ import { LIVE_OPERATOR_ROLES, PLANNER_VIEW_ROLES, THEME_ADMIN_ROLES } from "./ro
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Expected a six-digit hex color");
 const gradientToken = z.enum(["midnight", "violet_pink", "navy_teal", "ivory_rose"]);
 const fontFamily = z.enum(["Inter", "Arial", "Verdana", "Trebuchet MS", "Georgia", "Times New Roman", "Noto Sans", "Noto Serif"]);
-
-export const presentationAppearanceSchema = z.object({
-  version: z.literal(1),
-  background: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("solid"), value: hexColor }).strict(),
-    z.object({ kind: z.literal("gradient"), value: gradientToken }).strict(),
-    z.object({ kind: z.literal("image"), value: z.string().uuid() }).strict()
-  ]),
+const backgroundSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("solid"), value: hexColor }).strict(),
+  z.object({ kind: z.literal("gradient"), value: gradientToken }).strict(),
+  z.object({ kind: z.literal("image"), value: z.string().uuid() }).strict()
+]);
+const lowerThirdSchema = z.object({
+  mode: z.enum(["off", "auto", "always"]),
+  position: z.enum(["bottom_left", "bottom_center", "bottom_right"])
+}).strict();
+const logoSchema = z.object({
+  mediaId: z.string().uuid().nullable(),
+  position: z.enum(["top_left", "top_right", "bottom_left", "bottom_right"]),
+  sizePercent: z.number().min(1).max(30)
+}).strict();
+const appearanceCoreShape = {
+  background: backgroundSchema,
   primaryTextColor: hexColor,
   secondaryTextColor: hexColor,
   fontFamily,
@@ -25,18 +33,35 @@ export const presentationAppearanceSchema = z.object({
   backingOpacity: z.number().min(0).max(1),
   safeAreaPercent: z.number().min(0).max(15),
   animation: z.enum(["instant", "fade", "slide", "zoom"]),
-  lowerThird: z.object({
-    mode: z.enum(["off", "auto", "always"]),
-    position: z.enum(["bottom_left", "bottom_center", "bottom_right"])
-  }).strict(),
-  logo: z.object({
-    mediaId: z.string().uuid().nullable(),
-    position: z.enum(["top_left", "top_right", "bottom_left", "bottom_right"]),
-    sizePercent: z.number().min(1).max(30)
-  }).strict()
+  lowerThird: lowerThirdSchema,
+  logo: logoSchema
+} as const;
+
+export const presentationAppearanceOverrideSchema = z.object(appearanceCoreShape).partial().strict();
+const contentVariantsSchema = z.object({
+  generic: presentationAppearanceOverrideSchema.optional(),
+  scripture: presentationAppearanceOverrideSchema.optional(),
+  song: presentationAppearanceOverrideSchema.optional(),
+  announcement: presentationAppearanceOverrideSchema.optional()
+}).strict().default({});
+const outputVariantsSchema = z.object({
+  projector: presentationAppearanceOverrideSchema.optional(),
+  stream: presentationAppearanceOverrideSchema.optional(),
+  audience: presentationAppearanceOverrideSchema.optional()
+}).strict().default({});
+
+export const presentationAppearanceSchema = z.object({
+  version: z.literal(1),
+  ...appearanceCoreShape,
+  contentVariants: contentVariantsSchema,
+  outputVariants: outputVariantsSchema
 }).strict();
 
+export type PresentationAppearanceOverride = z.infer<typeof presentationAppearanceOverrideSchema>;
 export type PresentationAppearance = z.infer<typeof presentationAppearanceSchema>;
+export type PresentationContentVariant = "generic" | "scripture" | "song" | "announcement";
+export type PresentationOutputVariant = "projector" | "stream" | "audience";
+export type ResolvedPresentationAppearance = Omit<PresentationAppearance, "contentVariants" | "outputVariants">;
 
 export const DEFAULT_PRESENTATION_APPEARANCE: PresentationAppearance = {
   version: 1,
@@ -54,7 +79,9 @@ export const DEFAULT_PRESENTATION_APPEARANCE: PresentationAppearance = {
   safeAreaPercent: 6,
   animation: "fade",
   lowerThird: { mode: "auto", position: "bottom_left" },
-  logo: { mediaId: null, position: "top_right", sizePercent: 8 }
+  logo: { mediaId: null, position: "top_right", sizePercent: 8 },
+  contentVariants: {},
+  outputVariants: {}
 };
 
 function themeAppearance(overrides: Partial<PresentationAppearance>): PresentationAppearance {
@@ -63,8 +90,30 @@ function themeAppearance(overrides: Partial<PresentationAppearance>): Presentati
     ...overrides,
     background: overrides.background ?? DEFAULT_PRESENTATION_APPEARANCE.background,
     lowerThird: overrides.lowerThird ?? DEFAULT_PRESENTATION_APPEARANCE.lowerThird,
-    logo: overrides.logo ?? DEFAULT_PRESENTATION_APPEARANCE.logo
+    logo: overrides.logo ?? DEFAULT_PRESENTATION_APPEARANCE.logo,
+    contentVariants: overrides.contentVariants ?? DEFAULT_PRESENTATION_APPEARANCE.contentVariants,
+    outputVariants: overrides.outputVariants ?? DEFAULT_PRESENTATION_APPEARANCE.outputVariants
   });
+}
+
+function resolvedBaseAppearance(appearance: PresentationAppearance): ResolvedPresentationAppearance {
+  const { contentVariants: _contentVariants, outputVariants: _outputVariants, ...base } = appearance;
+  return base;
+}
+
+function applyAppearanceOverride(base: ResolvedPresentationAppearance, override: PresentationAppearanceOverride | undefined) {
+  return override ? { ...base, ...override } as ResolvedPresentationAppearance : base;
+}
+
+export function resolveThemeAppearance(
+  value: unknown,
+  options: { contentType: PresentationContentVariant; output: PresentationOutputVariant }
+): ResolvedPresentationAppearance {
+  const appearance = resolvePresentationAppearance(value);
+  let resolved = resolvedBaseAppearance(appearance);
+  resolved = applyAppearanceOverride(resolved, appearance.contentVariants[options.contentType]);
+  resolved = applyAppearanceOverride(resolved, appearance.outputVariants[options.output]);
+  return resolved;
 }
 
 export const BUILTIN_PRESENTATION_THEMES: ReadonlyArray<{ name: string; templateKey: string; appearance: PresentationAppearance }> = [

@@ -17,6 +17,7 @@ import {
   parsePresentationAppearance,
   presentationAppearanceSchema,
   resolvePresentationAppearance,
+  resolveThemeAppearance,
   resolveServicePresentationTheme,
   updatePresentationTheme
 } from "../src/lib/presentation-themes.ts";
@@ -57,6 +58,38 @@ assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION
 assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, animation: "spin" }), /invalid|option/i);
 assert.equal(parsePresentationAppearance(DEFAULT_PRESENTATION_APPEARANCE).animation, "fade");
 assert.deepEqual(resolvePresentationAppearance({ version: 99, arbitrary: true }), DEFAULT_PRESENTATION_APPEARANCE, "invalid/unknown appearance must fail closed to built-in default");
+
+const variantTheme = presentationAppearanceSchema.parse({
+  ...DEFAULT_PRESENTATION_APPEARANCE,
+  contentVariants: {
+    scripture: { bodySizeScale: 1.4, horizontalAlignment: "left", background: { kind: "gradient", value: "navy_teal" } },
+    song: { bodySizeScale: 1.5, secondaryTextColor: "#22d3ee" },
+    announcement: { titleSizeScale: 1.35 },
+    generic: { backingOpacity: 0.25 }
+  },
+  outputVariants: {
+    projector: { safeAreaPercent: 9, background: { kind: "gradient", value: "midnight" } },
+    stream: { footerSizeScale: 0.8, secondaryTextColor: "#fde047" },
+    audience: { bodySizeScale: 0.95 }
+  }
+});
+const scriptureProjector = resolveThemeAppearance(variantTheme, { contentType: "scripture", output: "projector" });
+assert.equal(scriptureProjector.bodySizeScale, 1.4, "content variant must override base appearance");
+assert.equal(scriptureProjector.horizontalAlignment, "left");
+assert.equal(scriptureProjector.safeAreaPercent, 9, "output variant must apply after content variant");
+assert.deepEqual(scriptureProjector.background, { kind: "gradient", value: "midnight" }, "output background must atomically replace content background");
+const songStream = resolveThemeAppearance(variantTheme, { contentType: "song", output: "stream" });
+assert.equal(songStream.bodySizeScale, 1.5);
+assert.equal(songStream.secondaryTextColor, "#fde047", "output variant must win when both layers override one scalar");
+assert.equal(songStream.footerSizeScale, 0.8);
+const genericAudience = resolveThemeAppearance(variantTheme, { contentType: "generic", output: "audience" });
+assert.equal(genericAudience.backingOpacity, 0.25);
+assert.equal(genericAudience.bodySizeScale, 0.95);
+assert.equal(Object.hasOwn(scriptureProjector, "contentVariants"), false, "resolved appearance sent to output must not retain variant definitions");
+assert.equal(Object.hasOwn(scriptureProjector, "outputVariants"), false, "resolved appearance sent to output must not retain variant definitions");
+assert.throws(() => presentationAppearanceSchema.parse({ ...DEFAULT_PRESENTATION_APPEARANCE, contentVariants: { scripture: { lowerThird: { mode: "always" } } } }), /position|required|invalid/i, "nested override objects must replace atomically rather than partially merging unsafe shapes");
+const invalidVariantResolved = resolveThemeAppearance({ ...DEFAULT_PRESENTATION_APPEARANCE, contentVariants: { scripture: { background: { kind: "gradient", value: "url(https://example.invalid/x)" } } } }, { contentType: "scripture", output: "projector" });
+assert.equal(invalidVariantResolved.background.kind, DEFAULT_PRESENTATION_APPEARANCE.background.kind, "invalid variant payload must fail closed to the default theme");
 
 if (!process.env.DATABASE_URL) {
   console.log(JSON.stringify({ ok:true, mode:"local-contract", database:"deferred-to-ci", builtins:9, version:1, strict:true, tenantScoped:true }));
