@@ -20,13 +20,14 @@ type Props = { organizationId:string; initialThemes:Theme[]; imageAssets:ImageAs
 const gradientOptions = ["midnight","violet_pink","navy_teal","ivory_rose"] as const;
 const fixtureOptions: ThemePreviewFixture[] = ["Scripture","Lyrics","Announcement","Lower Third"];
 
-type VariantLayer = "scripture" | "song" | "announcement" | "projector" | "stream" | "audience";
+type EditableContentVariant = Exclude<PresentationContentVariant, "generic">;
+type VariantLayer = EditableContentVariant | PresentationOutputVariant;
 const variantLayers: Array<{id:VariantLayer;label:string;kind:"content"|"output"}> = [
   {id:"scripture",label:"Scripture",kind:"content"},{id:"song",label:"Lyrics",kind:"content"},{id:"announcement",label:"Announcement",kind:"content"},
   {id:"projector",label:"Projector",kind:"output"},{id:"stream",label:"Stream",kind:"output"},{id:"audience",label:"Audience",kind:"output"}
 ];
-const contentLayers = new Set<VariantLayer>(["scripture","song","announcement"]);
-function isContentLayer(value:VariantLayer): value is PresentationContentVariant { return contentLayers.has(value); }
+const contentLayers = new Set<EditableContentVariant>(["scripture","song","announcement"]);
+function isContentLayer(value:VariantLayer): value is EditableContentVariant { return contentLayers.has(value as EditableContentVariant); }
 function currentVariant(appearance:PresentationAppearance, layer:VariantLayer):PresentationAppearanceOverride {
   return isContentLayer(layer) ? appearance.contentVariants[layer] ?? {} : appearance.outputVariants[layer as PresentationOutputVariant] ?? {};
 }
