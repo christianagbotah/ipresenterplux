@@ -75,6 +75,7 @@ const protectedScripts = [
   "switching-moat-acceptance-selftest.mjs",
   "stream-session-authority-selftest.mjs",
   "scripture-automation-schema-selftest.mjs",
+  "scripture-state-authority-selftest.mjs",
   "subscription-schema-selftest.mjs",
   "transcript-window-selftest.mjs",
   "translation-worker-selftest.mjs",
