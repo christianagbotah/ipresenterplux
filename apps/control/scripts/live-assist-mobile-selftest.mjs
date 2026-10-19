@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
+import { reconnectDelayMs } from "../src/lib/realtime-reconnect.ts";
 
 const files = {
   cockpit: "../src/components/cockpit/CockpitMobile.tsx",
@@ -11,10 +12,15 @@ const files = {
   find: "../src/components/cockpit/mobile/MobileFindBar.tsx",
   palette: "../src/components/cockpit/CommandPalette.tsx",
   stage: "../src/components/cockpit/ProgramPreviewStage.tsx",
+  realtime: "../src/components/RealtimeRefresh.tsx",
+  audienceRealtime: "../src/components/audience/AudienceRealtimeRefresh.tsx",
+  reconnect: "../src/lib/realtime-reconnect.ts",
   projection: "../src/lib/cockpit/role-projection.ts"
 };
 for (const relative of Object.values(files)) await access(new URL(relative, import.meta.url));
 const source = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([key, relative]) => [key, await readFile(new URL(relative, import.meta.url), "utf8")])));
+
+assert.deepEqual([0,1,2,3,4,5,99].map(reconnectDelayMs), [1000,2000,5000,10000,15000,15000,15000], "reconnect backoff must be bounded and capped at 15 seconds");
 
 for (const component of ["MobileLiveStrip", "MobileBottomNav", "MobileQuickActions"]) {
   assert.match(source.cockpit, new RegExp(component), `CockpitMobile must compose ${component}`);
@@ -67,5 +73,19 @@ assert.match(source.actions, /compact/, "armed automation action must expose the
 assert.match(source.actions, /scriptureAutomation\.armed/, "Disarm must only surface while Auto Scripture Live is armed");
 assert.match(source.actions, /\/cameras/, "visual source quick action must route to the governed Visual Sources workspace");
 assert.doesNotMatch(source.actions, /program\.show|program\.take|state:\s*["']live["']|\/api\/v1\/scriptures\//, "mobile quick actions must not create a direct Program mutation path");
+
+assert.match(source.cockpit, /useSyncExternalStore/, "mobile Live Assist must subscribe to live connection freshness without replacing the server model");
+assert.match(source.cockpit, /showing last confirmed live state/i, "reconnect copy must tell the operator the visible state is retained but stale");
+assert.match(source.cockpit, /Reconnecting|reconnecting|Offline|offline/, "mobile must make connection degradation explicit");
+assert.doesNotMatch(source.cockpit, /setModel\(|useState<CockpitViewModel/, "mobile reconnect must retain the server-provided model rather than blanking/replacing it locally");
+assert.match(source.realtime, /setRealtimeConnectionState/, "realtime transport must publish connection freshness to Live Assist");
+assert.match(source.realtime, /reconnectDelayMs/, "realtime transport must use bounded reconnect backoff");
+assert.match(source.realtime, /window\.addEventListener\(["']online["']/, "realtime transport must react to browser reconnect");
+assert.match(source.realtime, /window\.addEventListener\(["']offline["']/, "realtime transport must mark browser loss explicitly");
+assert.doesNotMatch(source.realtime, /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']|localStorage|sessionStorage/, "reconnect transport must never queue or replay consequential mutations");
+assert.match(source.reconnect, /15_000|15000/, "reconnect backoff must have a finite 15s ceiling");
+assert.match(source.reconnect, /subscribeRealtimeConnection/, "connection store must provide subscription without duplicating Cockpit state");
+assert.match(source.audienceRealtime, /reconnectDelayMs/, "audience refresh should share the bounded reconnect primitive once extracted");
+assert.doesNotMatch(source.audienceRealtime, /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/, "audience reconnect must remain read-only");
 
 console.log(JSON.stringify({ ok: true, shellSplit: true, persistentLiveStrip: true, roleFilteredNav: true, touchTargets: 44, noEngineeringKpis: true }));

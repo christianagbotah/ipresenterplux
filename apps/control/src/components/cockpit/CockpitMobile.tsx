@@ -1,8 +1,10 @@
 "use client";
 
-import { AlertTriangle, UserRound } from "lucide-react";
+import { useSyncExternalStore } from "react";
+import { AlertTriangle, UserRound, WifiOff } from "lucide-react";
 import type { CockpitRoleProjection } from "@/lib/cockpit/role-projection";
 import type { CockpitViewModel } from "@/lib/cockpit/contracts";
+import { getRealtimeConnectionState, subscribeRealtimeConnection } from "@/lib/realtime-reconnect";
 import { NextRail } from "./NextRail";
 import { ProgramPreviewStage } from "./ProgramPreviewStage";
 import { MobileBottomNav } from "./mobile/MobileBottomNav";
@@ -71,8 +73,19 @@ function MobileBody({ model, projection }: { model: CockpitViewModel; projection
 }
 
 export function CockpitMobile({ model, projection }: { model: CockpitViewModel; projection: CockpitRoleProjection }) {
-  return <div className="space-y-3 pb-20 md:hidden" data-cockpit-mobile-profile={projection.kind}>
+  const serviceId = model.service?.id ?? null;
+  const connection = useSyncExternalStore(
+    (listener) => serviceId ? subscribeRealtimeConnection(serviceId, listener) : () => {},
+    () => serviceId ? getRealtimeConnectionState(serviceId) : "connected",
+    () => serviceId ? "connecting" : "connected"
+  );
+  const stale = connection === "reconnecting" || connection === "offline";
+
+  return <div className="space-y-3 pb-20 md:hidden" data-cockpit-mobile-profile={projection.kind} data-live-assist-freshness={stale ? "stale" : connection}>
     <MobileLiveStrip model={model} projection={projection}/>
+    {stale ? <div role="status" aria-live="polite" className="flex min-h-11 items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-400/[.07] px-3 text-[11px] leading-4 text-amber-100">
+      <WifiOff size={14} className="shrink-0" aria-hidden="true"/><span><strong>{connection === "offline" ? "Offline" : "Reconnecting"}</strong> · showing last confirmed live state. No action will be replayed automatically.</span>
+    </div> : null}
     <MobileFindBar/>
     <MobileBody model={model} projection={projection}/>
     <MobileBottomNav projection={projection} active="live"/>
