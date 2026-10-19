@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2, Palette, RotateCcw, Save, Sparkles } from "lucide-react";
-import { DEFAULT_PRESENTATION_APPEARANCE, type PresentationAppearance } from "@/lib/presentation-themes";
+import { DEFAULT_PRESENTATION_APPEARANCE, resolveThemeAppearance, type PresentationAppearance, type PresentationAppearanceOverride, type PresentationContentVariant, type PresentationOutputVariant } from "@/lib/presentation-themes";
 import { ThemePreview, type ThemePreviewFixture } from "./ThemePreview";
 
 export const BUILTIN_TEMPLATE_ORDER = ["Sunday Modern","Lower Third Scripture","Sermon Scripture","Worship Lyrics","Announcement","Youth Service","Conference","Funeral","Wedding"] as const;
@@ -20,8 +20,19 @@ type Props = { organizationId:string; initialThemes:Theme[]; imageAssets:ImageAs
 const gradientOptions = ["midnight","violet_pink","navy_teal","ivory_rose"] as const;
 const fixtureOptions: ThemePreviewFixture[] = ["Scripture","Lyrics","Announcement","Lower Third"];
 
+type VariantLayer = "scripture" | "song" | "announcement" | "projector" | "stream" | "audience";
+const variantLayers: Array<{id:VariantLayer;label:string;kind:"content"|"output"}> = [
+  {id:"scripture",label:"Scripture",kind:"content"},{id:"song",label:"Lyrics",kind:"content"},{id:"announcement",label:"Announcement",kind:"content"},
+  {id:"projector",label:"Projector",kind:"output"},{id:"stream",label:"Stream",kind:"output"},{id:"audience",label:"Audience",kind:"output"}
+];
+const contentLayers = new Set<VariantLayer>(["scripture","song","announcement"]);
+function isContentLayer(value:VariantLayer): value is PresentationContentVariant { return contentLayers.has(value); }
+function currentVariant(appearance:PresentationAppearance, layer:VariantLayer):PresentationAppearanceOverride {
+  return isContentLayer(layer) ? appearance.contentVariants[layer] ?? {} : appearance.outputVariants[layer as PresentationOutputVariant] ?? {};
+}
+
 function cloneAppearance(value:PresentationAppearance):PresentationAppearance {
-  return { ...value, background:{...value.background}, lowerThird:{...value.lowerThird}, logo:{...value.logo} };
+  return JSON.parse(JSON.stringify(value)) as PresentationAppearance;
 }
 function slug(value:string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,48) || "custom_theme";
@@ -36,12 +47,17 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
   const [draft,setDraft]=useState<PresentationAppearance>(()=>cloneAppearance(first?.appearance ?? DEFAULT_PRESENTATION_APPEARANCE));
   const [draftName,setDraftName]=useState(first?.name ?? "New Theme");
   const [fixture,setFixture]=useState<ThemePreviewFixture>("Scripture");
+  const [variantLayer,setVariantLayer]=useState<VariantLayer>("scripture");
   const [dirty,setDirty]=useState(false);
   const [activeThemeId,setActiveThemeId]=useState(service?.activeThemeId ?? null);
   const [busy,setBusy]=useState<string|null>(null);
   const [message,setMessage]=useState<string|null>(null);
 
   const selected=themes.find((item)=>item.id===selectedId) ?? null;
+  const activeVariant=currentVariant(draft,variantLayer);
+  const previewContentType:PresentationContentVariant = fixture==="Scripture" ? "scripture" : fixture==="Lyrics" ? "song" : fixture==="Announcement" ? "announcement" : "generic";
+  const previewOutput:PresentationOutputVariant = variantLayer==="stream" ? "stream" : variantLayer==="audience" ? "audience" : "projector";
+  const previewAppearance=useMemo(()=>resolveThemeAppearance(draft,{contentType:previewContentType,output:previewOutput}),[draft,previewContentType,previewOutput]);
   const orderedThemes=useMemo(()=>themes.slice().sort((a,b)=>{
     const ai=BUILTIN_TEMPLATE_ORDER.indexOf(a.name as never), bi=BUILTIN_TEMPLATE_ORDER.indexOf(b.name as never);
     if (a.isBuiltin && b.isBuiltin) return ai-bi;
@@ -51,6 +67,27 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
   function choose(theme:Theme) { setSelectedId(theme.id); setDraft(cloneAppearance(theme.appearance)); setDraftName(theme.name); setDirty(false); setMessage(null); }
   function resetDraft() { if (selected) choose(selected); }
   function patch(next:Partial<PresentationAppearance>) { setDraft((current)=>({...current,...next})); setDirty(true); }
+  function chooseVariantLayer(layer:VariantLayer) {
+    setVariantLayer(layer);
+    if (layer==="scripture") setFixture("Scripture");
+    else if (layer==="song") setFixture("Lyrics");
+    else if (layer==="announcement") setFixture("Announcement");
+  }
+  function patchVariant(next:PresentationAppearanceOverride) {
+    setDraft((current)=>{
+      if (isContentLayer(variantLayer)) return {...current,contentVariants:{...current.contentVariants,[variantLayer]:{...(current.contentVariants[variantLayer]??{}),...next}}};
+      const output=variantLayer as PresentationOutputVariant;
+      return {...current,outputVariants:{...current.outputVariants,[output]:{...(current.outputVariants[output]??{}),...next}}};
+    });
+    setDirty(true);
+  }
+  function clearVariant() {
+    setDraft((current)=>{
+      if (isContentLayer(variantLayer)) { const next={...current.contentVariants}; delete next[variantLayer]; return {...current,contentVariants:next}; }
+      const output=variantLayer as PresentationOutputVariant; const next={...current.outputVariants}; delete next[output]; return {...current,outputVariants:next};
+    });
+    setDirty(true);
+  }
   function patchBackground(kind:PresentationAppearance["background"]["kind"]) {
     const value = kind==="solid" ? "#111827" : kind==="gradient" ? "midnight" : imageAssets[0]?.id;
     if (!value) { setMessage("Add an approved image asset in Media before selecting an image background."); return; }
@@ -95,12 +132,12 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
 
   return <div className="grid gap-4 2xl:grid-cols-[320px_minmax(0,1fr)]">
     <aside className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4">
-      <div className="flex items-center gap-2 text-[#e5b95e]"><Palette size={16}/><span className="text-[10px] font-black uppercase tracking-[.14em]">Theme library</span></div>
+      <div className="flex items-center gap-2 text-[#e5b95e]"><Palette size={16}/><span className="text-xs font-black uppercase tracking-[.14em]">Theme library</span></div>
       <p className="mt-2 text-xs leading-5 text-white/45">Built-ins are protected. Edit one locally, then Save as custom to make a church-owned copy.</p>
       <div className="mt-4 space-y-2">
         {orderedThemes.map((theme)=><button key={theme.id} type="button" onClick={()=>choose(theme)} className={`ip-focus-gold min-h-11 w-full rounded-xl border px-3 py-2 text-left transition ${theme.id===selectedId?"border-[#d7a94a]/35 bg-[#d7a94a]/[.08]":"border-white/[.06] bg-white/[.02] hover:bg-white/[.045]"}`}>
-          <span className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-white/80">{theme.name}</span>{theme.id===activeThemeId?<span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-black text-emerald-200">ACTIVE</span>:null}</span>
-          <span className="mt-1 block text-[10px] uppercase tracking-[.1em] text-white/35">{theme.isBuiltin?"Built-in":"Church theme"}</span>
+          <span className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-white/80">{theme.name}</span>{theme.id===activeThemeId?<span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-xs font-black text-emerald-200">ACTIVE</span>:null}</span>
+          <span className="mt-1 block text-xs uppercase tracking-[.1em] text-white/35">{theme.isBuiltin?"Built-in":"Church theme"}</span>
         </button>)}
       </div>
     </aside>
@@ -108,11 +145,11 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
     <div className="space-y-4">
       <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><div className="flex items-center gap-2 text-[#e5b95e]"><Sparkles size={15}/><span className="text-[10px] font-black uppercase tracking-[.14em]">Local preview</span></div><h1 className="mt-2 text-xl font-black">{selected.name}</h1><p className="mt-1 text-xs text-white/45">Draft changes stay here until you explicitly Save. Apply changes only the service theme selection—not Program content/state.</p></div>
-          {dirty?<span className="rounded-full border border-amber-400/20 bg-amber-400/[.07] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-amber-100">Unsaved draft</span>:null}
+          <div><div className="flex items-center gap-2 text-[#e5b95e]"><Sparkles size={15}/><span className="text-xs font-black uppercase tracking-[.14em]">Local preview</span></div><h1 className="mt-2 text-xl font-black">{selected.name}</h1><p className="mt-1 text-xs text-white/45">Draft changes stay here until you explicitly Save. Apply changes only the service theme selection—not Program content/state.</p></div>
+          {dirty?<span className="rounded-full border border-amber-400/20 bg-amber-400/[.07] px-3 py-1.5 text-xs font-black uppercase tracking-[.1em] text-amber-100">Unsaved draft</span>:null}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">{fixtureOptions.map((item)=><button key={item} type="button" onClick={()=>setFixture(item)} className={`ip-focus-gold min-h-11 rounded-xl border px-3 text-xs font-bold ${fixture===item?"border-[#d7a94a]/35 bg-[#d7a94a]/[.08] text-[#efc86f]":"border-white/[.07] bg-white/[.02] text-white/55"}`}>{item}</button>)}</div>
-        <div className="mt-4"><ThemePreview appearance={draft} fixture={fixture}/></div>
+        <div className="mt-4"><ThemePreview appearance={previewAppearance} fixture={fixture}/></div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-2">
@@ -150,6 +187,17 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
           <Range label="Logo size %" value={draft.logo.sizePercent} min={1} max={30} step={1} disabled={!canEdit} onChange={(value)=>{setDraft((c)=>({...c,logo:{...c.logo,sizePercent:value}}));setDirty(true)}}/>
         </EditorSection>
 
+        <EditorSection title="Variant overrides">
+          <p className="text-xs leading-5 text-white/50">Advanced layer: change only what differs from the base Theme. Content overrides apply first; output overrides apply last.</p>
+          <Field label="Edit layer"><select value={variantLayer} onChange={(e)=>chooseVariantLayer(e.target.value as VariantLayer)} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm">{variantLayers.map((layer)=><option key={layer.id} value={layer.id}>{layer.kind==="content"?"Content · ":"Output · "}{layer.label}</option>)}</select></Field>
+          <div className="grid grid-cols-2 gap-2"><Range label="Title scale" value={activeVariant.titleSizeScale ?? draft.titleSizeScale} min={0.5} max={2.5} step={0.05} disabled={!canEdit} onChange={(value)=>patchVariant({titleSizeScale:value})}/><Range label="Body scale" value={activeVariant.bodySizeScale ?? draft.bodySizeScale} min={0.5} max={2.25} step={0.05} disabled={!canEdit} onChange={(value)=>patchVariant({bodySizeScale:value})}/></div>
+          <div className="grid grid-cols-2 gap-2"><Field label="Horizontal"><select value={activeVariant.horizontalAlignment ?? draft.horizontalAlignment} onChange={(e)=>patchVariant({horizontalAlignment:e.target.value as PresentationAppearance["horizontalAlignment"]})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option>left</option><option>center</option><option>right</option></select></Field><Field label="Vertical"><select value={activeVariant.verticalAlignment ?? draft.verticalAlignment} onChange={(e)=>patchVariant({verticalAlignment:e.target.value as PresentationAppearance["verticalAlignment"]})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option>top</option><option>center</option><option>bottom</option></select></Field></div>
+          <Range label="Safe area %" value={activeVariant.safeAreaPercent ?? draft.safeAreaPercent} min={0} max={15} step={1} disabled={!canEdit} onChange={(value)=>patchVariant({safeAreaPercent:value})}/>
+          <div className="grid grid-cols-2 gap-2"><Field label="Primary"><input type="color" value={activeVariant.primaryTextColor ?? draft.primaryTextColor} onChange={(e)=>patchVariant({primaryTextColor:e.target.value})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 p-2"/></Field><Field label="Accent"><input type="color" value={activeVariant.secondaryTextColor ?? draft.secondaryTextColor} onChange={(e)=>patchVariant({secondaryTextColor:e.target.value})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 p-2"/></Field></div>
+          <Field label="Transition"><select value={activeVariant.animation ?? draft.animation} onChange={(e)=>patchVariant({animation:e.target.value as PresentationAppearance["animation"]})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option>instant</option><option>fade</option><option>slide</option><option>zoom</option></select></Field>
+          <button type="button" onClick={clearVariant} disabled={!canEdit || Object.keys(activeVariant).length===0} className="ip-focus-gold min-h-11 rounded-xl border border-white/[.09] px-3 text-xs font-black text-white/60 disabled:opacity-35">Reset selected layer</button>
+        </EditorSection>
+
         <EditorSection title="Motion">
           <Field label="Transition"><select value={draft.animation} onChange={(e)=>patch({animation:e.target.value as PresentationAppearance["animation"]})} disabled={!canEdit} className="min-h-11 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm"><option>instant</option><option>fade</option><option>slide</option><option>zoom</option></select></Field>
           <p className="text-xs leading-5 text-white/45">Motion is a bounded rendering hint. Theme data never contains arbitrary CSS, HTML or JavaScript.</p>
@@ -167,5 +215,5 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
 }
 
 function EditorSection({ title,children }:{title:string;children:React.ReactNode}) { return <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><h2 className="text-sm font-black">{title}</h2><div className="mt-3 space-y-3">{children}</div></section>; }
-function Field({ label,children }:{label:string;children:React.ReactNode}) { return <label className="block space-y-1.5"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/45">{label}</span>{children}</label>; }
-function Range({ label,value,min,max,step,disabled,onChange }:{label:string;value:number;min:number;max:number;step:number;disabled:boolean;onChange:(value:number)=>void}) { return <label className="block space-y-1.5"><span className="flex justify-between text-[10px] font-bold uppercase tracking-[.12em] text-white/45"><span>{label}</span><span>{value}</span></span><input type="range" min={min} max={max} step={step} value={value} disabled={disabled} onChange={(e)=>onChange(Number(e.target.value))} className="min-h-11 w-full"/></label>; }
+function Field({ label,children }:{label:string;children:React.ReactNode}) { return <label className="block space-y-1.5"><span className="text-xs font-bold uppercase tracking-[.12em] text-white/45">{label}</span>{children}</label>; }
+function Range({ label,value,min,max,step,disabled,onChange }:{label:string;value:number;min:number;max:number;step:number;disabled:boolean;onChange:(value:number)=>void}) { return <label className="block space-y-1.5"><span className="flex justify-between text-xs font-bold uppercase tracking-[.12em] text-white/45"><span>{label}</span><span>{value}</span></span><input type="range" min={min} max={max} step={step} value={value} disabled={disabled} onChange={(e)=>onChange(Number(e.target.value))} className="min-h-11 w-full"/></label>; }

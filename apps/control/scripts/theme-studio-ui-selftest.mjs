@@ -22,6 +22,13 @@ assert.match(source.page, /listPresentationThemes/, "Theme Studio page must load
 assert.match(source.page, /ensureBuiltinPresentationThemes/, "Theme Studio page must idempotently seed built-ins for organizations created after the theme migration");
 assert.match(source.page, /listPresentationThemeImageAssets/, "Theme Studio must load tenant-scoped image assets for background/logo pickers");
 assert.match(source.studio, /imageAssets/, "Theme Studio must receive approved image assets instead of asking operators for raw UUIDs");
+assert.match(source.studio, /Variant overrides/, "Theme Studio must expose advanced content/output variant overrides outside the live Cockpit");
+for (const label of ["Scripture","Lyrics","Announcement","Projector","Stream","Audience"]) assert.ok(source.studio.includes(label), `Theme Studio variant editor must expose ${label}`);
+assert.match(source.studio, /resolveThemeAppearance/, "Theme Studio preview must use the same deterministic Theme resolver as live output");
+assert.match(source.studio, /Reset selected layer/, "variant overrides must be independently resettable");
+assert.doesNotMatch(source.studio, /text-\[10px\]/, "Theme Studio operational text must keep the 12px floor");
+assert.doesNotMatch(source.page, /text-\[10px\]/, "Theme Studio page chrome must keep the 12px floor");
+assert.match(source.preview, /ResolvedPresentationAppearance/, "Theme preview must consume the resolved appearance rather than unresolved variant definitions");
 assert.doesNotMatch(source.studio, /Media asset UUID/, "Theme Studio must not expose raw media UUID entry as the normal operator workflow");
 assert.doesNotMatch(source.studio, /initialThemes\[0\]!/, "Theme Studio must not crash when no themes are available");
 assert.match(source.routes, /Theme Studio/);

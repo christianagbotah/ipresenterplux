@@ -1,6 +1,6 @@
 "use client";
 
-import type { PresentationAppearance } from "@/lib/presentation-themes";
+import type { ResolvedPresentationAppearance } from "@/lib/presentation-themes";
 
 export const MIN_PREVIEW_TEXT_PX = 12;
 
@@ -24,13 +24,13 @@ function px(base:number, scale:number, ceiling:number) {
   return Math.max(MIN_PREVIEW_TEXT_PX, Math.min(ceiling, Math.round(base * scale)));
 }
 
-function background(appearance: PresentationAppearance) {
+function background(appearance: ResolvedPresentationAppearance) {
   if (appearance.background.kind === "solid") return appearance.background.value;
   if (appearance.background.kind === "gradient") return gradients[appearance.background.value] ?? gradients.midnight;
   return "linear-gradient(135deg,#111827,#1f2937)";
 }
 
-export function ThemePreview({ appearance, fixture }: { appearance: PresentationAppearance; fixture: ThemePreviewFixture }) {
+export function ThemePreview({ appearance, fixture }: { appearance: ResolvedPresentationAppearance; fixture: ThemePreviewFixture }) {
   const content=fixtures[fixture];
   const horizontal = appearance.horizontalAlignment === "left" ? "flex-start" : appearance.horizontalAlignment === "right" ? "flex-end" : "center";
   const vertical = appearance.verticalAlignment === "top" ? "flex-start" : appearance.verticalAlignment === "bottom" ? "flex-end" : "center";
