@@ -24,6 +24,8 @@ export type CockpitRoleProjection = {
     canClear: boolean;
     canPin: boolean;
     canOpenScripture: boolean;
+    canOpenService: boolean;
+    canOpenAudience: boolean;
     canOpenMedia: boolean;
     canOpenCameras: boolean;
     canOpenTranslations: boolean;
@@ -52,6 +54,8 @@ export function projectCockpitForRole(model: CockpitViewModel, roles: readonly s
       canClear: liveControl,
       canPin: model.capabilities.canPlanServices === true || liveControl,
       canOpenScripture: model.capabilities.canViewPlanner === true,
+      canOpenService: model.capabilities.canViewPlanner === true,
+      canOpenAudience: roles.length > 0,
       canOpenMedia: model.capabilities.canMedia === true,
       canOpenCameras: model.capabilities.canCameras === true,
       canOpenTranslations: model.capabilities.canTranslations === true,
