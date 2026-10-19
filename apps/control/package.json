@@ -87,7 +87,8 @@
     "test:cockpit-universal-search": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-universal-search-selftest.mjs",
     "test:cockpit-command-surface": "node scripts/cockpit-command-surface-selftest.mjs",
     "test:scripture-automation-schema": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-automation-schema-selftest.mjs",
-    "test:scripture-state-authority": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-state-authority-selftest.mjs"
+    "test:scripture-state-authority": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-state-authority-selftest.mjs",
+    "test:scripture-automation-policy": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/scripture-automation-policy-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

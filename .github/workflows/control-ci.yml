@@ -99,6 +99,8 @@ jobs:
         run: pnpm test:subscription-schema
       - name: Scripture automation schema self-test
         run: pnpm test:scripture-automation-schema
+      - name: Scripture automation policy self-test
+        run: pnpm test:scripture-automation-policy
       - name: Secure product-key self-test
         run: pnpm test:product-key
       - name: Signed entitlement envelope self-test

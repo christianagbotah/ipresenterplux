@@ -37,8 +37,11 @@ export async function POST(request: Request) {
       service = await findServiceById(payload.serviceId);
     } else {
       const found = await query<ServiceContext>(
-        `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text,s.ai_enabled
+        `select s.id,s.organization_id::text,s.campus_id::text,s.active_bible_version,s.auto_preview_threshold::text,s.ai_enabled,
+                s.status,s.scripture_automation_mode,s.auto_scripture_reference_threshold::text,s.auto_scripture_quote_threshold::text,
+                s.scripture_automation_armed_at::text,s.scripture_automation_armed_by::text,o.auto_scripture_live_enabled
          from services s
+         join organizations o on o.id=s.organization_id
          where s.status in ('live','ready')
            and exists (
              select 1 from user_organization_roles uor
