@@ -99,6 +99,8 @@ jobs:
         run: pnpm test:subscription-schema
       - name: Scripture automation schema self-test
         run: pnpm test:scripture-automation-schema
+      - name: Presentation theme schema self-test
+        run: pnpm test:presentation-theme
       - name: Scripture automation policy self-test
         run: pnpm test:scripture-automation-policy
       - name: Scripture automation API self-test
