@@ -1,7 +1,8 @@
 import type { PoolClient, QueryResultRow } from "pg";
 import { db, query } from "@/lib/db";
 import { publishServiceEvent } from "@/lib/realtime";
-import { activeAssignedEdgeCount, decideScriptureAutomation, recentlyLiveReference, type ScriptureAutomationMode } from "@/lib/scripture-automation";
+import { activeAssignedEdgeCount, decideScriptureAutomation, fatalAutoLivePrerequisite, recentlyLiveReference, type ScriptureAutomationMode } from "@/lib/scripture-automation";
+import { applyScriptureAutomationCircuitBreaker, recordAutoScriptureLiveTake } from "@/lib/scripture-automation-telemetry";
 import { transitionScriptureState } from "@/lib/scripture-state";
 import { matchScriptureQuote } from "@/lib/scripture-quote";
 import { latestTranscriptObservedAt, recordTranscriptSegment, recentTranscriptQuoteWindow, recentlyDetectedQuote } from "@/lib/transcript-window";
@@ -341,7 +342,8 @@ export async function publishTranscriptIngestResult(result: TranscriptResult) {
 export async function ingestTranscriptForService(
   service: ServiceContext,
   payload: TranscriptInput,
-  client?: PoolClient
+  client?: PoolClient,
+  finalizedRecognitionAt: Date = new Date()
 ): Promise<TranscriptResult> {
   if (!payload.text.trim()) {
     return { ok: true, serviceId: service.id, transcript: payload.text, detected: 0, translationJobsQueued: 0, inserted: [], stateChanges: [] };
@@ -351,7 +353,7 @@ export async function ingestTranscriptForService(
     const ownedClient = await db.connect();
     try {
       await ownedClient.query("begin");
-      const result = await ingestTranscriptForService(service, payload, ownedClient);
+      const result = await ingestTranscriptForService(service, payload, ownedClient, finalizedRecognitionAt);
       await ownedClient.query("commit");
       await publishTranscriptIngestResult(result);
       return result;
@@ -419,6 +421,27 @@ export async function ingestTranscriptForService(
   const activeEdgeCount = scriptureAutomationEnabled && service.scripture_automation_mode === "auto_live"
     ? await activeAssignedEdgeCount(client, service.organization_id, service.id)
     : 0;
+  const automationArmed = Boolean(service.scripture_automation_armed_at && service.scripture_automation_armed_by);
+  const fatalPrerequisite = scriptureAutomationEnabled
+    ? fatalAutoLivePrerequisite({
+        mode: service.scripture_automation_mode,
+        armed: automationArmed,
+        organizationAutoLiveEnabled: service.auto_scripture_live_enabled,
+        serviceStatus: service.status,
+        activeEdgeCount,
+        localBibleReady: hasLocalBible
+      })
+    : null;
+  if (fatalPrerequisite && service.scripture_automation_armed_by) {
+    await applyScriptureAutomationCircuitBreaker(client, {
+      organizationId: service.organization_id,
+      serviceId: service.id,
+      actorUserId: service.scripture_automation_armed_by,
+      mode: service.scripture_automation_mode,
+      armed: automationArmed,
+      reason: fatalPrerequisite
+    });
+  }
 
   for (const [ordinal, match] of matches.entries()) {
     const observedMs = observedAt.getTime();
@@ -479,6 +502,21 @@ export async function ingestTranscriptForService(
         requireEdgeForLive: true
       });
       insertedDetection.state = transition.scripture.state;
+      const programCommandQueuedAt = new Date();
+      await recordAutoScriptureLiveTake(client, {
+        organizationId: service.organization_id,
+        serviceId: service.id,
+        actorUserId: service.scripture_automation_armed_by,
+        detectionId: insertedDetection.id,
+        reference: match.reference,
+        detectionMethod: match.detectionMethod,
+        confidence: match.confidence,
+        observedAt,
+        decisionReason: automation.reason,
+        edgeCommandsQueued: transition.edgeCommandsQueued,
+        finalizedRecognitionAt,
+        programCommandQueuedAt
+      });
       stateChanges.push({
         id: transition.scripture.id,
         reference: transition.scripture.reference,

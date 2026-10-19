@@ -25,6 +25,14 @@ export function decideScriptureAutomation(input: {
 }): ScriptureAutomationDecision {
   if (input.mode === "manual") return { action: "detect", reason: "manual_mode" };
   if (!input.localBibleReady) return { action: "detect", reason: "local_bible_unavailable" };
+
+  if (input.mode === "auto_live") {
+    if (!input.organizationAutoLiveEnabled) return { action: "preview", reason: "organization_auto_live_disabled" };
+    if (input.serviceStatus !== "live") return { action: "preview", reason: "service_not_live" };
+    if (!input.armed) return { action: "preview", reason: "automation_not_armed" };
+    if (input.activeEdgeCount < 1) return { action: "preview", reason: "no_active_edge" };
+  }
+
   if (input.stale) return { action: "detect", reason: "stale_detection" };
   if (input.competingMatches > 1) return { action: "detect", reason: "competing_references" };
   if (input.alreadyLiveSameReference) return { action: "detect", reason: "same_reference_already_live" };
@@ -34,10 +42,6 @@ export function decideScriptureAutomation(input: {
   if (input.detectionMethod !== "reference" && input.detectionMethod !== "quote") {
     return { action: "preview", reason: "method_not_auto_live" };
   }
-  if (!input.organizationAutoLiveEnabled) return { action: "preview", reason: "organization_auto_live_disabled" };
-  if (input.serviceStatus !== "live") return { action: "preview", reason: "service_not_live" };
-  if (!input.armed) return { action: "preview", reason: "automation_not_armed" };
-  if (input.activeEdgeCount < 1) return { action: "preview", reason: "no_active_edge" };
   if (input.asrConfidence !== null && input.asrConfidence < 0.85) {
     return { action: "preview", reason: "low_asr_confidence" };
   }
@@ -98,4 +102,32 @@ export async function recentlyLiveReference(
     [serviceId, reference, now]
   );
   return Boolean(result.rows[0]?.recent);
+}
+
+
+export function fatalAutoLivePrerequisite(input: {
+  mode: ScriptureAutomationMode;
+  armed: boolean;
+  organizationAutoLiveEnabled: boolean;
+  serviceStatus: string;
+  activeEdgeCount: number;
+  localBibleReady: boolean;
+}) {
+  if (input.mode !== "auto_live" || !input.armed) return null;
+  if (!input.localBibleReady) return "local_bible_unavailable";
+  if (!input.organizationAutoLiveEnabled) return "organization_auto_live_disabled";
+  if (input.serviceStatus !== "live") return "service_not_live";
+  if (input.activeEdgeCount < 1) return "no_active_edge";
+  return null;
+}
+
+const FATAL_AUTO_LIVE_REASONS = new Set([
+  "local_bible_unavailable",
+  "no_active_edge",
+  "organization_auto_live_disabled",
+  "service_not_live"
+]);
+
+export function isFatalScriptureAutomationReason(reason: string) {
+  return FATAL_AUTO_LIVE_REASONS.has(reason);
 }
