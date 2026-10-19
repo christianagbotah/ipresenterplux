@@ -92,18 +92,28 @@ const dashboard = readFileSync(dashboardPath, "utf8");
 const cockpitViewModelPath = path.join(controlRoot, "src/lib/cockpit/view-model.ts");
 const cockpitViewModel = readFileSync(cockpitViewModelPath, "utf8");
 const cockpitWorkspacePath = path.join(controlRoot, "src/components/cockpit/CockpitWorkspace.tsx");
+const cockpitMobilePath = path.join(controlRoot, "src/components/cockpit/CockpitMobile.tsx");
+const mobileBottomNavPath = path.join(controlRoot, "src/components/cockpit/mobile/MobileBottomNav.tsx");
 const cockpitWorkspace = readFileSync(cockpitWorkspacePath, "utf8");
+const cockpitMobile = readFileSync(cockpitMobilePath, "utf8");
+const mobileBottomNav = readFileSync(mobileBottomNavPath, "utf8");
 assert.match(dashboard, /getCockpitViewModel/, "Control Room must load the authoritative Cockpit projection");
 assert.match(cockpitViewModel, /getCurrentServiceForUser/, "Cockpit projection must delegate membership/service selection to the shared resolver");
 assert.doesNotMatch(dashboard, /user_organization_roles where user_id=\$1 order by created_at limit 1/, "Control Room must not query nonexistent membership created_at");
 assert.match(dashboard, /CockpitWorkspace/, "Control Room must render the shared Cockpit workspace");
 assert.match(cockpitWorkspace, /StudioSidebar/, "Cockpit workspace must render the shared desktop sidebar");
-assert.match(cockpitWorkspace, /StudioMobileNav/, "Cockpit workspace must render the shared mobile navigation");
+assert.match(cockpitWorkspace, /CockpitMobile/, "Cockpit workspace must render the role-projected mobile Live Assist shell");
+assert.doesNotMatch(cockpitWorkspace, /<StudioMobileNav\b/, "Cockpit must not stack legacy mobile navigation on top of Live Assist");
+assert.match(cockpitMobile, /MobileBottomNav/, "Cockpit mobile must compose the Live Assist bottom navigation");
+for (const destination of ["live", "scripture", "service", "media_sources", "audience"]) {
+  assert.ok(mobileBottomNav.includes(`\"${destination}\"`), `Live Assist navigation must retain ${destination}`);
+}
 assert.doesNotMatch(dashboard, /const\s+nav\s*=\s*\[/, "Control Room must not retain a second hard-coded studio route list");
 
 console.log(JSON.stringify({
   ok: true,
   routes: studioRoutes.length,
   activeState: "pathname",
-  desktopMobileRouteParity: true
+  sharedStudioNavigation: true,
+  cockpitMobileNavigation: "role_projected_live_assist"
 }));
