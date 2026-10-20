@@ -55,6 +55,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
       <AudienceRealtimeRefresh serviceId={audience.service.id} />
       <LiveAudience
         serviceId={audience.service.id}
+        videoStatus={audience.video.status}
         serviceTitle={audience.service.title}
         scriptureReference={scripture?.reference ?? null}
         scriptureText={scripture?.passage_text ?? null}

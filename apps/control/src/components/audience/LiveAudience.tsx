@@ -3,6 +3,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { LiveTranslatedAudio } from "@/components/audience/LiveTranslatedAudio";
 import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
+import type { PublicAudienceVideoStatus } from "@/lib/public-audience-video-state";
 import {
   BookOpen,
   Captions,
@@ -23,6 +24,7 @@ type SpeechSynthesisState = "pending" | "processing" | "succeeded" | "failed";
 
 type Props = {
   serviceId: string;
+  videoStatus: PublicAudienceVideoStatus;
   serviceTitle: string;
   scriptureReference: string | null;
   scriptureText: string | null;
@@ -35,6 +37,7 @@ type Props = {
 
 export function LiveAudience({
   serviceId,
+  videoStatus,
   serviceTitle,
   scriptureReference,
   scriptureText,
@@ -101,7 +104,7 @@ export function LiveAudience({
 
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-4 sm:py-6">
         <section className="overflow-hidden rounded-[22px] border border-white/[.08] bg-[#0d121a]">
-          <LiveProgramVideo serviceId={serviceId} />
+          <LiveProgramVideo serviceId={serviceId} videoStatus={videoStatus} />
 
           <div className="flex items-center justify-between gap-3 border-t border-white/[.06] px-4 py-3">
             <div className="min-w-0">
