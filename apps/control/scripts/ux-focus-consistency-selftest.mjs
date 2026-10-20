@@ -15,7 +15,7 @@ function expectFocus(source, label, needle) {
   assert.match(line, /ip-focus-gold|focus-visible:/, `${label} must expose an explicit visible keyboard focus treatment`);
 }
 
-expectFocus(files.header, "Cockpit workspace link", "domainLinks.map");
+expectFocus(files.header, "Cockpit workspace link", "workspaceRoutes.map");
 expectFocus(files.scripture, "Scripture Operator link", 'href="/operator"');
 expectFocus(files.visualSources, "Visual Sources Manage Edge Devices", 'href="/settings/devices"');
 expectFocus(files.visualSources, "Visual Sources Rescan", '"Rescan sources"');
