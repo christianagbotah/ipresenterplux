@@ -44,6 +44,11 @@ for (const section of ["Typography","Background","Layout","Lower Third","Logo","
 for (const fixture of ["Scripture","Lyrics","Announcement","Lower Third"]) assert.ok(source.studio.includes(fixture) || source.preview.includes(fixture), `Theme preview must expose ${fixture}`);
 assert.match(source.preview, /MIN_PREVIEW_TEXT_PX\s*=\s*12/, "preview text must enforce a 12px readability floor");
 assert.match(source.studio, /min-h-11|min-h-12/, "important Theme Studio mobile controls must be at least 44px");
+assert.match(source.studio, /xl:grid-cols-\[300px_minmax\(0,1fr\)\]/, "Theme library must move beside the editor at laptop-sized desktop widths");
+assert.match(source.studio, /aria-label=\"Theme library choices\"/, "Theme library choices need an explicit accessible collection label");
+assert.match(source.studio, /overflow-x-auto/, "Theme choices must use a compact horizontal strip below desktop widths instead of a tall pre-preview wall");
+assert.match(source.studio, /xl:sticky/, "desktop Theme library must remain available while editing long theme controls");
+assert.match(source.studio, /xl:max-h-\[calc\(100dvh-7rem\)\]/, "desktop Theme library must stay bounded to the visible viewport");
 assert.match(source.studio, /Save theme|Save as custom/);
 assert.match(source.studio, /Apply to service/);
 assert.match(source.studio, /Reset draft/);
