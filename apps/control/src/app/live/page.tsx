@@ -61,6 +61,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
         transcript={transcript?.text ?? null}
         transcriptLanguage={transcript?.source_language ?? null}
         translations={transcript?.translations ?? {}}
+        translationStatus={transcript?.translation_status ?? {}}
         speechSynthesis={transcript?.speech_synthesis ?? {}}
         languages={audience.languages}
       />

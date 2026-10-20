@@ -166,6 +166,8 @@ jobs:
         run: pnpm test:audience-live-state
       - name: Audience language session self-test
         run: pnpm test:audience-session
+      - name: Audience language readiness self-test
+        run: pnpm test:audience-readiness
       - name: Streaming Studio recovery self-test
         run: pnpm test:streaming-studio-recovery
       - name: Destination fan-out lifecycle self-test
