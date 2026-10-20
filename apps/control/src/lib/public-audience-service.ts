@@ -32,6 +32,7 @@ export type PublicAudienceTranscript = {
   text: string;
   source_language: string | null;
   translations: Record<string, string>;
+  translation_status: Record<string, "pending" | "processing" | "succeeded" | "failed">;
   speech_synthesis: Record<string, "pending" | "processing" | "succeeded" | "failed">;
 };
 
@@ -122,6 +123,14 @@ export async function loadPublicAudienceService(
                   and lc.enabled=true
                   and lc.organization_id=$2::uuid
               ),'{}'::jsonb) as translations,
+              coalesce((
+                select jsonb_object_agg(j.language_channel_id::text,j.status)
+                from transcript_translation_jobs j
+                join language_channels lc on lc.id=j.language_channel_id
+                where j.transcript_segment_id=ts.id
+                  and lc.enabled=true
+                  and lc.organization_id=$2::uuid
+              ),'{}'::jsonb) as translation_status,
               coalesce((
                 select jsonb_object_agg(sj.language_channel_id::text,sj.status)
                 from speech_synthesis_jobs sj

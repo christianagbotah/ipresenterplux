@@ -108,7 +108,8 @@
     "test:edge-media-playback-acceptance": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-media-playback-acceptance-selftest.mjs",
     "test:edge-media-playback-field-uat-gate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-media-playback-field-uat-gate-selftest.mjs",
     "test:edge-asr-gateway": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-asr-gateway-selftest.mjs",
-    "test:audience-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-session-selftest.mjs"
+    "test:audience-session": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-session-selftest.mjs",
+    "test:audience-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/audience-readiness-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

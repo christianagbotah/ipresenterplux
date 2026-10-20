@@ -2,19 +2,21 @@ import { Users } from "lucide-react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { AudienceStudio } from "@/components/audience/AudienceStudio";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { StudioMobileNav } from "@/components/navigation/StudioMobileNav";
 import { StudioSidebar } from "@/components/navigation/StudioSidebar";
 import { audienceQrSvg, canonicalAudienceUrl } from "@/lib/audience-links";
+import { resolveAudienceChannelReadiness, type AudienceJobStatus } from "@/lib/audience-readiness";
 import { query } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
 type ServiceRow = { id: string; organization_id: string; title: string; status: string };
-type LanguageRow = { language_name: string; channel_mode: string; listeners: number };
+type LanguageRow = { language_code: string; language_name: string; channel_mode: string; listeners: number; transcript_available: boolean; translation_status: AudienceJobStatus | null; synthesis_status: AudienceJobStatus | null };
 type ScriptureRow = { scripture_reference: string; passage_text: string | null };
 type TranscriptRow = { text: string };
 type StreamRow = { status: string };
@@ -40,11 +42,21 @@ async function audiencePageData(userId: string) {
 
   const [languages, scriptures, transcripts, streams] = await Promise.all([
     query<LanguageRow>(
-      `select lc.language_name,lc.channel_mode,
+      `select lc.language_code,lc.language_name,lc.channel_mode,
               (select count(*)::int from audience_sessions aus
                where aus.service_id=$2::uuid and aus.language_channel_id=lc.id
-                 and aus.last_seen_at >= clock_timestamp()-interval '45 seconds') as listeners
+                 and aus.last_seen_at >= clock_timestamp()-interval '45 seconds') as listeners,
+              (latest.id is not null) as transcript_available,
+              tj.status as translation_status,sj.status as synthesis_status
        from language_channels lc
+       left join lateral (
+         select ts.id from transcript_segments ts
+         where ts.service_id=$2::uuid
+         order by ts.source_observed_at desc,ts.created_at desc,ts.id desc
+         limit 1
+       ) latest on true
+       left join transcript_translation_jobs tj on tj.transcript_segment_id=latest.id and tj.language_channel_id=lc.id
+       left join speech_synthesis_jobs sj on sj.translation_job_id=tj.id and sj.language_channel_id=lc.id
        where lc.organization_id=$1::uuid and lc.enabled=true
        order by case lc.channel_mode when 'original' then 0 when 'captions' then 1 when 'translation_audio' then 2 else 3 end,lc.language_name`,
       [organizationId,service.id]
@@ -75,7 +87,18 @@ async function audiencePageData(userId: string) {
     service,
     capabilities,
     navigationCapabilities,
-    languages: languages.rows.map((row) => ({ name: row.language_name, mode: row.channel_mode, listeners: row.listeners })),
+    languages: languages.rows.map((row) => ({
+      name: row.language_name,
+      mode: row.channel_mode,
+      listeners: row.listeners,
+      readiness: resolveAudienceChannelReadiness({
+        serviceLive: service.status === "live",
+        channelMode: row.channel_mode,
+        transcriptAvailable: row.transcript_available,
+        translationStatus: row.translation_status,
+        synthesisStatus: row.synthesis_status
+      })
+    })),
     scripture: scriptures.rows[0] ? { reference: scriptures.rows[0].scripture_reference, text: scriptures.rows[0].passage_text } : null,
     caption: transcripts.rows[0]?.text ?? null,
     streamStatus: streams.rows[0]?.status ?? "idle"
@@ -94,13 +117,13 @@ export default async function AudiencePage() {
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
-      {data.service ? <RealtimeRefresh serviceId={data.service.id} /> : null}
+      {data.service ? <><RealtimeRefresh serviceId={data.service.id} /><AutoRefresh intervalMs={10_000} /></> : null}
       <StudioMobileNav capabilities={data.navigationCapabilities} />
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <StudioSidebar capabilities={data.navigationCapabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
           <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
-            <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]"><Users size={19} /></div><div><h1 className="text-sm font-black sm:text-base">Audience Studio</h1><p className="text-[11px] text-white/35">QR · canonical links · public experience readiness</p></div></div>
+            <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]"><Users size={19} /></div><div><h1 className="text-sm font-black sm:text-base">Audience Studio</h1><p className="text-xs text-white/35">QR · canonical links · public experience readiness</p></div></div>
             <LogoutButton />
           </header>
           <AudienceStudio service={data.service} audienceUrl={audienceUrl} qrSvg={qrSvg} languages={data.languages} scripture={data.scripture} caption={data.caption} streamStatus={data.streamStatus} />
