@@ -46,11 +46,11 @@
 - Produces: `upsertServicePreparationNote(client,userId,input)`, `listServicePreparationNotes(client,userId,serviceId)`, `ServicePreparationNote`, `ServiceMemoryRecord`, `ServiceMemoryChapter`.
 - Schema: `service_preparation_notes`, `service_memories`, `service_memory_chapters`; composite organization/service FKs and source fingerprint/indexes.
 
-- [ ] Write failing real-PostgreSQL schema/service test for tenant scoping, Planner-mutation-role writes, member reads, 100k-character note bound, audit events, memory/chapter constraints and production-DB safety.
-- [ ] Run `pnpm --dir apps/control test:service-intelligence-schema`; expect RED on missing migration/module.
-- [ ] Implement migration `042` and note service; note writes never change service/rundown state.
-- [ ] Verify schema test + Planner contract + DB safety + lint PASS.
-- [ ] Commit as `feat(control): add service intelligence contracts`.
+- [x] Write failing real-PostgreSQL schema/service test for tenant scoping, Planner-mutation-role writes, member reads, 100k-character note bound, audit events, memory/chapter constraints and production-DB safety.
+- [x] Run `pnpm --dir apps/control test:service-intelligence-schema`; expect RED on missing migration/module.
+- [x] Implement migration `042` and note service; note writes never change service/rundown state.
+- [x] Verify schema test + Planner contract + DB safety + lint PASS.
+- [x] Commit as `feat(control): add service intelligence contracts`.
 
 ### Task 2: Preparation Context and Evidence-Backed Suggestions
 
@@ -64,11 +64,11 @@
 - Consumes: Task 1 notes, existing `loadPlannerServiceDetail()`, Media Library, prior ended services/memories, output/language/Edge truth, Scripture parser.
 - Produces: `buildServicePreparationContext(client,userId,serviceId,options?) -> ServicePreparationContext` with `suggestions[]` containing `kind`, `title`, `reason`, `evidence`, `sourceServiceId`, `sourceObservedAt`, `confidence`, and typed `plannerCandidate | navigationTarget`.
 
-- [ ] Write failing PostgreSQL test covering sermon-note Scripture references, previous same-type service reuse, reusable song/media evidence, configured outputs/languages/Edge readiness, deterministic ordering, stale provenance, sparse-history behavior and cross-tenant exclusion.
-- [ ] Run `test:service-preparation`; expect RED.
-- [ ] Implement bounded deterministic context/suggestion projection; do not mutate Planner or Program.
-- [ ] Verify preparation + Media + Planner + Cockpit recommendation regressions PASS.
-- [ ] Commit as `feat(control): add service preparation intelligence`.
+- [x] Write failing PostgreSQL test covering sermon-note Scripture references, previous same-type service reuse, reusable song/media evidence, configured outputs/languages/Edge readiness, deterministic ordering, stale provenance, sparse-history behavior and cross-tenant exclusion.
+- [x] Run `test:service-preparation`; expect RED.
+- [x] Implement bounded deterministic context/suggestion projection; do not mutate Planner or Program.
+- [x] Verify preparation + Media + Planner + Cockpit recommendation regressions PASS.
+- [x] Commit as `feat(control): add service preparation intelligence`.
 
 ### Task 3: Planner Preparation Workspace and Explicit Suggestion Adoption
 
@@ -85,10 +85,10 @@
 - Consumes: Task 2 context; existing `createPlannerItem()` + planner revision contract.
 - Produces: pre-service panel showing notes, readiness and evidence-backed suggestions; explicit `Add to plan` mutation only.
 
-- [ ] Write failing UI/API contract test: no automatic plan mutation, current revision required, role/RBAC enforced, unsupported suggestion is navigation-only, note editing separate from suggestion application, ≥44px primary touch controls.
-- [ ] Implement authenticated preparation GET/apply endpoints and Planner panel; apply delegates to `createPlannerItem()` in a transaction.
-- [ ] Verify UI test + Planner item/readiness + Cockpit acceptance + build PASS.
-- [ ] Commit as `feat(control): add intelligent service preparation workspace`.
+- [x] Write failing UI/API contract test: no automatic plan mutation, current revision required, role/RBAC enforced, unsupported suggestion is navigation-only, note editing separate from suggestion application, ≥44px primary touch controls.
+- [x] Implement authenticated preparation GET/apply endpoints and Planner panel; apply delegates to `createPlannerItem()` in a transaction.
+- [x] Verify UI test + Planner item/readiness + Cockpit acceptance + build PASS.
+- [x] Commit as `feat(control): add intelligent service preparation workspace`.
 
 ### Task 4: Deterministic After-Service Memory Builder
 
@@ -105,12 +105,12 @@
 - Produces: `buildServiceMemory(client,userIdOrSystem,serviceId,options?) -> ServiceMemoryRecord`; `sourceFingerprint`; chapter list; summary; key Scriptures; speakers; songs/media; incidents; language/output/artifact metadata.
 - End-service integration: after successful end transaction, best-effort bounded memory build; failure is audited and never rolls back `ended`.
 
-- [ ] Write failing PostgreSQL test for chapter boundaries (speaker/time/content changes), noisy/long transcript bounds, no-transcript service, key Scripture/rundown extraction, output/stream incident evidence, idempotent unchanged rebuild, changed-source regeneration, tenant isolation and no Program mutations.
-- [ ] Run `test:service-memory`; expect RED.
-- [ ] Implement deterministic builder with stable source fingerprint and bounded text; do not call external providers.
-- [ ] Integrate best-effort post-end build and explicit authorized rebuild endpoint.
-- [ ] Verify memory + service lifecycle + stream lifecycle + transcript + DB safety PASS.
-- [ ] Commit as `feat(control): remember ended services`.
+- [x] Write failing PostgreSQL test for chapter boundaries (speaker/time/content changes), noisy/long transcript bounds, no-transcript service, key Scripture/rundown extraction, output/stream incident evidence, idempotent unchanged rebuild, changed-source regeneration, tenant isolation and no Program mutations.
+- [x] Run `test:service-memory`; expect RED.
+- [x] Implement deterministic builder with stable source fingerprint and bounded text; do not call external providers.
+- [x] Integrate best-effort post-end build and explicit authorized rebuild endpoint.
+- [x] Verify memory + service lifecycle + stream lifecycle + transcript + DB safety PASS.
+- [x] Commit as `feat(control): remember ended services`.
 
 ### Task 5: Intelligent Archive Search and Reuse
 
@@ -129,10 +129,10 @@
 - Consumes: Task 4 memory + existing Archive truth.
 - Produces: tenant-scoped search across service title, memory summary/chapter titles, Scripture refs and speaker evidence; memory detail; explicit `Reuse in service plan` action that delegates to Planner mutations for a chosen draft/ready target.
 
-- [ ] Write failing test for search relevance, sparse memory fallback, tenant isolation, no private note leakage, memory metadata on detail, explicit target service/revision for reuse, and refusal to mutate live/ended target plans.
-- [ ] Implement Archive memory joins/search and explicit reuse route through existing Planner service.
-- [ ] Verify Archive + Planner + licensing/security + build PASS.
-- [ ] Commit as `feat(control): add intelligent service archive`.
+- [x] Write failing test for search relevance, sparse memory fallback, tenant isolation, no private note leakage, memory metadata on detail, explicit target service/revision for reuse, and refusal to mutate live/ended target plans.
+- [x] Implement Archive memory joins/search and explicit reuse route through existing Planner service.
+- [x] Verify Archive + Planner + licensing/security + build PASS.
+- [x] Commit as `feat(control): add intelligent service archive`.
 
 ### Task 6: Service Intelligence Acceptance, UAT and CI Gate
 

@@ -242,6 +242,8 @@ jobs:
         run: pnpm test:ai-director
       - name: Service Archive workspace self-test
         run: pnpm test:archive
+      - name: Archive intelligence and reuse self-test
+        run: pnpm test:archive-intelligence
       - name: Studio route gating self-test
         run: pnpm test:studio-route-gating
       - name: Studio workspace acceptance self-test

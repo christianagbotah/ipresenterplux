@@ -5,7 +5,7 @@ import pg from "pg";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 import { searchCockpit, UNIVERSAL_SEARCH_GROUPS } from "../src/lib/cockpit/search.ts";
 
-assert.deepEqual(UNIVERSAL_SEARCH_GROUPS.map((group) => group.label), ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"]);
+assert.deepEqual(UNIVERSAL_SEARCH_GROUPS.map((group) => group.label), ["Scripture", "Songs", "Media", "Service", "Archive", "Visual Sources", "Actions"]);
 
 const { readFile } = await import("node:fs/promises");
 const workflowSource = await readFile(new URL("../../../.github/workflows/control-ci.yml", import.meta.url), "utf8");
