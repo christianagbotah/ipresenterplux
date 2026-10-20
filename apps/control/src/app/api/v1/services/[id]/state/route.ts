@@ -6,6 +6,7 @@ import { validatePlannerReadiness } from "@/lib/planner-readiness";
 import { LIVE_OPERATOR_ROLES, userHasAnyRole } from "@/lib/rbac";
 import { publishServiceEvent } from "@/lib/realtime";
 import { finalizeStreamsForEndedService, type EndedServiceStreamResult } from "@/lib/service-stream-lifecycle";
+import { buildEndedServiceMemoryBestEffort } from "@/lib/service-intelligence/memory";
 import { suspendServiceScriptureAutomation } from "@/lib/scripture-automation-settings";
 
 export const dynamic = "force-dynamic";
@@ -245,11 +246,15 @@ export async function PATCH(request: Request, context: RouteContext) {
           reason: "service_ended"
         });
       }
+      const memoryResult = state === "ended"
+        ? await buildEndedServiceMemoryBestEffort(id, session.user.id)
+        : null;
       return NextResponse.json({
         ok: true,
         service: updated.rows[0],
         edgeDevicesAssigned: assignedEdgeDevices > 0 ? assignedEdgeDevices : 0,
-        edgeDevicesCleared: assignedEdgeDevices < 0 ? -assignedEdgeDevices : 0
+        edgeDevicesCleared: assignedEdgeDevices < 0 ? -assignedEdgeDevices : 0,
+        serviceMemory: memoryResult
       });
     } catch (error) {
       await client.query("rollback");
