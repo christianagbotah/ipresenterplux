@@ -72,6 +72,8 @@ export type CockpitViewModel = {
     campusName: string | null;
     activeBibleVersion: string;
     aiEnabled: boolean;
+    activeThemeId: string | null;
+    activeThemeName: string | null;
     autoPreviewThreshold: number;
     scriptureAutomation: {
       mode: "manual" | "auto_preview" | "auto_live";

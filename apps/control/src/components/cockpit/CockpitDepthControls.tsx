@@ -93,26 +93,24 @@ export function CockpitDepthControls({ model, initialFocusMode = false }: { mode
   };
 
   return <>
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-white/[.07] bg-white/[.02] p-1" aria-label="Cockpit depth (press D to cycle)" role="group" aria-describedby="ip-cockpit-depth-hint">
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[.07] bg-white/[.018] p-2" aria-label="Operator command bar">
+      <div className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-white/[.07] bg-black/15 p-1" aria-label="Cockpit depth (press D to cycle)" role="group" aria-describedby="ip-cockpit-depth-hint">
         {(["essential","advanced","engineering"] as CockpitDepth[]).map((value) => {
           const Icon = value === "essential" ? Gauge : value === "advanced" ? SlidersHorizontal : Wrench;
-          return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
+          return <button key={value} type="button" aria-pressed={depth === value} aria-label={value} title={depthHint[value]} onClick={() => writePreference(DEPTH_KEY, value)} className={`flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold capitalize transition ip-focus-gold ${depth === value ? "bg-white/[.08] text-white/85" : "text-white/55 hover:text-white/80"}`}><Icon size={13}/>{value}</button>;
         })}
         <kbd className="ml-1 hidden rounded border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-white/45 sm:inline-block" title="Press D to cycle depth">D</kbd>
       </div>
-      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Enter Focus Mode <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-[#efc86f]/80">F</kbd></button>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <span className="px-1 text-xs font-black uppercase tracking-[.16em] text-white/40">Sources</span>
+        <Link href="/scripture" className="ip-focus-gold inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><BookOpenText size={14}/> Scripture</Link>
+        {model.capabilities.canMedia ? <Link href="/media" className="ip-focus-gold inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Clapperboard size={14}/> Media</Link> : null}
+        {model.capabilities.canCameras ? <Link href="/cameras" className="ip-focus-gold inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Camera size={14}/> Cameras</Link> : null}
+        {model.capabilities.canAIDirector ? <Link href="/ai-director" className="ip-focus-gold inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.045] px-3 text-xs font-bold text-[#efc86f]/85 transition hover:bg-[#d7a94a]/[.09] hover:text-[#efc86f]"><Sparkles size={14}/> AI Director</Link> : null}
+      </div>
+      <button type="button" onClick={() => writePreference(FOCUS_KEY, "1")} title="Enter Focus Mode (F)" className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold"><Crosshair size={15}/> Focus <kbd className="rounded border border-[#d7a94a]/25 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-[#efc86f]/80">F</kbd></button>
+      <p id="ip-cockpit-depth-hint" className="sr-only"><span>Cockpit depth: </span>{depthHint[depth]}</p>
     </div>
-    <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Operator source shortcuts">
-      <span className="mr-1 text-xs font-black uppercase tracking-[.16em] text-white/40">Open source</span>
-      <Link href="/scripture" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><BookOpenText size={14}/> Scripture</Link>
-      {model.capabilities.canMedia ? <Link href="/media" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Clapperboard size={14}/> Media</Link> : null}
-      {model.capabilities.canCameras ? <Link href="/cameras" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.055] hover:text-white"><Camera size={14}/> Cameras</Link> : null}
-      {model.capabilities.canAIDirector ? <Link href="/ai-director" className="ip-focus-gold inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.045] px-3 text-xs font-bold text-[#efc86f]/85 transition hover:bg-[#d7a94a]/[.09] hover:text-[#efc86f]"><Sparkles size={14}/> AI Director</Link> : null}
-    </div>
-    <p id="ip-cockpit-depth-hint" className="mb-3 -mt-1 px-1 text-xs leading-5 text-white/45">
-      <span className="sr-only">Cockpit depth: </span>{depthHint[depth]}
-    </p>
     <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
       <section className="min-w-0 md:sticky md:top-[84px] md:z-20 md:self-start xl:col-start-1 xl:row-start-1">
         <ProgramPreviewStage model={model} />

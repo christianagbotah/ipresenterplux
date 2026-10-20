@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, AudioLines, ChevronRight, CreditCard, MonitorCog, Settings2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, AudioLines, ChevronRight, CreditCard, MonitorCog, Palette, Settings2, ShieldCheck } from "lucide-react";
 import { auth } from "@auth";
 import { query } from "@/lib/db";
-import { DEVICE_ADMIN_ROLES, VOICE_ADMIN_ROLES } from "@/lib/rbac";
+import { DEVICE_ADMIN_ROLES, THEME_ADMIN_ROLES, VOICE_ADMIN_ROLES } from "@/lib/rbac";
 import { MotionPreferences } from "@/components/settings/MotionPreferences";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +34,11 @@ export default async function SettingsPage() {
   const canDevices = roles.some((role) => DEVICE_ADMIN_ROLES.includes(role as never));
   const canVoices = roles.some((role) => VOICE_ADMIN_ROLES.includes(role as never));
   const canSubscription = canDevices;
+  const canThemes = roles.some((role) => THEME_ADMIN_ROLES.includes(role as never));
   const canScriptureAutomation = roles.some((role) => role === "owner" || role === "admin");
 
   const cards = [
+    canThemes ? { href: "/themes", title: "Theme Studio", description: "Design reusable Scripture, lyrics, announcement and lower-third presentation themes.", icon: Palette } : null,
     canScriptureAutomation ? {
       href: "/settings/scripture-automation",
       title: "Scripture Automation",

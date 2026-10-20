@@ -27,6 +27,8 @@ export const PLANNER_MUTATION_ROLES = [
   "media_operator"
 ];
 
+export const THEME_ADMIN_ROLES = ["owner", "admin", "media_operator"];
+
 export const DEVICE_ADMIN_ROLES = ["owner", "admin"];
 export const VOICE_ADMIN_ROLES = ["owner", "admin"];
 

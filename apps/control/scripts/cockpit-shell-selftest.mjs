@@ -33,8 +33,8 @@ assert.match(source.stage, /Ctrl\/⌘ \+ Enter|Ctrl\/Cmd\+Enter|metaKey|ctrlKey/
 assert.match(source.workspace, /StudioSidebar/);
 assert.match(source.workspace, /CockpitMobile/, "Cockpit must retain the role-projected mobile surface");
 assert.doesNotMatch(source.workspace, /<StudioMobileNav\b/, "Cockpit mobile navigation is owned by Live Assist, not the legacy floating menu");
-for (const href of ["/scripture", "/media", "/cameras", "/streaming", "/audience", "/archive", "/settings"]) {
-  assert.match(source.workspace + source.header, new RegExp(href.replaceAll("/", "\\/")), `Cockpit must keep ${href} reachable`);
-}
+assert.match(source.header, /visibleStudioRoutes/, "Cockpit header must keep domain workspaces reachable through the shared Studio route registry");
+assert.match(source.header, /visibleStudioRoutes\(model\.capabilities\)/, "Cockpit workspace menu must respect current role and entitlement capabilities");
+assert.doesNotMatch(source.header, /const\s+domainLinks\s*=\s*\[/, "Cockpit header must not duplicate the Studio route registry");
 assert.doesNotMatch(source.dashboard, /Presentation Engine[\s\S]*Scripture Intelligence[\s\S]*Broadcast Router[\s\S]*Language Engine/, "legacy KPI-card wall must not remain the default Control Room hierarchy");
 console.log(JSON.stringify({ ok:true, sharedCockpit:true, programPreviewCentral:true, operatorCompatibility:true, domainRoutesPreserved:true }));

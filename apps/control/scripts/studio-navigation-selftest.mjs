@@ -7,6 +7,7 @@ const controlRoot = path.resolve(import.meta.dirname, "..");
 const routesPath = path.join(controlRoot, "src/components/navigation/studio-routes.ts");
 const sidebarPath = path.join(controlRoot, "src/components/navigation/StudioSidebar.tsx");
 const mobilePath = path.join(controlRoot, "src/components/navigation/StudioMobileNav.tsx");
+const cockpitHeaderPath = path.join(controlRoot, "src/components/cockpit/CockpitHeader.tsx");
 const dashboardPath = path.join(controlRoot, "src/app/DashboardPage.tsx");
 
 assert.ok(existsSync(routesPath), "shared studio route source must exist");
@@ -19,6 +20,7 @@ const expectedRoutes = [
   ["Control Room", "/"],
   ["Scripture", "/scripture"],
   ["Songs & Media", "/media"],
+  ["Theme Studio", "/themes"],
   ["Cameras", "/cameras"],
   ["AI Director", "/ai-director"],
   ["Translations", "/translations"],
@@ -70,6 +72,11 @@ const allCapabilities = visibleStudioRoutes({
   canSettings: true
 });
 assert.deepEqual(allCapabilities.map((route) => route.href), studioRoutes.map((route) => route.href));
+
+const cockpitHeader = readFileSync(cockpitHeaderPath, "utf8");
+assert.match(cockpitHeader, /visibleStudioRoutes/, "Cockpit Workspaces menu must consume the shared capability-aware Studio routes");
+assert.match(cockpitHeader, /visibleStudioRoutes\(model\.capabilities\)/, "Cockpit Workspaces menu must filter routes by the current role and entitlements");
+assert.doesNotMatch(cockpitHeader, /const\s+domainLinks\s*=\s*\[/, "Cockpit header must not keep a second hard-coded workspace route list");
 
 for (const filePath of [sidebarPath, mobilePath]) {
   assert.ok(existsSync(filePath), `${path.basename(filePath)} must exist`);

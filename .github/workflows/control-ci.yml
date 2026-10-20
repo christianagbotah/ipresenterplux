@@ -99,6 +99,14 @@ jobs:
         run: pnpm test:subscription-schema
       - name: Scripture automation schema self-test
         run: pnpm test:scripture-automation-schema
+      - name: Presentation theme schema self-test
+        run: pnpm test:presentation-theme
+      - name: Theme Studio UI self-test
+        run: pnpm test:theme-studio-ui
+      - name: Theme Studio acceptance self-test
+        run: pnpm test:theme-studio-acceptance
+      - name: Theme Studio field-UAT release-gate self-test
+        run: pnpm test:theme-studio-field-uat-gate
       - name: Scripture automation policy self-test
         run: pnpm test:scripture-automation-policy
       - name: Scripture automation API self-test

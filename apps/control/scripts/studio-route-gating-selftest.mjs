@@ -12,6 +12,7 @@ assert.equal(typeof currentService.resolveStudioNavigationCapabilities, "functio
 
 const expectedRouteCapabilities = new Map([
   ["/media", "canMedia"],
+  ["/themes", "canMedia"],
   ["/cameras", "canCameras"],
   ["/ai-director", "canAIDirector"],
   ["/translations", "canTranslations"],
@@ -28,6 +29,7 @@ assert.equal(isStudioRouteActive("/archive/00000000-0000-4000-8000-000000000001"
 
 for (const relative of [
   "../src/app/media/page.tsx",
+  "../src/app/themes/page.tsx",
   "../src/app/cameras/page.tsx",
   "../src/app/ai-director/page.tsx",
   "../src/app/archive/page.tsx"

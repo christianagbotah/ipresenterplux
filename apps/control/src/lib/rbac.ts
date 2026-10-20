@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 
 export {
   LIVE_OPERATOR_ROLES,
+  THEME_ADMIN_ROLES,
   DEVICE_ADMIN_ROLES,
   VOICE_ADMIN_ROLES,
   INGEST_ROLES,
