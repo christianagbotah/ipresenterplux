@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { derivePublicAudienceVideoState, type PublicAudienceVideoStatus } from "./public-audience-video-state";
 
 type QueryClient = Pick<PoolClient, "query">;
 
@@ -22,6 +23,10 @@ export type PublicAudienceScripture = {
   passage_text: string | null;
 };
 
+export type PublicAudienceVideo = {
+  status: PublicAudienceVideoStatus;
+};
+
 export type PublicAudienceTranscript = {
   id: string;
   text: string;
@@ -35,6 +40,7 @@ export type PublicAudienceIdentityPayload = {
 };
 
 export type PublicAudienceLivePayload = PublicAudienceIdentityPayload & {
+  video: PublicAudienceVideo;
   languages: PublicAudienceLanguage[];
   scripture: PublicAudienceScripture | null;
   transcript: PublicAudienceTranscript | null;
@@ -91,6 +97,16 @@ export async function loadPublicAudienceService(
       [serviceId]
     );
 
+  const videoSession = await client.query<{ status: string; router_ready_at: string | null }>(
+      `select status,router_ready_at::text
+       from stream_sessions
+       where service_id=$1::uuid
+         and status in ('starting','live','stopping')
+       order by created_at desc
+       limit 1`,
+      [serviceId]
+    );
+
   const transcript = await client.query<PublicAudienceTranscript>(
       `select ts.id::text,ts.text,ts.source_language,
               coalesce((
@@ -123,6 +139,7 @@ export async function loadPublicAudienceService(
 
   return {
     service,
+    video: { status: derivePublicAudienceVideoState(videoSession.rows[0] ?? null) },
     languages: languages.rows,
     scripture: scripture.rows[0] ?? null,
     transcript: transcript.rows[0] ?? null
