@@ -43,6 +43,13 @@ assert.match(depth, /href=\"\/scripture\"/, "operators need one-tap Scripture ac
 assert.match(depth, /href=\"\/media\"/, "operators need one-tap Media access beside the live stage");
 assert.match(depth, /href=\"\/cameras\"/, "operators need one-tap Cameras access beside the live stage");
 assert.match(depth, /href=\"\/ai-director\"/, "operators need one-tap AI Director access beside the live stage");
+assert.match(depth, /aria-label=\"Operator command bar\"/, "desktop depth, source and focus controls must share one compact operator command bar");
+assert.equal(depth.includes('aria-label="Operator source shortcuts"'), false, "source shortcuts must not consume a separate desktop toolbar row");
+assert.doesNotMatch(depth, /<p id=\"ip-cockpit-depth-hint\" className=\"mb-3 -mt-1/, "depth guidance must be assistive-only instead of a persistent row above the stage");
+for (const href of ["/scripture", "/media", "/cameras", "/ai-director"]) {
+  const escaped = href.replaceAll("/", "\\/");
+  assert.match(depth, new RegExp(`href=\"${escaped}\"[^>]*min-h-11`), `${href} quick action must keep a 44px minimum target`);
+}
 
 assert.match(stage, /TAKE PREVIEW LIVE/, "the primary live action must say exactly what will happen");
 assert.match(stage, /CLEAR LIVE/, "the destructive live action must use plain operator language");
