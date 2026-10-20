@@ -4,8 +4,9 @@ import { getCurrentServiceForUser } from "../current-service.ts";
 import { BibleLibraryError, resolveLocalScripture } from "../bible-library.ts";
 import { listMediaLibrary } from "../media-library.ts";
 import { listVisualSources } from "../camera-sources.ts";
+import { listArchivedServices } from "../archive.ts";
 
-export type UniversalSearchGroupId = "scripture" | "songs" | "media" | "service" | "visual_sources" | "actions";
+export type UniversalSearchGroupId = "scripture" | "songs" | "media" | "service" | "archive" | "visual_sources" | "actions";
 
 export type UniversalSearchItem = {
   id: string;
@@ -21,6 +22,7 @@ export const UNIVERSAL_SEARCH_GROUPS: ReadonlyArray<{ id: UniversalSearchGroupId
   { id: "songs", label: "Songs" },
   { id: "media", label: "Media" },
   { id: "service", label: "Service" },
+  { id: "archive", label: "Archive" },
   { id: "visual_sources", label: "Visual Sources" },
   { id: "actions", label: "Actions" }
 ];
@@ -153,6 +155,15 @@ export async function searchCockpit(
     })));
   }
 
+  if (context.capabilities.canArchive) {
+    const archived=await listArchivedServices(client,actorUserId,{organizationId:context.organizationId,search:query,limit,offset:0});
+    buckets.set("archive",archived.services.map((service)=>({
+      id:service.id,group:"archive" as const,title:service.title,
+      subtitle:service.memorySummary ? shortText(service.memorySummary,140) : `Ended service${service.endedAt ? ` · ${new Date(service.endedAt).toLocaleDateString()}` : ""}`,
+      href:`/archive/${encodeURIComponent(service.id)}`,commandText:null
+    })));
+  }
+
   if (context.capabilities.canCameras) {
     const visuals = await listVisualSources(client, actorUserId, context.organizationId, { now: input.now });
     buckets.set("visual_sources", visuals.sources
@@ -174,6 +185,7 @@ export async function searchCockpit(
     ...(context.capabilities.canViewPlanner && corePresentation ? ["scripture" as const] : []),
     ...(context.capabilities.canMedia ? ["songs" as const, "media" as const] : []),
     ...(context.capabilities.canViewPlanner ? ["service" as const] : []),
+    ...(context.capabilities.canArchive ? ["archive" as const] : []),
     ...(context.capabilities.canCameras ? ["visual_sources" as const] : []),
     "actions"
   ]);
