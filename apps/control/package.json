@@ -65,6 +65,7 @@
     "test:visual-edge-command": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/visual-edge-command-selftest.mjs",
     "test:ai-director": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-director-selftest.mjs",
     "test:archive": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-selftest.mjs",
+    "test:archive-intelligence": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/archive-intelligence-selftest.mjs",
     "test:cockpit-view-model": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/cockpit-view-model-selftest.mjs",
     "test:cockpit-shell": "node scripts/cockpit-shell-selftest.mjs",
     "test:cockpit-ergonomics": "node scripts/cockpit-ergonomics-selftest.mjs",
