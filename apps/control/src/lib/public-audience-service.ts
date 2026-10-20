@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { derivePublicAudienceVideoState, type PublicAudienceVideoStatus } from "./public-audience-video-state";
+import { derivePublicAudienceVideoState, type PublicAudienceVideoStatus } from "./public-audience-video-state.ts";
 
 type QueryClient = Pick<PoolClient, "query">;
 
