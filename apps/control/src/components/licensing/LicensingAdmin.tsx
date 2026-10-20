@@ -59,9 +59,11 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         request(`/api/v1/admin/licensing/subscriptions?organizationId=${encodeURIComponent(organizationId)}`),
         request(`/api/v1/admin/licensing/keys?organizationId=${encodeURIComponent(organizationId)}`)
       ]);
-      setOverview((subscriptionData.overview as Overview | undefined) ?? null);
+      const nextOverview = (subscriptionData.overview as Overview | undefined) ?? null;
+      setOverview(nextOverview);
       setKeys((keyData.keys as KeyItem[] | undefined) ?? []);
-      const nextLimit = (subscriptionData.overview as Overview | undefined)?.seats.limit;
+      if (nextOverview?.subscription) setPlanId(nextOverview.subscription.plan.id);
+      const nextLimit = nextOverview?.seats.limit;
       if (nextLimit) setSeatLimit(nextLimit);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to load licensing data");
@@ -85,9 +87,11 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         if (!subscriptionResponse.ok) throw new Error(subscriptionData.error || "Unable to load subscription");
         if (!keysResponse.ok) throw new Error(keyData.error || "Unable to load product keys");
         if (cancelled) return;
-        setOverview((subscriptionData.overview as Overview | undefined) ?? null);
+        const nextOverview = (subscriptionData.overview as Overview | undefined) ?? null;
+        setOverview(nextOverview);
         setKeys((keyData.keys as KeyItem[] | undefined) ?? []);
-        const nextLimit = (subscriptionData.overview as Overview | undefined)?.seats.limit;
+        if (nextOverview?.subscription) setPlanId(nextOverview.subscription.plan.id);
+        const nextLimit = nextOverview?.seats.limit;
         if (nextLimit) setSeatLimit(nextLimit);
         setMessage("");
       } catch (error) {
