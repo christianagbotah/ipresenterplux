@@ -113,11 +113,12 @@ public sealed class MainWindow : Window
         _operatorTimer.Tick += async (_, _) => await RefreshOperatorAsync();
 
         Title = "iPresenterPlux Edge";
-        Width = 1180;
-        Height = 760;
-        MinWidth = 900;
-        MinHeight = 620;
+        Width = 1120;
+        Height = 720;
+        MinWidth = 760;
+        MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        WindowState = WindowState.Maximized;
         Background = Brush("#070A0F");
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.png");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);

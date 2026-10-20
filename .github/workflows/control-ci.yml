@@ -119,6 +119,8 @@ jobs:
         run: pnpm test:activation-api
       - name: Licensing administration self-test
         run: pnpm test:licensing-admin
+      - name: Licensing administration UI self-test
+        run: pnpm test:licensing-admin-ui
       - name: Entitlement operation gating self-test
         run: pnpm test:entitlement-gating
       - name: Licensing release-security self-test

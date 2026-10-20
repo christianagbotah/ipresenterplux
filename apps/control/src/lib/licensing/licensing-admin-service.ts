@@ -11,7 +11,8 @@ export type LicensingAdminErrorCode =
   | "tenant_mismatch"
   | "invalid_status"
   | "current_subscription_exists"
-  | "plan_code_exists";
+  | "plan_code_exists"
+  | "plan_disabled";
 
 export class LicensingAdminError extends Error {
   readonly code: LicensingAdminErrorCode;
@@ -394,6 +395,38 @@ export async function createOrganizationSubscription(
     now
   });
   return { id, status };
+}
+
+export async function changeSubscriptionPlan(
+  client: QueryClient,
+  input: { subscriptionId: string; planId: string; actorUserId: string },
+  context: AdminContext = {}
+) {
+  const now = nowFrom(context);
+  const subscription = await loadSubscriptionForUpdate(client, input.subscriptionId);
+  if (!subscription) throw new LicensingAdminError("not_found", "Subscription was not found");
+  const plan = await client.query<{ id: string; enabled: boolean }>(
+    "select id::text,enabled from subscription_plans where id=$1::uuid limit 1",
+    [input.planId]
+  );
+  if (!plan.rows[0]) throw new LicensingAdminError("not_found", "Subscription plan was not found");
+  if (!plan.rows[0].enabled) throw new LicensingAdminError("plan_disabled", "Disabled plans cannot be assigned to a subscription");
+  if (subscription.plan_id === input.planId) return { id: subscription.id, planId: input.planId, unchanged: true };
+
+  await client.query(
+    "update organization_subscriptions set plan_id=$2::uuid,updated_at=$3 where id=$1::uuid",
+    [subscription.id, input.planId, now]
+  );
+  await recordAudit(client, {
+    organizationId: subscription.organization_id,
+    actorUserId: input.actorUserId,
+    action: "licensing.subscription.plan_changed",
+    entityType: "organization_subscription",
+    entityId: subscription.id,
+    details: { previousPlanId: subscription.plan_id, planId: input.planId },
+    now
+  });
+  return { id: subscription.id, planId: input.planId, unchanged: false };
 }
 
 export async function configureSubscriptionPlan(

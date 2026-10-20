@@ -101,7 +101,8 @@
     "test:theme-studio-acceptance": "node scripts/theme-studio-acceptance-selftest.mjs",
     "test:theme-studio-field-uat-gate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate-selftest.mjs",
     "theme-studio:field-uat:init": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs --init",
-    "theme-studio:field-uat": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs"
+    "theme-studio:field-uat": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs",
+    "test:licensing-admin-ui": "node scripts/licensing-admin-ui-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

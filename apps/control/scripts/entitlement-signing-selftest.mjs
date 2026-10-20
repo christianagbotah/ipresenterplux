@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign as cryptoSign } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import ts from "typescript";
 
 async function importTs(relative) {
@@ -60,6 +62,21 @@ assert.equal(
 const envelope = signEntitlement(payload);
 assert.match(envelope, /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
 assert.deepEqual(verifyEntitlementEnvelope(envelope, { "test-k1": key1.publicPem }), payload);
+
+const signingTemp = await mkdtemp(path.join(tmpdir(), "ipresenterplux-signing-"));
+try {
+  const signingFile = path.join(signingTemp, "signing.pem");
+  await writeFile(signingFile, key1.privatePem, { mode: 0o600 });
+  delete process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM;
+  process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_FILE = signingFile;
+  const filePayload = { ...payload, entitlementId: "66666666-6666-4666-8666-666666666666" };
+  const fileEnvelope = signEntitlement(filePayload);
+  assert.deepEqual(verifyEntitlementEnvelope(fileEnvelope, { "test-k1": key1.publicPem }), filePayload, "server signing must support a protected private-key file");
+} finally {
+  delete process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_FILE;
+  process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM = key1.privatePem;
+  await rm(signingTemp, { recursive: true, force: true });
+}
 assert.equal(hasEntitlementFeature(payload, "streaming.web"), true);
 assert.equal(hasEntitlementFeature(payload, "streaming.social"), false);
 assert.equal(hasEntitlementFeature(payload, "translations.audio"), false);

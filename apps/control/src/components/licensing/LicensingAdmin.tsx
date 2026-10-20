@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Copy, KeyRound, LoaderCircle, RefreshCw, ShieldBan, Sparkles } from "lucide-react";
 
 type OrganizationOption = { id: string; name: string };
-type PlanOption = { id: string; code: string; name: string; defaultDeviceSeatLimit: number };
+type PlanOption = { id: string; code: string; name: string; enabled: boolean; defaultDeviceSeatLimit: number; features: Record<string, boolean> };
 type KeyItem = { id: string; prefix: string; status: string; activation_limit: number; created_at: string };
 type Overview = {
   organizationId: string;
@@ -36,8 +36,12 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
   const [newPlanName, setNewPlanName] = useState("");
   const [newPlanSeats, setNewPlanSeats] = useState(3);
   const [newPlanFeatures, setNewPlanFeatures] = useState<Record<string, boolean>>(() => Object.fromEntries(PLAN_FEATURES.map((feature) => [feature, true])));
+  const [editingPlanId, setEditingPlanId] = useState("");
+  const [planEditName, setPlanEditName] = useState("");
+  const [planEditSeats, setPlanEditSeats] = useState(1);
 
   const selectedOrganization = useMemo(() => organizations.find((item) => item.id === organizationId), [organizations, organizationId]);
+  const enabledPlans = useMemo(() => planOptions.filter((item) => item.enabled), [planOptions]);
 
   async function request(url: string, init?: RequestInit) {
     const response = await fetch(url, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -126,7 +130,7 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
       }) });
       const result = data.result as { id?: string; code?: string; name?: string; defaultDeviceSeatLimit?: number } | undefined;
       if (result?.id && result.code && result.name) {
-        const next = { id: result.id, code: result.code, name: result.name, defaultDeviceSeatLimit: result.defaultDeviceSeatLimit ?? newPlanSeats };
+        const next = { id: result.id, code: result.code, name: result.name, enabled: true, defaultDeviceSeatLimit: result.defaultDeviceSeatLimit ?? newPlanSeats, features: { ...newPlanFeatures } };
         setPlanOptions((items) => [...items, next].sort((a,b) => a.name.localeCompare(b.name)));
         setPlanId(result.id);
       }
@@ -140,6 +144,37 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
   async function createSubscription() {
     if (!organizationId || !planId) return;
     await mutate("/api/v1/admin/licensing/subscriptions", { action: "create", organizationId, planId, status: "active", deviceSeatLimit: seatLimit });
+  }
+
+  async function changePlan() {
+    if (!overview?.subscription || !planId || planId === overview.subscription.plan.id) return;
+    await mutate("/api/v1/admin/licensing/subscriptions", { action: "change_plan", subscriptionId: overview.subscription.id, planId });
+  }
+
+  function beginEditPlan(plan: PlanOption) {
+    setEditingPlanId(plan.id);
+    setPlanEditName(plan.name);
+    setPlanEditSeats(plan.defaultDeviceSeatLimit);
+  }
+
+  async function configurePlan(plan: PlanOption, patch: Record<string, unknown>) {
+    setBusy(true);
+    setMessage("");
+    try {
+      await request("/api/v1/admin/licensing/subscriptions", { method: "POST", body: JSON.stringify({ action: "configure_plan", planId: plan.id, ...patch }) });
+      setPlanOptions((items) => items.map((item) => item.id === plan.id ? { ...item, ...patch } as PlanOption : item));
+      setEditingPlanId("");
+      setMessage("Plan configuration saved.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Plan configuration failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function savePlanEdit(plan: PlanOption) {
+    await configurePlan(plan, { name: planEditName.trim() || plan.name, defaultDeviceSeatLimit: planEditSeats });
   }
 
   return (
@@ -178,6 +213,30 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{PLAN_FEATURES.map((feature)=><label key={feature} className="ip-focus-gold flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.02] px-3 text-xs font-bold text-white/70"><input type="checkbox" checked={newPlanFeatures[feature]===true} onChange={(e)=>setNewPlanFeatures((current)=>({...current,[feature]:e.target.checked}))} className="cursor-pointer"/><span>{feature}</span></label>)}</div>
         <button type="button" disabled={busy || !newPlanCode.trim() || !newPlanName.trim()} onClick={()=>void createPlan()} className="ip-focus-gold mt-4 min-h-11 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:cursor-not-allowed disabled:opacity-40">Create plan</button>
+
+        <div className="mt-6 border-t border-white/[.07] pt-5">
+          <div className="text-[11px] font-bold uppercase tracking-[.18em] text-white/45">Available plans</div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            {planOptions.map((plan) => (
+              <div key={plan.id} className="rounded-2xl border border-white/[.07] bg-white/[.02] p-4">
+                {editingPlanId === plan.id ? (
+                  <div className="grid gap-3 sm:grid-cols-[1fr_110px_auto] sm:items-end">
+                    <label className="text-xs font-bold text-white/60">Name<input value={planEditName} onChange={(e)=>setPlanEditName(e.target.value)} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
+                    <label className="text-xs font-bold text-white/60">Seats<input type="number" min={1} value={planEditSeats} onChange={(e)=>setPlanEditSeats(Math.max(1,Number(e.target.value)||1))} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
+                    <div className="flex gap-2"><button type="button" disabled={busy} onClick={()=>void savePlanEdit(plan)} className="min-h-10 rounded-xl bg-[#d7a94a] px-3 text-xs font-black text-[#171109]">Save</button><button type="button" onClick={()=>setEditingPlanId("")} className="min-h-10 rounded-xl border border-white/[.08] px-3 text-xs font-bold">Cancel</button></div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-3"><div><div className="font-black">{plan.name}</div><div className="mt-1 font-mono text-[11px] text-white/40">{plan.code}</div></div><span className={"rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider " + (plan.enabled ? "bg-emerald-300/[.08] text-emerald-200" : "bg-white/[.04] text-white/40")}>{plan.enabled ? "Enabled" : "Disabled"}</span></div>
+                    <div className="mt-3 text-xs text-white/50">Default seats: <span className="font-bold text-white/75">{plan.defaultDeviceSeatLimit}</span></div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">{Object.entries(plan.features).filter(([,enabled])=>enabled).map(([feature])=><span key={feature} className="rounded-lg border border-white/[.06] px-2 py-1 text-[10px] text-white/45">{feature}</span>)}</div>
+                    <div className="mt-4 flex gap-2"><button type="button" onClick={()=>beginEditPlan(plan)} className="min-h-9 rounded-lg border border-white/[.08] px-3 text-[11px] font-bold">Edit</button><button type="button" disabled={busy} onClick={()=>void configurePlan(plan,{ enabled: !plan.enabled })} className="min-h-9 rounded-lg border border-white/[.08] px-3 text-[11px] font-bold">{plan.enabled ? "Disable" : "Enable"}</button></div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
@@ -206,12 +265,19 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
                 <label className="text-xs font-bold text-white/60">Seat limit<input type="number" min={1} value={seatLimit} onChange={(event) => setSeatLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-28 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
                 <button type="button" disabled={busy} onClick={() => void mutate("/api/v1/admin/licensing/subscriptions", { action: "set_seats", subscriptionId: overview.subscription?.id, seatLimit })} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl border border-white/[.08] px-3 text-xs font-bold">Save seats</button>
               </div>
+              <div className="rounded-2xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.04] p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#efc76e]">Change plan</div>
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <label className="min-w-[220px] flex-1 text-xs font-bold text-white/60">Subscription plan<select value={planId || overview.subscription.plan.id} onChange={(event)=>setPlanId(event.target.value)} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{enabledPlans.map((plan)=><option key={plan.id} value={plan.id}>{plan.name} · {plan.code}</option>)}</select></label>
+                  <button type="button" disabled={busy || !planId || planId === overview.subscription.plan.id} onClick={()=>void changePlan()} className="min-h-10 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:opacity-35">Change plan</button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="mt-5 rounded-2xl border border-dashed border-white/[.1] p-5">
               <div className="text-sm font-bold">No current subscription</div>
               <div className="mt-4 flex flex-wrap items-end gap-3">
-                <label className="min-w-[220px] flex-1 text-xs font-bold text-white/60">Plan<select value={planId} onChange={(event) => setPlanId(event.target.value)} className="ip-focus-gold mt-2 min-h-10 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{planOptions.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
+                <label className="min-w-[220px] flex-1 text-xs font-bold text-white/60">Plan<select value={planId} onChange={(event) => setPlanId(event.target.value)} className="ip-focus-gold mt-2 min-h-10 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{enabledPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
                 <label className="text-xs font-bold text-white/60">Seats<input type="number" min={1} value={seatLimit} onChange={(event) => setSeatLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-24 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
                 <button type="button" onClick={() => void createSubscription()} disabled={busy || !planId} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:opacity-40">Create subscription</button>
               </div>
@@ -222,10 +288,13 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         <div className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><KeyRound size={14} /> Product keys</div>
           {overview?.subscription ? (
+            <>
+            <p className="mt-3 text-xs text-white/50">Keys issued now activate <span className="font-bold text-white/75">{overview.subscription.plan.name}</span> ({overview.subscription.plan.code}).</p>
             <div className="mt-4 flex items-end gap-2">
               <label className="text-xs font-bold text-white/60">Activation limit<input type="number" min={1} value={activationLimit} onChange={(event) => setActivationLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-28 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
               <button type="button" onClick={() => void issueKey()} disabled={busy} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109]">Issue key</button>
             </div>
+            </>
           ) : null}
           <div className="mt-5 space-y-2">
             {keys.map((key) => (

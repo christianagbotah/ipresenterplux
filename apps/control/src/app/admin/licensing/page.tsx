@@ -9,7 +9,7 @@ import { LicensingAdmin } from "@/components/licensing/LicensingAdmin";
 export const dynamic = "force-dynamic";
 
 type OrganizationRow = { id: string; name: string };
-type PlanRow = { id: string; code: string; name: string; default_device_seat_limit: number };
+type PlanRow = { id: string; code: string; name: string; enabled: boolean; default_device_seat_limit: number; features: Record<string, boolean> };
 
 export default async function ProductLicensingAdminPage() {
   const session = await auth();
@@ -23,7 +23,7 @@ export default async function ProductLicensingAdminPage() {
 
   const [organizations, plans] = await Promise.all([
     query<OrganizationRow>("select id::text,name from organizations order by name"),
-    query<PlanRow>("select id::text,code,name,default_device_seat_limit from subscription_plans where enabled=true order by name")
+    query<PlanRow>("select id::text,code,name,enabled,default_device_seat_limit,features from subscription_plans order by name,code")
   ]);
 
   return (
@@ -43,7 +43,7 @@ export default async function ProductLicensingAdminPage() {
 
         <LicensingAdmin
           organizations={organizations.rows}
-          plans={plans.rows.map((plan) => ({ id: plan.id, code: plan.code, name: plan.name, defaultDeviceSeatLimit: plan.default_device_seat_limit }))}
+          plans={plans.rows.map((plan) => ({ id: plan.id, code: plan.code, name: plan.name, enabled: plan.enabled, defaultDeviceSeatLimit: plan.default_device_seat_limit, features: plan.features ?? {} }))}
         />
       </div>
     </main>
