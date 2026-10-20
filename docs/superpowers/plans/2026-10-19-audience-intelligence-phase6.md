@@ -5,16 +5,16 @@
 **Safety invariants:** Audience sessions are anonymous and service-scoped; no IP/device fingerprint/raw user-agent storage. Language choice remains per audience session and independent of projector language. AI uses existing domain services/RBAC and cannot bypass Preview/Program authority. Offline local Program remains independent from Internet audience/AI degradation.
 
 ## Task 1 — Anonymous audience language sessions
-- [ ] Add `045_audience_sessions.sql` with service/org/channel scope, last-seen expiry index, no PII fields.
-- [ ] Add shared audience-session authority and public heartbeat API.
-- [ ] Persist one random session UUID per service in browser storage; heartbeat every 20s and on language change.
-- [ ] Derive channel listener counts from sessions active in the last 45s instead of static counters.
-- [ ] Add DB/privacy/UI contract self-test, writable-DB safety registration and Control CI step.
+- [x] Add `045_audience_sessions.sql` with service/org/channel scope, last-seen expiry index, no PII fields.
+- [x] Add shared audience-session authority and public heartbeat API.
+- [x] Persist one random session UUID per service in browser storage; heartbeat every 20s and on language change.
+- [x] Derive channel listener counts from sessions active in the last 45s instead of static counters.
+- [x] Add DB/privacy/UI contract self-test, writable-DB safety registration and Control CI step.
 
 ## Task 2 — Audience language experience/readiness
-- [ ] Show translated-text/audio readiness per language and meaningful fallback copy.
-- [ ] Surface real active listeners in Audience Studio and distinguish text/audio demand.
-- [ ] Keep 12px operational text / 44px controls and mobile-first behavior.
+- [x] Show translated-text/audio readiness per language and meaningful fallback copy.
+- [x] Surface real active listeners in Audience Studio and distinguish text/audio demand.
+- [x] Keep 12px operational text / 44px controls and mobile-first behavior.
 
 ## Task 3 — Searchable service memory
 - [ ] Add archive search over service title, Scripture history and retained transcript text with tenant/RBAC scope.
