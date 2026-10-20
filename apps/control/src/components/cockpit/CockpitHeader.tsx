@@ -6,15 +6,12 @@ import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SessionClock } from "./SessionClock";
 import { UniversalFindTrigger } from "./UniversalFindTrigger";
 import { ScriptureAutomationControl } from "@/components/scripture/ScriptureAutomationControl";
-
-const domainLinks = [
-  ["Scripture", "/scripture"], ["Songs & Media", "/media"], ["Theme Studio", "/themes"], ["Cameras", "/cameras"],
-  ["Streaming", "/streaming"], ["Audience", "/audience"], ["Archive", "/archive"], ["Settings", "/settings"]
-] as const;
+import { visibleStudioRoutes } from "@/components/navigation/studio-routes";
 
 export function CockpitHeader({ model }: { model: CockpitViewModel }) {
   const service = model.service;
   const live = service?.status === "live";
+  const workspaceRoutes = visibleStudioRoutes(model.capabilities).filter((route) => route.href !== "/");
   return (
     <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-between gap-3 border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -44,7 +41,7 @@ export function CockpitHeader({ model }: { model: CockpitViewModel }) {
             <PanelsTopLeft size={15} /> Workspaces <ChevronDown size={13} />
           </summary>
           <div className="absolute right-0 mt-2 w-52 rounded-2xl border border-white/[.09] bg-[#0b0f16]/98 p-2 shadow-2xl">
-            {domainLinks.map(([label, href]) => <Link key={href} href={href} className="ip-focus-gold block rounded-xl px-3 py-2.5 text-xs font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white">{label}</Link>)}
+            {workspaceRoutes.map((route) => <Link key={route.href} href={route.href} className="ip-focus-gold block rounded-xl px-3 py-2.5 text-xs font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white">{route.label}</Link>)}
           </div>
         </details>
         <LogoutButton />
