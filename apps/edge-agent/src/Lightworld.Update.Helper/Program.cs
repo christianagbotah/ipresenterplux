@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Text.Json;
-using Lightworld.Update.Client;
 
 namespace Lightworld.Update.Helper;
 
@@ -23,23 +22,16 @@ internal static class Program
             var plan = JsonSerializer.Deserialize<UpdatePlan>(await File.ReadAllTextAsync(planPath), JsonOptions)?.Normalize()
                 ?? throw new InvalidDataException("Update plan is invalid.");
 
-            await PackageVerifier.VerifyAsync(
-                plan.StagedPackagePath,
-                plan.ExpectedPackageSize,
-                plan.ExpectedPackageSha256,
-                CancellationToken.None).ConfigureAwait(false);
-
-            var switcher = new AtomicInstallSwitcher(plan.InstallRoot);
-            var candidate = await switcher.PrepareCandidateAsync(
-                plan.StagedPackagePath,
-                plan.HealthToken,
-                CancellationToken.None).ConfigureAwait(false);
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+            var candidate = await new UpdateCandidatePreparer(httpClient).PrepareAsync(plan, CancellationToken.None)
+                .ConfigureAwait(false);
 
             await ParentProcessExitWaiter.WaitAsync(
                 plan.ParentProcessId,
                 TimeSpan.FromSeconds(plan.ParentExitTimeoutSeconds),
                 CancellationToken.None).ConfigureAwait(false);
 
+            var switcher = new AtomicInstallSwitcher(plan.InstallRoot);
             await switcher.SwitchToCandidateAsync(candidate, CancellationToken.None).ConfigureAwait(false);
 
             var coordinator = new HealthRollbackCoordinator(plan.InstallRoot);
