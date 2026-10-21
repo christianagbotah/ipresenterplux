@@ -2,6 +2,15 @@ name: Windows Installer Install Smoke
 
 on:
   workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Edge Agent CI run containing the installer artifact"
+        required: true
+        default: "39627605621"
+      artifact_name:
+        description: "Installer artifact name"
+        required: true
+        default: "ipresenterplux-windows-installer"
   push:
     paths:
       - ".github/workflows/windows-installer-install-smoke.yml"
@@ -15,11 +24,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: ipresenterplux-windows-hotfix-installer
+          name: ${{ inputs.artifact_name || 'ipresenterplux-windows-installer' }}
           path: installer
           github-token: ${{ github.token }}
-          run-id: 39617587791
-      - name: Install exact hotfix artifact
+          run-id: ${{ inputs.source_run_id || '39627605621' }}
+      - name: Install exact selected artifact
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
