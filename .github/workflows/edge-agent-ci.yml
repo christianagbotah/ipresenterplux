@@ -140,6 +140,13 @@ jobs:
           $release = (Resolve-Path "publish/windows-release").Path
           & $compiler "/DAppVersion=1.0.${{ github.run_number }}" "/DSourceRoot=$release" "/DOutputRoot=$release" "installer/windows/iPresenterPlux.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+      - name: Hash customer Windows installer
+        shell: pwsh
+        run: |
+          $installer = "publish/windows-release/iPresenterPlux-Setup.exe"
+          if (-not (Test-Path $installer)) { throw "iPresenterPlux-Setup.exe is missing" }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  iPresenterPlux-Setup.exe" | Set-Content -Encoding ascii "publish/windows-release/iPresenterPlux-Setup.exe.sha256"
       - name: Verify Windows installer/update artifacts
         run: python scripts/installer-selftest.py --release-dir publish/windows-release --version "1.0.${{ github.run_number }}"
       - name: Scan Windows licensing package
@@ -148,6 +155,15 @@ jobs:
       - name: Smoke SRT contribution against MediaMTX
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
+      - name: Upload low-bandwidth Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipresenterplux-windows-installer
+          path: |
+            apps/edge-agent/publish/windows-release/iPresenterPlux-Setup.exe
+            apps/edge-agent/publish/windows-release/iPresenterPlux-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload installable Windows release
         uses: actions/upload-artifact@v4
         with:
