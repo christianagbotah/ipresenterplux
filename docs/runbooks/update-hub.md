@@ -136,20 +136,21 @@ Expected status is `206 Partial Content` and an `Accept-Ranges: bytes` response.
 
 ## Release signing key
 
-Generate the production Ed25519 key on an operator-controlled system or restricted VPS root directory. The private signing key must remain **outside the public tree** (`/home/lightworld/update-hub/public`) and outside the repository.
+Generate the production Ed25519 key only on an operator-controlled system or the restricted VPS root directory. The private signing key must remain **outside the public tree** (`/home/lightworld/update-hub/public`) and outside the repository.
 
-Example with OpenSSL:
+Use the tested generator so the desktop catalog contains the exact raw 32-byte Ed25519 public key format expected by the Windows verifier:
 
 ```bash
+cd /home/lightworld/update-hub/app/apps/update-hub
 umask 077
-openssl genpkey -algorithm Ed25519 \
-  -out /root/lightworld-release-signing/ipresenterplux-ed25519.pem
-openssl pkey \
-  -in /root/lightworld-release-signing/ipresenterplux-ed25519.pem \
-  -pubout \
-  -out /root/lightworld-release-signing/ipresenterplux-ed25519-public.pem
-chmod 0600 /root/lightworld-release-signing/ipresenterplux-ed25519.pem
+node scripts/generate-release-key.mjs \
+  --private-key /root/lightworld-release-signing/ipresenterplux-ed25519.pem \
+  --catalog /root/lightworld-release-signing/update-public-keys.json \
+  --key-id lightworld-ipresenterplux-prod-2026 \
+  --public-root /home/lightworld/update-hub/public
 ```
+
+The generator refuses to overwrite an existing private key and refuses any private-key path inside public storage. It writes the private key mode `0600`. Copy **only** the generated public catalog content into `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/update-public-keys.json`, commit that public file, run the complete Edge CI, and build the bootstrap installer from that verified commit. Never copy, upload, print, or commit the private PEM.
 
 Only the public key/key-id catalog is bundled into the desktop updater. A private signing key found under the public release tree is a release-blocking incident.
 
@@ -163,7 +164,7 @@ Use the Edge Agent CI artifact produced from the exact reviewed release commit. 
 - the full update ZIP
 - SHA-256 metadata and manifest template
 
-Do not publish an installer from a failed or partially completed CI run.
+Do not publish an installer from a failed or partially completed CI run. The bootstrap installer intended for users must be built **after** the production public update key is embedded; otherwise that installation cannot verify later signed updates.
 
 ### Windows publisher trust
 
@@ -194,7 +195,7 @@ cd /home/lightworld/update-hub/app/apps/update-hub
 node --import tsx scripts/release-cli.mjs sign \
   --manifest /home/lightworld/update-hub/public/manifests/<manifest>.json \
   --private-key /root/lightworld-release-signing/ipresenterplux-ed25519.pem \
-  --key-id <production-key-id> \
+  --key-id lightworld-ipresenterplux-prod-2026 \
   --signature /home/lightworld/update-hub/public/manifests/<manifest>.sig \
   --public-root /home/lightworld/update-hub/public
 ```
@@ -214,16 +215,18 @@ Release mutations are audited in `release_events`. Use the authenticated admin A
 
 ## UAT promotion sequence
 
-1. Publish the new build to `beta` with a limited rollout.
-2. On a clean Windows machine, install using `iPresenterPlux-Setup.exe` once.
-3. Pair the Edge device and confirm Control Plane/assignment connectivity.
-4. Confirm a newer beta is detected and downloaded without stopping presentation, recording, audience streaming, church streaming, or the Edge runtime.
-5. Confirm the UI remains in `Update ready — restart when convenient` while any live activity is present.
-6. Stop live activity and apply the update. Confirm the helper waits for the parent desktop process before switching `current/`.
-7. Confirm the updated desktop creates its health marker only after settings/bootstrap complete.
-8. Test a deliberately unhealthy UAT build and verify automatic rollback restores `previous/`.
-9. Verify a valid delta update, then intentionally corrupt a delta and prove the signed full-package fallback succeeds before exit.
-10. Promote the proven build to `stable` and increase rollout gradually.
+1. Generate the production signing key on the restricted host and commit only its public desktop catalog.
+2. Build the bootstrap installer from the public-key commit and verify its CI SHA-256.
+3. Publish the new build to `beta` with a limited rollout.
+4. On a clean Windows machine, install using `iPresenterPlux-Setup.exe` once.
+5. Pair the Edge device and confirm Control Plane/assignment connectivity.
+6. Confirm a newer beta is detected and downloaded without stopping presentation, recording, audience streaming, church streaming, or the Edge runtime.
+7. Confirm the UI remains in `Update ready — restart when convenient` while any live activity is present.
+8. Stop live activity and apply the update. Confirm the helper waits for the parent desktop process before switching `current/`.
+9. Confirm the updated desktop creates its health marker only after settings/bootstrap complete.
+10. Test a deliberately unhealthy UAT build and verify automatic rollback restores `previous/`.
+11. Verify a valid delta update, then intentionally corrupt a delta and prove the signed full-package fallback succeeds before exit.
+12. Promote the proven build to `stable` and increase rollout gradually.
 
 ## Emergency controls
 
@@ -244,6 +247,7 @@ pnpm test
 pnpm test:release
 pnpm test:admin
 pnpm test:signing
+pnpm test:keygen
 pnpm test:delta
 pnpm test:deployment
 pnpm build
