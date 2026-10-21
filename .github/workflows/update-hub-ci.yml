@@ -1,0 +1,40 @@
+name: Update Hub CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/update-hub/**"
+      - ".github/workflows/update-hub-ci.yml"
+  pull_request:
+    paths:
+      - "apps/update-hub/**"
+      - ".github/workflows/update-hub-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/update-hub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: apps/update-hub/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Update Hub foundation selftest
+        run: pnpm test
+      - name: Signed release selftest
+        run: pnpm test:release
+      - name: Admin release selftest
+        run: pnpm test:admin
+      - name: TypeScript build
+        run: pnpm build
