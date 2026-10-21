@@ -104,7 +104,7 @@ public sealed class FileDeltaApplierTests : IDisposable
         var path = Path.Combine(_root, $"{Guid.NewGuid():N}.zip");
         using var archive = ZipFile.Open(path, ZipArchiveMode.Create);
         var files = changed.Select(item => FileEntry(item.Key, item.Value)).ToArray();
-        var catalog = resulting.Select(item => FileEntry(item.Key, item.Value)).OrderBy(item => item.path, StringComparer.Ordinal).ToArray();
+        var catalog = resulting.Select(item => FileEntry(item.Key, item.Value)).OrderBy(item => item.Path, StringComparer.Ordinal).ToArray();
         var delta = new
         {
             schemaVersion = 1,
@@ -127,16 +127,16 @@ public sealed class FileDeltaApplierTests : IDisposable
         return path;
     }
 
-    private static object FileEntry(string path, string content)
+    private static FileEntryMetadata FileEntry(string path, string content)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-        return new
-        {
-            path = path.Replace('\\', '/'),
-            size = bytes.LongLength,
-            sha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()
-        };
+        return new FileEntryMetadata(
+            path.Replace('\\', '/'),
+            bytes.LongLength,
+            Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
     }
+
+    private sealed record FileEntryMetadata(string Path, long Size, string Sha256);
 
     public void Dispose()
     {
