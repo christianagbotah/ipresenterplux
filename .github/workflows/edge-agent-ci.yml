@@ -119,6 +119,23 @@ jobs:
       - name: Package Windows installer/update release layout
         shell: pwsh
         run: ./scripts/package-update.ps1 -Version "1.0.${{ github.run_number }}" -Channel beta
+      - name: Smoke packaged desktop startup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "publish/windows-release/current/iPresenterPlux.Edge.Desktop.exe").Path
+          $workingDirectory = Split-Path -Parent $exe
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workingDirectory -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            $events = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-3) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'iPresenterPlux|\.NET Runtime|Application Error' } |
+              Select-Object -First 8 -ExpandProperty Message
+            if ($events) { $events | ForEach-Object { Write-Host $_ } }
+            throw "Packaged desktop exited during startup smoke with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
       - name: Install Inno Setup compiler
         shell: pwsh
         run: |
