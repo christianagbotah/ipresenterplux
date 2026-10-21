@@ -57,30 +57,87 @@ public sealed class VpsUpdateStagingWorkflow(
             cancellationToken).ConfigureAwait(false);
         ValidateManifest(manifest, normalized.UpdateChannel, architecture, check.Version);
 
-        if (!Uri.TryCreate(manifest.FullPackage.Url, UriKind.Absolute, out var packageUri))
-            throw new InvalidDataException("The signed update manifest contains an invalid package URL.");
+        var fullUri = RequireHttpsPackageUri(manifest.FullPackage.Url, "full");
         var safeVersion = string.Concat(manifest.Version.Select(character =>
             char.IsLetterOrDigit(character) || character is '.' or '-' or '_' ? character : '_'));
         Directory.CreateDirectory(_stagingDirectory);
-        var destination = Path.Combine(_stagingDirectory, $"ipresenterplux-{safeVersion}-windows-x64.zip");
-        await new ResumableDownloader(_httpClient).DownloadAsync(
-            packageUri,
-            destination,
-            manifest.FullPackage.Size,
-            cancellationToken).ConfigureAwait(false);
-        await PackageVerifier.VerifyAsync(
-            destination,
+
+        var selectedDelta = DeltaPackageSelector.Select(currentVersion, manifest);
+        if (selectedDelta is not null)
+        {
+            try
+            {
+                var deltaUri = RequireHttpsPackageUri(selectedDelta.Url, "delta");
+                var deltaDestination = Path.Combine(_stagingDirectory, $"ipresenterplux-{safeVersion}-windows-x64.delta.zip");
+                await DownloadAndVerifyAsync(
+                    deltaUri,
+                    deltaDestination,
+                    selectedDelta.Size,
+                    selectedDelta.Sha256,
+                    cancellationToken).ConfigureAwait(false);
+                return new StagedDesktopUpdate(
+                    manifest.Version,
+                    deltaDestination,
+                    selectedDelta.Size,
+                    selectedDelta.Sha256.ToLowerInvariant(),
+                    manifest.ReleaseNotes,
+                    DateTimeOffset.UtcNow,
+                    UpdatePackageKind.Delta,
+                    fullUri.AbsoluteUri,
+                    manifest.FullPackage.Size,
+                    manifest.FullPackage.Sha256.ToLowerInvariant());
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch
+            {
+                // A bad or interrupted delta must not block a valid signed full package.
+            }
+        }
+
+        var fullDestination = Path.Combine(_stagingDirectory, $"ipresenterplux-{safeVersion}-windows-x64.zip");
+        await DownloadAndVerifyAsync(
+            fullUri,
+            fullDestination,
             manifest.FullPackage.Size,
             manifest.FullPackage.Sha256,
             cancellationToken).ConfigureAwait(false);
-
         return new StagedDesktopUpdate(
             manifest.Version,
-            destination,
+            fullDestination,
             manifest.FullPackage.Size,
             manifest.FullPackage.Sha256.ToLowerInvariant(),
             manifest.ReleaseNotes,
             DateTimeOffset.UtcNow);
+    }
+
+    private async Task DownloadAndVerifyAsync(
+        Uri source,
+        string destination,
+        long expectedSize,
+        string expectedSha256,
+        CancellationToken cancellationToken)
+    {
+        await new ResumableDownloader(_httpClient).DownloadAsync(
+            source,
+            destination,
+            expectedSize,
+            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await PackageVerifier.VerifyAsync(
+                destination,
+                expectedSize,
+                expectedSha256,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            try { if (File.Exists(destination)) File.Delete(destination); } catch { }
+            throw;
+        }
     }
 
     private static void ValidateManifest(
@@ -95,8 +152,18 @@ public sealed class VpsUpdateStagingWorkflow(
             !string.Equals(manifest.Architecture, architecture, StringComparison.Ordinal) ||
             !string.Equals(manifest.Channel, channel, StringComparison.Ordinal) ||
             !string.Equals(manifest.Version, expectedVersion, StringComparison.Ordinal) ||
+            manifest.FullPackage.Size <= 0 ||
+            manifest.FullPackage.Sha256 is not { Length: 64 } ||
+            !manifest.FullPackage.Sha256.All(Uri.IsHexDigit) ||
             manifest.Rollout is < 0 or > 100)
             throw new InvalidDataException("The signed update manifest is not compatible with this installation.");
+    }
+
+    private static Uri RequireHttpsPackageUri(string value, string label)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+            throw new InvalidDataException($"The signed update manifest contains an invalid {label} package URL.");
+        return uri;
     }
 
     private static Uri EnsureTrailingSlash(Uri uri) =>
