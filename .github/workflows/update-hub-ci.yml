@@ -46,6 +46,8 @@ jobs:
         run: pnpm test:admin
       - name: Offline signing CLI selftest
         run: pnpm test:signing
+      - name: Release key generator selftest
+        run: pnpm test:keygen
       - name: Delta builder selftest
         run: pnpm test:delta
       - name: VPS deployment contract selftest
