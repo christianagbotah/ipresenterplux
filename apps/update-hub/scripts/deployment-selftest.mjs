@@ -34,6 +34,8 @@ for (const required of [
   assert(deploy.includes(required), `deploy script must include: ${required}`);
 }
 assert(/(?:nginx\s+-t|NGINX_BIN[^\n]*-t)/.test(deploy), 'deploy script must validate the configured Nginx binary with -t');
+assert.match(deploy, /\$NGINX_BIN"\s+-s\s+reload/, 'Webuzo deployment must reload through the configured Nginx binary');
+assert.doesNotMatch(deploy, /systemctl\s+reload\s+nginx/, 'Webuzo nginx unit does not support systemctl reload');
 assert.match(deploy, /UPDATE_HUB_DRY_RUN/, 'deploy script must support dry-run');
 assert.match(deploy, /runuser\s+-u\s+"?\$APP_USER"?\s+--/, 'package install/build must be able to run as the unprivileged service account');
 assert.doesNotMatch(deploy, /\(cd\s+"\$APP_DIR"\s+&&\s+"\$PNPM_BIN"\s+(?:install|build)/, 'pnpm install/build must not run directly as root');
