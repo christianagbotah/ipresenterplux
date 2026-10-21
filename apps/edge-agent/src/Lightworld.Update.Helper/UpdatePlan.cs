@@ -10,7 +10,9 @@ public sealed record UpdatePlan(
     string HealthToken,
     int HealthTimeoutSeconds,
     long ExpectedPackageSize,
-    string ExpectedPackageSha256)
+    string ExpectedPackageSha256,
+    int ParentProcessId = 0,
+    int ParentExitTimeoutSeconds = 30)
 {
     public UpdatePlan Normalize()
     {
@@ -33,6 +35,10 @@ public sealed record UpdatePlan(
             throw new InvalidDataException("Expected package size is invalid.");
         if (ExpectedPackageSha256 is null || ExpectedPackageSha256.Length != 64 || !ExpectedPackageSha256.All(Uri.IsHexDigit))
             throw new InvalidDataException("Expected package SHA-256 is invalid.");
+        if (ParentProcessId < 0)
+            throw new InvalidDataException("Parent process id cannot be negative.");
+        if (ParentExitTimeoutSeconds is < 1 or > 120)
+            throw new InvalidDataException("Parent exit timeout must be between 1 and 120 seconds.");
 
         return this with
         {

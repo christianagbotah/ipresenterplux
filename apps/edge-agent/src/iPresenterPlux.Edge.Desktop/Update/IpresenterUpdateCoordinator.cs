@@ -125,7 +125,9 @@ public sealed class IpresenterUpdateCoordinator
             healthToken,
             45,
             StagedUpdate.Size,
-            StagedUpdate.Sha256);
+            StagedUpdate.Sha256,
+            Environment.ProcessId,
+            30);
         var planPath = Path.Combine(stateDirectory, $"update-plan-{healthToken}.json");
         await File.WriteAllTextAsync(planPath, JsonSerializer.Serialize(plan, PlanJsonOptions), cancellationToken)
             .ConfigureAwait(false);
@@ -180,5 +182,7 @@ public sealed class IpresenterUpdateCoordinator
         string HealthToken,
         int HealthTimeoutSeconds,
         long ExpectedPackageSize,
-        string ExpectedPackageSha256);
+        string ExpectedPackageSha256,
+        int ParentProcessId,
+        int ParentExitTimeoutSeconds);
 }

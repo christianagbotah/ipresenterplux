@@ -34,6 +34,12 @@ internal static class Program
                 plan.StagedPackagePath,
                 plan.HealthToken,
                 CancellationToken.None).ConfigureAwait(false);
+
+            await ParentProcessExitWaiter.WaitAsync(
+                plan.ParentProcessId,
+                TimeSpan.FromSeconds(plan.ParentExitTimeoutSeconds),
+                CancellationToken.None).ConfigureAwait(false);
+
             await switcher.SwitchToCandidateAsync(candidate, CancellationToken.None).ConfigureAwait(false);
 
             var coordinator = new HealthRollbackCoordinator(plan.InstallRoot);
