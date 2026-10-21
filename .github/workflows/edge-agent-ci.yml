@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+      - name: Validate Windows installer source contract
+        run: python scripts/installer-selftest.py
       - name: Restore Edge solution
         run: dotnet restore iPresenterPlux.Edge.sln
       - name: Restore desktop shell tests
@@ -103,7 +105,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "publish/windows-runtime/libSrt" | Out-Null
           Copy-Item "publish/libsrt-stage/*" "publish/windows-runtime/libSrt/" -Recurse
       - name: Publish self-contained Windows desktop shell
-        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -o publish/windows-app
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=1.0.${{ github.run_number }} -o publish/windows-app
       - name: Stage Windows Edge runtime under desktop shell
         shell: pwsh
         run: |
@@ -112,17 +114,45 @@ jobs:
           if (-not (Test-Path "publish/windows-app/iPresenterPlux.Edge.Desktop.exe")) { throw "Desktop shell executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/iPresenterPlux.Edge.Windows.exe")) { throw "Edge runtime executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/libSrt/srt.dll")) { throw "Bundled libsrt runtime is missing" }
+      - name: Publish self-contained Windows update helper
+        run: dotnet publish src/Lightworld.Update.Helper/Lightworld.Update.Helper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish/windows-helper
+      - name: Package Windows installer/update release layout
+        shell: pwsh
+        run: ./scripts/package-update.ps1 -Version "1.0.${{ github.run_number }}" -Channel beta
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          $compiler = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $compiler) {
+            choco install innosetup --no-progress -y
+          }
+          $candidate = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $candidate) {
+            $fallback = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            if (-not (Test-Path $fallback)) { throw "Inno Setup compiler is unavailable" }
+          }
+      - name: Build iPresenterPlux Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $compiler = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $compiler) { $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          $release = (Resolve-Path "publish/windows-release").Path
+          & $compiler "/DAppVersion=1.0.${{ github.run_number }}" "/DSourceRoot=$release" "/DOutputRoot=$release" "installer/windows/iPresenterPlux.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+      - name: Verify Windows installer/update artifacts
+        run: python scripts/installer-selftest.py --release-dir publish/windows-release --version "1.0.${{ github.run_number }}"
       - name: Scan Windows licensing package
         shell: pwsh
-        run: python scripts/licensing-package-scan.py publish/windows-app
+        run: python scripts/licensing-package-scan.py publish/windows-release/current
       - name: Smoke SRT contribution against MediaMTX
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
-      - name: Upload Windows Edge desktop artifact
+      - name: Upload installable Windows release
         uses: actions/upload-artifact@v4
         with:
-          name: ipresenterplux-edge-windows
-          path: apps/edge-agent/publish/windows-app
+          name: ipresenterplux-windows-release
+          path: apps/edge-agent/publish/windows-release
           if-no-files-found: error
           retention-days: 14
 
