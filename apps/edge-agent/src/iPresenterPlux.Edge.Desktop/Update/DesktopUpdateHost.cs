@@ -84,6 +84,7 @@ internal static class DesktopUpdateHost
         DockPanel.SetDock(bar, Dock.Bottom);
         var root = new DockPanel { LastChildFill = true };
         root.Children.Add(bar);
+        window.Content = null;
         root.Children.Add(existingContent);
         window.Content = root;
 
