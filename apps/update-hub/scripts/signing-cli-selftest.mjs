@@ -49,7 +49,10 @@ try {
   assert.equal(detached.algorithm, 'Ed25519');
   assert(!detachedText.includes('PRIVATE KEY'), 'signature output must never contain private key material');
   const publicKeys = new Map([['lightworld-ci-test', publicKey]]);
-  assert(verifyManifest(canonicalManifestBytes(manifest), detached, publicKeys), 'CLI detached signature must verify');
+  assert(verifyManifest(canonicalManifestBytes(manifest), detached, publicKeys), 'CLI detached signature must verify canonical manifest bytes');
+  const servedManifestBytes = readFileSync(manifestPath);
+  assert(verifyManifest(servedManifestBytes, detached, publicKeys),
+    'the exact public manifest bytes served to desktop clients must verify with the detached signature');
 
   const publicPrivateKey = join(publicRoot, 'bad-private.pem');
   writeFileSync(publicPrivateKey, privateKey.export({ type: 'pkcs8', format: 'pem' }));
