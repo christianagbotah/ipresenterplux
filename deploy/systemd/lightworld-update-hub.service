@@ -1,0 +1,23 @@
+[Unit]
+Description=Lightworld Desktop Update Hub
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=lightworld
+Group=lightworld
+WorkingDirectory=/home/lightworld/update-hub/app/apps/update-hub
+EnvironmentFile=-/home/lightworld/update-hub/app/.env
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=3
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+ReadWritePaths=/home/lightworld/update-hub/logs
+
+[Install]
+WantedBy=multi-user.target

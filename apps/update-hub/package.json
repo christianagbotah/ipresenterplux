@@ -1,0 +1,22 @@
+{
+  "name": "@lightworld/update-hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --import tsx scripts/selftest.mjs",
+    "test:release": "node --import tsx scripts/release-selftest.mjs",
+    "test:admin": "node --import tsx scripts/admin-selftest.mjs",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
