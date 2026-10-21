@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -65,7 +66,7 @@ public sealed class HttpDeviceEnrollmentClient(HttpClient httpClient) : IDeviceE
         return current.Metadata with
         {
             State = DeviceCredentialState.Revoked,
-            RevokedAt = body.Metadata.RevokedAt
+            RevokedAt = ParseTimestamp(body.Metadata.RevokedAt, "revokedAt")
         };
     }
 
@@ -103,8 +104,8 @@ public sealed class HttpDeviceEnrollmentClient(HttpClient httpClient) : IDeviceE
         var credentialMetadata = new DeviceCredentialMetadata(
             identity,
             Guid.Parse(metadata.CredentialId),
-            metadata.IssuedAt,
-            metadata.ExpiresAt,
+            ParseTimestamp(metadata.IssuedAt, "issuedAt"),
+            ParseTimestamp(metadata.ExpiresAt, "expiresAt"),
             ParseState(metadata.State),
             string.IsNullOrWhiteSpace(metadata.ReplacesCredentialId)
                 ? null
@@ -113,6 +114,20 @@ public sealed class HttpDeviceEnrollmentClient(HttpClient httpClient) : IDeviceE
         return new DeviceCredential(
             credentialMetadata,
             Encoding.UTF8.GetBytes(envelope.Credential));
+    }
+
+    private static DateTimeOffset ParseTimestamp(string value, string fieldName)
+    {
+        if (DateTimeOffset.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new InvalidDataException($"The control plane returned an invalid {fieldName} timestamp.");
     }
 
     private static DeviceCredentialState ParseState(string state) => state.ToLowerInvariant() switch
@@ -134,8 +149,8 @@ public sealed class HttpDeviceEnrollmentClient(HttpClient httpClient) : IDeviceE
         string? CampusId,
         string DeviceName,
         string CredentialId,
-        DateTimeOffset IssuedAt,
-        DateTimeOffset ExpiresAt,
+        string IssuedAt,
+        string ExpiresAt,
         string State,
         string? ReplacesCredentialId);
 
@@ -150,5 +165,5 @@ public sealed class HttpDeviceEnrollmentClient(HttpClient httpClient) : IDeviceE
         string DeviceName,
         string CredentialId,
         string State,
-        DateTimeOffset RevokedAt);
+        string RevokedAt);
 }
