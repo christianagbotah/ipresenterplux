@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import { verifyAdminBearer } from '../src/admin-auth.ts';
 import { AdminReleaseService } from '../src/routes/admin-releases.ts';
+import { createUpdateHubServer } from '../src/server.ts';
 
 const token = 'test-admin-token-keep-private';
 assert.equal(verifyAdminBearer(undefined, token), false, 'missing authorization must be rejected');
@@ -96,5 +98,57 @@ assert(repository.events.every((event) => event.actor === actor && event.action 
 const auditJson = JSON.stringify(repository.events);
 assert(!auditJson.includes(token), 'admin token must never enter audit detail');
 assert(!auditJson.toLowerCase().includes('privatekey'), 'private signing key material must never enter audit detail');
+
+const httpRepository = new MemoryRepository();
+const server = createUpdateHubServer({
+  config: {
+    publicOrigin: new URL('https://updates.example.test'),
+    databaseUrl: 'postgres://unused',
+    publicRoot: '/tmp/lightworld-update-hub-test',
+    host: '127.0.0.1',
+    port: 0
+  },
+  releaseRepository: { listForProduct: async () => [] },
+  adminRepository: httpRepository,
+  adminToken: token
+});
+server.listen(0, '127.0.0.1');
+await once(server, 'listening');
+const address = server.address();
+assert(address && typeof address === 'object');
+const base = `http://127.0.0.1:${address.port}`;
+try {
+  const body = {
+    product: 'ipresenterplux', version: '2.0.0', channel: 'beta', platform: 'windows', architecture: 'x64',
+    minimumVersion: null, releaseNotes: 'HTTP UAT', manifestPath: 'manifests/ipresenterplux/2.0.0.json',
+    signaturePath: 'manifests/ipresenterplux/2.0.0.sig', rollout: 10
+  };
+  const unauthorized = await fetch(`${base}/api/v1/admin/releases`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+  assert.equal(unauthorized.status, 401, 'admin API must reject missing bearer token');
+
+  const authorized = await fetch(`${base}/api/v1/admin/releases`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json', authorization: `Bearer ${token}`, 'x-update-hub-actor': 'release-operator'
+    },
+    body: JSON.stringify(body)
+  });
+  assert.equal(authorized.status, 201, 'authorized release creation must succeed');
+  const authorizedBody = await authorized.json();
+  assert.equal(authorizedBody.state, 'draft');
+  assert.equal(httpRepository.events.at(-1)?.actor, 'release-operator');
+
+  const malformed = await fetch(`${base}/api/v1/admin/releases`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: '{not-json'
+  });
+  assert.equal(malformed.status, 400, 'malformed admin JSON must be rejected without crashing the server');
+} finally {
+  server.close();
+  await once(server, 'close');
+}
 
 console.log('update-hub admin selftest: PASS');
