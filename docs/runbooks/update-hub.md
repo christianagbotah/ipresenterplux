@@ -43,6 +43,15 @@ Database: lightworld_update_hub
 Role: lightworld_update_hub
 ```
 
+Before every production migration, take a timestamped PostgreSQL backup and keep it outside the public release tree. The guarded deploy script does this automatically with `pg_dump --format=custom` before applying the schema. For a manual deployment:
+
+```bash
+install -d -o lightworld -g lightworld -m 0750 /home/lightworld/update-hub/backups
+pg_dump --format=custom \
+  --file="/home/lightworld/update-hub/backups/update-hub-$(date -u +%Y%m%dT%H%M%SZ).dump" \
+  "$UPDATE_HUB_DATABASE_URL"
+```
+
 Apply the schema with the dedicated database URL:
 
 ```bash
@@ -142,7 +151,7 @@ openssl pkey \
 chmod 0600 /root/lightworld-release-signing/ipresenterplux-ed25519.pem
 ```
 
-Only the public key/key-id catalog is bundled into the desktop updater. A private key found under the public release tree is a release-blocking incident.
+Only the public key/key-id catalog is bundled into the desktop updater. A private signing key found under the public release tree is a release-blocking incident.
 
 ## Build the Windows release
 
@@ -155,6 +164,10 @@ Use the Edge Agent CI artifact produced from the exact reviewed release commit. 
 - SHA-256 metadata and manifest template
 
 Do not publish an installer from a failed or partially completed CI run.
+
+### Windows publisher trust
+
+The current internal UAT installer is not yet Authenticode-signed. Windows SmartScreen may therefore display **Unknown publisher** during installation. That is acceptable only for controlled internal/UAT testing where the installer SHA-256 is verified against CI. Before general customer distribution, sign the installer and shipped Windows executables with a Lightworld Technologies code-signing certificate and verify the signature in release CI. The Ed25519 update-manifest signature protects update authenticity, but it does not replace Windows Authenticode publisher trust.
 
 ## Build an incremental delta
 
@@ -174,7 +187,7 @@ A desktop chooses a delta only when it exactly matches the installed version and
 
 ## Sign a release manifest
 
-The signer reads the private key from an explicit restricted path and writes only the detached signature.
+The signer reads the private key from an explicit restricted path and writes only the detached signature. It canonicalizes the manifest, atomically writes those exact canonical bytes to the public manifest path, and signs those same bytes so the desktop verifies precisely what is served.
 
 ```bash
 cd /home/lightworld/update-hub/app/apps/update-hub
@@ -219,6 +232,7 @@ Release mutations are audited in `release_events`. Use the authenticated admin A
 - **Rollout:** reduce to `0` while investigating a suspect release.
 - **Desktop rollback:** the helper restores `previous/` automatically when the new process fails the post-start health contract.
 - **Server rollback:** deploy the previous known-good Update Hub code commit; do not rewrite or replace already published immutable package paths.
+- **Database recovery:** restore the most recent verified pre-migration backup into a recovery database first; do not overwrite production metadata until the restore has been validated.
 
 Never delete or overwrite a published artifact to “fix” a release. Publish a new version instead.
 
@@ -231,6 +245,7 @@ pnpm test:release
 pnpm test:admin
 pnpm test:signing
 pnpm test:delta
+pnpm test:deployment
 pnpm build
 systemctl is-active lightworld-update-hub.service
 curl -fsS http://127.0.0.1:3041/health
