@@ -27,11 +27,11 @@ for (const required of [
   '001_update_hub.sql',
   'systemctl daemon-reload',
   'systemctl restart lightworld-update-hub',
-  'nginx -t',
   '127.0.0.1:3041/health'
 ]) {
   assert(deploy.includes(required), `deploy script must include: ${required}`);
 }
+assert(/(?:nginx\s+-t|NGINX_BIN[^\n]*-t)/.test(deploy), 'deploy script must validate the configured Nginx binary with -t');
 assert.match(deploy, /UPDATE_HUB_DRY_RUN/, 'deploy script must support dry-run');
 assert.doesNotMatch(deploy, /rm\s+-rf\s+\/home\/lightworld\/update-hub\/public/, 'deploy must never delete public release storage');
 
