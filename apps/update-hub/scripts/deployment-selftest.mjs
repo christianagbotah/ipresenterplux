@@ -33,6 +33,8 @@ for (const required of [
 }
 assert(/(?:nginx\s+-t|NGINX_BIN[^\n]*-t)/.test(deploy), 'deploy script must validate the configured Nginx binary with -t');
 assert.match(deploy, /UPDATE_HUB_DRY_RUN/, 'deploy script must support dry-run');
+assert.match(deploy, /runuser\s+-u\s+"?\$APP_USER"?\s+--/, 'package install/build must be able to run as the unprivileged service account');
+assert.doesNotMatch(deploy, /\(cd\s+"\$APP_DIR"\s+&&\s+"\$PNPM_BIN"\s+(?:install|build)/, 'pnpm install/build must not run directly as root');
 assert.doesNotMatch(deploy, /rm\s+-rf\s+\/home\/lightworld\/update-hub\/public/, 'deploy must never delete public release storage');
 
 for (const phrase of [
