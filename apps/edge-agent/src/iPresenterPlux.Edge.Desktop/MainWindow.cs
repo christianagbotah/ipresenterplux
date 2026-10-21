@@ -118,13 +118,16 @@ public sealed class MainWindow : Window
         MinWidth = 760;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        WindowState = WindowState.Maximized;
+        SystemDecorations = SystemDecorations.Full;
+        CanMinimize = true;
+        CanMaximize = true;
+        ExtendClientAreaToDecorationsHint = false;
         Background = Brush("#070A0F");
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.png");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
 
         Content = BuildContent();
-        Opened += async (_, _) => await LoadAsync();
+        Opened += OnWindowOpened;
         Closing += OnClosing;
         KeyDown += (_, args) =>
         {
@@ -169,6 +172,12 @@ public sealed class MainWindow : Window
             if (_tabs.SelectedIndex == OperatorTabIndex && !_entitlementUsable)
                 _tabs.SelectedIndex = ActivationTabIndex;
         };
+    }
+
+    private async void OnWindowOpened(object? sender, EventArgs e)
+    {
+        WindowState = WindowState.Maximized;
+        await LoadAsync();
     }
 
     private Control BuildContent()
