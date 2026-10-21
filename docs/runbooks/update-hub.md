@@ -136,7 +136,7 @@ Expected status is `206 Partial Content` and an `Accept-Ranges: bytes` response.
 
 ## Release signing key
 
-Generate the production Ed25519 key on an operator-controlled system or restricted VPS root directory. The private key must remain outside `/home/lightworld/update-hub/public` and outside the repository.
+Generate the production Ed25519 key on an operator-controlled system or restricted VPS root directory. The private signing key must remain **outside the public tree** (`/home/lightworld/update-hub/public`) and outside the repository.
 
 Example with OpenSSL:
 
