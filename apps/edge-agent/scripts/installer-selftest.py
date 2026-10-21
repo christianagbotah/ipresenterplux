@@ -20,10 +20,13 @@ def read_required(path: Path, errors: list[str]) -> str:
 
 
 def source_checks(edge_root: Path, errors: list[str]) -> None:
+    repo_root = edge_root.parents[1]
     iss = edge_root / "installer" / "windows" / "iPresenterPlux.iss"
     package_script = edge_root / "scripts" / "package-update.ps1"
+    workflow = repo_root / ".github" / "workflows" / "edge-agent-ci.yml"
     iss_text = read_required(iss, errors)
     package_text = read_required(package_script, errors)
+    workflow_text = read_required(workflow, errors)
 
     if iss_text:
         normalized = iss_text.replace("/", "\\")
@@ -53,7 +56,15 @@ def source_checks(edge_root: Path, errors: list[str]) -> None:
         ]:
             require(token in package_text, message, errors)
 
-    combined = f"{iss_text}\n{package_text}".lower()
+    if workflow_text:
+        require("name: ipresenterplux-windows-installer" in workflow_text,
+                "Windows CI must expose a separate installer-only artifact for low-bandwidth UAT", errors)
+        require("iPresenterPlux-Setup.exe.sha256" in workflow_text,
+                "installer-only artifact must include an independent SHA-256 sidecar", errors)
+        require(re.search(r'path:\s*\|\s*\n\s*apps/edge-agent/publish/windows-release/iPresenterPlux-Setup\.exe\s*\n\s*apps/edge-agent/publish/windows-release/iPresenterPlux-Setup\.exe\.sha256', workflow_text) is not None,
+                "installer-only artifact must contain only Setup.exe and its checksum", errors)
+
+    combined = f"{iss_text}\n{package_text}\n{workflow_text}".lower()
     for forbidden in ["begin private key", "update_hub_admin_token=", "update_hub_signing_private", "productkey=", "bearer "]:
         require(forbidden not in combined, f"packaging source contains forbidden secret material marker: {forbidden}", errors)
 
