@@ -20,6 +20,7 @@ assert.match(nginx, /location \^~ \/api\//, 'Nginx must proxy the API');
 assert.match(nginx, /Cache-Control "no-store"/, 'API and health responses must be no-store');
 assert.match(nginx, /max-age=31536000, immutable/, 'release trees must be immutable-cacheable');
 assert.match(nginx, /Accept-Ranges bytes/, 'release downloads must advertise byte ranges');
+assert.doesNotMatch(nginx, /location\s+=\s+\/\s*\{/, 'Webuzo custom include must not redefine the root location owned by the generated vhost');
 
 for (const required of [
   'pnpm install --frozen-lockfile',
