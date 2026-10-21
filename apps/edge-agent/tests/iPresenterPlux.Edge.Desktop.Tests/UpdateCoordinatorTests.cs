@@ -92,7 +92,8 @@ public sealed class UpdateCoordinatorTests : IDisposable
     {
         var program = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "Program.cs"));
         Assert.Contains("--update-health-token", program, StringComparison.Ordinal);
-        Assert.DoesNotContain("health-", program, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("File.WriteAllText", program, StringComparison.Ordinal);
+        Assert.DoesNotContain("Directory.CreateDirectory", program, StringComparison.Ordinal);
     }
 
     private IpresenterUpdateCoordinator Coordinator(IUpdateStagingWorkflow workflow) =>
