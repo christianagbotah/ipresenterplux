@@ -56,6 +56,12 @@ const created = await service.create({
 }, actor);
 assert.equal(created.state, 'draft');
 
+assert.throws(() => service.create({
+  product: 'ipresenterplux', version: '1.2.4', channel: 'beta', platform: 'windows', architecture: 'x64',
+  minimumVersion: null, releaseNotes: '', manifestPath: 'https://evil.example/release.json',
+  signaturePath: 'manifests/ipresenterplux/1.2.4.sig', rollout: 10
+}, actor), /manifest_path_invalid/, 'manifest path must stay same-origin relative');
+
 await service.registerArtifact(created.id, {
   artifactType: 'full',
   sourceVersion: null,
@@ -63,6 +69,13 @@ await service.registerArtifact(created.id, {
   sizeBytes: 123,
   sha256: 'a'.repeat(64)
 }, actor);
+assert.throws(() => service.registerArtifact(created.id, {
+  artifactType: 'delta',
+  sourceVersion: '1.2.2',
+  publicPath: 'https://evil.example/delta.zip',
+  sizeBytes: 42,
+  sha256: 'b'.repeat(64)
+}, actor), /public_path_invalid/, 'artifact path must stay same-origin relative');
 await assert.rejects(
   () => service.registerArtifact(created.id, {
     artifactType: 'full',
