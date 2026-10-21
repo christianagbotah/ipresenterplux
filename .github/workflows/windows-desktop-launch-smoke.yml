@@ -17,7 +17,7 @@ on:
 
 jobs:
   launch:
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
       run:
         working-directory: apps/edge-agent
