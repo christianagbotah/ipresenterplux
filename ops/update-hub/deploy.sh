@@ -98,6 +98,7 @@ fi
 
 run systemctl daemon-reload
 run "$NGINX_BIN" -t
+run systemctl enable lightworld-update-hub
 run systemctl restart lightworld-update-hub
 run systemctl is-active --quiet lightworld-update-hub
 if [[ -n "$NGINX_INCLUDE" ]]; then run systemctl reload nginx; fi
