@@ -28,10 +28,10 @@ run() {
 
 run_as_app() {
   if [[ "$DRY_RUN" == "1" ]]; then
-    printf 'DRY-RUN: runuser -u %q -- env HOME=%q' "$APP_USER" "$APP_HOME"
+    printf 'DRY-RUN: runuser -u %q -- env HOME=%q CI=1' "$APP_USER" "$APP_HOME"
     printf ' %q' "$@"; printf '\n'
   else
-    runuser -u "$APP_USER" -- env HOME="$APP_HOME" "$@"
+    runuser -u "$APP_USER" -- env HOME="$APP_HOME" CI=1 "$@"
   fi
 }
 
