@@ -134,6 +134,8 @@ jobs:
         run: pnpm test:scripture
       - name: Studio navigation route self-test
         run: pnpm test:studio-navigation
+      - name: Navigation route resilience self-test
+        run: pnpm test:navigation-route-resilience
       - name: Local Bible library self-test
         run: pnpm test:bible-library
       - name: Manual Scripture selection self-test
