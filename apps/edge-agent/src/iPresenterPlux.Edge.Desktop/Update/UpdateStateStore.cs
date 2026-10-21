@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Lightworld.Update.Client;
 
 namespace iPresenterPlux.Edge.Desktop.Update;
 
@@ -8,7 +9,11 @@ public sealed record StagedDesktopUpdate(
     long Size,
     string Sha256,
     string ReleaseNotes,
-    DateTimeOffset StagedAt);
+    DateTimeOffset StagedAt,
+    UpdatePackageKind PackageKind = UpdatePackageKind.Full,
+    string? FullFallbackUrl = null,
+    long? FullFallbackSize = null,
+    string? FullFallbackSha256 = null);
 
 public sealed class UpdateStateStore(string directory)
 {
@@ -26,10 +31,11 @@ public sealed class UpdateStateStore(string directory)
         try
         {
             await using var stream = File.OpenRead(StatePath);
-            return await JsonSerializer.DeserializeAsync<StagedDesktopUpdate>(stream, JsonOptions, cancellationToken)
+            var update = await JsonSerializer.DeserializeAsync<StagedDesktopUpdate>(stream, JsonOptions, cancellationToken)
                 .ConfigureAwait(false);
+            return update is null ? null : Validate(update);
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
             return null;
         }
@@ -38,12 +44,7 @@ public sealed class UpdateStateStore(string directory)
     public async Task SaveAsync(StagedDesktopUpdate update, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(update);
-        if (string.IsNullOrWhiteSpace(update.Version) ||
-            string.IsNullOrWhiteSpace(update.PackagePath) ||
-            update.Size < 0 ||
-            update.Sha256.Length != 64 ||
-            !update.Sha256.All(Uri.IsHexDigit))
-            throw new InvalidDataException("Staged update metadata is invalid.");
+        var normalized = Validate(update);
 
         Directory.CreateDirectory(_directory);
         var temporary = StatePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -51,11 +52,7 @@ public sealed class UpdateStateStore(string directory)
         {
             await File.WriteAllTextAsync(
                 temporary,
-                JsonSerializer.Serialize(update with
-                {
-                    PackagePath = Path.GetFullPath(update.PackagePath),
-                    Sha256 = update.Sha256.ToLowerInvariant()
-                }, JsonOptions),
+                JsonSerializer.Serialize(normalized, JsonOptions),
                 cancellationToken).ConfigureAwait(false);
             File.Move(temporary, StatePath, overwrite: true);
         }
@@ -72,5 +69,41 @@ public sealed class UpdateStateStore(string directory)
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         return Task.CompletedTask;
+    }
+
+    private static StagedDesktopUpdate Validate(StagedDesktopUpdate update)
+    {
+        if (string.IsNullOrWhiteSpace(update.Version) ||
+            string.IsNullOrWhiteSpace(update.PackagePath) ||
+            update.Size < 0 ||
+            update.Sha256 is not { Length: 64 } ||
+            !update.Sha256.All(Uri.IsHexDigit) ||
+            !Enum.IsDefined(update.PackageKind))
+            throw new InvalidDataException("Staged update metadata is invalid.");
+
+        string? fallbackUrl = null;
+        string? fallbackSha = null;
+        long? fallbackSize = null;
+        if (update.PackageKind == UpdatePackageKind.Delta)
+        {
+            if (!Uri.TryCreate(update.FullFallbackUrl, UriKind.Absolute, out var fallback) || fallback.Scheme != Uri.UriSchemeHttps ||
+                update.FullFallbackSize is null or <= 0 ||
+                update.FullFallbackSha256 is not { Length: 64 } ||
+                !update.FullFallbackSha256.All(Uri.IsHexDigit))
+                throw new InvalidDataException("Delta fallback metadata is invalid.");
+            fallbackUrl = fallback.AbsoluteUri;
+            fallbackSize = update.FullFallbackSize;
+            fallbackSha = update.FullFallbackSha256.ToLowerInvariant();
+        }
+
+        return update with
+        {
+            Version = update.Version.Trim(),
+            PackagePath = Path.GetFullPath(update.PackagePath),
+            Sha256 = update.Sha256.ToLowerInvariant(),
+            FullFallbackUrl = fallbackUrl,
+            FullFallbackSize = fallbackSize,
+            FullFallbackSha256 = fallbackSha
+        };
     }
 }
