@@ -1,8 +1,10 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
+using iPresenterPlux.Edge.Core.Runtime;
 
 namespace iPresenterPlux.Edge.Core.Transport;
 
@@ -34,6 +36,8 @@ public sealed class HttpEdgeAssignmentClient(
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/edge/assignment");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            throw new EdgeEnrollmentRequiredException("The Edge credential was rejected by the Control Plane. Pair this computer again.");
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadFromJsonAsync<AssignmentResponse>(cancellationToken: cancellationToken)
