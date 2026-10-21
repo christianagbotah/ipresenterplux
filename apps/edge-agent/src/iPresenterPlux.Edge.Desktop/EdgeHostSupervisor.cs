@@ -24,7 +24,8 @@ public sealed record EdgeDesktopSnapshot(
     bool ControlPlaneHealthy,
     bool LocalProgramHealthy,
     string? ErrorCode,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    bool CriticalLiveSessionActive = false);
 
 public sealed class EdgeHostSupervisor : IAsyncDisposable
 {
