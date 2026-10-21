@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -73,6 +74,7 @@ def artifact_checks(release_dir: Path, version: str, errors: list[str]) -> None:
     current = release_dir / "current"
     helper = release_dir / "Lightworld.Update.Helper.exe"
     installer = release_dir / "iPresenterPlux-Setup.exe"
+    installer_sha = release_dir / "iPresenterPlux-Setup.exe.sha256"
     package = release_dir / f"iPresenterPlux-{version}-windows-x64.zip"
     sha_file = release_dir / f"iPresenterPlux-{version}-windows-x64.zip.sha256"
     manifest = release_dir / "manifest-template.json"
@@ -80,9 +82,15 @@ def artifact_checks(release_dir: Path, version: str, errors: list[str]) -> None:
     require((current / "iPresenterPlux.Edge.Desktop.exe").is_file(), "release current/ desktop executable is missing", errors)
     require(helper.is_file(), "release root updater helper is missing", errors)
     require(installer.is_file(), "iPresenterPlux-Setup.exe is missing", errors)
+    require(installer_sha.is_file(), "installer SHA-256 sidecar is missing", errors)
     require(package.is_file(), "full update ZIP is missing", errors)
     require(sha_file.is_file(), "SHA-256 sidecar is missing", errors)
     require(manifest.is_file(), "manifest template metadata is missing", errors)
+
+    if installer.is_file() and installer_sha.is_file():
+        declared = installer_sha.read_text(encoding="ascii").strip().split()[0].lower()
+        actual = hashlib.sha256(installer.read_bytes()).hexdigest()
+        require(declared == actual, "installer SHA-256 sidecar does not match iPresenterPlux-Setup.exe", errors)
 
     if package.is_file():
         with zipfile.ZipFile(package) as archive:
