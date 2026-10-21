@@ -6,10 +6,12 @@ ROOT=${UPDATE_HUB_ROOT:-/home/lightworld/update-hub}
 APP_ROOT="$ROOT/app"
 APP_DIR="$APP_ROOT/apps/update-hub"
 PUBLIC_ROOT="$ROOT/public"
+BACKUP_DIR=${UPDATE_HUB_BACKUP_DIR:-$ROOT/backups}
 SERVICE_UNIT=${UPDATE_HUB_SERVICE_UNIT:-/etc/systemd/system/lightworld-update-hub.service}
 NGINX_INCLUDE=${UPDATE_HUB_NGINX_INCLUDE:-}
 NGINX_BIN=${UPDATE_HUB_NGINX_BIN:-/usr/local/apps/nginx/sbin/nginx}
 PSQL_BIN=${UPDATE_HUB_PSQL_BIN:-psql}
+PG_DUMP_BIN=${UPDATE_HUB_PG_DUMP_BIN:-pg_dump}
 PNPM_BIN=${UPDATE_HUB_PNPM_BIN:-pnpm}
 DRY_RUN=${UPDATE_HUB_DRY_RUN:-0}
 
@@ -40,9 +42,10 @@ fi
 
 # Creates only the controlled app/log/public roots; it never deletes release storage.
 UPDATE_HUB_DRY_RUN="$DRY_RUN" "$REPO_ROOT/ops/update-hub/bootstrap-vps.sh"
+run install -d -o lightworld -g lightworld -m 0750 "$BACKUP_DIR"
 
 run install -d -o lightworld -g lightworld -m 0750 "$APP_DIR"
-# Deploy the service source atomically enough for build/install while preserving $APP_ROOT/.env and $PUBLIC_ROOT.
+# Deploy the service source while preserving $APP_ROOT/.env and $PUBLIC_ROOT.
 run rsync -a --delete \
   --exclude node_modules \
   --exclude dist \
@@ -55,6 +58,16 @@ if [[ "$DRY_RUN" == "1" ]]; then
 else
   (cd "$APP_DIR" && "$PNPM_BIN" install --frozen-lockfile)
   (cd "$APP_DIR" && "$PNPM_BIN" build)
+fi
+
+# Back up release metadata before any schema migration. The URL is never echoed.
+BACKUP_PATH="$BACKUP_DIR/update-hub-$(date -u '+%Y%m%dT%H%M%SZ').dump"
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "DRY-RUN: pg_dump --format=custom --file=<timestamped-backup> <UPDATE_HUB_DATABASE_URL>"
+else
+  "$PG_DUMP_BIN" --format=custom --file="$BACKUP_PATH" "$UPDATE_HUB_DATABASE_URL"
+  chown lightworld:lightworld "$BACKUP_PATH"
+  chmod 0640 "$BACKUP_PATH"
 fi
 
 # The migration is additive/idempotent. No release row or public artifact is deleted here.
