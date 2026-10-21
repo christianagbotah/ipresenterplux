@@ -7,6 +7,7 @@
     "test": "node --import tsx scripts/selftest.mjs",
     "test:release": "node --import tsx scripts/release-selftest.mjs",
     "test:admin": "node --import tsx scripts/admin-selftest.mjs",
+    "test:signing": "node --import tsx scripts/signing-cli-selftest.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js"
   },
