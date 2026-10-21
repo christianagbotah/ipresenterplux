@@ -47,8 +47,18 @@ function bounded(value: unknown, name: string, max = 200): string {
 
 function safeRelativePath(value: unknown, name: string): string {
   const normalized = bounded(value, name, 500).replaceAll('\\', '/');
-  if (normalized.startsWith('/') || normalized.split('/').some((segment) => segment === '..'))
-    throw new Error(`${name}_invalid`);
+  const segments = normalized.split('/');
+  if (
+    normalized.startsWith('/') ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(normalized) ||
+    normalized.includes('?') ||
+    normalized.includes('#') ||
+    segments.some((segment) =>
+      !segment ||
+      segment === '.' ||
+      segment === '..' ||
+      !/^[A-Za-z0-9._+@=-]+$/.test(segment))
+  ) throw new Error(`${name}_invalid`);
   return normalized;
 }
 
