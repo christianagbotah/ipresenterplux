@@ -7,13 +7,14 @@ The iPresenterPlux subscription system uses two separate credential families. Ed
 The Control Plane signs entitlement leases with Ed25519. Production requires these server-only environment values:
 
 - `IPRESENTERPLUX_ENTITLEMENT_SIGNING_KEY_ID` — stable identifier for the active signing key.
-- `IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM` — Ed25519 private key in PEM form. This value is a server secret and must never be committed, copied into browser-visible configuration, embedded in desktop packages, or written to logs.
+- `IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM` — optional inline Ed25519 private key in PEM form for controlled environments.
+- `IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_FILE` — preferred production path to a protected PEM file readable only by the Control Plane service account.
 
-Provision the private key through the production secret store/environment used by the Control Plane. The repository and deployment artifacts contain only the environment-variable name, never private key material.
+Both forms are server secrets and must never be committed, copied into browser-visible configuration, embedded in desktop packages, or written to logs. Production should prefer the protected file path so the PEM is not placed directly in the service environment. The repository and deployment artifacts contain only the environment-variable name, never private key material.
 
 ## Desktop verification keys
 
-Windows and macOS Edge packages verify leases with public Ed25519 keys only. The desktop reads `IPRESENTERPLUX_ENTITLEMENT_PUBLIC_KEYS_JSON`, a JSON object mapping signing key IDs to base64-encoded 32-byte Ed25519 public keys.
+Windows and macOS Edge packages verify leases with public Ed25519 keys only. Official builds bundle `entitlement-public-keys.json`, a versioned JSON object mapping signing key IDs to base64-encoded 32-byte Ed25519 public keys. `IPRESENTERPLUX_ENTITLEMENT_PUBLIC_KEYS_JSON` remains an additive/override mechanism for controlled testing and rotation.
 
 Public verification keys are not secrets. A release may contain the current public key and one or more previous public keys during rotation so already-issued offline leases remain verifiable until their grace period ends.
 

@@ -1,4 +1,5 @@
 import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 export type EntitlementPayload = {
   schemaVersion: number;
@@ -81,9 +82,22 @@ function validatePayload(value: unknown): EntitlementPayload {
   return payload as unknown as EntitlementPayload;
 }
 
+function loadSigningPrivateKeyPem() {
+  const inline = process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM;
+  if (inline?.trim()) return inline;
+  const file = process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_FILE;
+  if (!file?.trim()) return null;
+  try {
+    const value = readFileSync(file, "utf8");
+    return value.trim() ? value : null;
+  } catch {
+    throw new Error("Entitlement signing key file is not readable");
+  }
+}
+
 export function signEntitlement(payload: EntitlementPayload) {
   const signingKeyId = process.env.IPRESENTERPLUX_ENTITLEMENT_SIGNING_KEY_ID;
-  const privateKeyPem = process.env.IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM;
+  const privateKeyPem = loadSigningPrivateKeyPem();
   if (!signingKeyId || !privateKeyPem) throw new Error("Entitlement signing is not configured");
   if (payload.signingKeyId !== signingKeyId) throw new Error("Entitlement signing key mismatch");
   const validated = validatePayload(payload);

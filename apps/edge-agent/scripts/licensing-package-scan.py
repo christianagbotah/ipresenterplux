@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import json
 import re
 import sys
@@ -16,6 +17,23 @@ private_env = b"IPRESENTERPLUX_ENTITLEMENT_PRIVATE_KEY_PEM"
 product_key = re.compile(rb"IPLX-(?:[A-HJ-NP-Z2-9]{4}-){4}[A-HJ-NP-Z2-9]{4}")
 placeholder = b"IPLX-XXXX-XXXX-XXXX-XXXX-XXXX"
 scanned = 0
+
+catalog_file = root / "entitlement-public-keys.json"
+if not catalog_file.is_file():
+    raise SystemExit("entitlement verification public-key catalog is missing from package")
+try:
+    catalog = json.loads(catalog_file.read_text(encoding="utf-8"))
+except Exception as error:
+    raise SystemExit(f"unable to parse entitlement public-key catalog: {error}")
+if not isinstance(catalog, dict) or not catalog:
+    raise SystemExit("entitlement verification public-key catalog must contain at least one key")
+for key_id, encoded in catalog.items():
+    try:
+        raw = base64.b64decode(encoded, validate=True)
+    except Exception as error:
+        raise SystemExit(f"invalid entitlement public key '{key_id}': {error}")
+    if not isinstance(key_id, str) or not key_id or len(key_id) > 80 or len(raw) != 32:
+        raise SystemExit(f"invalid entitlement public key entry: {key_id}")
 
 for file in root.rglob("*"):
     if not file.is_file():

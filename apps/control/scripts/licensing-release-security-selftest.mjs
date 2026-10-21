@@ -83,6 +83,7 @@ try {
   const settingsLeak = path.join(scanRoot, "settings");
   for (const directory of [safe, privateLeak, keyLeak, settingsLeak]) {
     await import("node:fs/promises").then(({ mkdir }) => mkdir(directory, { recursive: true }));
+    await writeFile(path.join(directory, "entitlement-public-keys.json"), JSON.stringify({ "test-k1": Buffer.alloc(32, 7).toString("base64") }));
   }
   await writeFile(path.join(safe, "settings.json"), JSON.stringify({ controlPlaneUrl: "https://control.example" }));
   await writeFile(path.join(safe, "cryptography-library.bin"), `parser metadata: ${privatePemHeader} label only`);

@@ -16,6 +16,7 @@ import {
   deactivateOrganizationActivation,
   listLicensingAudit,
   createSubscriptionPlan,
+  changeSubscriptionPlan,
   LicensingAdminError
 } from "../src/lib/licensing/licensing-admin-service.ts";
 
@@ -125,6 +126,11 @@ try {
     [subA, orgA, planId, subB, orgB, now, new Date(now.getTime() + 30 * 86_400_000)]
   );
 
+  const changedPlan = await changeSubscriptionPlan(client, { subscriptionId: subA, planId: createdPlan.id, actorUserId: actorId }, { now: new Date(now.getTime() + 30_000) });
+  assert.equal(changedPlan.planId, createdPlan.id);
+  const changedPlanRow = await client.query("select plan_id::text from organization_subscriptions where id=$1", [subA]);
+  assert.equal(changedPlanRow.rows[0].plan_id, createdPlan.id);
+
   const issued = await issueProductKeyForSubscription(client, {
     subscriptionId: subA,
     actorUserId: actorId,
@@ -222,6 +228,7 @@ try {
   const actions = new Set(audit.map((event) => event.action));
   for (const action of [
     "licensing.product_key.issued",
+    "licensing.subscription.plan_changed",
     "licensing.product_key.reset",
     "licensing.activation.deactivated",
     "licensing.subscription.status_changed",
@@ -253,7 +260,10 @@ try {
   assert.doesNotMatch(files.adminPage, /IPLX-[A-Z2-9]{4}/u, "full product keys must never be server-rendered into admin HTML");
   assert.match(files.subscriptionsRoute, /create_plan/u, "product-admin API must expose subscription plan creation");
   assert.match(files.subscriptionsRoute, /createSubscriptionPlan/u, "plan creation must use licensing service layer");
+  assert.match(files.subscriptionsRoute, /change_plan/u, "product-admin API must allow audited plan changes");
   assert.match(files.adminComponent, /Create plan/u, "product-admin UI must recover from an empty plan catalog");
+  assert.match(files.adminComponent, /Available plans/u, "existing plans must remain visible");
+  assert.match(files.adminComponent, /Change plan/u, "current subscriptions must allow plan changes");
   for (const feature of ["core.presentation","ai.director","translations.text","translations.audio","streaming.web","streaming.social"]) {
     assert.match(files.adminComponent, new RegExp(feature.replaceAll(".", "\\."), "u"), `plan UI must expose ${feature}`);
   }
