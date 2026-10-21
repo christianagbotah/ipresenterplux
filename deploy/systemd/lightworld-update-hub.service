@@ -17,6 +17,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=false
+ReadOnlyPaths=/home/lightworld/update-hub/public
 ReadWritePaths=/home/lightworld/update-hub/logs
 
 [Install]
