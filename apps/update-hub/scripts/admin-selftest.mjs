@@ -84,7 +84,7 @@ const paused = await service.pause(created.id, actor);
 assert.equal(paused.state, 'paused');
 const withdrawn = await service.withdraw(created.id, actor);
 assert.equal(withdrawn.state, 'withdrawn');
-await assert.rejects(() => service.setRollout(created.id, 101, actor), /rollout/i);
+assert.throws(() => service.setRollout(created.id, 101, actor), /rollout/i);
 
 const rollbackTarget = await service.create({
   product: 'ipresenterplux', version: '1.2.2', channel: 'stable', platform: 'windows', architecture: 'x64',
