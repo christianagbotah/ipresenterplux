@@ -47,13 +47,20 @@ export async function signManifestFile(options: SignManifestFileOptions): Promis
   }
   const privateKey = createPrivateKey(privatePem);
   if (privateKey.asymmetricKeyType !== 'ed25519') throw new Error('Release signing key must be Ed25519.');
-  const detached = signManifest(canonicalManifestBytes(manifest), privateKey, keyId);
-  const temporary = `${signaturePath}.${process.pid}.${Date.now()}.tmp`;
+
+  const canonicalBytes = canonicalManifestBytes(manifest);
+  const detached = signManifest(canonicalBytes, privateKey, keyId);
+  const manifestTemporary = `${manifestPath}.${process.pid}.${Date.now()}.tmp`;
+  const signatureTemporary = `${signaturePath}.${process.pid}.${Date.now()}.tmp`;
   try {
-    await writeFile(temporary, `${JSON.stringify(detached)}\n`, { encoding: 'utf8', mode: 0o644 });
-    await rename(temporary, signaturePath);
+    await writeFile(manifestTemporary, canonicalBytes, { mode: 0o644 });
+    await rename(manifestTemporary, manifestPath);
+    await writeFile(signatureTemporary, `${JSON.stringify(detached)}\n`, { encoding: 'utf8', mode: 0o644 });
+    await rename(signatureTemporary, signaturePath);
   } catch (error) {
-    try { await import('node:fs/promises').then(({ unlink }) => unlink(temporary)); } catch { }
+    const { unlink } = await import('node:fs/promises');
+    try { await unlink(manifestTemporary); } catch { }
+    try { await unlink(signatureTemporary); } catch { }
     throw error;
   }
   return detached;
