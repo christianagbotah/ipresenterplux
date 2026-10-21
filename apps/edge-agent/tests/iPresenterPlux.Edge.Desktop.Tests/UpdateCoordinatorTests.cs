@@ -61,15 +61,36 @@ public sealed class UpdateCoordinatorTests : IDisposable
     }
 
     [Fact]
-    public void HealthMarkerIsReportedOnlyAfterDesktopLoadBootstrap()
+    public async Task HealthMarkerWaitsForSettingsAndLocalBootstrap()
     {
-        var mainWindow = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
-        var program = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "Program.cs"));
-        var refresh = mainWindow.IndexOf("await RefreshOperatorAsync()", StringComparison.Ordinal);
-        var healthy = mainWindow.IndexOf("ReportHealthyStartupAsync", StringComparison.Ordinal);
+        var installRoot = Path.Combine(_directory, "install");
+        var settingsLoaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var localBootstrap = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = "health_123";
+        var marker = Path.Combine(installRoot, "state", $"health-{token}.ok");
 
-        Assert.True(refresh >= 0, "LoadAsync must bootstrap local operator state.");
-        Assert.True(healthy > refresh, "The health marker must be written only after settings/operator bootstrap completes.");
+        var report = DesktopUpdateStartupHealth.ReportWhenReadyAsync(
+            settingsLoaded.Task,
+            localBootstrap.Task,
+            token,
+            installRoot,
+            CancellationToken.None);
+
+        await Task.Delay(25);
+        Assert.False(File.Exists(marker));
+        settingsLoaded.SetResult();
+        await Task.Delay(25);
+        Assert.False(File.Exists(marker));
+        localBootstrap.SetResult();
+        await report;
+
+        Assert.Equal(token, await File.ReadAllTextAsync(marker));
+    }
+
+    [Fact]
+    public void ProgramAcceptsUpdateHealthTokenWithoutWritingMarkerDirectly()
+    {
+        var program = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "Program.cs"));
         Assert.Contains("--update-health-token", program, StringComparison.Ordinal);
         Assert.DoesNotContain("health-", program, StringComparison.OrdinalIgnoreCase);
     }
