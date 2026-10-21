@@ -1,0 +1,95 @@
+name: Windows Hotfix Installer
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/windows-hotfix-installer.yml"
+
+jobs:
+  installer:
+    runs-on: windows-2022
+    permissions:
+      actions: read
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/edge-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Download verified 1.0.344 Windows release baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: ipresenterplux-windows-release
+          path: apps/edge-agent/publish/hotfix-release
+          github-token: ${{ github.token }}
+          run-id: 39611997670
+      - name: Publish fixed desktop shell
+        shell: pwsh
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=1.0.352 -o publish/hotfix-desktop
+      - name: Overlay fixed desktop onto verified runtime bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $release = "publish/hotfix-release"
+          $current = Join-Path $release "current"
+          if (-not (Test-Path (Join-Path $current "runtime/iPresenterPlux.Edge.Windows.exe"))) { throw "Baseline Edge runtime is missing" }
+          if (-not (Test-Path (Join-Path $current "runtime/libSrt/srt.dll"))) { throw "Baseline libsrt runtime is missing" }
+          Copy-Item "publish/hotfix-desktop/*" $current -Recurse -Force
+          @(
+            "product=ipresenterplux",
+            "version=1.0.352",
+            "channel=beta",
+            "platform=windows",
+            "architecture=x64"
+          ) | Set-Content -Encoding ascii (Join-Path $release "VERSION.txt")
+      - name: Launch hotfix desktop from final current layout
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "publish/hotfix-release/current/iPresenterPlux.Edge.Desktop.exe").Path
+          $workingDirectory = Split-Path -Parent $exe
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workingDirectory -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            Write-Host "Desktop exited early with code $($process.ExitCode)."
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-3) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'iPresenterPlux|\.NET Runtime|Application Error' } |
+              Select-Object -First 12 -ExpandProperty Message |
+              ForEach-Object { Write-Host $_ }
+            throw "Hotfix desktop did not survive startup smoke."
+          }
+          Stop-Process -Id $process.Id -Force
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup --no-progress -y
+          }
+      - name: Build hotfix installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $compiler = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $compiler) { $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          $release = (Resolve-Path "publish/hotfix-release").Path
+          & $compiler "/DAppVersion=1.0.352" "/DSourceRoot=$release" "/DOutputRoot=$release" "installer/windows/iPresenterPlux.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+          $installer = Join-Path $release "iPresenterPlux-Setup.exe"
+          if (-not (Test-Path $installer)) { throw "Hotfix installer is missing" }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  iPresenterPlux-Setup.exe" | Set-Content -Encoding ascii (Join-Path $release "iPresenterPlux-Setup.exe.sha256")
+          Write-Host "Installer SHA-256: $hash"
+      - name: Upload hotfix installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipresenterplux-windows-hotfix-installer
+          path: |
+            apps/edge-agent/publish/hotfix-release/iPresenterPlux-Setup.exe
+            apps/edge-agent/publish/hotfix-release/iPresenterPlux-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
