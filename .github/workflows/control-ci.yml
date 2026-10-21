@@ -103,6 +103,8 @@ jobs:
         run: pnpm test:entitlement-signing
       - name: Activation and renewal API self-test
         run: pnpm test:activation-api
+      - name: Edge re-provision recovery self-test
+        run: pnpm test:edge-reprovision
       - name: Licensing administration self-test
         run: pnpm test:licensing-admin
       - name: Entitlement operation gating self-test
