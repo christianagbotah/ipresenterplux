@@ -118,7 +118,7 @@ public sealed class MainWindow : Window
         MinWidth = 760;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        SystemDecorations = SystemDecorations.Full;
+        WindowDecorations = Avalonia.Controls.WindowDecorations.Full;
         CanMinimize = true;
         CanMaximize = true;
         ExtendClientAreaToDecorationsHint = false;

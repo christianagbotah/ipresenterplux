@@ -52,7 +52,7 @@ public sealed class MainWindowActivationTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("SystemDecorations = SystemDecorations.Full", source, StringComparison.Ordinal);
+        Assert.Contains("WindowDecorations = Avalonia.Controls.WindowDecorations.Full", source, StringComparison.Ordinal);
         Assert.Contains("CanMinimize = true", source, StringComparison.Ordinal);
         Assert.Contains("CanMaximize = true", source, StringComparison.Ordinal);
         Assert.Contains("ExtendClientAreaToDecorationsHint = false", source, StringComparison.Ordinal);
