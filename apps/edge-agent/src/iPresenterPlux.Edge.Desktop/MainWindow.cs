@@ -262,7 +262,7 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(18), MinWidth = 900, MinHeight = 520 };
+        var root = new Grid { Margin = new Thickness(18), MinWidth = 900, MinHeight = 440 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
@@ -361,7 +361,7 @@ public sealed class MainWindow : Window
         leftGrid.Children.Add(categories);
 
         _rundown.Background = SurfaceRaised;
-        _rundown.MinHeight = 260;
+        _rundown.MinHeight = 160;
         _rundown.SelectionChanged += (_, _) =>
         {
             if (_rundown.SelectedItem is OperatorRundownRow row)
@@ -381,11 +381,16 @@ public sealed class MainWindow : Window
         Grid.SetRow(leftActions, 5);
         leftGrid.Children.Add(leftActions);
 
-        var left = new Border {
+        var leftCard = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(18),
             Padding = new Thickness(16),
             Child = leftGrid
+        };
+        var left = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = leftCard
         };
         Grid.SetRow(left, 2);
         Grid.SetColumn(left, 0);
@@ -505,6 +510,7 @@ public sealed class MainWindow : Window
         }));
 
         var right = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             Content = rightStack
         };
@@ -515,7 +521,7 @@ public sealed class MainWindow : Window
         RefreshRundown();
         return new ScrollViewer {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             Content = root
         };
     }

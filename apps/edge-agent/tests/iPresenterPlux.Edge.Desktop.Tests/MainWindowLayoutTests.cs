@@ -24,6 +24,18 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
+    public void OperatorKeepsOuterViewportFixedAndScrollsSidePanelsInternally()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("MinWidth = 900, MinHeight = 440", source, StringComparison.Ordinal);
+        Assert.Contains("_rundown.MinHeight = 160", source, StringComparison.Ordinal);
+        Assert.Contains("var left = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
+        Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NormalRestoreBoundsFitCommonLaptopWorkArea()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
