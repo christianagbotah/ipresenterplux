@@ -64,6 +64,10 @@ def source_checks(edge_root: Path, errors: list[str]) -> None:
                 "installer-only artifact must include an independent SHA-256 sidecar", errors)
         require(re.search(r'path:\s*\|\s*\n\s*apps/edge-agent/publish/windows-release/iPresenterPlux-Setup\.exe\s*\n\s*apps/edge-agent/publish/windows-release/iPresenterPlux-Setup\.exe\.sha256', workflow_text) is not None,
                 "installer-only artifact must contain only Setup.exe and its checksum", errors)
+        require("id: update-key" in workflow_text and "bootstrap_ready" in workflow_text,
+                "Windows CI must determine whether a production update verification key is embedded", errors)
+        require(re.search(r'- name: Upload low-bandwidth Windows installer\s*\n\s*if: steps\.update-key\.outputs\.bootstrap_ready == \'true\'', workflow_text) is not None,
+                "customer installer artifact must not publish before the updater public key is embedded", errors)
 
     combined = f"{iss_text}\n{package_text}\n{workflow_text}".lower()
     for forbidden in ["begin private key", "update_hub_admin_token=", "update_hub_signing_private", "productkey=", "bearer "]:
