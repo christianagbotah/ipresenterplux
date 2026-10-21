@@ -21,14 +21,12 @@ This runbook operates the shared Lightworld desktop update service used by iPres
 Run the bootstrap as root. Keep the repository and public trees non-world-writable.
 
 ```bash
-install -d -o lightworld -g lightworld -m 0750 /home/lightworld/update-hub/app
-install -d -o lightworld -g lightworld -m 0755 /home/lightworld/update-hub/public
-install -d -o lightworld -g lightworld -m 0755 /home/lightworld/update-hub/public/releases
-install -d -o lightworld -g lightworld -m 0755 /home/lightworld/update-hub/public/manifests
-install -d -o lightworld -g lightworld -m 0755 /home/lightworld/update-hub/public/deltas
-install -d -o lightworld -g lightworld -m 0750 /home/lightworld/update-hub/logs
+# From the reviewed repository checkout:
+UPDATE_HUB_NGINX_GROUP=nobody bash ops/update-hub/bootstrap-vps.sh
 install -d -o root -g root -m 0700 /root/lightworld-release-signing
 ```
+
+The bootstrap keeps `/home/lightworld/update-hub` at `0710` with the Webuzo Nginx group so the worker has execute-only traversal into `public/` without being able to list the Update Hub root. `app/`, `logs/`, backups and staging remain separately restricted, while `public/` and its release trees are readable only by the app owner and Nginx group.
 
 Clone the repository into `/home/lightworld/update-hub/app` using the same approved GitHub identity already used for Lightworld deployments. Production should ultimately track the reviewed `main` commit, not a developer worktree.
 
@@ -113,17 +111,19 @@ Use `deploy/nginx/updates.lightworldtech.com.conf` inside the HTTPS virtual host
 Required behavior:
 
 - `/api/` and `/health` proxy to `127.0.0.1:3041` and are `no-store`.
-- `/releases/`, `/manifests/`, and `/deltas/` are served directly from the public tree with immutable long caching and byte-range support.
+- `/releases/`, `/manifests/`, and `/deltas/` are served directly from the public tree with immutable long caching on successful responses and byte-range support. Do not attach immutable cache headers to static error responses, or Cloudflare can retain a transient permission/404 failure.
 - Admin routes are under `/api/` and therefore must never be cached by Cloudflare.
 - Public update downloads must use HTTPS.
 
 After changing the virtual host:
 
 ```bash
-nginx -t
-systemctl reload nginx
+/usr/local/apps/nginx/sbin/nginx -t
+/usr/local/apps/nginx/sbin/nginx -s reload
 curl -fsS https://updates.lightworldtech.com/health
 ```
+
+Webuzo's `nginx.service` does not support `systemctl reload`; always validate and signal the Webuzo Nginx binary directly.
 
 Verify Range support against a real published package:
 
@@ -132,7 +132,7 @@ curl -sS -D - -o /dev/null -H 'Range: bytes=0-1023' \
   https://updates.lightworldtech.com/releases/<package>.zip
 ```
 
-Expected status is `206 Partial Content` and an `Accept-Ranges: bytes` response.
+Expected public status is `206 Partial Content` with exactly the requested byte count. The direct Nginx origin should advertise `Accept-Ranges: bytes`; Cloudflare may honor Range requests while omitting that header on a cached response.
 
 ## Release signing key
 

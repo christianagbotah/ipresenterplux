@@ -10,7 +10,10 @@ run() {
   if [[ "$DRY_RUN" == "1" ]]; then printf 'DRY-RUN:'; printf ' %q' "$@"; printf '\n'; else "$@"; fi
 }
 
-run install -d -o lightworld -g lightworld -m 0750 "$ROOT"
+# The Webuzo Nginx worker must traverse the Update Hub root to reach public/.
+# 0710 grants the Nginx group execute-only traversal (no directory listing),
+# while each private child remains independently locked to the app owner/group.
+run install -d -o lightworld -g "$NGINX_GROUP" -m 0710 "$ROOT"
 run install -d -o lightworld -g lightworld -m 0750 "$ROOT/app" "$ROOT/logs"
 run install -d -o lightworld -g "$NGINX_GROUP" -m 0750 "$ROOT/public"
 for dir in releases manifests deltas; do

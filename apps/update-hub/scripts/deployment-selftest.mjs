@@ -11,7 +11,9 @@ const service = read('deploy/systemd/lightworld-update-hub.service');
 const nginx = read('deploy/nginx/updates.lightworldtech.com.conf');
 const runbook = read('docs/runbooks/update-hub.md');
 
-assert.match(bootstrap, /0750/, 'bootstrap must keep update directories non-world-readable');
+assert.match(bootstrap, /NGINX_GROUP/, 'bootstrap must identify the Webuzo Nginx group');
+assert.match(bootstrap, /-g\s+"\$NGINX_GROUP"\s+-m\s+0710\s+"\$ROOT"/, 'Update Hub root must grant Nginx execute-only traversal without directory listing');
+assert.match(bootstrap, /0750/, 'private/public child directories must remain non-world-readable');
 assert.doesNotMatch(bootstrap, /chmod\s+(?:-R\s+)?0?755\s+\/home\/lightworld(?:\s|$)/, 'bootstrap must not make the Lightworld home tree world-readable');
 assert.match(service, /User=lightworld/, 'Update Hub service must not run as root');
 assert.match(service, /NoNewPrivileges=true/, 'systemd unit must enable NoNewPrivileges');
@@ -19,6 +21,7 @@ assert.match(service, /ReadOnlyPaths=\/home\/lightworld\/update-hub\/public/, 's
 assert.match(nginx, /location \^~ \/api\//, 'Nginx must proxy the API');
 assert.match(nginx, /Cache-Control "no-store"/, 'API and health responses must be no-store');
 assert.match(nginx, /max-age=31536000, immutable/, 'release trees must be immutable-cacheable');
+assert.doesNotMatch(nginx, /max-age=31536000, immutable"\s+always/, 'static error responses must never receive year-long immutable caching');
 assert.match(nginx, /Accept-Ranges bytes/, 'release downloads must advertise byte ranges');
 assert.doesNotMatch(nginx, /location\s+=\s+\/\s*\{/, 'Webuzo custom include must not redefine the root location owned by the generated vhost');
 
