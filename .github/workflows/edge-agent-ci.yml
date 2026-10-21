@@ -147,6 +147,26 @@ jobs:
           if (-not (Test-Path $installer)) { throw "iPresenterPlux-Setup.exe is missing" }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  iPresenterPlux-Setup.exe" | Set-Content -Encoding ascii "publish/windows-release/iPresenterPlux-Setup.exe.sha256"
+      - name: Check embedded update verification key
+        id: update-key
+        shell: pwsh
+        run: |
+          $catalogPath = "publish/windows-release/current/update-public-keys.json"
+          if (-not (Test-Path $catalogPath)) { throw "Packaged updater public-key catalog is missing" }
+          $catalog = Get-Content -Raw $catalogPath | ConvertFrom-Json
+          $properties = @($catalog.PSObject.Properties)
+          if ($properties.Count -eq 0) {
+            "bootstrap_ready=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Warning "Customer installer upload is blocked until the production updater public key is embedded."
+            exit 0
+          }
+          foreach ($property in $properties) {
+            if ([string]::IsNullOrWhiteSpace($property.Name)) { throw "Updater public-key id is empty" }
+            try { $raw = [Convert]::FromBase64String([string]$property.Value) }
+            catch { throw "Updater public key '$($property.Name)' is not valid base64" }
+            if ($raw.Length -ne 32) { throw "Updater public key '$($property.Name)' must be exactly 32 raw Ed25519 bytes" }
+          }
+          "bootstrap_ready=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
       - name: Verify Windows installer/update artifacts
         run: python scripts/installer-selftest.py --release-dir publish/windows-release --version "1.0.${{ github.run_number }}"
       - name: Scan Windows licensing package
@@ -156,6 +176,7 @@ jobs:
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
       - name: Upload low-bandwidth Windows installer
+        if: steps.update-key.outputs.bootstrap_ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ipresenterplux-windows-installer
