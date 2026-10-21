@@ -8,6 +8,7 @@
     "test:release": "node --import tsx scripts/release-selftest.mjs",
     "test:admin": "node --import tsx scripts/admin-selftest.mjs",
     "test:signing": "node --import tsx scripts/signing-cli-selftest.mjs",
+    "test:delta": "node scripts/delta-selftest.mjs",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js"
   },
