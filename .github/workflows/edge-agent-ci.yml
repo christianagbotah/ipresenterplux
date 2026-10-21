@@ -34,6 +34,12 @@ jobs:
         run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
       - name: Test desktop shell
         run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater client tests
+        run: dotnet restore tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj
+      - name: Build Lightworld updater client tests
+        run: dotnet build tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater client
+        run: dotnet test tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core
@@ -132,6 +138,12 @@ jobs:
         run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
       - name: Test desktop shell
         run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater client tests
+        run: dotnet restore tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj
+      - name: Build Lightworld updater client tests
+        run: dotnet build tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater client
+        run: dotnet test tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core
