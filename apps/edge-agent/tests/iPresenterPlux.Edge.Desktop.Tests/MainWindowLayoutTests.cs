@@ -9,12 +9,17 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("Width = 1600", source, StringComparison.Ordinal);
-        Assert.Contains("Height = 900", source, StringComparison.Ordinal);
+        Assert.Contains("Width = 640", source, StringComparison.Ordinal);
+        Assert.Contains("Height = 360", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 360", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 203", source, StringComparison.Ordinal);
         Assert.Contains("Stretch = Stretch.Uniform", source, StringComparison.Ordinal);
-        Assert.Contains("MinWidth = 1080", source, StringComparison.Ordinal);
+        Assert.Contains("MinWidth = 900", source, StringComparison.Ordinal);
         Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
         Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Width = 1600", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Height = 900", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MinWidth = 1080", source, StringComparison.Ordinal);
         Assert.DoesNotContain("MinHeight = 330", source, StringComparison.Ordinal);
     }
 

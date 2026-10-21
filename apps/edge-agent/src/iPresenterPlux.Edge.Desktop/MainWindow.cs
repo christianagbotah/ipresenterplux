@@ -262,7 +262,7 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(18), MinWidth = 1080, MinHeight = 560 };
+        var root = new Grid { Margin = new Thickness(18), MinWidth = 900, MinHeight = 520 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
@@ -414,7 +414,7 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 12 };
+        var stages = new Grid { ColumnSpacing = 12, MaxHeight = 203 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
@@ -560,44 +560,46 @@ public sealed class MainWindow : Window
         IBrush accent)
     {
         title.TextAlignment = TextAlignment.Center;
-        title.FontSize = 72;
+        title.FontSize = 28;
         body.TextAlignment = TextAlignment.Center;
         body.TextWrapping = TextWrapping.Wrap;
-        body.FontSize = 44;
+        body.FontSize = 18;
         footer.TextAlignment = TextAlignment.Center;
-        footer.FontSize = 30;
+        footer.FontSize = 12;
 
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        var stageLabel = Label(label, 30, FontWeight.Bold, accent);
+        var stageLabel = Label(label, 12, FontWeight.Bold, accent);
         Grid.SetRow(stageLabel, 0);
         grid.Children.Add(stageLabel);
         var content = new StackPanel {
-            Spacing = 34,
+            Spacing = 12,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 1280,
+            MaxWidth = 520,
             Children = { title, body, footer }
         };
         Grid.SetRow(content, 1);
         grid.Children.Add(content);
 
         var frame = new Border {
-            Width = 1600,
-            Height = 900,
+            Width = 640,
+            Height = 360,
             Background = Brush("#06090E"),
             BorderBrush = accent,
-            BorderThickness = new Thickness(4),
-            CornerRadius = new CornerRadius(36),
-            Padding = new Thickness(54),
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(18),
+            Padding = new Thickness(18),
             Child = grid
         };
 
         return new Viewbox {
+            MaxWidth = 360,
+            MaxHeight = 203,
             Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            VerticalAlignment = VerticalAlignment.Stretch,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
             Child = frame
         };
     }
