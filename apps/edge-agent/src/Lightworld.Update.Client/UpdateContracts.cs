@@ -2,6 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace Lightworld.Update.Client;
 
+public enum UpdatePackageKind
+{
+    Full = 0,
+    Delta = 1
+}
+
 public sealed record UpdateIdentity(
     string Product,
     string Version,
