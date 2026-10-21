@@ -25,6 +25,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lightworld.Update.Client.Tests", "tests\Lightworld.Update.Client.Tests\Lightworld.Update.Client.Tests.csproj", "{DAAF51A0-343A-4998-8CE9-296B77B650EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lightworld.Update.Helper", "src\Lightworld.Update.Helper\Lightworld.Update.Helper.csproj", "{E7B486AD-E775-43DC-83BB-D39306385CC0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lightworld.Update.Helper.Tests", "tests\Lightworld.Update.Helper.Tests\Lightworld.Update.Helper.Tests.csproj", "{4B24738E-9947-4982-BA71-D072E875468A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -143,6 +147,30 @@ Global
 		{DAAF51A0-343A-4998-8CE9-296B77B650EC}.Release|x64.Build.0 = Release|Any CPU
 		{DAAF51A0-343A-4998-8CE9-296B77B650EC}.Release|x86.ActiveCfg = Release|Any CPU
 		{DAAF51A0-343A-4998-8CE9-296B77B650EC}.Release|x86.Build.0 = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|x64.Build.0 = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Debug|x86.Build.0 = Debug|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|x64.ActiveCfg = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|x64.Build.0 = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|x86.ActiveCfg = Release|Any CPU
+		{E7B486AD-E775-43DC-83BB-D39306385CC0}.Release|x86.Build.0 = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|x64.Build.0 = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Debug|x86.Build.0 = Debug|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|x64.ActiveCfg = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|x64.Build.0 = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|x86.ActiveCfg = Release|Any CPU
+		{4B24738E-9947-4982-BA71-D072E875468A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -150,5 +178,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{2D98EDB0-9D56-4BC3-9180-EB6DD5540192} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{DAAF51A0-343A-4998-8CE9-296B77B650EC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{E7B486AD-E775-43DC-83BB-D39306385CC0} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{4B24738E-9947-4982-BA71-D072E875468A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
