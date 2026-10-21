@@ -5,10 +5,18 @@ on:
   push:
     paths:
       - "apps/update-hub/**"
+      - "ops/update-hub/**"
+      - "deploy/nginx/updates.lightworldtech.com.conf"
+      - "deploy/systemd/lightworld-update-hub.service"
+      - "docs/runbooks/update-hub.md"
       - ".github/workflows/update-hub-ci.yml"
   pull_request:
     paths:
       - "apps/update-hub/**"
+      - "ops/update-hub/**"
+      - "deploy/nginx/updates.lightworldtech.com.conf"
+      - "deploy/systemd/lightworld-update-hub.service"
+      - "docs/runbooks/update-hub.md"
       - ".github/workflows/update-hub-ci.yml"
 
 jobs:
@@ -40,5 +48,7 @@ jobs:
         run: pnpm test:signing
       - name: Delta builder selftest
         run: pnpm test:delta
+      - name: VPS deployment contract selftest
+        run: pnpm test:deployment
       - name: TypeScript build
         run: pnpm build
