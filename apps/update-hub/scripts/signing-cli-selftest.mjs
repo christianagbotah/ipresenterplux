@@ -60,7 +60,7 @@ try {
     '--key-id', 'bad',
     '--signature', resolve(signaturePath),
     '--public-root', resolve(publicRoot)
-  ], { cwd: resolve(new URL('..', import.meta.url).pathname, stdio: 'pipe' }), /Command failed/,
+  ], { cwd: resolve(new URL('..', import.meta.url).pathname), stdio: 'pipe' }), /Command failed/,
   'signer must refuse a private key located inside the public release tree');
 
   console.log('update-hub signing CLI selftest: PASS');
