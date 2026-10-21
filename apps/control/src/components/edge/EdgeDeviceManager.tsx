@@ -98,6 +98,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
   const [pairing, setPairing] = useState<PairingResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<Device | null>(null);
+  const [reprovisionRevoked, setReprovisionRevoked] = useState(false);
 
   useEffect(() => {
     if (!devices.length) return;
@@ -113,6 +114,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
   }, [devices]);
 
   function openNew() {
+    setReprovisionRevoked(false);
     setName("");
     setPlatform("windows");
     setCampusId(campuses[0]?.id ?? "");
@@ -122,6 +124,17 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
   }
 
   function openRepair(device: Device) {
+    setReprovisionRevoked(false);
+    setName(device.name);
+    setPlatform(device.platform === "macos" ? "macos" : "windows");
+    setCampusId(device.campusId ?? "");
+    setError(null);
+    setPairing(null);
+    setFormOpen(true);
+  }
+
+  function openReprovision(device: Device) {
+    setReprovisionRevoked(true);
     setName(device.name);
     setPlatform(device.platform === "macos" ? "macos" : "windows");
     setCampusId(device.campusId ?? "");
@@ -138,7 +151,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
       const response = await fetch("/api/v1/edge/pairing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ organizationId, campusId: campusId || null, name, platform, ttlMinutes: 15 })
+        body: JSON.stringify({ organizationId, campusId: campusId || null, name, platform, reprovisionRevoked, ttlMinutes: 15 })
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not create pairing code");
@@ -238,14 +251,22 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                     {device.pairingExpiresAt ? <div className="text-[11px] text-amber-200/80">Pairing code pending until {timeLabel(device.pairingExpiresAt)}</div> : null}
                   </div>
 
-                  {canManage && device.status !== "revoked" ? (
+                  {canManage ? (
                     <div className="flex gap-2 lg:justify-end">
-                      <button onClick={() => openRepair(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-white/[.08] bg-white/[.03] px-3 py-2 text-xs font-semibold text-white/65 hover:bg-white/[.06] hover:text-white/85">
-                        <RefreshCw size={13} /> Re-pair
-                      </button>
-                      <button onClick={() => setRevokeTarget(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-red-400/15 bg-red-400/[.05] px-3 py-2 text-xs font-semibold text-red-200/85 hover:bg-red-400/10 hover:text-red-100">
-                        <ShieldX size={13} /> Revoke
-                      </button>
+                      {device.status === "revoked" ? (
+                        <button onClick={() => openReprovision(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-amber-300/20 bg-amber-300/[.07] px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10">
+                          <RefreshCw size={13} /> Re-provision
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={() => openRepair(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-white/[.08] bg-white/[.03] px-3 py-2 text-xs font-semibold text-white/65 hover:bg-white/[.06] hover:text-white/85">
+                            <RefreshCw size={13} /> Re-pair
+                          </button>
+                          <button onClick={() => setRevokeTarget(device)} className="ip-focus-gold min-h-9 flex items-center gap-1.5 rounded-lg border border-red-400/15 bg-red-400/[.05] px-3 py-2 text-xs font-semibold text-red-200/85 hover:bg-red-400/10 hover:text-red-100">
+                            <ShieldX size={13} /> Revoke
+                          </button>
+                        </>
+                      )}
                     </div>
                   ) : null}
 
@@ -290,7 +311,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-[22px] border border-white/[.09] bg-[#0c1119] shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/[.07] px-5 py-4">
-              <div><div className="text-sm font-black">Pair Church Edge</div><div className="mt-1 text-[11px] text-white/55">One-time code · 15 minute validity</div></div>
+              <div><div className="text-sm font-black">{reprovisionRevoked ? "Re-provision Church Edge" : "Pair Church Edge"}</div><div className="mt-1 text-[11px] text-white/55">{reprovisionRevoked ? "Old credentials stay revoked · new one-time code" : "One-time code · 15 minute validity"}</div></div>
               <button onClick={() => setFormOpen(false)} className="ip-focus-gold flex h-8 w-8 items-center justify-center rounded-lg bg-white/[.04] text-white/65 hover:text-white"><X size={15} /></button>
             </div>
 
@@ -305,8 +326,9 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                     <div><label className="mb-2 block text-xs font-semibold text-white/65">Platform</label><select value={platform} onChange={(event) => setPlatform(event.target.value as "windows" | "macos")} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="windows">Windows</option><option value="macos">macOS</option></select></div>
                     <div><label className="mb-2 block text-xs font-semibold text-white/65">Campus</label><select value={campusId} onChange={(event) => setCampusId(event.target.value)} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="">Organization-wide</option>{campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select></div>
                   </div>
+                  {reprovisionRevoked ? <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.06] px-3 py-2.5 text-xs leading-5 text-amber-100/85">This creates a fresh credential for this revoked computer. Previously revoked credentials remain invalid.</div> : null}
                   {error ? <div className="rounded-xl border border-red-400/15 bg-red-400/[.06] px-3 py-2.5 text-xs text-red-200">{error}</div> : null}
-                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="ip-focus-gold min-h-11 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : "Generate pairing code"}</button>
+                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="ip-focus-gold min-h-11 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : reprovisionRevoked ? "Generate re-provision code" : "Generate pairing code"}</button>
                 </>
               ) : (
                 <div className="space-y-4">
