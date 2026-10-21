@@ -100,5 +100,5 @@ public sealed class VpsUpdateStagingWorkflow(
     }
 
     private static Uri EnsureTrailingSlash(Uri uri) =>
-        uri.AbsoluteUri.EndsWith('/', StringComparison.Ordinal) ? uri : new Uri(uri.AbsoluteUri + "/");
+        uri.AbsoluteUri.EndsWith("/", StringComparison.Ordinal) ? uri : new Uri(uri.AbsoluteUri + "/");
 }
