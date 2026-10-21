@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using iPresenterPlux.Edge.Core.Runtime;
+using Lightworld.Update.Client;
 
 namespace iPresenterPlux.Edge.Desktop.Update;
 
@@ -127,7 +128,11 @@ public sealed class IpresenterUpdateCoordinator
             StagedUpdate.Size,
             StagedUpdate.Sha256,
             Environment.ProcessId,
-            30);
+            30,
+            StagedUpdate.PackageKind,
+            StagedUpdate.FullFallbackUrl,
+            StagedUpdate.FullFallbackSize,
+            StagedUpdate.FullFallbackSha256);
         var planPath = Path.Combine(stateDirectory, $"update-plan-{healthToken}.json");
         await File.WriteAllTextAsync(planPath, JsonSerializer.Serialize(plan, PlanJsonOptions), cancellationToken)
             .ConfigureAwait(false);
@@ -184,5 +189,9 @@ public sealed class IpresenterUpdateCoordinator
         long ExpectedPackageSize,
         string ExpectedPackageSha256,
         int ParentProcessId,
-        int ParentExitTimeoutSeconds);
+        int ParentExitTimeoutSeconds,
+        UpdatePackageKind PackageKind,
+        string? FullFallbackUrl,
+        long? FullFallbackSize,
+        string? FullFallbackSha256);
 }
