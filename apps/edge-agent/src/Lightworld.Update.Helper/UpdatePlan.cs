@@ -1,3 +1,5 @@
+using Lightworld.Update.Client;
+
 namespace Lightworld.Update.Helper;
 
 public sealed record UpdatePlan(
@@ -12,7 +14,11 @@ public sealed record UpdatePlan(
     long ExpectedPackageSize,
     string ExpectedPackageSha256,
     int ParentProcessId = 0,
-    int ParentExitTimeoutSeconds = 30)
+    int ParentExitTimeoutSeconds = 30,
+    UpdatePackageKind PackageKind = UpdatePackageKind.Full,
+    string? FullFallbackUrl = null,
+    long? FullFallbackSize = null,
+    string? FullFallbackSha256 = null)
 {
     public UpdatePlan Normalize()
     {
@@ -39,6 +45,23 @@ public sealed record UpdatePlan(
             throw new InvalidDataException("Parent process id cannot be negative.");
         if (ParentExitTimeoutSeconds is < 1 or > 120)
             throw new InvalidDataException("Parent exit timeout must be between 1 and 120 seconds.");
+        if (!Enum.IsDefined(PackageKind))
+            throw new InvalidDataException("Update package kind is invalid.");
+
+        string? fallbackUrl = null;
+        string? fallbackSha = null;
+        long? fallbackSize = null;
+        if (PackageKind == UpdatePackageKind.Delta)
+        {
+            if (!Uri.TryCreate(FullFallbackUrl, UriKind.Absolute, out var fallback) || fallback.Scheme != Uri.UriSchemeHttps ||
+                FullFallbackSize is null or <= 0 ||
+                FullFallbackSha256 is not { Length: 64 } ||
+                !FullFallbackSha256.All(Uri.IsHexDigit))
+                throw new InvalidDataException("Delta update requires a valid HTTPS full-package fallback.");
+            fallbackUrl = fallback.AbsoluteUri;
+            fallbackSize = FullFallbackSize;
+            fallbackSha = FullFallbackSha256.ToLowerInvariant();
+        }
 
         return this with
         {
@@ -49,7 +72,10 @@ public sealed record UpdatePlan(
             InstallRoot = Path.GetFullPath(InstallRoot),
             DesktopExeRelativePath = DesktopExeRelativePath.Trim(),
             HealthToken = HealthToken.Trim(),
-            ExpectedPackageSha256 = ExpectedPackageSha256.ToLowerInvariant()
+            ExpectedPackageSha256 = ExpectedPackageSha256.ToLowerInvariant(),
+            FullFallbackUrl = fallbackUrl,
+            FullFallbackSize = fallbackSize,
+            FullFallbackSha256 = fallbackSha
         };
     }
 }
