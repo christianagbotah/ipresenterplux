@@ -27,6 +27,7 @@ for (const required of [
   'pnpm build',
   '001_update_hub.sql',
   'systemctl daemon-reload',
+  'systemctl enable lightworld-update-hub',
   'systemctl restart lightworld-update-hub',
   '127.0.0.1:3041/health'
 ]) {
