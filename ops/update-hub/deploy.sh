@@ -101,7 +101,7 @@ run "$NGINX_BIN" -t
 run systemctl enable lightworld-update-hub
 run systemctl restart lightworld-update-hub
 run systemctl is-active --quiet lightworld-update-hub
-if [[ -n "$NGINX_INCLUDE" ]]; then run systemctl reload nginx; fi
+if [[ -n "$NGINX_INCLUDE" ]]; then run "$NGINX_BIN" -s reload; fi
 
 if [[ "$DRY_RUN" == "1" ]]; then
   echo "DRY-RUN: curl -fsS http://127.0.0.1:3041/health"
