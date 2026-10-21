@@ -22,9 +22,13 @@ public sealed class DesktopSettingsStore(string settingsDirectory)
 
         try
         {
-            await using var stream = File.OpenRead(SettingsPath);
-            var loaded = await JsonSerializer.DeserializeAsync<DesktopSettings>(stream, JsonOptions, cancellationToken)
-                .ConfigureAwait(false) ?? DesktopSettings.CreateDefault();
+            DesktopSettings loaded;
+            await using (var stream = File.OpenRead(SettingsPath))
+            {
+                loaded = await JsonSerializer.DeserializeAsync<DesktopSettings>(stream, JsonOptions, cancellationToken)
+                    .ConfigureAwait(false) ?? DesktopSettings.CreateDefault();
+            }
+
             var migrated = MigrateUpdateSettings(loaded, out var changed);
             if (changed) await TryPersistLoadedSettingsAsync(migrated, cancellationToken).ConfigureAwait(false);
             return migrated;
