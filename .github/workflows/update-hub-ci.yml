@@ -38,5 +38,7 @@ jobs:
         run: pnpm test:admin
       - name: Offline signing CLI selftest
         run: pnpm test:signing
+      - name: Delta builder selftest
+        run: pnpm test:delta
       - name: TypeScript build
         run: pnpm build
