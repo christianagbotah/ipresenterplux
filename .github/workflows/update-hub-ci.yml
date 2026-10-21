@@ -36,5 +36,7 @@ jobs:
         run: pnpm test:release
       - name: Admin release selftest
         run: pnpm test:admin
+      - name: Offline signing CLI selftest
+        run: pnpm test:signing
       - name: TypeScript build
         run: pnpm build
