@@ -113,8 +113,8 @@ public sealed class MainWindow : Window
         _operatorTimer.Tick += async (_, _) => await RefreshOperatorAsync();
 
         Title = "iPresenterPlux Edge";
-        Width = 1120;
-        Height = 720;
+        Width = 1040;
+        Height = 640;
         MinWidth = 760;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -262,7 +262,7 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(18), MinWidth = 1080, MinHeight = 560 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
@@ -513,7 +513,11 @@ public sealed class MainWindow : Window
         root.Children.Add(right);
 
         RefreshRundown();
-        return root;
+        return new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = root
+        };
     }
 
     private static Control HeaderHint()
@@ -548,7 +552,7 @@ public sealed class MainWindow : Window
         return grid;
     }
 
-    private static Border BuildStage(
+    private static Control BuildStage(
         string label,
         TextBlock title,
         TextBlock body,
@@ -556,40 +560,51 @@ public sealed class MainWindow : Window
         IBrush accent)
     {
         title.TextAlignment = TextAlignment.Center;
+        title.FontSize = 72;
         body.TextAlignment = TextAlignment.Center;
         body.TextWrapping = TextWrapping.Wrap;
+        body.FontSize = 44;
         footer.TextAlignment = TextAlignment.Center;
+        footer.FontSize = 30;
 
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        var stageLabel = Label(label, 10, FontWeight.Bold, accent);
+        var stageLabel = Label(label, 30, FontWeight.Bold, accent);
         Grid.SetRow(stageLabel, 0);
         grid.Children.Add(stageLabel);
         var content = new StackPanel {
-            Spacing = 14,
+            Spacing = 34,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 560,
+            MaxWidth = 1280,
             Children = { title, body, footer }
         };
         Grid.SetRow(content, 1);
         grid.Children.Add(content);
 
-        return new Border {
+        var frame = new Border {
+            Width = 1600,
+            Height = 900,
             Background = Brush("#06090E"),
             BorderBrush = accent,
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(18),
-            MinHeight = 330,
+            BorderThickness = new Thickness(4),
+            CornerRadius = new CornerRadius(36),
+            Padding = new Thickness(54),
             Child = grid
+        };
+
+        return new Viewbox {
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Child = frame
         };
     }
 
     private Control BuildSetupContent()
     {
-        var root = new Grid { Margin = new Thickness(24) };
+        var root = new Grid { Margin = new Thickness(24), MinWidth = 900 };
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(330)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(18)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -609,6 +624,7 @@ public sealed class MainWindow : Window
             }
         });
 
+        _statusDetail.TextWrapping = TextWrapping.Wrap;
         sidebar.Children.Add(Card("Runtime status", new StackPanel {
             Spacing = 12,
             Children = {
@@ -678,13 +694,13 @@ public sealed class MainWindow : Window
         _feedback.TextWrapping = TextWrapping.Wrap;
         main.Children.Add(_feedback);
 
-        var scroll = new ScrollViewer {
+        Grid.SetColumn(main, 2);
+        root.Children.Add(main);
+        return new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = main
+            Content = root
         };
-        Grid.SetColumn(scroll, 2);
-        root.Children.Add(scroll);
-        return root;
     }
 
     private Control BuildCapabilities()
@@ -1349,9 +1365,12 @@ public sealed class MainWindow : Window
             EdgeDesktopRuntimeState.Crashed or EdgeDesktopRuntimeState.ConfigurationError => Danger,
             _ => Muted
         };
-        _statusDetail.Text = snapshot.ErrorCode is null
+        var statusDetail = snapshot.ErrorCode is null
             ? snapshot.ProcessId is { } pid ? $"Runtime process {pid}." : "The local Edge runtime is not running."
             : SafeErrorText(snapshot.ErrorCode);
+        _statusDetail.Text = string.IsNullOrWhiteSpace(snapshot.DiagnosticMessage)
+            ? statusDetail
+            : $"{statusDetail}\nRuntime detail · {snapshot.DiagnosticMessage}";
         _cloudStatus.Text = $"Control Plane · {(snapshot.ControlPlaneHealthy ? "connected" : "offline")}";
         _cloudStatus.Foreground = snapshot.ControlPlaneHealthy ? Good : Muted;
         var localOutputAvailable = LocalOutputLinkPolicy.CanOpen(snapshot);
