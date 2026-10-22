@@ -15,6 +15,11 @@ let package = Package(
         .target(
             name: "iPresenterPluxMediaBridge",
             path: "Sources/iPresenterPluxMediaBridge"
+        ),
+        .testTarget(
+            name: "iPresenterPluxMediaBridgeTests",
+            dependencies: ["iPresenterPluxMediaBridge"],
+            path: "Tests/iPresenterPluxMediaBridgeTests"
         )
     ]
 )
