@@ -28,7 +28,20 @@ public static class EdgeHostStartInfoFactory
         start.Environment["IPRESENTERPLUX_DEVICE_NAME"] = normalized.DeviceName;
         start.Environment["IPRESENTERPLUX_DATA_DIR"] = paths.EdgeDataDirectory;
         start.Environment["IPRESENTERPLUX_PROGRAM_PORT"] = normalized.ProgramPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        start.Environment["IPRESENTERPLUX_PROGRAM_AUTO_OPEN"] = "false";
+        if (normalized.ProgramDisplayId is not null &&
+            normalized.ProgramDisplayX is { } displayX && normalized.ProgramDisplayY is { } displayY &&
+            normalized.ProgramDisplayWidth is { } displayWidth && normalized.ProgramDisplayHeight is { } displayHeight)
+        {
+            start.Environment["IPRESENTERPLUX_PROGRAM_AUTO_OPEN"] = "true";
+            start.Environment["IPRESENTERPLUX_PROGRAM_POSITION"] = $"{displayX.ToString(System.Globalization.CultureInfo.InvariantCulture)},{displayY.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            start.Environment["IPRESENTERPLUX_PROGRAM_SIZE"] = $"{displayWidth.ToString(System.Globalization.CultureInfo.InvariantCulture)},{displayHeight.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        }
+        else
+        {
+            start.Environment["IPRESENTERPLUX_PROGRAM_AUTO_OPEN"] = "false";
+            start.Environment.Remove("IPRESENTERPLUX_PROGRAM_POSITION");
+            start.Environment.Remove("IPRESENTERPLUX_PROGRAM_SIZE");
+        }
         if (!string.IsNullOrWhiteSpace(pairingCode))
             start.Environment["IPRESENTERPLUX_PAIRING_CODE"] = pairingCode.Trim();
         else

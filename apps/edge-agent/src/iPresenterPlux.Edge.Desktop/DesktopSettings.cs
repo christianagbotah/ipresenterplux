@@ -6,7 +6,12 @@ public sealed record DesktopSettings(
     int ProgramPort = 49321,
     string InstallationId = "",
     string UpdateChannel = "stable",
-    string UpdateHubUrl = "https://updates.lightworldtech.com")
+    string UpdateHubUrl = "https://updates.lightworldtech.com",
+    string? ProgramDisplayId = null,
+    int? ProgramDisplayX = null,
+    int? ProgramDisplayY = null,
+    int? ProgramDisplayWidth = null,
+    int? ProgramDisplayHeight = null)
 {
     public static DesktopSettings CreateDefault() => new(
         "",
@@ -53,12 +58,27 @@ public sealed record DesktopSettings(
         var updateChannel = string.IsNullOrWhiteSpace(UpdateChannel) ? "stable" : UpdateChannel.Trim().ToLowerInvariant();
         if (updateChannel is not "stable" and not "beta")
             throw new InvalidOperationException("Update channel must be stable or beta.");
+
+        var programDisplayId = string.IsNullOrWhiteSpace(ProgramDisplayId) ? null : ProgramDisplayId.Trim();
+        if (programDisplayId is { Length: > 240 })
+            throw new InvalidOperationException("Program display identity is too long.");
+        if (programDisplayId is not null &&
+            (ProgramDisplayX is null || ProgramDisplayY is null ||
+             ProgramDisplayWidth is null || ProgramDisplayHeight is null ||
+             ProgramDisplayWidth <= 0 || ProgramDisplayHeight <= 0))
+            throw new InvalidOperationException("Program display placement requires a valid position and positive dimensions.");
+
         return this with {
             ControlPlaneUrl = ControlPlaneUrl.Trim().TrimEnd('/'),
             DeviceName = deviceName,
             InstallationId = installationId,
             UpdateChannel = updateChannel,
-            UpdateHubUrl = updateHub.ToString().TrimEnd('/')
+            UpdateHubUrl = updateHub.ToString().TrimEnd('/'),
+            ProgramDisplayId = programDisplayId,
+            ProgramDisplayX = programDisplayId is null ? null : ProgramDisplayX,
+            ProgramDisplayY = programDisplayId is null ? null : ProgramDisplayY,
+            ProgramDisplayWidth = programDisplayId is null ? null : ProgramDisplayWidth,
+            ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight
         };
     }
 

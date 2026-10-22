@@ -86,6 +86,8 @@ public sealed class MainWindow : Window
     private readonly Button _renewEntitlement = ActionButton("Retry validation", false);
     private readonly TextBox _deviceName = Input("Church production computer", false);
     private readonly TextBox _pairingCode = Input("One-time pairing code", true);
+    private readonly ComboBox _programDisplay = new() { MinHeight = 42, MinWidth = 260 };
+    private readonly TextBlock _programDisplayHint = Label("Program output display will be detected after the window opens.", 11, FontWeight.Normal, Muted);
     private readonly TextBlock _statusTitle = Label("Stopped", 22, FontWeight.Bold);
     private readonly TextBlock _statusDetail = Label("The local Edge runtime is not running.", 12, FontWeight.Normal, Muted);
     private readonly Border _statusDot = new() { Width = 10, Height = 10, CornerRadius = new CornerRadius(99), Background = Muted };
@@ -167,6 +169,11 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
         };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
+        _programDisplay.SelectionChanged += (_, _) =>
+        {
+            if (_programDisplay.SelectedItem is ProgramDisplayTarget target)
+                RenderProgramDisplayHint(target, usedFallback: false, topologyChanged: false);
+        };
         _tabs.SelectionChanged += (_, _) =>
         {
             if (_tabs.SelectedIndex == OperatorTabIndex && !_entitlementUsable)
@@ -178,6 +185,7 @@ public sealed class MainWindow : Window
     {
         WindowState = WindowState.Maximized;
         await LoadAsync();
+        Screens.Changed += (_, _) => Dispatcher.UIThread.Post(() => RefreshProgramDisplays(topologyChanged: true));
     }
 
     private Control BuildContent()
@@ -670,9 +678,16 @@ public sealed class MainWindow : Window
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0, 2));
         setupGrid.Children.Add(Field("Device name", _deviceName, 1, 0));
         setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 1, 1));
+        _programDisplayHint.TextWrapping = TextWrapping.Wrap;
+        var displayPicker = new StackPanel {
+            Spacing = 6,
+            Children = { _programDisplay, _programDisplayHint }
+        };
+        setupGrid.Children.Add(Field("Program output display", displayPicker, 2, 0, 2));
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _save, _start, _restart, _stop })
@@ -680,7 +695,7 @@ public sealed class MainWindow : Window
             button.Margin = new Thickness(0, 0, 10, 0);
             actions.Children.Add(button);
         }
-        Grid.SetRow(actions, 2);
+        Grid.SetRow(actions, 3);
         Grid.SetColumnSpan(actions, 2);
         setupGrid.Children.Add(actions);
         main.Children.Add(Card("Connection & enrollment", setupGrid));
@@ -1091,6 +1106,62 @@ public sealed class MainWindow : Window
         _ => "The Edge runtime rejected that local operator action."
     };
 
+    private void RefreshProgramDisplays(bool topologyChanged = false)
+    {
+        var screens = Screens.All;
+        var targets = screens.Select((screen, index) =>
+        {
+            var bounds = screen.Bounds;
+            var displayName = screen.DisplayName?.Trim();
+            var label = string.IsNullOrWhiteSpace(displayName) ? $"Display {index + 1}" : displayName;
+            var id = string.IsNullOrWhiteSpace(displayName)
+                ? $"display:{bounds.X},{bounds.Y}:{bounds.Width}x{bounds.Height}"
+                : displayName;
+            return new ProgramDisplayTarget(id, label, bounds.X, bounds.Y, bounds.Width, bounds.Height, screen.IsPrimary);
+        }).ToArray();
+
+        var preferredId = (_programDisplay.SelectedItem as ProgramDisplayTarget)?.Id ?? _settings.ProgramDisplayId;
+        _programDisplay.ItemsSource = targets;
+        if (string.IsNullOrWhiteSpace(preferredId))
+        {
+            _programDisplay.SelectedItem = null;
+            _programDisplayHint.Text = targets.Length == 0
+                ? "No connected display was detected. Program kiosk output will stay closed until a display is available."
+                : "Choose the projector or secondary display. Program kiosk output stays closed until a display is selected.";
+            _programDisplayHint.Foreground = targets.Length == 0 ? Warning : Muted;
+            return;
+        }
+
+        var selection = ProgramDisplaySelector.Resolve(preferredId, targets);
+        _programDisplay.SelectedItem = selection.Target;
+        RenderProgramDisplayHint(selection.Target, selection.UsedFallback, topologyChanged);
+    }
+
+    private void RenderProgramDisplayHint(
+        ProgramDisplayTarget? target,
+        bool usedFallback,
+        bool topologyChanged)
+    {
+        if (target is null)
+        {
+            _programDisplayHint.Text = "No connected display was detected. Program kiosk output will stay closed until a display is available.";
+            _programDisplayHint.Foreground = Warning;
+            return;
+        }
+
+        if (usedFallback)
+        {
+            _programDisplayHint.Text = $"The saved Program display is unavailable. {target.Label} will be used on the next Edge start.";
+            _programDisplayHint.Foreground = Warning;
+            return;
+        }
+
+        _programDisplayHint.Text = topologyChanged
+            ? $"Display topology changed. Program will use {target.Label} · {target.Width}×{target.Height} on the next Edge start."
+            : $"Program opens full-screen on {target.Label} · {target.Width}×{target.Height} when Edge starts.";
+        _programDisplayHint.Foreground = Muted;
+    }
+
     private async Task LoadAsync()
     {
         _settings = await _settingsStore.LoadAsync(CancellationToken.None);
@@ -1099,6 +1170,7 @@ public sealed class MainWindow : Window
         _controlUrl.Text = _settings.ControlPlaneUrl;
         _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
+        RefreshProgramDisplays();
 
         var validation = await LoadEntitlementAsync();
         _tabs.SelectedIndex = validation?.IsUsable == true ? OperatorTabIndex : ActivationTabIndex;
@@ -1116,11 +1188,22 @@ public sealed class MainWindow : Window
             SetFeedback("The packaged Edge runtime is not beside the shell yet. CI packaging must stage it before field use.", true);
     }
 
-    private DesktopSettings ReadSettings() => new DesktopSettings(
-        _controlUrl.Text?.Trim() ?? "",
-        _deviceName.Text?.Trim() ?? "",
-        49321,
-        _settings.InstallationId).Normalize();
+    private DesktopSettings ReadSettings()
+    {
+        var display = _programDisplay.SelectedItem as ProgramDisplayTarget;
+        return new DesktopSettings(
+            _controlUrl.Text?.Trim() ?? "",
+            _deviceName.Text?.Trim() ?? "",
+            _settings.ProgramPort,
+            _settings.InstallationId,
+            _settings.UpdateChannel,
+            _settings.UpdateHubUrl,
+            display?.Id,
+            display?.X,
+            display?.Y,
+            display?.Width,
+            display?.Height).Normalize();
+    }
 
     private async Task SaveAsync()
     {
@@ -1168,6 +1251,7 @@ public sealed class MainWindow : Window
         {
             if (!await EnsureEntitlementForStartAsync()) return;
             _settings = ReadSettings();
+            await _settingsStore.SaveAsync(_settings, CancellationToken.None);
             var pairing = _pairingCode.Text;
             _pairingCode.Text = "";
             await _supervisor.RestartAsync(_settings, pairing, CancellationToken.None);
@@ -1222,11 +1306,11 @@ public sealed class MainWindow : Window
         {
             var controlPlane = ValidateActivationControlPlane();
             _controlUrl.Text = controlPlane.ToString().TrimEnd('/');
-            _settings = new DesktopSettings(
-                _controlUrl.Text,
-                _deviceName.Text?.Trim() ?? Environment.MachineName,
-                49321,
-                _settings.InstallationId).Normalize();
+            _settings = (_settings with
+            {
+                ControlPlaneUrl = _controlUrl.Text,
+                DeviceName = _deviceName.Text?.Trim() ?? Environment.MachineName
+            }).Normalize();
             await _settingsStore.SaveAsync(_settings, CancellationToken.None);
 
             var validation = await _entitlementClient.ActivateAsync(
@@ -1396,6 +1480,7 @@ public sealed class MainWindow : Window
         _controlUrl.IsEnabled = !running;
         _deviceName.IsEnabled = !running;
         _pairingCode.IsEnabled = !running;
+        _programDisplay.IsEnabled = !running;
         _save.IsEnabled = !running;
     }
 
