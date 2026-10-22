@@ -269,7 +269,7 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                 }
                 // Source Reader may report current/native type negotiation on the first decoded
                 // sample even after SetCurrentMediaType. The requested RGB32 contract is verified
-                // by the contiguous-buffer size below, so the informational flag is not fatal.
+                // by the decoded buffer dimensions and row packing below, so the informational flag is not fatal.
                 _ = flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged);
                 if (sample is null) continue;
 
@@ -277,9 +277,31 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                 try
                 {
                     sample.ConvertToContiguousBuffer(out buffer);
-                    var pixels = new byte[checked(_stride * _height)];
-                    if (!MediaUtils.CopyBuffer(buffer, pixels, out var copied) || copied != pixels.Length)
+                    buffer.GetCurrentLength(out var currentLength);
+                    var tightLength = checked(_stride * _height);
+                    if (currentLength < tightLength || currentLength > int.MaxValue || currentLength % (uint)_height != 0)
                         throw new MediaVideoFrameProviderException("media_video_decode_failed", "Decoded video frame had an unexpected size.");
+
+                    var sourceStride = checked((int)(currentLength / (uint)_height));
+                    if (sourceStride < _stride)
+                        throw new MediaVideoFrameProviderException("media_video_decode_failed", "Decoded video frame stride was smaller than expected.");
+
+                    var raw = new byte[checked((int)currentLength)];
+                    if (!MediaUtils.CopyBuffer(buffer, raw, out var copied) || copied != currentLength)
+                        throw new MediaVideoFrameProviderException("media_video_decode_failed", "Decoded video frame could not be copied.");
+
+                    byte[] pixels;
+                    if (sourceStride == _stride)
+                    {
+                        pixels = raw;
+                    }
+                    else
+                    {
+                        pixels = new byte[tightLength];
+                        for (var row = 0; row < _height; row++)
+                            Buffer.BlockCopy(raw, checked(row * sourceStride), pixels, checked(row * _stride), _stride);
+                    }
+
                     for (var alpha = 3; alpha < pixels.Length; alpha += 4) pixels[alpha] = byte.MaxValue;
                     _lastFrame = pixels;
                     _lastTimestamp100Ns = timestamp100Ns;
