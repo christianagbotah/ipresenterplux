@@ -25,6 +25,20 @@ public sealed class WindowsProgramWiringTests
     }
 
     [Fact]
+    public void ContributionAudioUsesProgramMixerWhileAsrKeepsRawCaptureAuthority()
+    {
+        var source = File.ReadAllText(ProgramSourcePath());
+
+        Assert.Contains("var mediaAudioFrameProvider = new WindowsMediaFoundationMediaAudioFrameProvider", source, StringComparison.Ordinal);
+        Assert.Contains("await using var programAudioMixCoordinator = new ProgramAudioMixCoordinator", source, StringComparison.Ordinal);
+        Assert.Contains("programAudioMixCoordinator.TrySubmitLive(frame)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("contributionAudioBuffer.TrySubmit(frame)", source, StringComparison.Ordinal);
+        Assert.Contains("audioCapture: audioCapture", source, StringComparison.Ordinal);
+        Assert.Contains("speechRecognitionEngine: speechRecognition", source, StringComparison.Ordinal);
+        Assert.Contains("new WindowsMediaFoundationEncodedProgramAudioSource(contributionAudioBuffer)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NativeVisualCapabilitiesRemainPlannedUntilPhysicalUat()
     {
         var profile = WindowsPlatformProfile.Create();
