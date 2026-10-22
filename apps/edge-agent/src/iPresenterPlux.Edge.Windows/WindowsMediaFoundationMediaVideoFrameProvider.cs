@@ -15,6 +15,12 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
     private const uint SourceReaderFlagEndOfStream = 0x00000002;
     private const uint SourceReaderFlagNativeMediaTypeChanged = 0x00000010;
     private const uint SourceReaderFlagCurrentMediaTypeChanged = 0x00000020;
+    [DllImport("mfreadwrite.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+    private static extern int MFCreateSourceReaderFromURL(
+        [MarshalAs(UnmanagedType.LPWStr)] string url,
+        IMFAttributes? attributes,
+        out IMFSourceReader sourceReader);
+
     private static readonly object StartupGate = new();
     private static bool _mediaFoundationStarted;
 
@@ -216,8 +222,9 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
             {
                 PInvoke.MFCreateAttributes(out attributes, 1).ThrowOnFailure();
                 attributes.SetUINT32(PInvoke.MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1);
-                PInvoke.MFCreateSourceReaderFromURL(localPath, attributes, out reader).ThrowOnFailure();
-                reader.GetNativeMediaType(VideoStream, 0, out nativeType);
+                Marshal.ThrowExceptionForHR(MFCreateSourceReaderFromURL(localPath, attributes, out var createdReader));
+                reader = createdReader;
+                createdReader.GetNativeMediaType(VideoStream, 0, out nativeType);
                 nativeType.GetUINT64(PInvoke.MF_MT_FRAME_SIZE, out var packedSize);
                 var width = checked((int)(packedSize >> 32));
                 var height = checked((int)(packedSize & uint.MaxValue));
@@ -228,9 +235,9 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                 outputType.SetGUID(PInvoke.MF_MT_MAJOR_TYPE, PInvoke.MFMediaType_Video);
                 outputType.SetGUID(PInvoke.MF_MT_SUBTYPE, PInvoke.MFVideoFormat_RGB32);
                 outputType.SetUINT64(PInvoke.MF_MT_FRAME_SIZE, Pack((uint)width, (uint)height));
-                reader.SetCurrentMediaType(VideoStream, outputType);
+                createdReader.SetCurrentMediaType(VideoStream, outputType);
 
-                var session = new DecoderSession(reader, width, height);
+                var session = new DecoderSession(createdReader, width, height);
                 reader = null;
                 return session;
             }
