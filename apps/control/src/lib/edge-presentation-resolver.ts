@@ -1,7 +1,36 @@
 import { createHash } from "node:crypto";
 
 export type EdgePresentationQueryClient = {
-  query: (text: string, values?: unknown[]) => Promise<{ rows: any[] }>;
+  query: <T extends object = Record<string, unknown>>(text: string, values?: unknown[]) => Promise<{ rows: T[] }>;
+};
+
+type PresentationRow = {
+  item_id: string;
+  service_id: string;
+  item_type: string;
+  title: string;
+  content: unknown;
+};
+
+type MediaSourceRow = {
+  id: string;
+  name: string;
+  source_type: string;
+  status: string;
+  public_config: unknown;
+};
+
+type ScriptureRow = {
+  item_id: string;
+  service_id: string;
+  scripture_reference: string;
+  bible_version: string;
+  book: string;
+  chapter: number;
+  verse_start: number | null;
+  verse_end: number | null;
+  source_text: string | null;
+  passage_text: string | null;
 };
 
 export type EdgePresentationMediaDescriptor = {
@@ -87,7 +116,7 @@ function finiteNumber(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function mediaDescriptor(row: any, source: any): EdgePresentationMediaDescriptor {
+function mediaDescriptor(row: PresentationRow, source: MediaSourceRow): EdgePresentationMediaDescriptor {
   const content = asObject(row.content);
   const config = asObject(source.public_config);
   const mediaKind = compactText(content.mediaKind, 16);
@@ -123,6 +152,22 @@ function mediaDescriptor(row: any, source: any): EdgePresentationMediaDescriptor
   };
 }
 
+export function normalizeEdgePresentationCatalogFields(itemTypeValue: unknown, titleValue: unknown, contentValue: unknown) {
+  const content = asObject(contentValue);
+  const bodySource = [content.body, content.text, content.content].find((item) => typeof item === "string");
+  const lines = Array.isArray(content.lines)
+    ? content.lines.filter((item) => typeof item === "string").join("\n")
+    : "";
+  const footerSource = [content.footer, content.subtitle, content.author].find((item) => typeof item === "string");
+  return {
+    itemType: compactText(itemTypeValue, 32),
+    title: compactText(titleValue, 200),
+    body: presentationBody((bodySource as string | undefined) ?? lines),
+    footer: compactText(footerSource, 500) || null,
+    metadata: safeMetadata(content.metadata),
+  };
+}
+
 export function presentationThemeContentVariant(itemType: string): "generic" | "scripture" | "song" | "announcement" {
   if (itemType === "scripture" || itemType === "song" || itemType === "announcement") return itemType;
   return "generic";
@@ -132,7 +177,7 @@ export async function resolveEdgePresentationItem(
   client: EdgePresentationQueryClient,
   input: { deviceId: string; organizationId: string; itemId: string }
 ): Promise<EdgeResolvedPresentation | null> {
-  const presentation = await client.query(
+  const presentation = await client.query<PresentationRow>(
     `/* edge_presentation_item */
      select pi.id::text as item_id,pi.service_id::text,pi.item_type,pi.title,pi.content
      from presentation_items pi
@@ -153,7 +198,7 @@ export async function resolveEdgePresentationItem(
     let media: EdgePresentationMediaDescriptor | null = null;
     if (row.item_type === "media") {
       const sourceId = compactText(content.sourceId, 64);
-      const sourceResult = await client.query(
+      const sourceResult = await client.query<MediaSourceRow>(
         `/* edge_media_source */
          select id::text,name,source_type,status,public_config
          from media_sources
@@ -179,7 +224,7 @@ export async function resolveEdgePresentationItem(
     };
   }
 
-  const legacy = await client.query(
+  const legacy = await client.query<ScriptureRow>(
     `/* edge_legacy_scripture */
      select sd.id::text as item_id,sd.service_id::text,sd.scripture_reference,sd.bible_version,
             sd.book,sd.chapter,sd.verse_start,sd.verse_end,sd.source_text,

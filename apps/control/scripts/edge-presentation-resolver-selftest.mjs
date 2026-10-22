@@ -11,9 +11,23 @@ const javascript = ts.transpileModule(resolverSource, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const resolver = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
-const { resolveEdgePresentationItem, EdgePresentationResolverError, presentationThemeContentVariant } = resolver;
+const { resolveEdgePresentationItem, EdgePresentationResolverError, presentationThemeContentVariant, normalizeEdgePresentationCatalogFields } = resolver;
 assert.equal(typeof resolveEdgePresentationItem, "function", "resolveEdgePresentationItem must be exported");
 assert.equal(typeof presentationThemeContentVariant, "function", "presentationThemeContentVariant must be exported");
+assert.equal(typeof normalizeEdgePresentationCatalogFields, "function", "catalog normalizer must be exported");
+const catalogMedia = normalizeEdgePresentationCatalogFields("media", "  Worship opener  ", {
+  body: "",
+  metadata: { readiness: "ready" },
+  sourceId: "must-not-leak",
+  assetUrl: "https://must-not-leak.invalid/video.mp4"
+});
+assert.deepEqual(catalogMedia, {
+  itemType: "media",
+  title: "Worship opener",
+  body: "",
+  footer: null,
+  metadata: { readiness: "ready" }
+});
 assert.equal(presentationThemeContentVariant("scripture"), "scripture");
 assert.equal(presentationThemeContentVariant("song"), "song");
 assert.equal(presentationThemeContentVariant("announcement"), "announcement");
