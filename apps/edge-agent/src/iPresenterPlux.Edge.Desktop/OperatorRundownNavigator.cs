@@ -7,16 +7,18 @@ public sealed record OperatorRundownRow(
     int Sequence,
     bool IsCurrent,
     bool IsPreview,
-    bool IsNext)
+    bool IsNext,
+    string? MediaStatus = null)
 {
     public string StatusLabel
     {
         get
         {
-            var labels = new List<string>(3);
+            var labels = new List<string>(4);
             if (IsCurrent) labels.Add("CURRENT");
             if (IsPreview) labels.Add("PREVIEW");
             if (IsNext) labels.Add("NEXT");
+            if (!string.IsNullOrWhiteSpace(MediaStatus)) labels.Add(MediaStatus);
             return string.Join(" · ", labels);
         }
     }
@@ -90,7 +92,8 @@ public sealed class OperatorRundownNavigator
                 index + 1,
                 item.Id.Equals(currentItemId, StringComparison.Ordinal),
                 item.Id.Equals(previewItemId, StringComparison.Ordinal),
-                item.Id.Equals(nextItemId, StringComparison.Ordinal)))
+                item.Id.Equals(nextItemId, StringComparison.Ordinal),
+                OperatorWorkspaceCatalog.ResolveMediaStatus(item, snapshot)))
             .Where(row => visible is null || visible.Contains(row.Item.Id))
             .ToArray();
 

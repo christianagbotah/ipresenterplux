@@ -121,6 +121,59 @@ public static class OperatorWorkspaceCatalog
             HasSyncedCatalog: true, IsRehearsal: false, IsStale: stale, StatusLabel: status);
     }
 
+    public static string? ResolveMediaStatus(OperatorWorkspaceItem item, LocalOperatorSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (!IsMediaItem(item)) return null;
+
+        if (snapshot.Program is { } program &&
+            string.Equals(program.ItemId, item.Id, StringComparison.Ordinal) &&
+            snapshot.MediaPlayback is { } playback &&
+            string.Equals(playback.ItemId, item.Id, StringComparison.Ordinal) &&
+            playback.ServiceId == program.ServiceId)
+        {
+            return playback.State switch
+            {
+                "playing" => "LIVE",
+                "paused" or "recovery_required" => "PAUSED",
+                "ended" => "ENDED",
+                "error" => "ERROR",
+                _ => null
+            };
+        }
+
+        var readiness = snapshot.MediaPreparations?
+            .FirstOrDefault(candidate =>
+                string.Equals(candidate.ItemId, item.Id, StringComparison.Ordinal) &&
+                (snapshot.ActiveServiceId is null || candidate.ServiceId == snapshot.ActiveServiceId));
+        return readiness?.State switch
+        {
+            MediaPreparationState.Queued or MediaPreparationState.Downloading or MediaPreparationState.Validating => "DOWNLOADING",
+            MediaPreparationState.Ready => "READY",
+            MediaPreparationState.Unsupported or MediaPreparationState.Failed => "ERROR",
+            _ => null
+        };
+    }
+
+    public static bool CanTakePreview(LocalOperatorSnapshot snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (snapshot.Preview is null) return false;
+        if (!string.Equals(snapshot.Preview.ItemType, "media", StringComparison.OrdinalIgnoreCase)) return true;
+
+        return snapshot.MediaPreparations?.Any(candidate =>
+            string.Equals(candidate.ItemId, snapshot.Preview.ItemId, StringComparison.Ordinal) &&
+            candidate.ServiceId == snapshot.Preview.ServiceId &&
+            candidate.State == MediaPreparationState.Ready) == true;
+    }
+
+    private static bool IsMediaItem(OperatorWorkspaceItem item) =>
+        string.Equals(item.SourceItemType, "media", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(item.SourceItemType, "video", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(item.SourceItemType, "image", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(item.Category, "Media", StringComparison.OrdinalIgnoreCase);
+
     public static IReadOnlyList<OperatorWorkspaceItem> Filter(
         IEnumerable<OperatorWorkspaceItem> items,
         string? category,

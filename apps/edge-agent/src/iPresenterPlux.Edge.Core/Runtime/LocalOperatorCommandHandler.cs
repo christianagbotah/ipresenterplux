@@ -347,6 +347,13 @@ public sealed class LocalOperatorCommandHandler
         var runtime = _state.Snapshot;
         var output = _mediaOutput.Snapshot;
         var recording = _recordingService?.Status;
+        var preparations = runtime.ActiveServiceId is { } activeServiceId && _mediaPreparation is not null
+            ? _mediaPreparation.GetSnapshots()
+                .Where(snapshot => snapshot.ServiceId == activeServiceId)
+                .Select(snapshot => new LocalOperatorMediaPreparation(
+                    snapshot.ItemId, snapshot.ServiceId, snapshot.State, snapshot.ErrorCode))
+                .ToArray()
+            : Array.Empty<LocalOperatorMediaPreparation>();
         return new LocalOperatorSnapshot(
             output.OutputRunning,
             output.Preview,
@@ -357,6 +364,7 @@ public sealed class LocalOperatorCommandHandler
             runtime.ActiveServiceId,
             runtime.ServiceMode,
             _clock.GetUtcNow(),
-            _mediaOutput.PlaybackSnapshot);
+            _mediaOutput.PlaybackSnapshot,
+            preparations);
     }
 }
