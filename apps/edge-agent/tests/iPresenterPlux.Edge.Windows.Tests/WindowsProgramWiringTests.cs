@@ -9,7 +9,9 @@ public sealed class WindowsProgramWiringTests
     {
         var source = File.ReadAllText(ProgramSourcePath());
 
-        Assert.Contains("var renderedProgramSource = new RenderedProgramVideoSource", source, StringComparison.Ordinal);
+        Assert.Contains("var mediaVideoFrameProvider = new WindowsMediaFoundationMediaVideoFrameProvider", source, StringComparison.Ordinal);
+        Assert.Contains("var renderedProgramSource = new PresentationProgramVideoSource", source, StringComparison.Ordinal);
+        Assert.Contains("mediaOutput, new SkiaProgramFrameRenderer(), mediaPlayback, mediaPreparation, mediaVideoFrameProvider", source, StringComparison.Ordinal);
         Assert.Contains("var visualCatalog = new WindowsVisualSourceCatalog", source, StringComparison.Ordinal);
         Assert.Contains("var visualFactory = new WindowsVisualCaptureFactory", source, StringComparison.Ordinal);
         Assert.Contains("await using var visualRouter = new VisualProgramRouter", source, StringComparison.Ordinal);
@@ -17,6 +19,7 @@ public sealed class WindowsProgramWiringTests
         Assert.Contains("new WindowsMediaFoundationEncodedProgramVideoSource(visualRouter)", source, StringComparison.Ordinal);
         Assert.Contains("visualSourceCatalog: visualCatalog", source, StringComparison.Ordinal);
         Assert.Contains("visualRouter: visualRouter", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new RenderedProgramVideoSource", source, StringComparison.Ordinal);
         Assert.DoesNotContain("WindowsMediaFoundationEncodedProgramVideoSource(new WindowsCameraCaptureSession", source, StringComparison.Ordinal);
         Assert.DoesNotContain("WindowsMediaFoundationEncodedProgramVideoSource(new WindowsGraphicsCaptureSession", source, StringComparison.Ordinal);
     }
