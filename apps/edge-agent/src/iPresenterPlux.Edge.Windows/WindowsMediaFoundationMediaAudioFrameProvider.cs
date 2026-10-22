@@ -99,6 +99,12 @@ public sealed class WindowsMediaFoundationMediaAudioFrameProvider : IMediaAudioF
         }
     }
 
+    public void Reset()
+    {
+        if (_disposed) return;
+        lock (_gate) ResetSessionUnsafe();
+    }
+
     public void Dispose()
     {
         if (_disposed) return;

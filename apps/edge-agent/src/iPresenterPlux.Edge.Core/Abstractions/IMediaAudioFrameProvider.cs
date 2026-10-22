@@ -12,6 +12,8 @@ public interface IMediaAudioFrameProvider
         int channels,
         int frameSamples,
         CancellationToken cancellationToken);
+
+    void Reset();
 }
 
 public sealed class MediaAudioFrameProviderException : Exception
