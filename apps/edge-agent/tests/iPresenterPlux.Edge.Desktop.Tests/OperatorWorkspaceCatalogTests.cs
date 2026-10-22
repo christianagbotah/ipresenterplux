@@ -1,3 +1,4 @@
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using Xunit;
 
