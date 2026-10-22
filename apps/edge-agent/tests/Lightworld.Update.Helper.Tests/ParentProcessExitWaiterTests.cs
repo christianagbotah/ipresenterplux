@@ -51,15 +51,17 @@ public sealed class ParentProcessExitWaiterTests
         ProcessStartInfo start;
         if (OperatingSystem.IsWindows())
         {
-            start = new ProcessStartInfo("powershell.exe")
+            var pingCount = Math.Max(2, checked((int)Math.Ceiling(wait.TotalSeconds)) + 1);
+            start = new ProcessStartInfo("ping.exe")
             {
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
             };
-            start.ArgumentList.Add("-NoProfile");
-            start.ArgumentList.Add("-NonInteractive");
-            start.ArgumentList.Add("-Command");
-            start.ArgumentList.Add($"Start-Sleep -Milliseconds {Math.Ceiling(wait.TotalMilliseconds)}");
+            start.ArgumentList.Add("-n");
+            start.ArgumentList.Add(pingCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            start.ArgumentList.Add("127.0.0.1");
         }
         else
         {
