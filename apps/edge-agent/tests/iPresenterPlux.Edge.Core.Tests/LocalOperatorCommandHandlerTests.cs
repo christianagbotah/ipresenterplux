@@ -136,9 +136,8 @@ public sealed class LocalOperatorCommandHandlerTests
 
         var response = await handler.HandleAsync(Request(LocalOperatorCommands.SnapshotQuery), CancellationToken.None);
 
-        var preparations = response.Snapshot.MediaPreparations
-            ?? throw new InvalidOperationException("Snapshot should project media preparation readiness.");
-        var readiness = Assert.Single(preparations);
+        Assert.NotNull(response.Snapshot.MediaPreparations);
+        var readiness = Assert.Single(response.Snapshot.MediaPreparations!);
         Assert.Equal(itemId, readiness.ItemId);
         Assert.Equal(serviceId, readiness.ServiceId);
         Assert.Equal(MediaPreparationState.Ready, readiness.State);
