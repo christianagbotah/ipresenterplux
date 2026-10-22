@@ -262,15 +262,15 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(18), MinWidth = 900, MinHeight = 440 };
+        var root = new Grid { Margin = new Thickness(14), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(292)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(14)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(220)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(14)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(300)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
 
         var header = new Border {
             Background = Surface,
@@ -419,7 +419,7 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 12, MaxHeight = 203 };
+        var stages = new Grid { ColumnSpacing = 10, MaxHeight = 169 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
@@ -431,26 +431,26 @@ public sealed class MainWindow : Window
         Grid.SetRow(stages, 2);
         center.Children.Add(stages);
 
+        var transitionActions = new WrapPanel {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _take.Margin = new Thickness(0, 0, 8, 6);
+        _clear.Margin = new Thickness(0, 0, 8, 6);
+        var transitionHint = TransitionHint();
+        transitionHint.Margin = new Thickness(0, 0, 8, 6);
+        var openProgram = LocalOutputButton("Open Program", "program");
+        openProgram.Margin = new Thickness(0, 0, 0, 6);
+        transitionActions.Children.Add(_take);
+        transitionActions.Children.Add(_clear);
+        transitionActions.Children.Add(transitionHint);
+        transitionActions.Children.Add(openProgram);
         var transitionBar = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(14),
-            Child = new Grid {
-                ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"),
-                ColumnSpacing = 10,
-                Children = {
-                    _take,
-                    _clear,
-                    TransitionHint(),
-                    LocalOutputButton("Open Program", "program")
-                }
-            }
+            Padding = new Thickness(10, 8),
+            Child = transitionActions
         };
-        Grid.SetColumn(_clear, 1);
-        var transitionHint = ((Grid)transitionBar.Child).Children[2];
-        Grid.SetColumn(transitionHint, 2);
-        var openProgram = ((Grid)transitionBar.Child).Children[3];
-        Grid.SetColumn(openProgram, 3);
         Grid.SetRow(transitionBar, 4);
         center.Children.Add(transitionBar);
 
@@ -519,11 +519,7 @@ public sealed class MainWindow : Window
         root.Children.Add(right);
 
         RefreshRundown();
-        return new ScrollViewer {
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-            Content = root
-        };
+        return root;
     }
 
     private static Control HeaderHint()
@@ -601,8 +597,8 @@ public sealed class MainWindow : Window
         };
 
         return new Viewbox {
-            MaxWidth = 360,
-            MaxHeight = 203,
+            MaxWidth = 300,
+            MaxHeight = 169,
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,

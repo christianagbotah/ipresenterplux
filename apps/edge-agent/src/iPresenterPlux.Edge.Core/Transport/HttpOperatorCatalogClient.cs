@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
@@ -41,8 +42,7 @@ public sealed class HttpOperatorCatalogClient(
             throw new InvalidDataException("The operator catalog exceeded client safety limits.");
         if (string.IsNullOrWhiteSpace(payload.CatalogRevision) || payload.CatalogRevision.Length > 128)
             throw new InvalidDataException("The operator catalog revision was invalid.");
-        if (payload.ObservedAt == default)
-            throw new InvalidDataException("The operator catalog observation time was invalid.");
+        var observedAt = ParseTimestamp(payload.ObservedAt, "observedAt");
 
         var service = MapService(payload.Service);
         if (service is null && (payload.Items.Count > 0 || payload.ScriptureQueue.Count > 0))
@@ -51,7 +51,7 @@ public sealed class HttpOperatorCatalogClient(
         return new OperatorCatalogSnapshot(
             OperatorCatalogSnapshot.CurrentSchemaVersion,
             _clock.GetUtcNow(),
-            payload.ObservedAt,
+            observedAt,
             payload.CatalogRevision,
             service,
             payload.BibleVersions.Select(MapVersion).ToArray(),
@@ -81,12 +81,13 @@ public sealed class HttpOperatorCatalogClient(
 
         var payload = await response.Content.ReadFromJsonAsync<ScriptureResponse>(cancellationToken: cancellationToken)
             .ConfigureAwait(false) ?? throw new InvalidDataException("The scripture resolver response was empty.");
-        if (!payload.Ok || payload.Item is null || payload.ObservedAt == default)
+        if (!payload.Ok || payload.Item is null)
             throw new InvalidDataException("The scripture resolver response was invalid.");
+        var observedAt = ParseTimestamp(payload.ObservedAt, "observedAt");
         if (!Guid.TryParse(payload.Item.ServiceId, out var serviceId) || serviceId == Guid.Empty)
             throw new InvalidDataException("The scripture resolver service id was invalid.");
 
-        return new OperatorResolvedScripture(serviceId, MapItem(payload.Item), payload.ObservedAt);
+        return new OperatorResolvedScripture(serviceId, MapItem(payload.Item), observedAt);
     }
 
     private async Task<HttpRequestMessage> CreateAuthenticatedRequestAsync(
@@ -129,8 +130,8 @@ public sealed class HttpOperatorCatalogClient(
             RequiredText(service.Title, 200, "service title"),
             service.Status,
             OptionalText(service.ActiveBibleVersion, 32),
-            service.ScheduledStart,
-            service.StartedAt);
+            ParseOptionalTimestamp(service.ScheduledStart, "scheduledStart"),
+            ParseOptionalTimestamp(service.StartedAt, "startedAt"));
     }
 
     private static OperatorBibleVersion MapVersion(BibleVersionPayload version) => new(
@@ -197,6 +198,23 @@ public sealed class HttpOperatorCatalogClient(
         return normalized;
     }
 
+    private static DateTimeOffset ParseTimestamp(string? value, string fieldName)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && DateTimeOffset.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var parsed))
+        {
+            return parsed;
+        }
+
+        throw new InvalidDataException($"The operator catalog returned an invalid {fieldName} timestamp.");
+    }
+
+    private static DateTimeOffset? ParseOptionalTimestamp(string? value, string fieldName) =>
+        string.IsNullOrWhiteSpace(value) ? null : ParseTimestamp(value, fieldName);
+
     private sealed record CatalogResponse(
         bool Ok,
         ServicePayload? Service,
@@ -204,17 +222,17 @@ public sealed class HttpOperatorCatalogClient(
         IReadOnlyList<ItemPayload>? Items,
         IReadOnlyList<ItemPayload>? ScriptureQueue,
         string? CatalogRevision,
-        DateTimeOffset ObservedAt);
+        string? ObservedAt);
 
-    private sealed record ScriptureResponse(bool Ok, ResolvedItemPayload? Item, DateTimeOffset ObservedAt);
+    private sealed record ScriptureResponse(bool Ok, ResolvedItemPayload? Item, string? ObservedAt);
 
     private sealed record ServicePayload(
         string? ServiceId,
         string? Title,
         string? Status,
         string? ActiveBibleVersion,
-        DateTimeOffset? ScheduledStart,
-        DateTimeOffset? StartedAt);
+        string? ScheduledStart,
+        string? StartedAt);
 
     private sealed record BibleVersionPayload(string? Id, string? Name, string? Abbreviation, string? LanguageCode);
 

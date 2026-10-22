@@ -24,6 +24,7 @@ const {
   deterministicScriptureItemId,
   normalizeOperatorPresentationBody,
   normalizeOperatorText,
+  normalizeOperatorTimestamp,
   extractOperatorPresentationFields,
 } = await importTypescriptModule("../src/lib/edge-operator-catalog.ts");
 const {
@@ -62,6 +63,8 @@ assert.match(firstId, /^local-scripture-[a-f0-9]{24}$/);
 
 assert.equal(normalizeOperatorPresentationBody("  hello   world  "), "hello world");
 assert.equal(normalizeOperatorPresentationBody("x".repeat(13000)).length, 12000);
+assert.equal(normalizeOperatorTimestamp("2026-10-20 18:31:27.116074-04"), "2026-10-20T22:31:27.116Z");
+assert.equal(normalizeOperatorTimestamp(null), null);
 assert.deepEqual(
   extractOperatorPresentationFields({
     body: "  Main   slide text ",
@@ -81,6 +84,10 @@ const scriptureRoute = await readFile(new URL("../src/app/api/v1/edge/operator/s
 assert.match(catalogRoute, /authenticateEdgeDevice\(request\)/);
 assert.match(catalogRoute, /EDGE_OPERATOR_ACTIVE_SERVICE_SQL/);
 assert.match(catalogRoute, /EDGE_OPERATOR_PRESENTATION_ITEMS_SQL/);
+assert.match(catalogRoute, /scheduledStart:\s*normalizeOperatorTimestamp\(service\.scheduled_start\)/,
+  "catalog API must normalize scheduledStart to ISO before sending it to Edge");
+assert.match(catalogRoute, /startedAt:\s*normalizeOperatorTimestamp\(service\.started_at\)/,
+  "catalog API must normalize startedAt to ISO before sending it to Edge");
 assert.match(catalogRoute, /catalogRevision:\s*revision\(\[service\.id, service\.updated_at, latestPresentation, latestScripture\]\)/,
   "catalog revision must include authoritative service/presentation/scripture timestamps");
 assert.match(scriptureRoute, /authenticateEdgeDevice\(request\)/);

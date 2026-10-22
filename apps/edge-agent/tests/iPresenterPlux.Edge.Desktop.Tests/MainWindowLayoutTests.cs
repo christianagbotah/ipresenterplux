@@ -11,11 +11,10 @@ public sealed class MainWindowLayoutTests
 
         Assert.Contains("Width = 640", source, StringComparison.Ordinal);
         Assert.Contains("Height = 360", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 360", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 203", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 300", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 169", source, StringComparison.Ordinal);
         Assert.Contains("Stretch = Stretch.Uniform", source, StringComparison.Ordinal);
-        Assert.Contains("MinWidth = 900", source, StringComparison.Ordinal);
-        Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
+        Assert.Contains("var root = new Grid { Margin = new Thickness(14), MinHeight = 420 }", source, StringComparison.Ordinal);
         Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Width = 1600", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Height = 900", source, StringComparison.Ordinal);
@@ -28,11 +27,26 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("MinWidth = 900, MinHeight = 440", source, StringComparison.Ordinal);
+        Assert.Contains("var root = new Grid { Margin = new Thickness(14), MinHeight = 420 }", source, StringComparison.Ordinal);
         Assert.Contains("_rundown.MinHeight = 160", source, StringComparison.Ordinal);
         Assert.Contains("var left = new ScrollViewer", source, StringComparison.Ordinal);
-        Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
+        Assert.Contains("var right = new ScrollViewer", source, StringComparison.Ordinal);
         Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
+        Assert.Contains("return root;", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorFitsViewportWithoutOuterHorizontalScrolling()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("new GridLength(220)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 300", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 169", source, StringComparison.Ordinal);
+        Assert.Contains("var transitionActions = new WrapPanel", source, StringComparison.Ordinal);
+        Assert.Contains("return root;", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,\n            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,\n            Content = root", source, StringComparison.Ordinal);
     }
 
     [Fact]

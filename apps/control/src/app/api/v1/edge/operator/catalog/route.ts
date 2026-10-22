@@ -6,6 +6,7 @@ import {
   extractOperatorPresentationFields,
   normalizeOperatorPresentationBody,
   normalizeOperatorText,
+  normalizeOperatorTimestamp,
 } from "@/lib/edge-operator-catalog";
 import {
   EDGE_OPERATOR_ACTIVE_SERVICE_SQL,
@@ -157,8 +158,8 @@ export async function GET(request: Request) {
         title: normalizeOperatorText(service.title, 200),
         status: normalizeOperatorText(service.status, 32),
         activeBibleVersion: normalizeOperatorText(service.active_bible_version, 32),
-        scheduledStart: service.scheduled_start,
-        startedAt: service.started_at,
+        scheduledStart: normalizeOperatorTimestamp(service.scheduled_start),
+        startedAt: normalizeOperatorTimestamp(service.started_at),
       },
       bibleVersions,
       items,
