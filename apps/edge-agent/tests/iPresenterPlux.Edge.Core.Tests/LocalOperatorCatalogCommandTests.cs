@@ -136,6 +136,33 @@ public sealed class LocalOperatorCatalogCommandTests
     }
 
     [Fact]
+    public async Task PrepareItemHydratesTrustedNonMediaRundownContent()
+    {
+        using var fixture = new Fixture();
+        var itemId = Guid.NewGuid().ToString("D");
+        await fixture.Coordinator.SetActiveServiceAsync(fixture.ServiceId, CancellationToken.None);
+        await fixture.Store.WriteAsync(fixture.Snapshot(
+            DateTimeOffset.UtcNow,
+            items: [new OperatorCatalogItem(itemId, "slide", "Catalog title", "Catalog body", null, new Dictionary<string,string>())]), CancellationToken.None);
+        fixture.PresentationProvider.Result = new PresentationRenderItem(
+            itemId, fixture.ServiceId, "slide", "Resolved title", "Resolved body", null,
+            new Dictionary<string,string> { ["themeAppearanceV1"] = "resolved-theme" });
+        fixture.Coordinator.BindPresentationProvider(fixture.PresentationProvider);
+        var state = State(fixture.ServiceId);
+        await using var output = new LocalWebProgramOutputService(49413);
+        var handler = new LocalOperatorCommandHandler(state, output, operatorCatalog: fixture.Coordinator);
+
+        var response = await handler.HandleAsync(new LocalOperatorRequest(
+            Guid.NewGuid().ToString("D"), LocalOperatorCommands.PreviewPrepareItem,
+            Item: new LocalOperatorItemRequest(itemId)), CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.Equal(1, fixture.PresentationProvider.Calls);
+        Assert.Equal("Resolved body", response.Snapshot.Preview?.Body);
+        Assert.Equal("resolved-theme", response.Snapshot.Preview?.Metadata["themeAppearanceV1"]);
+    }
+
+    [Fact]
     public async Task PrepareItemRejectsHydratedPresentationFromAnotherService()
     {
         using var fixture = new Fixture();
