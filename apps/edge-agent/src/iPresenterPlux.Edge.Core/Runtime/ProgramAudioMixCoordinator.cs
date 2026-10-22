@@ -20,6 +20,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
     private readonly object _runGate = new();
     private CancellationTokenSource? _runCts;
     private Task? _worker;
+    private bool _mediaSessionActive;
     private bool _disposed;
 
     public ProgramAudioMixCoordinator(
@@ -94,6 +95,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
                 _worker = null;
             }
         }
+        ResetMediaSessionIfActive();
     }
 
     public async Task<bool> ProcessOnceAsync(CancellationToken cancellationToken)
@@ -106,6 +108,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
             AudioFrame? media = null;
             var mediaVolume = 1f;
             var playback = _playback.Snapshot;
+            var eligibleMedia = false;
             if (playback is not null &&
                 playback.State == "playing" &&
                 playback.MediaKind is "video" or "audio")
@@ -117,6 +120,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
                     prepared.Asset.ServiceId == playback.ServiceId &&
                     string.Equals(prepared.Asset.ItemId, playback.ItemId, StringComparison.Ordinal))
                 {
+                    eligibleMedia = true;
                     try
                     {
                         media = await _mediaProvider.ReadPcmAsync(
@@ -126,6 +130,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
                             ProgramAudioMixer.OutputChannels,
                             ProgramAudioMixer.DefaultFrameSamples,
                             cancellationToken).ConfigureAwait(false);
+                        _mediaSessionActive = true;
 
                         var current = _playback.Snapshot;
                         if (current is null ||
@@ -135,6 +140,7 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
                             !string.Equals(current.ItemId, playback.ItemId, StringComparison.Ordinal))
                         {
                             media = null;
+                            eligibleMedia = false;
                         }
                         else
                         {
@@ -144,9 +150,12 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
                     catch (MediaAudioFrameProviderException)
                     {
                         media = null;
+                        eligibleMedia = false;
+                        ResetMediaSession();
                     }
                 }
             }
+            if (!eligibleMedia) ResetMediaSessionIfActive();
 
             var mixed = _mixer.Mix(live, media, mediaVolume);
             return _output.TrySubmit(mixed);
@@ -193,6 +202,18 @@ public sealed class ProgramAudioMixCoordinator : IAsyncDisposable
             ProgramAudioMixer.OutputBitsPerSample,
             capturedAt ?? _clock.GetUtcNow(),
             AudioSampleEncoding.PcmInteger);
+    }
+
+    private void ResetMediaSessionIfActive()
+    {
+        if (!_mediaSessionActive) return;
+        ResetMediaSession();
+    }
+
+    private void ResetMediaSession()
+    {
+        try { _mediaProvider.Reset(); } catch { }
+        _mediaSessionActive = false;
     }
 
     private static bool IsValidFrame(AudioFrame frame) =>
