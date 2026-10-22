@@ -60,6 +60,10 @@ static async Task<int> RunAsync()
     await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
     await using var recordingService = new LocalAudioRecordingService(dataDirectory);
     var operatorCatalog = new OperatorCatalogCoordinator(new OperatorCatalogStore(dataDirectory));
+    var mediaRemotePolicy = new MediaRemoteEndpointPolicy();
+    using var mediaAssetCache = new MediaAssetCache(
+        Path.Combine(dataDirectory, "media-cache"), mediaRemotePolicy, new MediaAssetCacheOptions(), TimeProvider.System);
+    using var mediaPreparation = new MediaPreparationCoordinator(mediaAssetCache, operatorCatalog);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -122,7 +126,8 @@ static async Task<int> RunAsync()
 
     await using var localOperatorIpc = new LocalOperatorIpcServer(
         dataDirectory,
-        new LocalOperatorCommandHandler(runtime.State, mediaOutput, recordingService, operatorCatalog: operatorCatalog));
+        new LocalOperatorCommandHandler(
+            runtime.State, mediaOutput, recordingService, operatorCatalog: operatorCatalog, mediaPreparation: mediaPreparation));
     await localOperatorIpc.StartAsync(CancellationToken.None);
 
     var hostStartedAt = DateTimeOffset.UtcNow;
