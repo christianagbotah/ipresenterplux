@@ -77,6 +77,124 @@ public sealed class HttpPresentationContentClientTests
         finally { if (Directory.Exists(directory)) Directory.Delete(directory,true); }
     }
 
+
+    [Fact]
+    public async Task MapsValidatedMediaDescriptor()
+    {
+        var identity = Identity();
+        var itemId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var sourceId = Guid.NewGuid();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+        {
+            ok = true,
+            item = new
+            {
+                itemId = itemId.ToString("D"), serviceId = serviceId.ToString("D"), itemType = "media",
+                title = "Worship opener", body = "", footer = (string?)null,
+                metadata = new Dictionary<string, string>(),
+                media = new
+                {
+                    sourceId = sourceId.ToString("D"), mediaKind = "video",
+                    downloadUrl = "https://media.example.test/worship.mp4", assetVersion = new string('a', 64),
+                    contentTypeHint = "video/mp4", title = "Worship opener", trimStartSeconds = 2.5,
+                    trimEndSeconds = 18.0, loop = true, volume = 0.75, fit = "cover"
+                }
+            }
+        })))) { BaseAddress = new Uri("http://127.0.0.1:3011") };
+
+        var client = new HttpPresentationContentClient(http, identity, new FixedCredentialStore(Credential(identity)));
+        var item = await client.GetAsync(itemId.ToString("D"), CancellationToken.None);
+
+        Assert.NotNull(item.Media);
+        Assert.Equal(sourceId, item.Media.SourceId);
+        Assert.Equal("video", item.Media.MediaKind);
+        Assert.Equal("https://media.example.test/worship.mp4", item.Media.DownloadUrl.AbsoluteUri);
+        Assert.Equal(new string('a', 64), item.Media.AssetVersion);
+        Assert.Equal("video/mp4", item.Media.ContentTypeHint);
+        Assert.Equal(2.5, item.Media.TrimStartSeconds);
+        Assert.Equal(18.0, item.Media.TrimEndSeconds);
+        Assert.True(item.Media.Loop);
+        Assert.Equal(0.75, item.Media.Volume);
+        Assert.Equal("cover", item.Media.Fit);
+    }
+
+    [Theory]
+    [InlineData("ftp://media.example.test/worship.mp4", "video", 0, 10, 1, "contain")]
+    [InlineData("https://user:pass@media.example.test/worship.mp4", "video", 0, 10, 1, "contain")]
+    [InlineData("https://media.example.test/worship.mp4", "binary", 0, 10, 1, "contain")]
+    [InlineData("https://media.example.test/worship.mp4", "video", -1, 10, 1, "contain")]
+    [InlineData("https://media.example.test/worship.mp4", "video", 10, 5, 1, "contain")]
+    [InlineData("https://media.example.test/worship.mp4", "video", 0, 10, 1.1, "contain")]
+    [InlineData("https://media.example.test/worship.mp4", "video", 0, 10, 1, "stretch")]
+    public async Task RejectsInvalidMediaDescriptor(
+        string downloadUrl, string mediaKind, double trimStart, double trimEnd, double volume, string fit)
+    {
+        var identity = Identity();
+        var itemId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+        {
+            ok = true,
+            item = new
+            {
+                itemId = itemId.ToString("D"), serviceId = serviceId.ToString("D"), itemType = "media",
+                title = "Invalid", body = "", footer = (string?)null, metadata = new Dictionary<string, string>(),
+                media = new
+                {
+                    sourceId = Guid.NewGuid().ToString("D"), mediaKind, downloadUrl, assetVersion = new string('b', 64),
+                    contentTypeHint = "video/mp4", title = "Invalid", trimStartSeconds = trimStart,
+                    trimEndSeconds = trimEnd, loop = false, volume, fit
+                }
+            }
+        })))) { BaseAddress = new Uri("http://127.0.0.1:3011") };
+
+        var client = new HttpPresentationContentClient(http, identity, new FixedCredentialStore(Credential(identity)));
+        await Assert.ThrowsAsync<InvalidDataException>(() => client.GetAsync(itemId.ToString("D"), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task KeepsLegacyPayloadWithoutMediaDescriptor()
+    {
+        var identity = Identity();
+        var itemId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+        {
+            ok = true,
+            item = new
+            {
+                itemId = itemId.ToString("D"), serviceId = serviceId.ToString("D"), itemType = "scripture",
+                title = "Psalm 23:1", body = "The Lord is my shepherd", footer = "KJV",
+                metadata = new Dictionary<string, string>()
+            }
+        })))) { BaseAddress = new Uri("http://127.0.0.1:3011") };
+
+        var client = new HttpPresentationContentClient(http, identity, new FixedCredentialStore(Credential(identity)));
+        var item = await client.GetAsync(itemId.ToString("D"), CancellationToken.None);
+        Assert.Null(item.Media);
+    }
+
+    [Fact]
+    public async Task RejectsMismatchedPresentationItemIdentity()
+    {
+        var identity = Identity();
+        var itemId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+        {
+            ok = true,
+            item = new
+            {
+                itemId = Guid.NewGuid().ToString("D"), serviceId = serviceId.ToString("D"), itemType = "scripture",
+                title = "Mismatch", body = "Text", footer = "KJV", metadata = new Dictionary<string, string>()
+            }
+        })))) { BaseAddress = new Uri("http://127.0.0.1:3011") };
+
+        var client = new HttpPresentationContentClient(http, identity, new FixedCredentialStore(Credential(identity)));
+        await Assert.ThrowsAsync<InvalidDataException>(() => client.GetAsync(itemId.ToString("D"), CancellationToken.None));
+    }
+
     private static AgentIdentity Identity() => new(
         Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
