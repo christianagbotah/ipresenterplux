@@ -25,6 +25,12 @@ public sealed class MediaFormatProbeTests
     }
 
     [Fact]
+    public void DetectsMp3FrameSyncWithoutId3Tag()
+    {
+        Assert.Equal("audio/mpeg", MediaFormatProbe.Detect([0xff, 0xfb, 0x90, 0x64], "audio", "audio/mpeg"));
+    }
+
+    [Fact]
     public void RejectsSpoofedOrKindMismatchedContent()
     {
         var spoofed = Assert.Throws<MediaAssetCacheException>(() =>

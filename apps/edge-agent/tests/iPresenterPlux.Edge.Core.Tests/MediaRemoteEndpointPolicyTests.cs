@@ -88,6 +88,7 @@ public sealed class MediaRemoteEndpointPolicyTests
         using var handler = policy.CreateHttpHandler();
 
         Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
         Assert.NotNull(handler.ConnectCallback);
     }
 

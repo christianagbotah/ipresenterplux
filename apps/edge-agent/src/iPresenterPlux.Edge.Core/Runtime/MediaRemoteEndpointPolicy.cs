@@ -82,6 +82,7 @@ public sealed class MediaRemoteEndpointPolicy
     public SocketsHttpHandler CreateHttpHandler() => new()
     {
         AllowAutoRedirect = false,
+        UseProxy = false,
         ConnectCallback = (context, cancellationToken) =>
             ConnectApprovedHostAsync(context.DnsEndPoint.Host, context.DnsEndPoint.Port, cancellationToken)
     };

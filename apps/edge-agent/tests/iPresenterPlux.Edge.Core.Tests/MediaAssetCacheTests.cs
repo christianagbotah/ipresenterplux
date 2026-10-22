@@ -246,6 +246,102 @@ public sealed class MediaAssetCacheTests
     }
 
     [Fact]
+    public void ExposesProductionConstructorThatOwnsPolicyControlledTransport()
+    {
+        var signature = new[]
+        {
+            typeof(string), typeof(MediaRemoteEndpointPolicy), typeof(MediaAssetCacheOptions), typeof(TimeProvider)
+        };
+        Assert.NotNull(typeof(MediaAssetCache).GetConstructor(signature));
+    }
+
+    [Fact]
+    public async Task AllowsGenericOctetStreamOnlyWhenTrustedHintMatchesDetectedBytes()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            using var http = Client((_, _) => Task.FromResult(Response(Mp4, "application/octet-stream")));
+            var cache = Cache(directory, http);
+
+            var entry = await cache.PrepareAsync(Guid.NewGuid(), Descriptor("video", "video/mp4"), CancellationToken.None);
+
+            Assert.Equal("video/mp4", entry.ContentType);
+        }
+        finally { Delete(directory); }
+    }
+
+    [Fact]
+    public async Task SupersededLeasedVersionIsRetiredWhenLeaseEnds()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            using var http = Client((_, _) => Task.FromResult(Response(Png, "image/png")));
+            var cache = Cache(directory, http);
+            var organizationId = Guid.NewGuid();
+            var sourceId = Guid.NewGuid();
+            var first = await cache.PrepareAsync(organizationId, Descriptor("image", "image/png", "v1", sourceId), CancellationToken.None);
+            var lease = cache.AcquireLease(first.CacheKey);
+            var second = await cache.PrepareAsync(organizationId, Descriptor("image", "image/png", "v2", sourceId), CancellationToken.None);
+
+            Assert.True(cache.TryGetReady(first.CacheKey, out _));
+            Assert.True(cache.TryGetReady(second.CacheKey, out _));
+            lease.Dispose();
+
+            Assert.False(cache.TryGetReady(first.CacheKey, out _));
+            Assert.False(File.Exists(first.Path));
+        }
+        finally { Delete(directory); }
+    }
+
+    [Fact]
+    public void RecoveryDeletesOrphanMediaFileWithoutManifest()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            var orphan = Path.Combine(directory, $"{new string('a', 64)}.media");
+            File.WriteAllBytes(orphan, Png);
+            using var http = Client((_, _) => Task.FromResult(Response(Png, "image/png")));
+
+            _ = Cache(directory, http);
+
+            Assert.False(File.Exists(orphan));
+        }
+        finally { Delete(directory); }
+    }
+
+    [Fact]
+    public async Task FailedOversizedReplacementPreservesLastReadyVersion()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            var calls = 0;
+            using var http = Client((_, _) =>
+            {
+                calls++;
+                var bytes = calls == 1 ? Png : Png.Concat(new byte[] { 0x00 }).ToArray();
+                return Task.FromResult(Response(bytes, "image/png"));
+            });
+            var options = new MediaAssetCacheOptions(ImageLimitBytes: Png.Length + 1, TotalQuotaBytes: Png.Length);
+            var cache = Cache(directory, http, options);
+            var organizationId = Guid.NewGuid();
+            var sourceId = Guid.NewGuid();
+            var first = await cache.PrepareAsync(organizationId, Descriptor("image", "image/png", "v1", sourceId), CancellationToken.None);
+
+            var error = await Assert.ThrowsAsync<MediaAssetCacheException>(() =>
+                cache.PrepareAsync(organizationId, Descriptor("image", "image/png", "v2", sourceId), CancellationToken.None));
+
+            Assert.Equal("media_cache_full", error.Code);
+            Assert.True(cache.TryGetReady(first.CacheKey, out _));
+            Assert.True(File.Exists(first.Path));
+        }
+        finally { Delete(directory); }
+    }
+
+    [Fact]
     public async Task RedirectToPrivateDestinationIsRejectedBeforeSecondRequestOrBodyRead()
     {
         var directory = TempDirectory();

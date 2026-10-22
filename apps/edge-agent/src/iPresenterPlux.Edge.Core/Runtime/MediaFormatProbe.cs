@@ -27,6 +27,9 @@ public static class MediaFormatProbe
         { mediaKind = "audio"; return "audio/mpeg"; }
         if (bytes.Length >= 2 && bytes[0] == 0xff && (bytes[1] & 0xf6) == 0xf0)
         { mediaKind = "audio"; return "audio/aac"; }
+        if (bytes.Length >= 2 && bytes[0] == 0xff && (bytes[1] & 0xe0) == 0xe0 &&
+            (bytes[1] & 0x18) != 0x08 && (bytes[1] & 0x06) != 0)
+        { mediaKind = "audio"; return "audio/mpeg"; }
         if (bytes.Length >= 12 && bytes.Slice(4,4).SequenceEqual("ftyp"u8))
         {
             var brand = bytes.Slice(8,4);

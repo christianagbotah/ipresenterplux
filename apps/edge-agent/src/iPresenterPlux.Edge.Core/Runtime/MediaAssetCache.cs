@@ -7,7 +7,7 @@ using iPresenterPlux.Edge.Core.Contracts;
 
 namespace iPresenterPlux.Edge.Core.Runtime;
 
-public sealed class MediaAssetCache : IMediaAssetCache
+public sealed class MediaAssetCache : IMediaAssetCache, IDisposable
 {
     private const int MaxRedirects = 5;
     private const int ProbeBytes = 64;
@@ -22,14 +22,36 @@ public sealed class MediaAssetCache : IMediaAssetCache
     private readonly object _sync = new();
     private readonly Dictionary<string, CacheRecord> _entries = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> _leases = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _retireWhenReleased = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Task<MediaAssetCacheEntry>> _inflight = new(StringComparer.Ordinal);
+    private readonly bool _ownsHttpClient;
 
     public MediaAssetCache(
+        string directoryPath,
+        MediaRemoteEndpointPolicy remotePolicy,
+        MediaAssetCacheOptions options,
+        TimeProvider clock)
+        : this(directoryPath, CreateProductionHttpClient(remotePolicy), remotePolicy, options, clock, ownsHttpClient: true)
+    {
+    }
+
+    internal MediaAssetCache(
         string directoryPath,
         HttpClient http,
         MediaRemoteEndpointPolicy remotePolicy,
         MediaAssetCacheOptions? options = null,
         TimeProvider? clock = null)
+        : this(directoryPath, http, remotePolicy, options, clock, ownsHttpClient: false)
+    {
+    }
+
+    private MediaAssetCache(
+        string directoryPath,
+        HttpClient http,
+        MediaRemoteEndpointPolicy remotePolicy,
+        MediaAssetCacheOptions? options,
+        TimeProvider? clock,
+        bool ownsHttpClient)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
         _root = Path.GetFullPath(directoryPath);
@@ -38,8 +60,18 @@ public sealed class MediaAssetCache : IMediaAssetCache
         _remotePolicy = remotePolicy ?? throw new ArgumentNullException(nameof(remotePolicy));
         _options = (options ?? new MediaAssetCacheOptions()).Validate();
         _clock = clock ?? TimeProvider.System;
+        _ownsHttpClient = ownsHttpClient;
         _downloads = new SemaphoreSlim(_options.MaxConcurrentDownloads, _options.MaxConcurrentDownloads);
         Recover();
+    }
+
+    private static HttpClient CreateProductionHttpClient(MediaRemoteEndpointPolicy remotePolicy)
+    {
+        ArgumentNullException.ThrowIfNull(remotePolicy);
+        return new HttpClient(remotePolicy.CreateHttpHandler(), disposeHandler: true)
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        };
     }
 
     public Task<MediaAssetCacheEntry> PrepareAsync(
@@ -135,7 +167,18 @@ public sealed class MediaAssetCache : IMediaAssetCache
                     output.Flush(flushToDisk: true);
                 }
 
-                var declaredType = response.Content.Headers.ContentType?.MediaType ?? descriptor.ContentTypeHint;
+                var responseType = response.Content.Headers.ContentType?.MediaType;
+                string? declaredType;
+                if (string.Equals(responseType, "application/octet-stream", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(descriptor.ContentTypeHint))
+                        throw new MediaAssetCacheException("media_type_invalid", "Generic media responses require a trusted content-type hint.");
+                    declaredType = descriptor.ContentTypeHint;
+                }
+                else
+                {
+                    declaredType = responseType ?? descriptor.ContentTypeHint;
+                }
                 var detectedType = MediaFormatProbe.Detect(probe.AsSpan(0, probeLength), descriptor.MediaKind, declaredType);
                 if (!string.IsNullOrWhiteSpace(descriptor.ContentTypeHint))
                     MediaFormatProbe.Detect(probe.AsSpan(0, probeLength), descriptor.MediaKind, descriptor.ContentTypeHint);
@@ -144,8 +187,8 @@ public sealed class MediaAssetCache : IMediaAssetCache
                 MediaAssetCacheEntry promoted;
                 lock (_sync)
                 {
-                    InvalidateOtherVersionsLocked(organizationId, descriptor.SourceId, descriptor.AssetVersion);
                     EnsureQuotaLocked(length, cacheKey);
+                    InvalidateOtherVersionsLocked(organizationId, descriptor.SourceId, descriptor.AssetVersion);
                     var mediaPath = Path.Combine(_root, $"{cacheKey}.media");
                     var manifestPath = Path.Combine(_root, $"{cacheKey}.manifest.json");
                     File.Move(tempPath, mediaPath, overwrite: true);
@@ -154,7 +197,15 @@ public sealed class MediaAssetCache : IMediaAssetCache
                     var manifest = new MediaAssetCacheManifest(
                         cacheKey, organizationId, descriptor.SourceId, descriptor.AssetVersion,
                         detectedType, descriptor.MediaKind, sha256, length, accessed);
-                    WriteManifestAtomic(manifestPath, manifest);
+                    try
+                    {
+                        WriteManifestAtomic(manifestPath, manifest);
+                    }
+                    catch
+                    {
+                        TryDelete(mediaPath);
+                        throw;
+                    }
                     promoted = new MediaAssetCacheEntry(cacheKey, mediaPath, detectedType, descriptor.MediaKind, sha256, length, accessed);
                     _entries[cacheKey] = new CacheRecord(promoted, manifest);
                 }
@@ -211,8 +262,14 @@ public sealed class MediaAssetCache : IMediaAssetCache
 
     private bool TryGetReadyLocked(string cacheKey, out MediaAssetCacheEntry entry)
     {
-        if (!_entries.TryGetValue(cacheKey, out var record) || !File.Exists(record.Entry.Path))
+        if (!_entries.TryGetValue(cacheKey, out var record))
         {
+            entry = default!;
+            return false;
+        }
+        if (!File.Exists(record.Entry.Path) || new FileInfo(record.Entry.Path).Length != record.Entry.Length)
+        {
+            RemoveLocked(cacheKey);
             entry = default!;
             return false;
         }
@@ -231,10 +288,10 @@ public sealed class MediaAssetCache : IMediaAssetCache
         foreach (var pair in _entries.Where(pair =>
                      pair.Value.Manifest.OrganizationId == organizationId &&
                      pair.Value.Manifest.SourceId == sourceId &&
-                     !string.Equals(pair.Value.Manifest.AssetVersion, assetVersion, StringComparison.Ordinal) &&
-                     _leases.GetValueOrDefault(pair.Key) == 0).ToArray())
+                     !string.Equals(pair.Value.Manifest.AssetVersion, assetVersion, StringComparison.Ordinal)).ToArray())
         {
-            RemoveLocked(pair.Key);
+            if (_leases.GetValueOrDefault(pair.Key) == 0) RemoveLocked(pair.Key);
+            else _retireWhenReleased.Add(pair.Key);
         }
     }
 
@@ -245,18 +302,24 @@ public sealed class MediaAssetCache : IMediaAssetCache
 
         long total = _entries.Values.Sum(item => item.Entry.Length);
         if (_entries.TryGetValue(incomingKey, out var replaced)) total -= replaced.Entry.Length;
-        while (total + incomingLength > _options.TotalQuotaBytes)
+        if (total + incomingLength <= _options.TotalQuotaBytes) return;
+
+        var projected = total;
+        var planned = new List<string>();
+        foreach (var candidate in _entries
+                     .Where(pair => pair.Key != incomingKey && _leases.GetValueOrDefault(pair.Key) == 0)
+                     .OrderBy(pair => pair.Value.Entry.LastAccessedAt)
+                     .ThenBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            var candidate = _entries
-                .Where(pair => pair.Key != incomingKey && _leases.GetValueOrDefault(pair.Key) == 0)
-                .OrderBy(pair => pair.Value.Entry.LastAccessedAt)
-                .ThenBy(pair => pair.Key, StringComparer.Ordinal)
-                .FirstOrDefault();
-            if (string.IsNullOrEmpty(candidate.Key))
-                throw new MediaAssetCacheException("media_cache_full", "No inactive cache entry can be evicted to make room.");
-            total -= candidate.Value.Entry.Length;
-            RemoveLocked(candidate.Key);
+            projected -= candidate.Value.Entry.Length;
+            planned.Add(candidate.Key);
+            if (projected + incomingLength <= _options.TotalQuotaBytes) break;
         }
+
+        if (projected + incomingLength > _options.TotalQuotaBytes)
+            throw new MediaAssetCacheException("media_cache_full", "No inactive cache entry can be evicted to make room.");
+
+        foreach (var cacheKey in planned) RemoveLocked(cacheKey);
     }
 
     private void Recover()
@@ -267,7 +330,14 @@ public sealed class MediaAssetCache : IMediaAssetCache
             try
             {
                 var manifest = JsonSerializer.Deserialize<MediaAssetCacheManifest>(File.ReadAllText(manifestPath), JsonOptions);
-                if (manifest is null || string.IsNullOrWhiteSpace(manifest.CacheKey)) { TryDelete(manifestPath); continue; }
+                if (manifest is null || !IsCacheKey(manifest.CacheKey) ||
+                    !string.Equals(Path.GetFileName(manifestPath), $"{manifest.CacheKey}.manifest.json", StringComparison.Ordinal) ||
+                    !IsCacheKey(manifest.Sha256) || manifest.Length <= 0 ||
+                    manifest.MediaKind is not ("image" or "audio" or "video"))
+                {
+                    TryDelete(manifestPath);
+                    continue;
+                }
                 var mediaPath = Path.Combine(_root, $"{manifest.CacheKey}.media");
                 if (!File.Exists(mediaPath) || new FileInfo(mediaPath).Length != manifest.Length || !HashMatches(mediaPath, manifest.Sha256))
                 {
@@ -285,10 +355,17 @@ public sealed class MediaAssetCache : IMediaAssetCache
                 TryDelete(manifestPath);
             }
         }
+
+        foreach (var mediaPath in Directory.EnumerateFiles(_root, "*.media", SearchOption.TopDirectoryOnly))
+        {
+            var cacheKey = Path.GetFileNameWithoutExtension(mediaPath);
+            if (!IsCacheKey(cacheKey) || !_entries.ContainsKey(cacheKey)) TryDelete(mediaPath);
+        }
     }
 
     private void RemoveLocked(string cacheKey)
     {
+        _retireWhenReleased.Remove(cacheKey);
         if (!_entries.Remove(cacheKey, out var record)) return;
         TryDelete(record.Entry.Path);
         TryDelete(Path.Combine(_root, $"{cacheKey}.manifest.json"));
@@ -300,8 +377,15 @@ public sealed class MediaAssetCache : IMediaAssetCache
         lock (_sync)
         {
             var count = _leases.GetValueOrDefault(cacheKey);
-            if (count <= 1) _leases.Remove(cacheKey);
-            else _leases[cacheKey] = count - 1;
+            if (count <= 1)
+            {
+                _leases.Remove(cacheKey);
+                if (_retireWhenReleased.Contains(cacheKey)) RemoveLocked(cacheKey);
+            }
+            else
+            {
+                _leases[cacheKey] = count - 1;
+            }
         }
     }
 
@@ -309,6 +393,15 @@ public sealed class MediaAssetCache : IMediaAssetCache
     {
         var bytes = Encoding.UTF8.GetBytes($"{organizationId:D}|{sourceId:D}|{assetVersion}");
         return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    }
+
+    private static bool IsCacheKey(string value) =>
+        value.Length == 64 && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    public void Dispose()
+    {
+        _downloads.Dispose();
+        if (_ownsHttpClient) _http.Dispose();
     }
 
     private static bool IsRedirect(HttpStatusCode status) => (int)status is 301 or 302 or 303 or 307 or 308;
