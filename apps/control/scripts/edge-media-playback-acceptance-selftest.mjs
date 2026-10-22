@@ -28,7 +28,7 @@ assert.match(source.desktop, /OperatorWorkspaceCatalog\.CanTakePreview/);
 assert.match(source.renderer, /\/api\/media-assets\//);
 assert.match(source.windowsAudio, /IMediaAudioFrameProvider/);
 assert.match(source.macAudio, /IMediaAudioFrameProvider/);
-assert.match(source.macBridge, /return\s+5/);
+assert.match(source.macBridge, /bridgeApiVersion[\s\S]{0,120}\b5\b/);
 assert.doesNotMatch(source.desktop, /https:\/\/[^\s\"']+.*preview\.prepare_item/i, "desktop must not provide a remote media URL to Preview");
 for (const token of ["windows", "macos", "offline", "projector", "contribution", "restart", "250 ms", "120 ms"]) assert.ok(source.fieldUat.toLowerCase().includes(token.toLowerCase()), `field UAT must document ${token}`);
 console.log(JSON.stringify({ ok: true, safeReadinessTransport: true, authoritativeBadges: true, takeGate: true, localAssetPlayback: true, windowsMediaAudio: true, macosMediaAudio: true, twoPlatformFieldGate: true }));
