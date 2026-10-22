@@ -1,5 +1,6 @@
 using System.Text.Json;
 using iPresenterPlux.Edge.Core.Abstractions;
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.State;
 using Xunit;
