@@ -126,7 +126,7 @@ public sealed class PresentationProgramVideoSource : IProgramVideoSource
         canvas.Clear(SKColors.Black);
         var destination = FitRectangle(source.Width, source.Height, _width, _height, fit);
         using var paint = new SKPaint { IsAntialias = true };
-        canvas.DrawBitmap(source, destination, paint);
+        canvas.DrawBitmap(source, destination, new SKSamplingOptions(SKFilterMode.Linear), paint);
         canvas.Flush();
 
         var length = checked(target.RowBytes * target.Height);

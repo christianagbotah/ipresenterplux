@@ -122,7 +122,7 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
             height,
             asset.Descriptor.Fit);
         using var paint = new SKPaint { IsAntialias = true };
-        canvas.DrawBitmap(source, destination, paint);
+        canvas.DrawBitmap(source, destination, new SKSamplingOptions(SKFilterMode.Linear), paint);
         canvas.Flush();
 
         var output = new byte[checked(target.RowBytes * target.Height)];
