@@ -1,7 +1,7 @@
 # Edge Media Cue Playback v1 — Design Specification
 
 Date: 2026-10-22
-Status: Design approved in conversation; written specification awaiting user review
+Status: Approved by user on 2026-10-22; implementation plan prepared for execution-method selection
 Base: `14005ee` (`feat(desktop): select Program output display`)
 Scope: approved image, video and audio rundown cues rendered reliably by iPresenterPlux Edge on local Preview/Program and contribution output
 
