@@ -7,6 +7,7 @@ const files = {
   preview: "../src/components/themes/ThemePreview.tsx",
   themeService: "../src/lib/presentation-themes.ts",
   edgeRoute: "../src/app/api/v1/edge/presentation/items/[id]/route.ts",
+  edgePresentationResolver: "../src/lib/edge-presentation-resolver.ts",
   edgeRenderer: "../../edge-agent/src/iPresenterPlux.Edge.Core/Runtime/LocalWebProgramOutputService.cs",
   edgeTheme: "../../edge-agent/src/iPresenterPlux.Edge.Core/Runtime/PresentationThemeMetadata.cs",
   edgeAssets: "../../edge-agent/src/iPresenterPlux.Edge.Core/Runtime/PresentationThemeAssetCache.cs",
@@ -29,7 +30,7 @@ assert.match(source.themeService, /listPresentationThemeImageAssets/);
 assert.match(source.themeService, /resolveThemeAssetManifest/);
 assert.match(source.edgeRoute, /themeAppearanceV1/);
 assert.match(source.edgeRoute, /themeAssetsV1/);
-assert.match(source.edgeRoute, /contentType:\s*"scripture"/);
+assert.match(source.edgeRoute, /contentType:\s*presentationThemeContentVariant\(item\.itemType\)/, "Edge presentation route must resolve the theme variant from the trusted item type");
 assert.match(source.edgeRoute, /output:\s*"projector"/);
 assert.match(source.edgeRenderer, /PresentationThemeMetadata\.Resolve/);
 assert.match(source.edgeRenderer, /\/api\/theme-assets\//);
