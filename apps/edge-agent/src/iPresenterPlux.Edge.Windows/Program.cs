@@ -90,6 +90,10 @@ static async Task<int> RunAsync()
     await using var visualRouter = new VisualProgramRouter(visualCatalog, visualFactory, renderedProgramSource);
 
     var contributionAudioBuffer = new BoundedContributionAudioBuffer();
+    using var mediaAudioFrameProvider = new WindowsMediaFoundationMediaAudioFrameProvider();
+    await using var programAudioMixCoordinator = new ProgramAudioMixCoordinator(
+        contributionAudioBuffer, mediaAudioFrameProvider, mediaPlayback, mediaPreparation);
+    await programAudioMixCoordinator.StartAsync(CancellationToken.None);
     var contributionTransport = new EncodedContributionStreamTransport(
         new WindowsMediaFoundationEncodedProgramVideoSource(visualRouter),
         new WindowsMediaFoundationEncodedProgramAudioSource(contributionAudioBuffer),
@@ -101,7 +105,7 @@ static async Task<int> RunAsync()
     var runtimeMediaOutput = new StreamPublishingMediaOutputService(mediaOutput, streamPublisher);
     EventHandler<AudioFrame> contributionAudioHandler = (_, frame) =>
     {
-        _ = contributionAudioBuffer.TrySubmit(frame);
+        _ = programAudioMixCoordinator.TrySubmitLive(frame);
     };
     audioCapture.AudioFrameCaptured += contributionAudioHandler;
 
