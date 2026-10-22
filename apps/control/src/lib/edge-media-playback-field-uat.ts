@@ -1,13 +1,25 @@
-const REQUIRED_PLATFORMS = ["windows", "macos"];
+const REQUIRED_PLATFORMS = ["windows", "macos"] as const;
 const VIDEO_DRIFT_LIMIT_MS = 250;
 const CONTRIBUTION_AV_SKEW_LIMIT_MS = 120;
 
-function unique(values) {
+type FieldUatRecord = Record<string, unknown>;
+
+function unique(values: string[]): string[] {
   return [...new Set(values)];
 }
 
-function text(value) {
+function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asRecord(value: unknown): FieldUatRecord | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as FieldUatRecord)
+    : null;
+}
+
+function measuredNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 export function createEdgeMediaPlaybackFieldUatTemplate(buildCommit = "") {
@@ -33,15 +45,19 @@ export function createEdgeMediaPlaybackFieldUatTemplate(buildCommit = "") {
   };
 }
 
-export function evaluateEdgeMediaPlaybackFieldUat(report) {
-  const blockers = [];
-  const expectedCommit = text(report?.buildCommit);
-  const evidence = Array.isArray(report?.evidence) ? report.evidence : [];
+export function evaluateEdgeMediaPlaybackFieldUat(report: unknown) {
+  const blockers: string[] = [];
+  const reportRecord = asRecord(report);
+  const expectedCommit = text(reportRecord?.buildCommit);
+  const evidenceValue = reportRecord?.evidence;
+  const evidence: unknown[] = Array.isArray(evidenceValue) ? evidenceValue : [];
 
   if (!expectedCommit) blockers.push("build_commit_required");
 
   for (const platform of REQUIRED_PLATFORMS) {
-    const item = evidence.find((candidate) => text(candidate?.platform).toLowerCase() === platform);
+    const item = evidence
+      .map((candidate) => asRecord(candidate))
+      .find((candidate) => text(candidate?.platform).toLowerCase() === platform);
     if (!item) {
       blockers.push(`${platform}_evidence_required`);
       continue;
@@ -60,12 +76,12 @@ export function evaluateEdgeMediaPlaybackFieldUat(report) {
     if (item.clearToScripture !== true) blockers.push("clear_to_scripture_required");
     if (item.dynamicRestartNoAutoResume !== true) blockers.push("dynamic_restart_no_auto_resume_required");
 
-    const videoDrift = Number(item.videoDriftMs);
-    if (!Number.isFinite(videoDrift) || videoDrift < 0 || videoDrift > VIDEO_DRIFT_LIMIT_MS)
-      blockers.push("video_drift_above_250ms");
-    const avSkew = Number(item.contributionAvSkewMs);
-    if (!Number.isFinite(avSkew) || avSkew < 0 || avSkew > CONTRIBUTION_AV_SKEW_LIMIT_MS)
-      blockers.push("contribution_av_skew_above_120ms");
+    const videoDrift = measuredNumber(item.videoDriftMs);
+    if (videoDrift === null) blockers.push("video_drift_measurement_required");
+    else if (videoDrift < 0 || videoDrift > VIDEO_DRIFT_LIMIT_MS) blockers.push("video_drift_above_250ms");
+    const avSkew = measuredNumber(item.contributionAvSkewMs);
+    if (avSkew === null) blockers.push("contribution_av_skew_measurement_required");
+    else if (avSkew < 0 || avSkew > CONTRIBUTION_AV_SKEW_LIMIT_MS) blockers.push("contribution_av_skew_above_120ms");
   }
 
   const normalized = unique(blockers);
