@@ -287,7 +287,7 @@ public sealed class MediaAssetCacheTests
         string contentType,
         string version = "v1",
         Guid? sourceId = null) =>
-        new(sourceId ?? Guid.NewGuid(), kind, new Uri($"https://cdn.example.test/{sourceId ?? Guid.Empty}/{version}.bin"),
+        new PresentationMediaDescriptor(sourceId ?? Guid.NewGuid(), kind, new Uri($"https://cdn.example.test/{sourceId ?? Guid.Empty}/{version}.bin"),
             version, contentType, "Fixture", 0, null, false, 1, "contain").Validate();
 
     private static HttpClient Client(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) =>
