@@ -58,6 +58,54 @@ public sealed class OperatorWorkspaceCatalogTests
     }
 
     [Fact]
+    public void MediaStatusUsesAuthoritativePreparationAndPlaybackWithProgramTakingPrecedence()
+    {
+        var serviceId = Guid.NewGuid();
+        var item = new OperatorWorkspaceItem(
+            "media-1", "Media", "Worship Video", "", null, "MEDIA", "media", true);
+
+        Assert.Equal("DOWNLOADING", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, SnapshotWithMedia(serviceId, MediaPreparationState.Downloading)));
+        Assert.Equal("READY", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, SnapshotWithMedia(serviceId, MediaPreparationState.Ready)));
+        Assert.Equal("ERROR", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, SnapshotWithMedia(serviceId, MediaPreparationState.Failed, errorCode: "media_download_failed")));
+
+        var live = SnapshotWithMedia(serviceId, MediaPreparationState.Ready, playbackState: "playing", programItemId: item.Id);
+        Assert.Equal("LIVE", OperatorWorkspaceCatalog.ResolveMediaStatus(item, live));
+        Assert.Equal("PAUSED", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, live with { MediaPlayback = live.MediaPlayback! with { State = "paused" } }));
+        Assert.Equal("ENDED", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, live with { MediaPlayback = live.MediaPlayback! with { State = "ended" } }));
+        Assert.Equal("ERROR", OperatorWorkspaceCatalog.ResolveMediaStatus(
+            item, live with { MediaPlayback = live.MediaPlayback! with { State = "error", ErrorCode = "media_browser_playback_blocked" } }));
+    }
+
+    [Fact]
+    public void TakeEligibilityBlocksUnreadyMediaButLeavesOrdinaryScriptureUnchanged()
+    {
+        var serviceId = Guid.NewGuid();
+        var media = MediaRender("media-1", serviceId);
+        var queued = SnapshotWithMedia(serviceId, MediaPreparationState.Queued) with { Preview = media };
+        var ready = SnapshotWithMedia(serviceId, MediaPreparationState.Ready) with { Preview = media };
+        var failed = SnapshotWithMedia(serviceId, MediaPreparationState.Failed, "media_corrupt") with { Preview = media };
+
+        Assert.False(OperatorWorkspaceCatalog.CanTakePreview(queued));
+        Assert.True(OperatorWorkspaceCatalog.CanTakePreview(ready));
+        Assert.False(OperatorWorkspaceCatalog.CanTakePreview(failed));
+
+        var scripture = queued with
+        {
+            Preview = new PresentationRenderItem(
+                "scripture-1", serviceId, "scripture", "John 3:16", "For God so loved...", "KJV", new Dictionary<string, string>())
+        };
+        Assert.True(OperatorWorkspaceCatalog.CanTakePreview(scripture));
+        var scriptureItem = new OperatorWorkspaceItem(
+            "scripture-1", "Scripture", "John 3:16", "For God so loved...", "KJV", "SCRIPTURE", "scripture", true);
+        Assert.Null(OperatorWorkspaceCatalog.ResolveMediaStatus(scriptureItem, scripture));
+    }
+
+    [Fact]
     public void StaleSyncedCatalogIsOfflineCacheNotRehearsal()
     {
         var catalog = Snapshot(Guid.NewGuid(), items: [], scripture: []);
@@ -131,6 +179,31 @@ public sealed class OperatorWorkspaceCatalogTests
         Assert.False(item.IsSynced);
         Assert.Equal("scripture", item.ToPresentation().ItemType);
     }
+
+    private static LocalOperatorSnapshot SnapshotWithMedia(
+        Guid serviceId,
+        MediaPreparationState state,
+        string? errorCode = null,
+        string? playbackState = null,
+        string? programItemId = null)
+    {
+        var preparations = new[]
+        {
+            new LocalOperatorMediaPreparation("media-1", serviceId, state, errorCode)
+        };
+        var playback = playbackState is null ? null : new MediaPlaybackSnapshot(
+            "media-1", serviceId, new string('f', 64), "video", playbackState,
+            DateTimeOffset.Parse("2026-10-22T12:00:00Z"), null, 0, 1.2, 0, 20, false, 1, "contain", 9);
+        return new LocalOperatorSnapshot(
+            true, null, programItemId is null ? null : MediaRender(programItemId, serviceId), false, null,
+            "Online", serviceId, "service", DateTimeOffset.Parse("2026-10-22T12:00:00Z"),
+            playback, preparations);
+    }
+
+    private static PresentationRenderItem MediaRender(string itemId, Guid serviceId) => new(
+        itemId, serviceId, "media", "Worship Video", "", null, new Dictionary<string, string>(),
+        new PresentationMediaDescriptor(Guid.NewGuid(), "video", new Uri("https://cdn.example.test/video.mp4"), "v1",
+            "video/mp4", "Video", 0, 20, false, 1, "contain").Validate());
 
     private static OperatorCatalogSnapshot Snapshot(
         Guid serviceId,

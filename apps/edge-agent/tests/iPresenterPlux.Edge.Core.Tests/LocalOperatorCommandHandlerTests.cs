@@ -119,6 +119,34 @@ public sealed class LocalOperatorCommandHandlerTests
     }
 
     [Fact]
+    public async Task SnapshotProjectsSafeAuthoritativeMediaReadinessWithoutLocalPaths()
+    {
+        var serviceId = Guid.NewGuid();
+        var itemId = Guid.NewGuid().ToString("D");
+        var state = new AgentRuntimeState();
+        state.Update(s => s with { ActiveServiceId = serviceId, ConnectionStatus = "Online", ServiceMode = "Live" });
+        var descriptor = new PresentationMediaDescriptor(
+            Guid.NewGuid(), "video", new Uri("https://cdn.example.test/video.mp4"), "v1",
+            "video/mp4", "Video", 0, 20, false, 1, "contain").Validate();
+        var asset = new PreparedMediaAsset(itemId, serviceId, new string('f', 64), "/private/cache/video.mp4",
+            "video/mp4", "video", TimeSpan.FromSeconds(20), descriptor);
+        var preparation = new ReadyPreparationCoordinator(asset);
+        await using var output = new LocalWebProgramOutputService(49416);
+        var handler = new LocalOperatorCommandHandler(state, output, mediaPreparation: preparation);
+
+        var response = await handler.HandleAsync(Request(LocalOperatorCommands.SnapshotQuery), CancellationToken.None);
+
+        var readiness = Assert.Single(response.Snapshot.MediaPreparations);
+        Assert.Equal(itemId, readiness.ItemId);
+        Assert.Equal(serviceId, readiness.ServiceId);
+        Assert.Equal(MediaPreparationState.Ready, readiness.State);
+        Assert.Null(readiness.ErrorCode);
+        Assert.DoesNotContain(typeof(LocalOperatorMediaPreparation).GetProperties(), property =>
+            property.Name.Contains("Path", StringComparison.OrdinalIgnoreCase) ||
+            property.Name.Contains("Asset", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task DynamicMediaPauseSeekAndResumeUseAuthoritativePlaybackState()
     {
         var serviceId = Guid.NewGuid();
