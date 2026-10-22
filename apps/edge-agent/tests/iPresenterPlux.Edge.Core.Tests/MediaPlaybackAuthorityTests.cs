@@ -69,7 +69,7 @@ public sealed class MediaPlaybackAuthorityTests
     }
 
     private static PresentationMediaDescriptor Descriptor(string kind, double trimStart, double? trimEnd) =>
-        new(
+        new PresentationMediaDescriptor(
             Guid.NewGuid(), kind, new Uri($"https://cdn.example.test/{kind}.bin"), "v1",
             kind == "video" ? "video/mp4" : "audio/mpeg", "Media",
             trimStart, trimEnd, false, 1, "contain").Validate();
