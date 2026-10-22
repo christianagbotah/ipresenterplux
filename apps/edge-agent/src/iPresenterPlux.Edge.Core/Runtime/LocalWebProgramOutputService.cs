@@ -14,6 +14,12 @@ public sealed record LocalProgramSnapshot(
 public sealed class LocalWebProgramOutputService : IMediaOutputService, IServiceScopedMediaOutput, IAsyncDisposable
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+    private static readonly HashSet<string> BrowserPlaybackErrorCodes = new(StringComparer.Ordinal)
+    {
+        "media_browser_playback_blocked",
+        "media_browser_decode_failed",
+        "media_browser_asset_unavailable"
+    };
     private readonly object _gate = new();
     private readonly HttpListener _listener = new();
     private readonly int _port;
@@ -69,6 +75,8 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
     {
         get { lock (_gate) return _persistenceHealthy; }
     }
+
+    public MediaPlaybackSnapshot? PlaybackSnapshot => _mediaPlayback?.Snapshot;
 
     public async Task RestoreAsync(CancellationToken cancellationToken)
     {
@@ -221,6 +229,38 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         finally { _programMutationGate.Release(); }
     }
 
+    public Task<MediaPlaybackSnapshot> PauseMediaAsync(CancellationToken cancellationToken) =>
+        MutatePlaybackAsync(
+            token => (_mediaPlayback ?? throw new InvalidOperationException("Media playback is unavailable.")).PauseAsync(token),
+            cancellationToken);
+
+    public Task<MediaPlaybackSnapshot> ResumeMediaAsync(CancellationToken cancellationToken) =>
+        MutatePlaybackAsync(
+            token => (_mediaPlayback ?? throw new InvalidOperationException("Media playback is unavailable.")).ResumeAsync(token),
+            cancellationToken);
+
+    public Task<MediaPlaybackSnapshot> SeekMediaAsync(double positionSeconds, CancellationToken cancellationToken) =>
+        MutatePlaybackAsync(
+            token => (_mediaPlayback ?? throw new InvalidOperationException("Media playback is unavailable.")).SeekAsync(positionSeconds, token),
+            cancellationToken);
+
+    private async Task<MediaPlaybackSnapshot> MutatePlaybackAsync(
+        Func<CancellationToken, Task<MediaPlaybackSnapshot>> mutation,
+        CancellationToken cancellationToken)
+    {
+        await _programMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = await mutation(cancellationToken).ConfigureAwait(false);
+            await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
+            return snapshot;
+        }
+        finally
+        {
+            _programMutationGate.Release();
+        }
+    }
+
     public async Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken)
     {
         var mutated = false;
@@ -279,23 +319,52 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         item.ItemId, item.ServiceId, item.ItemType, item.Title, item.Body, item.Footer, item.Metadata
     };
 
-    private BrowserMediaView? BrowserMedia(PresentationRenderItem? item)
+    private BrowserMediaView? BrowserMedia(PresentationRenderItem? item, bool includePlayback)
     {
         if (item?.Media is null || _mediaPreparation is null || _mediaAssetCache is null) return null;
         var prepared = _mediaPreparation.TryGet(item.ItemId);
         if (prepared?.State != MediaPreparationState.Ready || prepared.Asset is null ||
             prepared.ServiceId != item.ServiceId || !_mediaAssetCache.TryGetReady(prepared.Asset.CacheKey, out var cacheEntry))
         {
-            return new BrowserMediaView(null, item.Media.MediaKind, item.Media.ContentTypeHint, item.Media.Fit, item.Media.Volume,
-                prepared?.State.ToString().ToLowerInvariant() ?? "not_ready");
+            return new BrowserMediaView(
+                null, item.Media.MediaKind, item.Media.ContentTypeHint, item.Media.Fit, item.Media.Volume,
+                item.Media.Loop, prepared?.State.ToString().ToLowerInvariant() ?? "not_ready", null);
         }
+
+        BrowserPlaybackView? playbackView = null;
+        if (includePlayback && _mediaPlayback?.Snapshot is { } playback &&
+            string.Equals(playback.ItemId, item.ItemId, StringComparison.Ordinal) &&
+            playback.ServiceId == item.ServiceId)
+        {
+            playbackView = new BrowserPlaybackView(
+                playback.Revision,
+                playback.State,
+                playback.EffectivePositionSeconds,
+                DateTimeOffset.UtcNow);
+        }
+
         return new BrowserMediaView(
             $"/api/media-assets/{cacheEntry.CacheKey}", cacheEntry.MediaKind, cacheEntry.ContentType,
-            item.Media.Fit, item.Media.Volume, "ready");
+            item.Media.Fit, item.Media.Volume, item.Media.Loop, "ready", playbackView);
     }
 
+    private sealed record BrowserPlaybackView(
+        long Revision,
+        string State,
+        double EffectivePositionSeconds,
+        DateTimeOffset ServerTimeUtc);
+
     private sealed record BrowserMediaView(
-        string? AssetUrl, string MediaKind, string? ContentType, string Fit, double Volume, string PreparationState);
+        string? AssetUrl,
+        string MediaKind,
+        string? ContentType,
+        string Fit,
+        double Volume,
+        bool Loop,
+        string PreparationState,
+        BrowserPlaybackView? Playback);
+
+    private sealed record BrowserPlaybackReport(string ItemId, long Revision, string ErrorCode);
 
     private PersistedProgramState PersistentSnapshot() =>
         new(1, _preview, _program, _mediaPlayback?.Snapshot ?? _pendingPlaybackRecovery);
@@ -342,6 +411,11 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         try
         {
             var path = context.Request.Url?.AbsolutePath ?? "/";
+            if (path == "/api/media-playback/report")
+            {
+                await HandleMediaPlaybackReportAsync(context).ConfigureAwait(false);
+                return;
+            }
             if (path.StartsWith("/api/media-assets/", StringComparison.Ordinal))
             {
                 await HandleMediaAssetAsync(context, path).ConfigureAwait(false);
@@ -361,7 +435,8 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
             }
             if (path is "/api/state/program" or "/api/state/preview")
             {
-                var item = path.EndsWith("program", StringComparison.Ordinal) ? Snapshot.Program : Snapshot.Preview;
+                var isProgramState = path.EndsWith("program", StringComparison.Ordinal);
+                var item = isProgramState ? Snapshot.Program : Snapshot.Preview;
                 var theme = item is null ? null : PresentationThemeMetadata.Resolve(item.Metadata);
                 var themeAssets = theme is null ? new Dictionary<string, string>() : _themeAssetCache.AvailableLoopbackUrls(theme);
                 var json = JsonSerializer.Serialize(new
@@ -370,7 +445,7 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
                     item = BrowserItem(item),
                     theme,
                     themeAssets,
-                    media = BrowserMedia(item)
+                    media = BrowserMedia(item, isProgramState)
                 }, JsonOptions);
                 await WriteAsync(context.Response, "application/json; charset=utf-8", json).ConfigureAwait(false);
                 return;
@@ -393,6 +468,78 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         {
             try { context.Response.Abort(); } catch { }
         }
+    }
+
+    private async Task HandleMediaPlaybackReportAsync(HttpListenerContext context)
+    {
+        if (!string.Equals(context.Request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            context.Response.Headers["Allow"] = "POST";
+            await WriteAsync(context.Response, "text/plain; charset=utf-8", "Method not allowed").ConfigureAwait(false);
+            return;
+        }
+
+        if (context.Request.ContentLength64 > 2048)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await WriteAsync(context.Response, "text/plain; charset=utf-8", "Invalid playback report").ConfigureAwait(false);
+            return;
+        }
+
+        BrowserPlaybackReport? report;
+        try
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding ?? Encoding.UTF8, false, 1024, leaveOpen: true);
+            var body = await reader.ReadToEndAsync().ConfigureAwait(false);
+            if (body.Length > 2048) throw new JsonException("Playback report is too large.");
+            report = JsonSerializer.Deserialize<BrowserPlaybackReport>(body, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await WriteAsync(context.Response, "text/plain; charset=utf-8", "Invalid playback report").ConfigureAwait(false);
+            return;
+        }
+
+        if (report is null || string.IsNullOrWhiteSpace(report.ItemId) || report.ItemId.Length > 128 ||
+            report.Revision < 0 || string.IsNullOrWhiteSpace(report.ErrorCode) ||
+            !BrowserPlaybackErrorCodes.Contains(report.ErrorCode))
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+            await WriteAsync(context.Response, "text/plain; charset=utf-8", "Invalid playback report").ConfigureAwait(false);
+            return;
+        }
+
+        if (_mediaPlayback is null)
+        {
+            context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+            await WriteAsync(context.Response, "text/plain; charset=utf-8", "Playback state changed").ConfigureAwait(false);
+            return;
+        }
+
+        await _programMutationGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var updated = await _mediaPlayback.ReportBrowserErrorAsync(
+                report.ItemId, report.Revision, report.ErrorCode, CancellationToken.None).ConfigureAwait(false);
+            if (updated is null)
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                await WriteAsync(context.Response, "text/plain; charset=utf-8", "Playback state changed").ConfigureAwait(false);
+                return;
+            }
+            await SaveCurrentStateAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        finally
+        {
+            _programMutationGate.Release();
+        }
+
+        context.Response.StatusCode = (int)HttpStatusCode.NoContent;
+        context.Response.ContentLength64 = 0;
+        context.Response.Headers["Cache-Control"] = "no-store";
+        context.Response.Close();
     }
 
     private async Task HandleMediaAssetAsync(HttpListenerContext context, string path)
@@ -494,7 +641,7 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05070a;color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
 #stage{box-sizing:border-box;position:relative;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(var(--ip-safe)*1%);background:var(--ip-bg);transition:background .22s ease}
 #content{max-width:92vw;box-sizing:border-box;border-radius:1.2vw;position:relative;z-index:2}
-#media-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1}#media-image[hidden]{display:none}#stage.media-image-active #content{display:none}
+#media-image,#media-video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:1}#media-image[hidden],#media-video[hidden],#media-audio[hidden]{display:none}#stage.media-image-active #content,#stage.media-video-active #content{display:none}
 #mode{font-size:clamp(12px,1.4vw,28px);letter-spacing:.35em;text-transform:uppercase;color:var(--ip-secondary);font-weight:800}
 #title{font-size:clamp(12px,calc(5vw * var(--ip-title-scale)),9vw);line-height:1.05;margin:1.5vw 0 0;font-weight:900;color:var(--ip-secondary)}
 #body{max-width:82vw;font-size:clamp(12px,calc(2.25vw * var(--ip-body-scale)),5vw);line-height:1.45;margin:2vw 0 0;color:var(--ip-primary);white-space:pre-wrap}
@@ -502,10 +649,10 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05070a;col
 #footer{font-size:clamp(12px,calc(1.35vw * var(--ip-footer-scale)),3vw);margin-top:2vw;color:var(--ip-secondary);font-weight:700;letter-spacing:.08em}.empty{opacity:.28}
 .anim-fade{animation:ipFade .28s ease both}.anim-slide{animation:ipSlide .3s ease both}.anim-zoom{animation:ipZoom .28s ease both}
 @keyframes ipFade{from{opacity:0}to{opacity:1}}@keyframes ipSlide{from{opacity:0;transform:translateY(2vh)}to{opacity:1;transform:none}}@keyframes ipZoom{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
-</style></head><body><main id="stage"><img id="media-image" alt="" hidden><img id="logo" alt="" hidden><div id="content"><div id="mode">{{{view}}}</div><h1 id="title" class="empty">Waiting for iPresenterPlux</h1><div id="body"></div><div id="footer"></div></div></main>
+</style></head><body><main id="stage"><img id="media-image" alt="" hidden><video id="media-video" playsinline hidden></video><audio id="media-audio" hidden></audio><img id="logo" alt="" hidden><div id="content"><div id="mode">{{{view}}}</div><h1 id="title" class="empty">Waiting for iPresenterPlux</h1><div id="body"></div><div id="footer"></div></div></main>
 <script>
 const view={{{JsonSerializer.Serialize(view)}}};
-const stage=document.getElementById('stage'),content=document.getElementById('content'),title=document.getElementById('title'),body=document.getElementById('body'),footer=document.getElementById('footer'),mode=document.getElementById('mode'),logo=document.getElementById('logo'),mediaImage=document.getElementById('media-image');
+const stage=document.getElementById('stage'),content=document.getElementById('content'),title=document.getElementById('title'),body=document.getElementById('body'),footer=document.getElementById('footer'),mode=document.getElementById('mode'),logo=document.getElementById('logo'),mediaImage=document.getElementById('media-image'),mediaVideo=document.getElementById('media-video'),mediaAudio=document.getElementById('media-audio');
 const gradients=Object.freeze({midnight:'linear-gradient(135deg,#090d14,#121b2a)',violet_pink:'linear-gradient(135deg,#312e81,#7c3aed,#db2777)',navy_teal:'linear-gradient(135deg,#07111f,#0f3d56)',ivory_rose:'linear-gradient(135deg,#fff7ed,#fce7f3)'});
 const fonts=new Set(['Inter','Arial','Verdana','Trebuchet MS','Georgia','Times New Roman','Noto Sans','Noto Serif']);
 const hex=/^#[0-9a-f]{6}$/i;
@@ -538,9 +685,32 @@ function applyTheme(theme,item,assets){
   mode.style.color=hex.test(t.secondaryTextColor||'')?t.secondaryTextColor:'#e5b95e';
 }
 function animateContent(kind){content.classList.remove('anim-fade','anim-slide','anim-zoom');void content.offsetWidth;if(kind==='fade')content.classList.add('anim-fade');else if(kind==='slide')content.classList.add('anim-slide');else if(kind==='zoom')content.classList.add('anim-zoom');}
-function applyMedia(media,item){const active=media?.mediaKind==='image'&&typeof media.assetUrl==='string';if(!active){mediaImage.hidden=true;mediaImage.removeAttribute('src');delete mediaImage.dataset.identity;stage.classList.remove('media-image-active');return;}const identity=(item?.itemId||'')+'|'+media.assetUrl;if(mediaImage.dataset.identity!==identity){mediaImage.src=media.assetUrl;mediaImage.dataset.identity=identity;}mediaImage.style.objectFit=media.fit==='cover'?'cover':'contain';mediaImage.hidden=false;stage.classList.add('media-image-active');}
+async function reportPlaybackError(itemId,revision,errorCode){if(!itemId||!Number.isFinite(Number(revision)))return;try{await fetch('/api/media-playback/report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({itemId,revision,errorCode}),cache:'no-store'});}catch{}}
+function resetDynamicMedia(element){element.pause();element.hidden=true;element.removeAttribute('src');delete element.dataset.identity;delete element.dataset.revision;delete element.dataset.reportedRevision;try{element.load();}catch{}}
+async function syncDynamicMedia(element,media,item){
+  const identity=(item?.itemId||'')+'|'+media.assetUrl+'|'+media.mediaKind;
+  if(element.dataset.identity!==identity){element.pause();element.src=media.assetUrl;element.dataset.identity=identity;delete element.dataset.revision;delete element.dataset.reportedRevision;try{element.load();}catch{}}
+  element.hidden=false;element.loop=media.loop===true;element.volume=clamp(media.volume,0,1,1);
+  const playback=media.playback;if(!playback){element.pause();return;}
+  const revision=Number(playback.revision);let target=Number(playback.effectivePositionSeconds);const serverTime=Date.parse(playback.serverTimeUtc||'');
+  if(playback.state==='playing'&&Number.isFinite(serverTime)&&Number.isFinite(target))target+=Math.max(0,(Date.now()-serverTime)/1000);
+  if(Number.isFinite(target)&&Math.abs(element.currentTime-target)>0.25){try{element.currentTime=target;}catch{}}
+  if(element.dataset.revision===String(revision))return;element.dataset.revision=String(revision);
+  if(playback.state==='playing'){
+    try{await element.play();}
+    catch{if(element.dataset.reportedRevision!==String(revision)){element.dataset.reportedRevision=String(revision);await reportPlaybackError(item?.itemId,playback.revision,'media_browser_playback_blocked');}}
+  }else{element.pause();}
+}
+async function applyMedia(media,item){
+  const kind=media?.mediaKind;const hasAsset=typeof media?.assetUrl==='string';
+  stage.classList.remove('media-image-active','media-video-active');
+  if(kind==='image'&&hasAsset){resetDynamicMedia(mediaVideo);resetDynamicMedia(mediaAudio);const identity=(item?.itemId||'')+'|'+media.assetUrl;if(mediaImage.dataset.identity!==identity){mediaImage.src=media.assetUrl;mediaImage.dataset.identity=identity;}mediaImage.style.objectFit=media.fit==='cover'?'cover':'contain';mediaImage.hidden=false;stage.classList.add('media-image-active');return;}
+  mediaImage.hidden=true;mediaImage.removeAttribute('src');delete mediaImage.dataset.identity;
+  if((kind==='video'||kind==='audio')&&hasAsset){const active=kind==='video'?mediaVideo:mediaAudio;const inactive=kind==='video'?mediaAudio:mediaVideo;resetDynamicMedia(inactive);if(kind==='video'){mediaVideo.style.objectFit=media.fit==='cover'?'cover':'contain';stage.classList.add('media-video-active');}await syncDynamicMedia(active,media,item);return;}
+  resetDynamicMedia(mediaVideo);resetDynamicMedia(mediaAudio);
+}
 let lastItemId=null;
-async function refresh(){try{const r=await fetch('/api/state/'+view,{cache:'no-store'});const p=await r.json();const i=p.item;applyTheme(p.theme,i,p.themeAssets);applyMedia(p.media,i);if(!i){title.textContent='';body.textContent='';footer.textContent='';title.classList.add('empty');lastItemId=null;return;}title.classList.remove('empty');title.textContent=i.title||'';body.textContent=i.body||'';footer.textContent=i.footer||'';if(i.itemId!==lastItemId){animateContent(p.theme?.animation);lastItemId=i.itemId;}}catch{}}
+async function refresh(){try{const r=await fetch('/api/state/'+view,{cache:'no-store'});const p=await r.json();const i=p.item;applyTheme(p.theme,i,p.themeAssets);await applyMedia(p.media,i);if(!i){title.textContent='';body.textContent='';footer.textContent='';title.classList.add('empty');lastItemId=null;return;}title.classList.remove('empty');title.textContent=i.title||'';body.textContent=i.body||'';footer.textContent=i.footer||'';if(i.itemId!==lastItemId){animateContent(p.theme?.animation);lastItemId=i.itemId;}}catch{}}
 refresh();setInterval(refresh,250);
 </script></body></html>
 """;

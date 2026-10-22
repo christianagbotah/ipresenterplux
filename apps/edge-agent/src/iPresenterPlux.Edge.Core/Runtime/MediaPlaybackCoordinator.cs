@@ -72,10 +72,10 @@ public sealed class MediaPlaybackCoordinator
         cancellationToken.ThrowIfCancellationRequested();
         lock (_gate)
         {
-            var current = RequireDynamicUnsafe();
+            _ = RequireDynamicUnsafe();
+            var current = EvaluateUnsafe()!;
             if (current.State != "playing")
                 throw new InvalidOperationException("Only playing media can be paused.");
-            current = EvaluateUnsafe()!;
             var now = _clock.GetUtcNow();
             _snapshot = current with
             {
@@ -97,7 +97,7 @@ public sealed class MediaPlaybackCoordinator
             var current = RequireDynamicUnsafe();
             EnsureServiceUnsafe(current.ServiceId);
             current = EvaluateUnsafe()!;
-            if (current.State is not ("paused" or "recovery_required" or "ended"))
+            if (current.State is not ("paused" or "recovery_required" or "ended" or "error"))
                 throw new InvalidOperationException("Media is not paused or awaiting recovery.");
             var position = current.State == "ended" ? current.TrimStartSeconds : current.EffectivePositionSeconds;
             _snapshot = current with
@@ -152,6 +152,41 @@ public sealed class MediaPlaybackCoordinator
             }
         }
         return Task.CompletedTask;
+    }
+
+    public Task<MediaPlaybackSnapshot?> ReportBrowserErrorAsync(
+        string itemId,
+        long revision,
+        string errorCode,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorCode);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            var current = EvaluateUnsafe();
+            if (current is null ||
+                current.MediaKind is not ("video" or "audio") ||
+                !string.Equals(current.ItemId, itemId, StringComparison.Ordinal) ||
+                current.Revision != revision ||
+                _activeServiceId != current.ServiceId)
+            {
+                return Task.FromResult<MediaPlaybackSnapshot?>(null);
+            }
+
+            var now = _clock.GetUtcNow();
+            _snapshot = current with
+            {
+                State = "error",
+                StartedAtUtc = null,
+                PausedAtUtc = now,
+                BasePositionSeconds = current.EffectivePositionSeconds,
+                Revision = ++_revision,
+                ErrorCode = errorCode
+            };
+            return Task.FromResult<MediaPlaybackSnapshot?>(_snapshot);
+        }
     }
 
     public Task<MediaPlaybackSnapshot> RestoreRecoveryAsync(MediaPlaybackSnapshot persisted, CancellationToken cancellationToken)

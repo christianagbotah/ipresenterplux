@@ -147,7 +147,7 @@ public sealed class LocalOperatorCommandHandlerTests
         var seek = await handler.HandleAsync(MediaRequest(
             LocalOperatorCommands.MediaSeek, new LocalOperatorMediaControl(7.5)), CancellationToken.None);
         Assert.True(seek.Ok);
-        Assert.Equal(7.5, playback.Snapshot?.EffectivePositionSeconds, 3);
+        Assert.Equal(7.5, Assert.IsType<MediaPlaybackSnapshot>(playback.Snapshot).EffectivePositionSeconds, 3);
 
         var resume = await handler.HandleAsync(MediaRequest(LocalOperatorCommands.MediaResume), CancellationToken.None);
         Assert.True(resume.Ok);

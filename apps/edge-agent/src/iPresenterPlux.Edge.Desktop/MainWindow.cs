@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -57,6 +58,10 @@ public sealed class MainWindow : Window
     private readonly Button _take = ActionButton("TAKE → PROGRAM", true);
     private readonly Button _clear = ActionButton("Clear Program", false);
     private readonly Button _record = ActionButton("Start Recording", false);
+    private readonly Button _mediaPause = ActionButton("Pause Media", false);
+    private readonly Button _mediaResume = ActionButton("Resume Media", false);
+    private readonly TextBox _mediaSeek = Input("Seconds", false);
+    private readonly Button _mediaSeekApply = ActionButton("Seek", false);
     private readonly List<Button> _localOutputButtons = [];
     private string _activeCategory = "All";
     private OperatorWorkspaceView _workspace = OperatorWorkspaceCatalog.FromCatalog(null, stale: false);
@@ -125,6 +130,10 @@ public sealed class MainWindow : Window
         CanMaximize = true;
         ExtendClientAreaToDecorationsHint = false;
         Background = Brush("#070A0F");
+        _mediaPause.IsVisible = false;
+        _mediaResume.IsVisible = false;
+        _mediaSeek.IsVisible = false;
+        _mediaSeekApply.IsVisible = false;
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.png");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
 
@@ -163,6 +172,13 @@ public sealed class MainWindow : Window
         _take.Click += async (_, _) => await TakeAsync();
         _clear.Click += async (_, _) => await ClearProgramAsync();
         _record.Click += async (_, _) => await ToggleRecordingAsync();
+        _mediaPause.Click += async (_, _) => await PauseProgramMediaAsync();
+        _mediaResume.Click += async (_, _) => await ResumeProgramMediaAsync();
+        _mediaSeekApply.Click += async (_, _) => await SeekProgramMediaAsync();
+        _mediaSeek.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Enter && _mediaSeekApply.IsEnabled) _ = SeekProgramMediaAsync();
+        };
         _resolveScripture.Click += async (_, _) => await ResolveAndPreviewScriptureAsync();
         _scriptureReference.KeyDown += (_, args) =>
         {
@@ -445,12 +461,21 @@ public sealed class MainWindow : Window
         };
         _take.Margin = new Thickness(0, 0, 8, 6);
         _clear.Margin = new Thickness(0, 0, 8, 6);
+        _mediaPause.Margin = new Thickness(0, 0, 6, 6);
+        _mediaResume.Margin = new Thickness(0, 0, 6, 6);
+        _mediaSeek.Width = 82;
+        _mediaSeek.Margin = new Thickness(0, 0, 6, 6);
+        _mediaSeekApply.Margin = new Thickness(0, 0, 8, 6);
         var transitionHint = TransitionHint();
         transitionHint.Margin = new Thickness(0, 0, 8, 6);
         var openProgram = LocalOutputButton("Open Program", "program");
         openProgram.Margin = new Thickness(0, 0, 0, 6);
         transitionActions.Children.Add(_take);
         transitionActions.Children.Add(_clear);
+        transitionActions.Children.Add(_mediaPause);
+        transitionActions.Children.Add(_mediaResume);
+        transitionActions.Children.Add(_mediaSeek);
+        transitionActions.Children.Add(_mediaSeekApply);
         transitionActions.Children.Add(transitionHint);
         transitionActions.Children.Add(openProgram);
         var transitionBar = new Border {
@@ -1010,6 +1035,46 @@ public sealed class MainWindow : Window
         null,
         "Program cleared.");
 
+    private Task PauseProgramMediaAsync() => SendOperatorAsync(
+        LocalOperatorCommands.MediaPause,
+        null,
+        "Program media paused.");
+
+    private Task ResumeProgramMediaAsync() => SendOperatorAsync(
+        LocalOperatorCommands.MediaResume,
+        null,
+        "Program media resumed.");
+
+    private async Task SeekProgramMediaAsync()
+    {
+        var text = _mediaSeek.Text?.Trim() ?? string.Empty;
+        if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) ||
+            !double.IsFinite(seconds))
+        {
+            SetOperatorFeedback("Enter a valid media position in seconds.", true);
+            return;
+        }
+
+        if (_operatorBusy) return;
+        _operatorBusy = true;
+        try
+        {
+            var response = await _operatorClient.SeekMediaAsync(seconds, CancellationToken.None);
+            RenderOperatorSnapshot(response.Snapshot);
+            SetOperatorFeedback(
+                response.Ok ? "Program media seek updated." : SafeOperatorError(response.ErrorCode),
+                !response.Ok);
+        }
+        catch
+        {
+            SetOperatorUnavailable();
+        }
+        finally
+        {
+            _operatorBusy = false;
+        }
+    }
+
     private Task ToggleRecordingAsync() => SendOperatorAsync(
         _recordingActive ? LocalOperatorCommands.RecordingStop : LocalOperatorCommands.RecordingStart,
         null,
@@ -1060,8 +1125,28 @@ public sealed class MainWindow : Window
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
         _take.IsEnabled = snapshot.Preview is not null;
         _clear.IsEnabled = snapshot.Program is not null;
+        var dynamicProgram = IsDynamicProgramMedia(snapshot.Program);
+        var playback = snapshot.MediaPlayback is { } current &&
+            snapshot.Program is { } program &&
+            string.Equals(current.ItemId, program.ItemId, StringComparison.Ordinal) &&
+            current.ServiceId == program.ServiceId ? current : null;
+        _mediaPause.IsVisible = dynamicProgram;
+        _mediaResume.IsVisible = dynamicProgram;
+        _mediaSeek.IsVisible = dynamicProgram;
+        _mediaSeekApply.IsVisible = dynamicProgram;
+        _mediaPause.IsEnabled = dynamicProgram && playback?.State == "playing";
+        _mediaResume.IsEnabled = dynamicProgram && playback?.State is "paused" or "recovery_required" or "ended" or "error";
+        _mediaSeek.IsEnabled = dynamicProgram && playback is not null;
+        _mediaSeekApply.IsEnabled = dynamicProgram && playback is not null;
+        if (playback is not null && !_mediaSeek.IsFocused)
+            _mediaSeek.Text = playback.EffectivePositionSeconds.ToString("0.###", CultureInfo.InvariantCulture);
         RefreshRundown();
     }
+
+    private static bool IsDynamicProgramMedia(PresentationRenderItem? item) =>
+        item?.Media is { } media &&
+        (string.Equals(media.MediaKind, "video", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(media.MediaKind, "audio", StringComparison.OrdinalIgnoreCase));
 
     private static void RenderStage(
         iPresenterPlux.Edge.Core.Contracts.PresentationRenderItem? item,
@@ -1106,6 +1191,14 @@ public sealed class MainWindow : Window
         _record.IsEnabled = false;
         _take.IsEnabled = false;
         _clear.IsEnabled = false;
+        _mediaPause.IsVisible = false;
+        _mediaResume.IsVisible = false;
+        _mediaSeek.IsVisible = false;
+        _mediaSeekApply.IsVisible = false;
+        _mediaPause.IsEnabled = false;
+        _mediaResume.IsEnabled = false;
+        _mediaSeek.IsEnabled = false;
+        _mediaSeekApply.IsEnabled = false;
         RefreshRundown();
     }
 
@@ -1121,6 +1214,8 @@ public sealed class MainWindow : Window
         "service_required" => "This action requires an active service assignment. Preview and Program still work in rehearsal mode.",
         "recording_unavailable" => "Local recording is not available on this runtime.",
         "invalid_runtime_state" => "The local runtime is not ready for that action yet.",
+        "media_control_unavailable" => "Program does not currently contain controllable video or audio.",
+        "media_seek_invalid" => "Enter a valid media position in seconds.",
         "scripture_query_required" or "scripture_reference_invalid" => "Enter a scripture reference such as John 3:16 or Psalm 23.",
         "bible_version_invalid" => "Choose a valid Bible version for this service.",
         "scripture_unavailable_offline" => "That passage is not in the offline cache. Reconnect the Control Plane or choose a cached passage.",

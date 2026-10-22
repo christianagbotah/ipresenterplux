@@ -77,6 +77,12 @@ public sealed class LocalOperatorCommandHandler
                     await _mediaOutput.ClearProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(requestId, "program_clear");
 
+                case LocalOperatorCommands.MediaPause:
+                case LocalOperatorCommands.MediaResume:
+                case LocalOperatorCommands.MediaSeek:
+                    return await HandleMediaControlAsync(
+                        requestId, request.Command, request.Media, cancellationToken).ConfigureAwait(false);
+
                 case LocalOperatorCommands.OutputStart:
                     await _mediaOutput.StartProgramOutputAsync(cancellationToken).ConfigureAwait(false);
                     return Success(requestId, "output_started");
@@ -112,6 +118,48 @@ public sealed class LocalOperatorCommandHandler
         catch
         {
             return Failure(requestId, "command_failed");
+        }
+    }
+
+    private async Task<LocalOperatorResponse> HandleMediaControlAsync(
+        string requestId,
+        string command,
+        LocalOperatorMediaControl? control,
+        CancellationToken cancellationToken)
+    {
+        var program = _mediaOutput.Snapshot.Program;
+        var playback = _mediaOutput.PlaybackSnapshot;
+        var mediaKind = program?.Media?.MediaKind;
+        if (program is null || playback is null ||
+            mediaKind is not ("video" or "audio") ||
+            !string.Equals(playback.ItemId, program.ItemId, StringComparison.Ordinal))
+        {
+            return Failure(requestId, "media_control_unavailable");
+        }
+
+        var activeServiceId = _state.Snapshot.ActiveServiceId;
+        if (activeServiceId is null ||
+            program.ServiceId != activeServiceId ||
+            playback.ServiceId != activeServiceId)
+        {
+            return Failure(requestId, "catalog_scope_mismatch");
+        }
+
+        switch (command)
+        {
+            case LocalOperatorCommands.MediaPause:
+                await _mediaOutput.PauseMediaAsync(cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_paused");
+            case LocalOperatorCommands.MediaResume:
+                await _mediaOutput.ResumeMediaAsync(cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_resumed");
+            case LocalOperatorCommands.MediaSeek:
+                if (control?.PositionSeconds is not { } position || !double.IsFinite(position))
+                    return Failure(requestId, "media_seek_invalid");
+                await _mediaOutput.SeekMediaAsync(position, cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_seeked");
+            default:
+                return Failure(requestId, "unsupported_command");
         }
     }
 
@@ -308,6 +356,7 @@ public sealed class LocalOperatorCommandHandler
             runtime.ConnectionStatus,
             runtime.ActiveServiceId,
             runtime.ServiceMode,
-            _clock.GetUtcNow());
+            _clock.GetUtcNow(),
+            _mediaOutput.PlaybackSnapshot);
     }
 }

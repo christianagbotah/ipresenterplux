@@ -13,6 +13,9 @@ public static class LocalOperatorCommands
     public const string PreviewPrepareItem = "preview.prepare_item";
     public const string ProgramTake = "program.take";
     public const string ProgramClear = "program.clear";
+    public const string MediaPause = "media.pause";
+    public const string MediaResume = "media.resume";
+    public const string MediaSeek = "media.seek";
     public const string OutputStart = "output.start";
     public const string OutputStop = "output.stop";
     public const string RecordingStart = "recording.start";
@@ -20,7 +23,7 @@ public static class LocalOperatorCommands
 
     public static bool IsAllowed(string? command) => command is
         SnapshotQuery or CatalogQuery or ScriptureResolve or PreviewRender or PreviewPrepareItem or ProgramTake or ProgramClear or
-        OutputStart or OutputStop or RecordingStart or RecordingStop;
+        MediaPause or MediaResume or MediaSeek or OutputStart or OutputStop or RecordingStart or RecordingStop;
 }
 
 public sealed record LocalOperatorPresentation(
@@ -36,12 +39,15 @@ public sealed record LocalOperatorScriptureQuery(
 
 public sealed record LocalOperatorItemRequest(string ItemId);
 
+public sealed record LocalOperatorMediaControl(double? PositionSeconds = null);
+
 public sealed record LocalOperatorRequest(
     string RequestId,
     string Command,
     LocalOperatorPresentation? Presentation = null,
     LocalOperatorScriptureQuery? Scripture = null,
-    LocalOperatorItemRequest? Item = null);
+    LocalOperatorItemRequest? Item = null,
+    LocalOperatorMediaControl? Media = null);
 
 public sealed record LocalOperatorSnapshot(
     bool OutputRunning,
@@ -52,7 +58,8 @@ public sealed record LocalOperatorSnapshot(
     string ConnectionStatus,
     Guid? ActiveServiceId,
     string ServiceMode,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    MediaPlaybackSnapshot? MediaPlayback = null);
 
 public sealed record LocalOperatorResponse(
     string RequestId,
