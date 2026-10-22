@@ -21,6 +21,26 @@ public sealed class MainWindowOrderOfServiceWiringTests
         Assert.Contains("NEXT", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void MainWindowProvidesActionableMediaRecoveryCopy()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        foreach (var code in new[]
+        {
+            "media_download_failed", "media_remote_unsafe", "media_too_large", "media_type_unsupported",
+            "media_corrupt", "media_cache_full", "media_scope_mismatch", "media_browser_playback_blocked",
+            "media_video_decode_failed", "media_audio_decode_failed"
+        })
+        {
+            Assert.Contains($"\"{code}\"", source, StringComparison.Ordinal);
+        }
+        Assert.Contains("Preview again", source, StringComparison.Ordinal);
+        Assert.Contains("approved HTTPS", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("supported", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("disk space", source, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
