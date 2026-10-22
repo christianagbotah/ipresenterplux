@@ -30,6 +30,7 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
     private PresentationRenderItem? _program;
     private IDisposable? _previewMediaLease;
     private IDisposable? _programMediaLease;
+    private MediaPlaybackSnapshot? _pendingPlaybackRecovery;
     private bool _running;
     private bool _persistenceHealthy = true;
     private bool _disposed;
@@ -80,10 +81,17 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
             {
                 _preview = state.Preview;
                 _program = state.Program;
+                _pendingPlaybackRecovery = state.MediaPlayback;
                 _persistenceHealthy = true;
             }
             if (_mediaPlayback is not null && state.MediaPlayback is not null)
-                await _mediaPlayback.RestoreRecoveryAsync(state.MediaPlayback, cancellationToken).ConfigureAwait(false);
+            {
+                _ = await _mediaPlayback.RestoreRecoveryAsync(state.MediaPlayback, cancellationToken).ConfigureAwait(false);
+                if (_mediaPlayback.Snapshot is not null)
+                {
+                    lock (_gate) _pendingPlaybackRecovery = null;
+                }
+            }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
         {
@@ -164,7 +172,6 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
                         var prepared = _mediaPreparation?.TryGet(preview.ItemId);
                         if (prepared?.State != MediaPreparationState.Ready || prepared.Asset is null || prepared.ServiceId != preview.ServiceId)
                             throw new InvalidOperationException("Media item is not ready for Program playback.");
-                        await _mediaPlayback.SetActiveServiceAsync(preview.ServiceId, cancellationToken).ConfigureAwait(false);
                         await _mediaPlayback.TakeAsync(prepared.Asset, cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -232,7 +239,27 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
         }
         previewLease?.Dispose();
         programLease?.Dispose();
-        if (_mediaPlayback is not null) await _mediaPlayback.SetActiveServiceAsync(serviceId, cancellationToken).ConfigureAwait(false);
+        if (_mediaPlayback is not null)
+        {
+            await _mediaPlayback.SetActiveServiceAsync(serviceId, cancellationToken).ConfigureAwait(false);
+            MediaPlaybackSnapshot? pending;
+            lock (_gate) pending = _pendingPlaybackRecovery;
+            if (pending is not null)
+            {
+                if (serviceId == pending.ServiceId)
+                {
+                    _ = await _mediaPlayback.RestoreRecoveryAsync(pending, cancellationToken).ConfigureAwait(false);
+                    if (_mediaPlayback.Snapshot is not null)
+                    {
+                        lock (_gate) _pendingPlaybackRecovery = null;
+                    }
+                }
+                else
+                {
+                    lock (_gate) _pendingPlaybackRecovery = null;
+                }
+            }
+        }
         if (mutated) await SaveCurrentStateAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -270,7 +297,8 @@ public sealed class LocalWebProgramOutputService : IMediaOutputService, IService
     private sealed record BrowserMediaView(
         string? AssetUrl, string MediaKind, string? ContentType, string Fit, double Volume, string PreparationState);
 
-    private PersistedProgramState PersistentSnapshot() => new(1, _preview, _program, _mediaPlayback?.Snapshot);
+    private PersistedProgramState PersistentSnapshot() =>
+        new(1, _preview, _program, _mediaPlayback?.Snapshot ?? _pendingPlaybackRecovery);
 
     private async Task SaveCurrentStateAsync(CancellationToken cancellationToken)
     {
