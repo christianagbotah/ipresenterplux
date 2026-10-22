@@ -267,11 +267,10 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                     ReleaseCom(sample);
                     throw new MediaVideoFrameProviderException("media_video_decode_failed", "Media Foundation reported a video decode error.");
                 }
-                if ((flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged)) != 0)
-                {
-                    ReleaseCom(sample);
-                    throw new MediaVideoFrameProviderException("media_video_decode_failed", "Video media type changed during decode.");
-                }
+                // Source Reader may report current/native type negotiation on the first decoded
+                // sample even after SetCurrentMediaType. The requested RGB32 contract is verified
+                // by the contiguous-buffer size below, so the informational flag is not fatal.
+                _ = flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged);
                 if (sample is null) continue;
 
                 IMFMediaBuffer? buffer = null;
