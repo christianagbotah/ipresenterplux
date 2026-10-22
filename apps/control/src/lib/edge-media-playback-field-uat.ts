@@ -65,8 +65,10 @@ export function evaluateEdgeMediaPlaybackFieldUat(report: unknown) {
 
     if (!text(item.device)) blockers.push("device_evidence_required");
     if (!text(item.projector)) blockers.push("projector_check_required");
-    if (!Array.isArray(item.mediaFixtureIds) || item.mediaFixtureIds.length < 3)
-      blockers.push("media_fixtures_required");
+    const mediaFixtureIds = Array.isArray(item.mediaFixtureIds)
+      ? unique(item.mediaFixtureIds.map((value) => text(value)).filter(Boolean))
+      : [];
+    if (mediaFixtureIds.length < 3) blockers.push("media_fixtures_required");
     if (text(item.status).toLowerCase() !== "pass") blockers.push("pending_or_failed_cases");
     if (!text(item.buildCommit) || (expectedCommit && text(item.buildCommit) !== expectedCommit))
       blockers.push("build_commit_mismatch");
