@@ -125,6 +125,19 @@ public sealed class MediaPreparationCoordinator : IMediaPreparationCoordinator, 
         }
     }
 
+    public IReadOnlyList<MediaPreparationSnapshot> GetSnapshots()
+    {
+        lock (_sync)
+        {
+            ThrowIfDisposed();
+            if (_activeServiceId is null) return Array.Empty<MediaPreparationSnapshot>();
+            return _states.Values
+                .Where(snapshot => snapshot.ServiceId == _activeServiceId)
+                .OrderBy(snapshot => snapshot.ItemId, StringComparer.Ordinal)
+                .ToArray();
+        }
+    }
+
     public IDisposable AcquireReadyLease(string itemId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemId);

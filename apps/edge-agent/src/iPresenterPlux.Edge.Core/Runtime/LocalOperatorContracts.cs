@@ -49,6 +49,12 @@ public sealed record LocalOperatorRequest(
     LocalOperatorItemRequest? Item = null,
     LocalOperatorMediaControl? Media = null);
 
+public sealed record LocalOperatorMediaPreparation(
+    string ItemId,
+    Guid ServiceId,
+    MediaPreparationState State,
+    string? ErrorCode);
+
 public sealed record LocalOperatorSnapshot(
     bool OutputRunning,
     PresentationRenderItem? Preview,
@@ -59,7 +65,8 @@ public sealed record LocalOperatorSnapshot(
     Guid? ActiveServiceId,
     string ServiceMode,
     DateTimeOffset UpdatedAt,
-    MediaPlaybackSnapshot? MediaPlayback = null);
+    MediaPlaybackSnapshot? MediaPlayback = null,
+    IReadOnlyList<LocalOperatorMediaPreparation>? MediaPreparations = null);
 
 public sealed record LocalOperatorResponse(
     string RequestId,

@@ -13,6 +13,8 @@ public interface IMediaPreparationCoordinator
 
     MediaPreparationSnapshot? TryGet(string itemId);
 
+    IReadOnlyList<MediaPreparationSnapshot> GetSnapshots() => Array.Empty<MediaPreparationSnapshot>();
+
     Task PrefetchAsync(
         Guid serviceId,
         IReadOnlyList<OperatorCatalogItem> items,

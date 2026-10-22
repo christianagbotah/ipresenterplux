@@ -1123,7 +1123,7 @@ public sealed class MainWindow : Window
         _operatorRecording.Foreground = snapshot.IsRecording ? Danger : Muted;
         _record.Content = snapshot.IsRecording ? "Stop Recording" : "Start Recording";
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
-        _take.IsEnabled = snapshot.Preview is not null;
+        _take.IsEnabled = OperatorWorkspaceCatalog.CanTakePreview(snapshot);
         _clear.IsEnabled = snapshot.Program is not null;
         var dynamicProgram = IsDynamicProgramMedia(snapshot.Program);
         var playback = snapshot.MediaPlayback is { } current &&

@@ -302,6 +302,7 @@ public sealed class LocalOperatorCommandHandlerTests
         public event EventHandler<MediaPreparationSnapshot>? StatusChanged { add { } remove { } }
         public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken) => Task.FromResult(_snapshot);
         public MediaPreparationSnapshot? TryGet(string itemId) => string.Equals(itemId, asset.ItemId, StringComparison.Ordinal) ? _snapshot : null;
+        public IReadOnlyList<MediaPreparationSnapshot> GetSnapshots() => [_snapshot];
         public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
         public IDisposable AcquireReadyLease(string itemId) => new Lease();
         public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
