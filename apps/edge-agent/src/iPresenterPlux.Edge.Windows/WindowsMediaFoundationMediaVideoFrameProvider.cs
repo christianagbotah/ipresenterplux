@@ -267,10 +267,14 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                     ReleaseCom(sample);
                     throw new MediaVideoFrameProviderException("media_video_decode_failed", "Media Foundation reported a video decode error.");
                 }
-                // Source Reader may report current/native type negotiation on the first decoded
-                // sample even after SetCurrentMediaType. The requested RGB32 contract is verified
-                // by the decoded buffer dimensions and row packing below, so the informational flag is not fatal.
-                _ = flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged);
+                if ((flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged)) != 0)
+                {
+                    // Media Foundation may return one transition sample in the old/native format
+                    // when the source reader changes to requested RGB32. Never interpret that
+                    // transition sample as BGRA; wait for the first stable RGB32 sample instead.
+                    ReleaseCom(sample);
+                    continue;
+                }
                 if (sample is null) continue;
 
                 IMFMediaBuffer? buffer = null;
