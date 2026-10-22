@@ -1,0 +1,49 @@
+name: Windows Desktop Launch Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/edge-agent/src/iPresenterPlux.Edge.Desktop/**"
+      - "apps/edge-agent/src/iPresenterPlux.Edge.Core/**"
+      - "apps/edge-agent/src/Lightworld.Update.Client/**"
+      - ".github/workflows/windows-desktop-launch-smoke.yml"
+  pull_request:
+    paths:
+      - "apps/edge-agent/src/iPresenterPlux.Edge.Desktop/**"
+      - "apps/edge-agent/src/iPresenterPlux.Edge.Core/**"
+      - "apps/edge-agent/src/Lightworld.Update.Client/**"
+      - ".github/workflows/windows-desktop-launch-smoke.yml"
+
+jobs:
+  launch:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: apps/edge-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Publish self-contained desktop shell
+        shell: pwsh
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=1.0.0 -o publish/desktop-launch-smoke
+      - name: Launch desktop and require it to stay alive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "publish/desktop-launch-smoke/iPresenterPlux.Edge.Desktop.exe").Path
+          $workingDirectory = Split-Path -Parent $exe
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workingDirectory -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            Write-Host "Desktop exited early with code $($process.ExitCode)."
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-3) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'iPresenterPlux|\.NET Runtime|Application Error' } |
+              Select-Object -First 12 -ExpandProperty Message |
+              ForEach-Object { Write-Host $_ }
+            throw "Desktop did not survive clean-Windows startup smoke."
+          }
+          Stop-Process -Id $process.Id -Force

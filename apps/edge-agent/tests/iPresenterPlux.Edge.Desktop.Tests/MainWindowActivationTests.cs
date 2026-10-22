@@ -48,6 +48,20 @@ public sealed class MainWindowActivationTests
     }
 
     [Fact]
+    public void MainWindowKeepsNativeCaptionButtonsAcrossMinimizeRestore()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("WindowDecorations = Avalonia.Controls.WindowDecorations.Full", source, StringComparison.Ordinal);
+        Assert.Contains("CanMinimize = true", source, StringComparison.Ordinal);
+        Assert.Contains("CanMaximize = true", source, StringComparison.Ordinal);
+        Assert.Contains("ExtendClientAreaToDecorationsHint = false", source, StringComparison.Ordinal);
+        Assert.Contains("Opened += OnWindowOpened", source, StringComparison.Ordinal);
+        Assert.Contains("private async void OnWindowOpened", source, StringComparison.Ordinal);
+        Assert.Contains("WindowState = WindowState.Maximized", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DesktopSettingsNeverPersistProductKeysOrActivationTokens()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "DesktopSettings.cs"));

@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+      - name: Validate Windows installer source contract
+        run: python scripts/installer-selftest.py
       - name: Restore Edge solution
         run: dotnet restore iPresenterPlux.Edge.sln
       - name: Restore desktop shell tests
@@ -34,6 +36,18 @@ jobs:
         run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
       - name: Test desktop shell
         run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater client tests
+        run: dotnet restore tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj
+      - name: Build Lightworld updater client tests
+        run: dotnet build tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater client
+        run: dotnet test tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater helper tests
+        run: dotnet restore tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj
+      - name: Build Lightworld updater helper tests
+        run: dotnet build tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater helper
+        run: dotnet test tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core
@@ -91,7 +105,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "publish/windows-runtime/libSrt" | Out-Null
           Copy-Item "publish/libsrt-stage/*" "publish/windows-runtime/libSrt/" -Recurse
       - name: Publish self-contained Windows desktop shell
-        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -o publish/windows-app
+        run: dotnet publish src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj -c Release -r win-x64 --self-contained true -p:Version=1.0.${{ github.run_number }} -o publish/windows-app
       - name: Stage Windows Edge runtime under desktop shell
         shell: pwsh
         run: |
@@ -100,17 +114,99 @@ jobs:
           if (-not (Test-Path "publish/windows-app/iPresenterPlux.Edge.Desktop.exe")) { throw "Desktop shell executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/iPresenterPlux.Edge.Windows.exe")) { throw "Edge runtime executable is missing" }
           if (-not (Test-Path "publish/windows-app/runtime/libSrt/srt.dll")) { throw "Bundled libsrt runtime is missing" }
+      - name: Publish self-contained Windows update helper
+        run: dotnet publish src/Lightworld.Update.Helper/Lightworld.Update.Helper.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -o publish/windows-helper
+      - name: Package Windows installer/update release layout
+        shell: pwsh
+        run: ./scripts/package-update.ps1 -Version "1.0.${{ github.run_number }}" -Channel beta
+      - name: Smoke packaged desktop startup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = (Resolve-Path "publish/windows-release/current/iPresenterPlux.Edge.Desktop.exe").Path
+          $workingDirectory = Split-Path -Parent $exe
+          $process = Start-Process -FilePath $exe -WorkingDirectory $workingDirectory -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            $events = Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-3) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'iPresenterPlux|\.NET Runtime|Application Error' } |
+              Select-Object -First 8 -ExpandProperty Message
+            if ($events) { $events | ForEach-Object { Write-Host $_ } }
+            throw "Packaged desktop exited during startup smoke with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          $compiler = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $compiler) {
+            choco install innosetup --no-progress -y
+          }
+          $candidate = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $candidate) {
+            $fallback = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            if (-not (Test-Path $fallback)) { throw "Inno Setup compiler is unavailable" }
+          }
+      - name: Build iPresenterPlux Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $compiler = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $compiler) { $compiler = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          $release = (Resolve-Path "publish/windows-release").Path
+          & $compiler "/DAppVersion=1.0.${{ github.run_number }}" "/DSourceRoot=$release" "/DOutputRoot=$release" "installer/windows/iPresenterPlux.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+      - name: Hash customer Windows installer
+        shell: pwsh
+        run: |
+          $installer = "publish/windows-release/iPresenterPlux-Setup.exe"
+          if (-not (Test-Path $installer)) { throw "iPresenterPlux-Setup.exe is missing" }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  iPresenterPlux-Setup.exe" | Set-Content -Encoding ascii "publish/windows-release/iPresenterPlux-Setup.exe.sha256"
+      - name: Check embedded update verification key
+        id: update-key
+        shell: pwsh
+        run: |
+          $catalogPath = "publish/windows-release/current/update-public-keys.json"
+          if (-not (Test-Path $catalogPath)) { throw "Packaged updater public-key catalog is missing" }
+          $catalog = Get-Content -Raw $catalogPath | ConvertFrom-Json
+          $properties = @($catalog.PSObject.Properties)
+          if ($properties.Count -eq 0) {
+            "bootstrap_ready=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Warning "Customer installer upload is blocked until the production updater public key is embedded."
+            exit 0
+          }
+          foreach ($property in $properties) {
+            if ([string]::IsNullOrWhiteSpace($property.Name)) { throw "Updater public-key id is empty" }
+            try { $raw = [Convert]::FromBase64String([string]$property.Value) }
+            catch { throw "Updater public key '$($property.Name)' is not valid base64" }
+            if ($raw.Length -ne 32) { throw "Updater public key '$($property.Name)' must be exactly 32 raw Ed25519 bytes" }
+          }
+          "bootstrap_ready=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: Verify Windows installer/update artifacts
+        run: python scripts/installer-selftest.py --release-dir publish/windows-release --version "1.0.${{ github.run_number }}"
       - name: Scan Windows licensing package
         shell: pwsh
-        run: python scripts/licensing-package-scan.py publish/windows-app
+        run: python scripts/licensing-package-scan.py publish/windows-release/current
       - name: Smoke SRT contribution against MediaMTX
         shell: pwsh
         run: ./smoke/run-mediamtx-smoke.ps1
-      - name: Upload Windows Edge desktop artifact
+      - name: Upload low-bandwidth Windows installer
+        if: steps.update-key.outputs.bootstrap_ready == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: ipresenterplux-edge-windows
-          path: apps/edge-agent/publish/windows-app
+          name: ipresenterplux-windows-installer
+          path: |
+            apps/edge-agent/publish/windows-release/iPresenterPlux-Setup.exe
+            apps/edge-agent/publish/windows-release/iPresenterPlux-Setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload installable Windows release
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipresenterplux-windows-release
+          path: apps/edge-agent/publish/windows-release
           if-no-files-found: error
           retention-days: 14
 
@@ -132,6 +228,18 @@ jobs:
         run: dotnet build tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-restore
       - name: Test desktop shell
         run: dotnet test tests/iPresenterPlux.Edge.Desktop.Tests/iPresenterPlux.Edge.Desktop.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater client tests
+        run: dotnet restore tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj
+      - name: Build Lightworld updater client tests
+        run: dotnet build tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater client
+        run: dotnet test tests/Lightworld.Update.Client.Tests/Lightworld.Update.Client.Tests.csproj -c Release --no-build --no-restore
+      - name: Restore Lightworld updater helper tests
+        run: dotnet restore tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj
+      - name: Build Lightworld updater helper tests
+        run: dotnet build tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj -c Release --no-restore
+      - name: Test Lightworld updater helper
+        run: dotnet test tests/Lightworld.Update.Helper.Tests/Lightworld.Update.Helper.Tests.csproj -c Release --no-build --no-restore
       - name: Build shared core tests
         run: dotnet build tests/iPresenterPlux.Edge.Core.Tests/iPresenterPlux.Edge.Core.Tests.csproj -c Release --no-restore
       - name: Test shared core

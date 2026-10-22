@@ -24,7 +24,9 @@ public sealed record EdgeDesktopSnapshot(
     bool ControlPlaneHealthy,
     bool LocalProgramHealthy,
     string? ErrorCode,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    bool CriticalLiveSessionActive = false,
+    string? DiagnosticMessage = null);
 
 public sealed class EdgeHostSupervisor : IAsyncDisposable
 {
@@ -179,7 +181,14 @@ public sealed class EdgeHostSupervisor : IAsyncDisposable
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return; }
             if (_stopRequested) return;
             var exitCode = child.ExitCode;
-            Publish(MapExitState(exitCode), null, exitCode, false, false, ExitErrorCode(exitCode));
+            Publish(
+                MapExitState(exitCode),
+                null,
+                exitCode,
+                false,
+                false,
+                ExitErrorCode(exitCode),
+                RuntimeDiagnostic(child.RecentStandardError));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
     }
@@ -202,16 +211,37 @@ public sealed class EdgeHostSupervisor : IAsyncDisposable
         _ => "runtime_exited"
     };
 
+    private static string? RuntimeDiagnostic(IReadOnlyList<string> lines)
+    {
+        if (lines.Count == 0) return null;
+        var candidate = lines.FirstOrDefault(line =>
+            line.Contains("exception", StringComparison.OrdinalIgnoreCase) ||
+            line.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+            line.Contains("failed", StringComparison.OrdinalIgnoreCase))
+            ?? lines.LastOrDefault(line => !line.TrimStart().StartsWith("at ", StringComparison.OrdinalIgnoreCase))
+            ?? lines[^1];
+        candidate = string.Join(" ", candidate.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        return candidate.Length <= 320 ? candidate : candidate[..317] + "...";
+    }
+
     private void Publish(
         EdgeDesktopRuntimeState state,
         int? processId,
         int? exitCode,
         bool controlHealthy,
         bool localProgramHealthy,
-        string? errorCode)
+        string? errorCode,
+        string? diagnosticMessage = null)
     {
         Snapshot = new EdgeDesktopSnapshot(
-            state, processId, exitCode, controlHealthy, localProgramHealthy, errorCode, DateTimeOffset.UtcNow);
+            state,
+            processId,
+            exitCode,
+            controlHealthy,
+            localProgramHealthy,
+            errorCode,
+            DateTimeOffset.UtcNow,
+            DiagnosticMessage: diagnosticMessage);
         SnapshotChanged?.Invoke(this, Snapshot);
     }
 

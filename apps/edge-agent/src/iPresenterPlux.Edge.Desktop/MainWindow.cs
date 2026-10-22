@@ -86,6 +86,8 @@ public sealed class MainWindow : Window
     private readonly Button _renewEntitlement = ActionButton("Retry validation", false);
     private readonly TextBox _deviceName = Input("Church production computer", false);
     private readonly TextBox _pairingCode = Input("One-time pairing code", true);
+    private readonly ComboBox _programDisplay = new() { MinHeight = 42, MinWidth = 260 };
+    private readonly TextBlock _programDisplayHint = Label("Program output display will be detected after the window opens.", 11, FontWeight.Normal, Muted);
     private readonly TextBlock _statusTitle = Label("Stopped", 22, FontWeight.Bold);
     private readonly TextBlock _statusDetail = Label("The local Edge runtime is not running.", 12, FontWeight.Normal, Muted);
     private readonly Border _statusDot = new() { Width = 10, Height = 10, CornerRadius = new CornerRadius(99), Background = Muted };
@@ -113,18 +115,21 @@ public sealed class MainWindow : Window
         _operatorTimer.Tick += async (_, _) => await RefreshOperatorAsync();
 
         Title = "iPresenterPlux Edge";
-        Width = 1120;
-        Height = 720;
+        Width = 1040;
+        Height = 640;
         MinWidth = 760;
         MinHeight = 520;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        WindowState = WindowState.Maximized;
+        WindowDecorations = Avalonia.Controls.WindowDecorations.Full;
+        CanMinimize = true;
+        CanMaximize = true;
+        ExtendClientAreaToDecorationsHint = false;
         Background = Brush("#070A0F");
         var icon = Path.Combine(AppContext.BaseDirectory, "Assets", "icon.png");
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
 
         Content = BuildContent();
-        Opened += async (_, _) => await LoadAsync();
+        Opened += OnWindowOpened;
         Closing += OnClosing;
         KeyDown += (_, args) =>
         {
@@ -164,11 +169,23 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
         };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
+        _programDisplay.SelectionChanged += (_, _) =>
+        {
+            if (_programDisplay.SelectedItem is ProgramDisplayTarget target)
+                RenderProgramDisplayHint(target, usedFallback: false, topologyChanged: false);
+        };
         _tabs.SelectionChanged += (_, _) =>
         {
             if (_tabs.SelectedIndex == OperatorTabIndex && !_entitlementUsable)
                 _tabs.SelectedIndex = ActivationTabIndex;
         };
+    }
+
+    private async void OnWindowOpened(object? sender, EventArgs e)
+    {
+        WindowState = WindowState.Maximized;
+        await LoadAsync();
+        Screens.Changed += (_, _) => Dispatcher.UIThread.Post(() => RefreshProgramDisplays(topologyChanged: true));
     }
 
     private Control BuildContent()
@@ -253,15 +270,15 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(18) };
+        var root = new Grid { Margin = new Thickness(14), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(292)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(14)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(220)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(14)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(300)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
 
         var header = new Border {
             Background = Surface,
@@ -352,7 +369,7 @@ public sealed class MainWindow : Window
         leftGrid.Children.Add(categories);
 
         _rundown.Background = SurfaceRaised;
-        _rundown.MinHeight = 260;
+        _rundown.MinHeight = 160;
         _rundown.SelectionChanged += (_, _) =>
         {
             if (_rundown.SelectedItem is OperatorRundownRow row)
@@ -372,11 +389,16 @@ public sealed class MainWindow : Window
         Grid.SetRow(leftActions, 5);
         leftGrid.Children.Add(leftActions);
 
-        var left = new Border {
+        var leftCard = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(18),
             Padding = new Thickness(16),
             Child = leftGrid
+        };
+        var left = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = leftCard
         };
         Grid.SetRow(left, 2);
         Grid.SetColumn(left, 0);
@@ -405,7 +427,7 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 12 };
+        var stages = new Grid { ColumnSpacing = 10, MaxHeight = 169 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
@@ -417,26 +439,26 @@ public sealed class MainWindow : Window
         Grid.SetRow(stages, 2);
         center.Children.Add(stages);
 
+        var transitionActions = new WrapPanel {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _take.Margin = new Thickness(0, 0, 8, 6);
+        _clear.Margin = new Thickness(0, 0, 8, 6);
+        var transitionHint = TransitionHint();
+        transitionHint.Margin = new Thickness(0, 0, 8, 6);
+        var openProgram = LocalOutputButton("Open Program", "program");
+        openProgram.Margin = new Thickness(0, 0, 0, 6);
+        transitionActions.Children.Add(_take);
+        transitionActions.Children.Add(_clear);
+        transitionActions.Children.Add(transitionHint);
+        transitionActions.Children.Add(openProgram);
         var transitionBar = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(14),
-            Child = new Grid {
-                ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*,Auto"),
-                ColumnSpacing = 10,
-                Children = {
-                    _take,
-                    _clear,
-                    TransitionHint(),
-                    LocalOutputButton("Open Program", "program")
-                }
-            }
+            Padding = new Thickness(10, 8),
+            Child = transitionActions
         };
-        Grid.SetColumn(_clear, 1);
-        var transitionHint = ((Grid)transitionBar.Child).Children[2];
-        Grid.SetColumn(transitionHint, 2);
-        var openProgram = ((Grid)transitionBar.Child).Children[3];
-        Grid.SetColumn(openProgram, 3);
         Grid.SetRow(transitionBar, 4);
         center.Children.Add(transitionBar);
 
@@ -496,6 +518,7 @@ public sealed class MainWindow : Window
         }));
 
         var right = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             Content = rightStack
         };
@@ -539,7 +562,7 @@ public sealed class MainWindow : Window
         return grid;
     }
 
-    private static Border BuildStage(
+    private static Control BuildStage(
         string label,
         TextBlock title,
         TextBlock body,
@@ -547,40 +570,53 @@ public sealed class MainWindow : Window
         IBrush accent)
     {
         title.TextAlignment = TextAlignment.Center;
+        title.FontSize = 28;
         body.TextAlignment = TextAlignment.Center;
         body.TextWrapping = TextWrapping.Wrap;
+        body.FontSize = 18;
         footer.TextAlignment = TextAlignment.Center;
+        footer.FontSize = 12;
 
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        var stageLabel = Label(label, 10, FontWeight.Bold, accent);
+        var stageLabel = Label(label, 12, FontWeight.Bold, accent);
         Grid.SetRow(stageLabel, 0);
         grid.Children.Add(stageLabel);
         var content = new StackPanel {
-            Spacing = 14,
+            Spacing = 12,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 560,
+            MaxWidth = 520,
             Children = { title, body, footer }
         };
         Grid.SetRow(content, 1);
         grid.Children.Add(content);
 
-        return new Border {
+        var frame = new Border {
+            Width = 640,
+            Height = 360,
             Background = Brush("#06090E"),
             BorderBrush = accent,
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(18),
             Padding = new Thickness(18),
-            MinHeight = 330,
             Child = grid
+        };
+
+        return new Viewbox {
+            MaxWidth = 300,
+            MaxHeight = 169,
+            Stretch = Stretch.Uniform,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Top,
+            Child = frame
         };
     }
 
     private Control BuildSetupContent()
     {
-        var root = new Grid { Margin = new Thickness(24) };
+        var root = new Grid { Margin = new Thickness(24), MinWidth = 900 };
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(330)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(18)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -600,6 +636,7 @@ public sealed class MainWindow : Window
             }
         });
 
+        _statusDetail.TextWrapping = TextWrapping.Wrap;
         sidebar.Children.Add(Card("Runtime status", new StackPanel {
             Spacing = 12,
             Children = {
@@ -641,9 +678,16 @@ public sealed class MainWindow : Window
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0, 2));
         setupGrid.Children.Add(Field("Device name", _deviceName, 1, 0));
         setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 1, 1));
+        _programDisplayHint.TextWrapping = TextWrapping.Wrap;
+        var displayPicker = new StackPanel {
+            Spacing = 6,
+            Children = { _programDisplay, _programDisplayHint }
+        };
+        setupGrid.Children.Add(Field("Program output display", displayPicker, 2, 0, 2));
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _save, _start, _restart, _stop })
@@ -651,7 +695,7 @@ public sealed class MainWindow : Window
             button.Margin = new Thickness(0, 0, 10, 0);
             actions.Children.Add(button);
         }
-        Grid.SetRow(actions, 2);
+        Grid.SetRow(actions, 3);
         Grid.SetColumnSpan(actions, 2);
         setupGrid.Children.Add(actions);
         main.Children.Add(Card("Connection & enrollment", setupGrid));
@@ -669,13 +713,13 @@ public sealed class MainWindow : Window
         _feedback.TextWrapping = TextWrapping.Wrap;
         main.Children.Add(_feedback);
 
-        var scroll = new ScrollViewer {
+        Grid.SetColumn(main, 2);
+        root.Children.Add(main);
+        return new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = main
+            Content = root
         };
-        Grid.SetColumn(scroll, 2);
-        root.Children.Add(scroll);
-        return root;
     }
 
     private Control BuildCapabilities()
@@ -1062,6 +1106,62 @@ public sealed class MainWindow : Window
         _ => "The Edge runtime rejected that local operator action."
     };
 
+    private void RefreshProgramDisplays(bool topologyChanged = false)
+    {
+        var screens = Screens.All;
+        var targets = screens.Select((screen, index) =>
+        {
+            var bounds = screen.Bounds;
+            var displayName = screen.DisplayName?.Trim();
+            var label = string.IsNullOrWhiteSpace(displayName) ? $"Display {index + 1}" : displayName;
+            var id = string.IsNullOrWhiteSpace(displayName)
+                ? $"display:{bounds.X},{bounds.Y}:{bounds.Width}x{bounds.Height}"
+                : displayName;
+            return new ProgramDisplayTarget(id, label, bounds.X, bounds.Y, bounds.Width, bounds.Height, screen.IsPrimary);
+        }).ToArray();
+
+        var preferredId = (_programDisplay.SelectedItem as ProgramDisplayTarget)?.Id ?? _settings.ProgramDisplayId;
+        _programDisplay.ItemsSource = targets;
+        if (string.IsNullOrWhiteSpace(preferredId))
+        {
+            _programDisplay.SelectedItem = null;
+            _programDisplayHint.Text = targets.Length == 0
+                ? "No connected display was detected. Program kiosk output will stay closed until a display is available."
+                : "Choose the projector or secondary display. Program kiosk output stays closed until a display is selected.";
+            _programDisplayHint.Foreground = targets.Length == 0 ? Warning : Muted;
+            return;
+        }
+
+        var selection = ProgramDisplaySelector.Resolve(preferredId, targets);
+        _programDisplay.SelectedItem = selection.Target;
+        RenderProgramDisplayHint(selection.Target, selection.UsedFallback, topologyChanged);
+    }
+
+    private void RenderProgramDisplayHint(
+        ProgramDisplayTarget? target,
+        bool usedFallback,
+        bool topologyChanged)
+    {
+        if (target is null)
+        {
+            _programDisplayHint.Text = "No connected display was detected. Program kiosk output will stay closed until a display is available.";
+            _programDisplayHint.Foreground = Warning;
+            return;
+        }
+
+        if (usedFallback)
+        {
+            _programDisplayHint.Text = $"The saved Program display is unavailable. {target.Label} will be used on the next Edge start.";
+            _programDisplayHint.Foreground = Warning;
+            return;
+        }
+
+        _programDisplayHint.Text = topologyChanged
+            ? $"Display topology changed. Program will use {target.Label} · {target.Width}×{target.Height} on the next Edge start."
+            : $"Program opens full-screen on {target.Label} · {target.Width}×{target.Height} when Edge starts.";
+        _programDisplayHint.Foreground = Muted;
+    }
+
     private async Task LoadAsync()
     {
         _settings = await _settingsStore.LoadAsync(CancellationToken.None);
@@ -1070,6 +1170,7 @@ public sealed class MainWindow : Window
         _controlUrl.Text = _settings.ControlPlaneUrl;
         _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
+        RefreshProgramDisplays();
 
         var validation = await LoadEntitlementAsync();
         _tabs.SelectedIndex = validation?.IsUsable == true ? OperatorTabIndex : ActivationTabIndex;
@@ -1087,11 +1188,22 @@ public sealed class MainWindow : Window
             SetFeedback("The packaged Edge runtime is not beside the shell yet. CI packaging must stage it before field use.", true);
     }
 
-    private DesktopSettings ReadSettings() => new DesktopSettings(
-        _controlUrl.Text?.Trim() ?? "",
-        _deviceName.Text?.Trim() ?? "",
-        49321,
-        _settings.InstallationId).Normalize();
+    private DesktopSettings ReadSettings()
+    {
+        var display = _programDisplay.SelectedItem as ProgramDisplayTarget;
+        return new DesktopSettings(
+            _controlUrl.Text?.Trim() ?? "",
+            _deviceName.Text?.Trim() ?? "",
+            _settings.ProgramPort,
+            _settings.InstallationId,
+            _settings.UpdateChannel,
+            _settings.UpdateHubUrl,
+            display?.Id,
+            display?.X,
+            display?.Y,
+            display?.Width,
+            display?.Height).Normalize();
+    }
 
     private async Task SaveAsync()
     {
@@ -1139,6 +1251,7 @@ public sealed class MainWindow : Window
         {
             if (!await EnsureEntitlementForStartAsync()) return;
             _settings = ReadSettings();
+            await _settingsStore.SaveAsync(_settings, CancellationToken.None);
             var pairing = _pairingCode.Text;
             _pairingCode.Text = "";
             await _supervisor.RestartAsync(_settings, pairing, CancellationToken.None);
@@ -1193,11 +1306,11 @@ public sealed class MainWindow : Window
         {
             var controlPlane = ValidateActivationControlPlane();
             _controlUrl.Text = controlPlane.ToString().TrimEnd('/');
-            _settings = new DesktopSettings(
-                _controlUrl.Text,
-                _deviceName.Text?.Trim() ?? Environment.MachineName,
-                49321,
-                _settings.InstallationId).Normalize();
+            _settings = (_settings with
+            {
+                ControlPlaneUrl = _controlUrl.Text,
+                DeviceName = _deviceName.Text?.Trim() ?? Environment.MachineName
+            }).Normalize();
             await _settingsStore.SaveAsync(_settings, CancellationToken.None);
 
             var validation = await _entitlementClient.ActivateAsync(
@@ -1340,9 +1453,12 @@ public sealed class MainWindow : Window
             EdgeDesktopRuntimeState.Crashed or EdgeDesktopRuntimeState.ConfigurationError => Danger,
             _ => Muted
         };
-        _statusDetail.Text = snapshot.ErrorCode is null
+        var statusDetail = snapshot.ErrorCode is null
             ? snapshot.ProcessId is { } pid ? $"Runtime process {pid}." : "The local Edge runtime is not running."
             : SafeErrorText(snapshot.ErrorCode);
+        _statusDetail.Text = string.IsNullOrWhiteSpace(snapshot.DiagnosticMessage)
+            ? statusDetail
+            : $"{statusDetail}\nRuntime detail · {snapshot.DiagnosticMessage}";
         _cloudStatus.Text = $"Control Plane · {(snapshot.ControlPlaneHealthy ? "connected" : "offline")}";
         _cloudStatus.Foreground = snapshot.ControlPlaneHealthy ? Good : Muted;
         var localOutputAvailable = LocalOutputLinkPolicy.CanOpen(snapshot);
@@ -1364,6 +1480,7 @@ public sealed class MainWindow : Window
         _controlUrl.IsEnabled = !running;
         _deviceName.IsEnabled = !running;
         _pairingCode.IsEnabled = !running;
+        _programDisplay.IsEnabled = !running;
         _save.IsEnabled = !running;
     }
 

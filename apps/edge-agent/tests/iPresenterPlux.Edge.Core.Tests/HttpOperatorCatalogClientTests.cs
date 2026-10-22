@@ -50,6 +50,37 @@ public sealed class HttpOperatorCatalogClientTests
     }
 
     [Fact]
+    public async Task AcceptsPostgresTimestampTextFromProductionCatalog()
+    {
+        var identity = Identity();
+        var serviceId = Guid.Parse("11111111-1111-4111-8111-111111111111");
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, new
+        {
+            ok = true,
+            service = new
+            {
+                serviceId,
+                title = "Field Test",
+                status = "live",
+                activeBibleVersion = "KJV",
+                scheduledStart = "2026-10-20 18:31:27.116074-04",
+                startedAt = "2026-10-20 18:31:27.116074-04"
+            },
+            bibleVersions = Array.Empty<object>(),
+            items = Array.Empty<object>(),
+            scriptureQueue = Array.Empty<object>(),
+            catalogRevision = "production-format",
+            observedAt = "2026-10-22T11:45:00.000Z"
+        }))) { BaseAddress = new Uri("https://control.example.test") };
+        var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
+
+        var catalog = await client.GetCatalogAsync(CancellationToken.None);
+
+        Assert.Equal(DateTimeOffset.Parse("2026-10-20T22:31:27.116074Z"), catalog.Service?.ScheduledStart);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-20T22:31:27.116074Z"), catalog.Service?.StartedAt);
+    }
+
+    [Fact]
     public async Task RejectsCatalogPayloadBeyondClientSafetyCaps()
     {
         var identity = Identity();

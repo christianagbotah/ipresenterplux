@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
+using iPresenterPlux.Edge.Desktop.Update;
 
 namespace iPresenterPlux.Edge.Desktop;
 
@@ -25,7 +26,19 @@ internal static class Program
             })
             .SetupWithLifetime(lifetime);
 
-        lifetime.MainWindow = new MainWindow();
+        var window = new MainWindow();
+        DesktopUpdateHost.Attach(window, ReadUpdateHealthToken(args));
+        lifetime.MainWindow = window;
         lifetime.Start(args);
+    }
+
+    private static string? ReadUpdateHealthToken(string[] args)
+    {
+        for (var index = 0; index < args.Length - 1; index++)
+        {
+            if (string.Equals(args[index], "--update-health-token", StringComparison.Ordinal))
+                return args[index + 1];
+        }
+        return null;
     }
 }

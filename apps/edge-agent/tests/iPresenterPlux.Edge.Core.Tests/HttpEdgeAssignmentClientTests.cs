@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
+using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.Transport;
 using Xunit;
 
@@ -30,6 +31,22 @@ public sealed class HttpEdgeAssignmentClientTests
         Assert.Equal(serviceId, assignment.ServiceId);
         Assert.Equal("Sunday Worship", assignment.Title);
         Assert.Equal("live", assignment.Status);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task RejectedCredentialRequiresFreshPairing(HttpStatusCode status)
+    {
+        var identity = Identity();
+        var store = new FixedCredentialStore(Credential(identity));
+        using var http = new HttpClient(new StubHandler(_ => Json(status, "{\"ok\":false}")))
+        { BaseAddress = new Uri("http://127.0.0.1:3011") };
+
+        var error = await Assert.ThrowsAsync<EdgeEnrollmentRequiredException>(() =>
+            new HttpEdgeAssignmentClient(http, identity, store).GetAsync());
+
+        Assert.Contains("pair", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

@@ -11,6 +11,7 @@ const schema = z.object({
   campusId: z.string().uuid().nullable().optional(),
   name: z.string().trim().min(2).max(120),
   platform: z.enum(["windows", "macos"]),
+  reprovisionRevoked: z.boolean().optional().default(false),
   ttlMinutes: z.number().int().min(5).max(30).default(15)
 });
 
@@ -60,18 +61,29 @@ export async function POST(request: Request) {
       );
 
       let deviceId: string;
+      let reprovisioning = false;
       if (existing.rows[0]) {
-        if (existing.rows[0].status === "revoked") {
+        if (existing.rows[0].status === "revoked" && !payload.reprovisionRevoked) {
           await client.query("rollback");
-          return NextResponse.json({ ok: false, error: "This Edge device has been revoked" }, { status: 409 });
+          return NextResponse.json({ ok: false, error: "This Edge device is revoked. Use the Re-provision action to issue a new pairing code." }, { status: 409 });
         }
+        reprovisioning = existing.rows[0].status === "revoked" && payload.reprovisionRevoked;
         deviceId = existing.rows[0].id;
         await client.query(
           `update edge_devices
-           set campus_id=$2,platform=$3,status=case when status='active' then 'active' else 'pending' end,updated_at=now()
+           set campus_id=$2,platform=$3,
+               status=case when $4::boolean then 'pending' when status='active' then 'active' else 'pending' end,
+               updated_at=now()
            where id=$1`,
-          [deviceId, payload.campusId ?? null, payload.platform]
+          [deviceId, payload.campusId ?? null, payload.platform, reprovisioning]
         );
+        if (reprovisioning) {
+          await client.query(
+            `update edge_device_credentials set state='revoked',revoked_at=coalesce(revoked_at,now())
+             where edge_device_id=$1 and state in ('active','rotation_required')`,
+            [deviceId]
+          );
+        }
       } else {
         const created = await client.query<{ id: string }>(
           `insert into edge_devices(organization_id,campus_id,name,platform,status)
@@ -95,10 +107,17 @@ export async function POST(request: Request) {
         [deviceId, codeHash, payload.ttlMinutes, session.user.id]
       );
 
+      const auditAction = reprovisioning ? "edge.device.reprovisioned" : "edge.pairing.created";
       await client.query(
         `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
-         values ($1,'operator',$2,'edge.pairing.created','edge_device',$3,$4::jsonb)`,
-        [payload.organizationId, session.user.id, deviceId, JSON.stringify({ platform: payload.platform, campusId: payload.campusId ?? null })]
+         values ($1,'operator',$2,$3,'edge_device',$4,$5::jsonb)`,
+        [
+          payload.organizationId,
+          session.user.id,
+          auditAction,
+          deviceId,
+          JSON.stringify({ platform: payload.platform, campusId: payload.campusId ?? null, previousStatus: reprovisioning ? "revoked" : null })
+        ]
       );
 
       await client.query("commit");

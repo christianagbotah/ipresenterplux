@@ -25,6 +25,31 @@ public sealed class DesktopSettingsStoreTests : IDisposable
         Assert.Equal(settings.DeviceName, loaded.DeviceName);
     }
 
+    [Fact]
+    public async Task LegacySettingsGainOnePersistentInstallationIdentity()
+    {
+        Directory.CreateDirectory(_directory);
+        var store = new DesktopSettingsStore(_directory);
+        await File.WriteAllTextAsync(store.SettingsPath,
+            """
+            {
+              "controlPlaneUrl": "https://control.example.test",
+              "deviceName": "Legacy Sanctuary Edge",
+              "programPort": 49321
+            }
+            """);
+
+        var first = await store.LoadAsync(CancellationToken.None);
+        var second = await store.LoadAsync(CancellationToken.None);
+        var persisted = await File.ReadAllTextAsync(store.SettingsPath);
+
+        Assert.False(string.IsNullOrWhiteSpace(first.InstallationId));
+        Assert.Equal(first.InstallationId, second.InstallationId);
+        Assert.Contains(first.InstallationId, persisted, StringComparison.Ordinal);
+        Assert.Equal("stable", first.UpdateChannel);
+        Assert.Equal("https://updates.lightworldtech.com", first.UpdateHubUrl);
+    }
+
     [Theory]
     [InlineData("http://church.example.test")]
     [InlineData("ftp://control.example.test")]

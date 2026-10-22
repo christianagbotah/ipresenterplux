@@ -67,6 +67,26 @@ public sealed class EdgeHostSupervisorTests : IDisposable
     }
 
     [Fact]
+    public async Task CrashSnapshotIncludesCapturedRuntimeDiagnostic()
+    {
+        var paths = Paths();
+        var factory = new FakeProcessFactory();
+        await using var supervisor = new EdgeHostSupervisor(
+            paths,
+            factory,
+            new FakeHealthProbe(new EdgeHealthProbeResult(true, true)));
+
+        await supervisor.StartAsync(Settings(), null);
+        await EventuallyAsync(() => factory.Process is not null);
+        factory.Process!.SetStandardError("Unhandled exception. System.InvalidOperationException: media bootstrap failed");
+        factory.Process.Complete(9);
+        await EventuallyAsync(() => supervisor.Snapshot.State == EdgeDesktopRuntimeState.Crashed);
+
+        Assert.Contains("InvalidOperationException", supervisor.Snapshot.DiagnosticMessage, StringComparison.Ordinal);
+        Assert.Contains("media bootstrap failed", supervisor.Snapshot.DiagnosticMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CloudLossDegradesWithoutStoppingLocalRuntime()
     {
         var paths = Paths();
@@ -136,6 +156,7 @@ public sealed class EdgeHostSupervisorTests : IDisposable
         public int Id => 4242;
         public bool HasExited => _exit.Task.IsCompleted;
         public int ExitCode => HasExited ? _exitCode : throw new InvalidOperationException("Process has not exited.");
+        public IReadOnlyList<string> RecentStandardError { get; private set; } = [];
         public bool KillCalled { get; private set; }
 
         public Task WaitForExitAsync(CancellationToken cancellationToken) => _exit.Task.WaitAsync(cancellationToken);
@@ -144,6 +165,7 @@ public sealed class EdgeHostSupervisorTests : IDisposable
             KillCalled = true;
             Complete(-1);
         }
+        public void SetStandardError(params string[] lines) => RecentStandardError = lines;
         public void Complete(int exitCode)
         {
             _exitCode = exitCode;

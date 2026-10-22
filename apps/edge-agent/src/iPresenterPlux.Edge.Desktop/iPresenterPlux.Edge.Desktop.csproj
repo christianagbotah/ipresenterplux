@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../iPresenterPlux.Edge.Core/iPresenterPlux.Edge.Core.csproj" />
+    <ProjectReference Include="../Lightworld.Update.Client/Lightworld.Update.Client.csproj" />
     <PackageReference Include="Avalonia" Version="12.1.3" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
@@ -19,5 +20,6 @@
   <ItemGroup>
     <Content Include="Assets/icon.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="entitlement-public-keys.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="update-public-keys.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

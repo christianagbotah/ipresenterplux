@@ -1,0 +1,64 @@
+name: Windows Installer Install Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Edge Agent CI run containing the installer artifact"
+        required: true
+        default: "39627605621"
+      artifact_name:
+        description: "Installer artifact name"
+        required: true
+        default: "ipresenterplux-windows-installer"
+  push:
+    paths:
+      - ".github/workflows/windows-installer-install-smoke.yml"
+
+jobs:
+  install-and-launch:
+    runs-on: windows-2022
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name || 'ipresenterplux-windows-installer' }}
+          path: installer
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id || '39627605621' }}
+      - name: Install exact selected artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $setup = (Resolve-Path "installer/iPresenterPlux-Setup.exe").Path
+          $log = Join-Path $env:RUNNER_TEMP "ipresenterplux-install.log"
+          $process = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',"/LOG=$log") -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            if (Test-Path $log) { Get-Content $log | Select-Object -Last 120 }
+            throw "Installer exited with code $($process.ExitCode)."
+          }
+          $installed = Join-Path $env:LOCALAPPDATA "Programs\Lightworld Technologies\iPresenterPlux\current\iPresenterPlux.Edge.Desktop.exe"
+          if (-not (Test-Path $installed)) {
+            if (Test-Path $log) { Get-Content $log | Select-Object -Last 120 }
+            throw "Installed desktop executable is missing at $installed"
+          }
+          "installed_exe=$installed" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Launch installed desktop
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $workingDirectory = Split-Path -Parent $env:installed_exe
+          $process = Start-Process -FilePath $env:installed_exe -WorkingDirectory $workingDirectory -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            Write-Host "Installed desktop exited early with code $($process.ExitCode)."
+            Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-3) } -ErrorAction SilentlyContinue |
+              Where-Object { $_.Message -match 'iPresenterPlux|\.NET Runtime|Application Error' } |
+              Select-Object -First 12 -ExpandProperty Message |
+              ForEach-Object { Write-Host $_ }
+            throw "Installed iPresenterPlux did not survive startup smoke."
+          }
+          Stop-Process -Id $process.Id -Force

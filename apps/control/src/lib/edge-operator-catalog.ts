@@ -57,6 +57,13 @@ export function normalizeOperatorText(value: unknown, maxLength: number) {
   return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
+export function normalizeOperatorTimestamp(value: string | null | undefined) {
+  if (!value?.trim()) return null;
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) throw new Error("Invalid operator catalog timestamp");
+  return parsed.toISOString();
+}
+
 export function asSafeStringRecord(value: unknown, maxEntries = 16): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const result: Record<string, string> = {};

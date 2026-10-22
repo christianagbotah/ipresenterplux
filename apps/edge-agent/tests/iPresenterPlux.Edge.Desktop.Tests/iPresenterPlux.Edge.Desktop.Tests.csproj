@@ -14,5 +14,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <ProjectReference Include="../../src/iPresenterPlux.Edge.Desktop/iPresenterPlux.Edge.Desktop.csproj" />
+    <ProjectReference Include="../../src/Lightworld.Update.Client/Lightworld.Update.Client.csproj" />
   </ItemGroup>
 </Project>
