@@ -7,7 +7,7 @@ const consumers = [
   "src/lib/cockpit/view-model.ts",
   "src/app/scripture/page.tsx",
   "src/lib/public-audience-service.ts",
-  "src/app/api/v1/edge/presentation/items/[id]/route.ts",
+  "src/lib/edge-presentation-resolver.ts",
   "src/lib/edge-operator-catalog-queries.ts"
 ];
 

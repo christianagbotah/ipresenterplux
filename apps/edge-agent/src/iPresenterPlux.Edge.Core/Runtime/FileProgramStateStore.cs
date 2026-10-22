@@ -6,7 +6,8 @@ namespace iPresenterPlux.Edge.Core.Runtime;
 public sealed record PersistedProgramState(
     int SchemaVersion,
     PresentationRenderItem? Preview,
-    PresentationRenderItem? Program);
+    PresentationRenderItem? Program,
+    MediaPlaybackSnapshot? MediaPlayback = null);
 
 public sealed class FileProgramStateStore
 {

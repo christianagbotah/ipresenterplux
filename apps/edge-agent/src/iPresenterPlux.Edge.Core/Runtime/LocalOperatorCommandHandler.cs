@@ -14,6 +14,7 @@ public sealed class LocalOperatorCommandHandler
     private readonly ILocalRecordingService? _recordingService;
     private readonly TimeProvider _clock;
     private readonly OperatorCatalogCoordinator? _operatorCatalog;
+    private readonly IMediaPreparationCoordinator? _mediaPreparation;
     private readonly TimeSpan _catalogMaxAge;
 
     public LocalOperatorCommandHandler(
@@ -22,13 +23,15 @@ public sealed class LocalOperatorCommandHandler
         ILocalRecordingService? recordingService = null,
         TimeProvider? clock = null,
         OperatorCatalogCoordinator? operatorCatalog = null,
-        TimeSpan? catalogMaxAge = null)
+        TimeSpan? catalogMaxAge = null,
+        IMediaPreparationCoordinator? mediaPreparation = null)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _mediaOutput = mediaOutput ?? throw new ArgumentNullException(nameof(mediaOutput));
         _recordingService = recordingService;
         _clock = clock ?? TimeProvider.System;
         _operatorCatalog = operatorCatalog;
+        _mediaPreparation = mediaPreparation;
         _catalogMaxAge = catalogMaxAge ?? TimeSpan.FromMinutes(1);
         if (_catalogMaxAge <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(catalogMaxAge), "Catalog maximum age must be positive.");
@@ -62,6 +65,9 @@ public sealed class LocalOperatorCommandHandler
                     await _mediaOutput.SetPreviewAsync(item!, cancellationToken).ConfigureAwait(false);
                     return Success(requestId, "preview_ready");
 
+                case LocalOperatorCommands.PreviewPrepareItem:
+                    return await HandlePrepareItemAsync(requestId, request.Item, cancellationToken).ConfigureAwait(false);
+
                 case LocalOperatorCommands.ProgramTake:
                     if (_mediaOutput.Snapshot.Preview is null) return Failure(requestId, "preview_required");
                     await _mediaOutput.TakePreviewToProgramAsync(cancellationToken).ConfigureAwait(false);
@@ -70,6 +76,12 @@ public sealed class LocalOperatorCommandHandler
                 case LocalOperatorCommands.ProgramClear:
                     await _mediaOutput.ClearProgramAsync(cancellationToken).ConfigureAwait(false);
                     return Success(requestId, "program_clear");
+
+                case LocalOperatorCommands.MediaPause:
+                case LocalOperatorCommands.MediaResume:
+                case LocalOperatorCommands.MediaSeek:
+                    return await HandleMediaControlAsync(
+                        requestId, request.Command, request.Media, cancellationToken).ConfigureAwait(false);
 
                 case LocalOperatorCommands.OutputStart:
                     await _mediaOutput.StartProgramOutputAsync(cancellationToken).ConfigureAwait(false);
@@ -109,6 +121,48 @@ public sealed class LocalOperatorCommandHandler
         }
     }
 
+    private async Task<LocalOperatorResponse> HandleMediaControlAsync(
+        string requestId,
+        string command,
+        LocalOperatorMediaControl? control,
+        CancellationToken cancellationToken)
+    {
+        var program = _mediaOutput.Snapshot.Program;
+        var playback = _mediaOutput.PlaybackSnapshot;
+        var mediaKind = program?.Media?.MediaKind;
+        if (program is null || playback is null ||
+            mediaKind is not ("video" or "audio") ||
+            !string.Equals(playback.ItemId, program.ItemId, StringComparison.Ordinal))
+        {
+            return Failure(requestId, "media_control_unavailable");
+        }
+
+        var activeServiceId = _state.Snapshot.ActiveServiceId;
+        if (activeServiceId is null ||
+            program.ServiceId != activeServiceId ||
+            playback.ServiceId != activeServiceId)
+        {
+            return Failure(requestId, "catalog_scope_mismatch");
+        }
+
+        switch (command)
+        {
+            case LocalOperatorCommands.MediaPause:
+                await _mediaOutput.PauseMediaAsync(cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_paused");
+            case LocalOperatorCommands.MediaResume:
+                await _mediaOutput.ResumeMediaAsync(cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_resumed");
+            case LocalOperatorCommands.MediaSeek:
+                if (control?.PositionSeconds is not { } position || !double.IsFinite(position))
+                    return Failure(requestId, "media_seek_invalid");
+                await _mediaOutput.SeekMediaAsync(position, cancellationToken).ConfigureAwait(false);
+                return Success(requestId, "media_seeked");
+            default:
+                return Failure(requestId, "unsupported_command");
+        }
+    }
+
     private async Task<LocalOperatorResponse> HandleCatalogQueryAsync(
         string requestId,
         CancellationToken cancellationToken)
@@ -128,6 +182,78 @@ public sealed class LocalOperatorCommandHandler
         var stale = catalog?.IsStale(_clock.GetUtcNow(), _catalogMaxAge) == true;
         return Success(requestId, "catalog_ready", catalog: catalog, catalogStale: stale);
     }
+
+    private async Task<LocalOperatorResponse> HandlePrepareItemAsync(
+        string requestId,
+        LocalOperatorItemRequest? itemRequest,
+        CancellationToken cancellationToken)
+    {
+        var itemId = itemRequest?.ItemId?.Trim() ?? string.Empty;
+        if (itemId.Length is < 1 or > 128) return Failure(requestId, "item_id_invalid");
+        if (_operatorCatalog is null) return Failure(requestId, "catalog_unavailable");
+
+        var activeServiceId = _state.Snapshot.ActiveServiceId;
+        if (activeServiceId is null) return Failure(requestId, "service_required");
+        if (_operatorCatalog.ActiveServiceId != activeServiceId)
+            return Failure(requestId, "catalog_scope_mismatch");
+
+        var catalog = await _operatorCatalog.QueryAsync(cancellationToken).ConfigureAwait(false);
+        if (catalog?.Service?.ServiceId != activeServiceId)
+            return Failure(requestId, "catalog_scope_mismatch");
+        var catalogItem = catalog.Items.FirstOrDefault(item =>
+            string.Equals(item.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+        if (catalogItem is null) return Failure(requestId, "catalog_item_not_found");
+
+        PresentationRenderItem renderItem;
+        try
+        {
+            renderItem = await _operatorCatalog.ResolvePresentationAsync(itemId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return Failure(requestId, "presentation_unavailable");
+        }
+        catch (InvalidDataException)
+        {
+            return Failure(requestId, "presentation_invalid");
+        }
+
+        if (!string.Equals(renderItem.ItemId, itemId, StringComparison.OrdinalIgnoreCase) ||
+            renderItem.ServiceId != activeServiceId ||
+            _operatorCatalog.ActiveServiceId != activeServiceId ||
+            _state.Snapshot.ActiveServiceId != activeServiceId)
+        {
+            return Failure(requestId, "catalog_scope_mismatch");
+        }
+        if (!string.Equals(renderItem.ItemType, catalogItem.ItemType, StringComparison.OrdinalIgnoreCase))
+            return Failure(requestId, "presentation_invalid");
+
+        if (string.Equals(catalogItem.ItemType, "media", StringComparison.OrdinalIgnoreCase))
+        {
+            if (renderItem.Media is null) return Failure(requestId, "presentation_invalid");
+            if (_mediaPreparation is null) return Failure(requestId, "media_preparation_unavailable");
+
+            var preparation = await _mediaPreparation.PrepareAsync(renderItem, cancellationToken).ConfigureAwait(false);
+            if (preparation.ServiceId != activeServiceId ||
+                !string.Equals(preparation.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
+            {
+                return Failure(requestId, "catalog_scope_mismatch");
+            }
+            if (preparation.State is not (MediaPreparationState.Ready or MediaPreparationState.NotRequired))
+                return Failure(requestId, preparation.ErrorCode ?? PreparationError(preparation.State));
+        }
+
+        await _mediaOutput.SetPreviewAsync(renderItem, cancellationToken).ConfigureAwait(false);
+        return Success(requestId, "preview_ready");
+    }
+
+    private static string PreparationError(MediaPreparationState state) => state switch
+    {
+        MediaPreparationState.Queued or MediaPreparationState.Downloading or MediaPreparationState.Validating => "media_not_ready",
+        MediaPreparationState.Unsupported => "media_type_unsupported",
+        MediaPreparationState.Failed => "media_preparation_failed",
+        _ => "media_preparation_failed"
+    };
 
     private async Task<LocalOperatorResponse> HandleScriptureResolveAsync(
         string requestId,
@@ -221,6 +347,13 @@ public sealed class LocalOperatorCommandHandler
         var runtime = _state.Snapshot;
         var output = _mediaOutput.Snapshot;
         var recording = _recordingService?.Status;
+        var preparations = runtime.ActiveServiceId is { } activeServiceId && _mediaPreparation is not null
+            ? _mediaPreparation.GetSnapshots()
+                .Where(snapshot => snapshot.ServiceId == activeServiceId)
+                .Select(snapshot => new LocalOperatorMediaPreparation(
+                    snapshot.ItemId, snapshot.ServiceId, snapshot.State, snapshot.ErrorCode))
+                .ToArray()
+            : Array.Empty<LocalOperatorMediaPreparation>();
         return new LocalOperatorSnapshot(
             output.OutputRunning,
             output.Preview,
@@ -230,6 +363,8 @@ public sealed class LocalOperatorCommandHandler
             runtime.ConnectionStatus,
             runtime.ActiveServiceId,
             runtime.ServiceMode,
-            _clock.GetUtcNow());
+            _clock.GetUtcNow(),
+            _mediaOutput.PlaybackSnapshot,
+            preparations);
     }
 }

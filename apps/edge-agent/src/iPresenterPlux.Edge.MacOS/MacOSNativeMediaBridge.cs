@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace iPresenterPlux.Edge.MacOS;
 
-public sealed class MacOSNativeMediaBridge
+public sealed class MacOSNativeMediaBridge : IMacOSMediaAudioNativeBridge
 {
     private const string LibraryName = "iPresenterPluxMediaBridge";
     private const int SecuritySuccess = 0;
@@ -86,6 +86,52 @@ public sealed class MacOSNativeMediaBridge
         EnsureMacOS();
         var status = NativeMethods.AudioStop();
         if (status != 0) throw new InvalidOperationException($"macOS audio capture stop failed with status {status}.");
+    }
+
+    public long OpenMediaAudio(string localPath, int sampleRate, int channels)
+    {
+        EnsureMacOS();
+        ArgumentException.ThrowIfNullOrWhiteSpace(localPath);
+        var status = NativeMethods.MediaAudioOpen(localPath, sampleRate, channels, out var handle);
+        if (status != 0 || handle <= 0) throw new InvalidOperationException($"macOS media audio open failed with status {status}.");
+        return handle;
+    }
+
+    public void SeekMediaAudio(long handle, long positionMicroseconds)
+    {
+        EnsureMacOS();
+        var status = NativeMethods.MediaAudioSeek(handle, positionMicroseconds);
+        if (status != 0) throw new InvalidOperationException($"macOS media audio seek failed with status {status}.");
+    }
+
+    public MacOSMediaAudioReadResult? ReadMediaAudio(long handle, int frameSamples)
+    {
+        EnsureMacOS();
+        var status = NativeMethods.MediaAudioRead(handle, frameSamples, out var pointer, out var length, out var timestampUs);
+        if (status == 1) return null;
+        if (status != 0) throw new InvalidOperationException($"macOS media audio read failed with status {status}.");
+        if (pointer == IntPtr.Zero || length <= 0)
+        {
+            if (pointer != IntPtr.Zero) NativeMethods.BufferFree(pointer, Math.Max(length, 0));
+            throw new InvalidDataException("macOS media audio decoder returned an empty PCM buffer.");
+        }
+        try
+        {
+            var bytes = new byte[length];
+            Marshal.Copy(pointer, bytes, 0, length);
+            return new MacOSMediaAudioReadResult(bytes, timestampUs);
+        }
+        finally
+        {
+            NativeMethods.BufferFree(pointer, length);
+        }
+    }
+
+    public void CloseMediaAudio(long handle)
+    {
+        EnsureMacOS();
+        var status = NativeMethods.MediaAudioClose(handle);
+        if (status != 0) throw new InvalidOperationException($"macOS media audio close failed with status {status}.");
     }
 
     public void WriteKeychainItem(string service, string account, byte[] value)
@@ -185,6 +231,27 @@ public sealed class MacOSNativeMediaBridge
 
         [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_audio_stop", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int AudioStop();
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_media_audio_open", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int MediaAudioOpen(
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string localPath,
+            int sampleRate,
+            int channels,
+            out long handle);
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_media_audio_seek", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int MediaAudioSeek(long handle, long positionMicroseconds);
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_media_audio_read", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int MediaAudioRead(
+            long handle,
+            int frameSamples,
+            out IntPtr value,
+            out int length,
+            out long timestampMicroseconds);
+
+        [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_media_audio_close", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int MediaAudioClose(long handle);
 
         [DllImport(LibraryName, EntryPoint = "ipresenterplux_macos_buffer_free", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void BufferFree(IntPtr value, int length);

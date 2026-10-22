@@ -7,4 +7,5 @@ public sealed record PresentationRenderItem(
     string Title,
     string Body,
     string? Footer,
-    IReadOnlyDictionary<string, string> Metadata);
+    IReadOnlyDictionary<string, string> Metadata,
+    PresentationMediaDescriptor? Media = null);

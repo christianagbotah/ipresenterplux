@@ -1,5 +1,6 @@
 using System.Net;
 using iPresenterPlux.Edge.Core.Abstractions;
+using iPresenterPlux.Edge.Core.Contracts;
 
 namespace iPresenterPlux.Edge.Core.Runtime;
 
@@ -11,6 +12,7 @@ public sealed class OperatorCatalogCoordinator
     private readonly TimeProvider _clock;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private IOperatorCatalogClient? _client;
+    private IPresentationContentProvider? _presentationContentProvider;
     private Guid? _activeServiceId;
 
     public OperatorCatalogCoordinator(
@@ -25,6 +27,19 @@ public sealed class OperatorCatalogCoordinator
 
     public void BindClient(IOperatorCatalogClient client) =>
         _client = client ?? throw new ArgumentNullException(nameof(client));
+
+    public void BindPresentationProvider(IPresentationContentProvider provider) =>
+        _presentationContentProvider = provider ?? throw new ArgumentNullException(nameof(provider));
+
+    public Task<PresentationRenderItem> ResolvePresentationAsync(
+        string itemId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        var provider = _presentationContentProvider
+            ?? throw new InvalidOperationException("The presentation content provider is not bound.");
+        return provider.GetAsync(itemId.Trim(), cancellationToken);
+    }
 
     public async Task SetActiveServiceAsync(Guid? activeServiceId, CancellationToken cancellationToken)
     {

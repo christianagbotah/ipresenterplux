@@ -38,6 +38,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly IMediaOutputService? _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
     private readonly OperatorCatalogCoordinator? _operatorCatalog;
+    private readonly IMediaPreparationCoordinator? _mediaPreparation;
     private readonly IVisualSourceCatalog? _visualSourceCatalog;
     private readonly IVisualProgramRouter? _visualRouter;
     private AudioTranscriptionPipeline? _transcriptionPipeline;
@@ -64,6 +65,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         IMediaOutputService? mediaOutput = null,
         ILocalRecordingService? recordingService = null,
         OperatorCatalogCoordinator? operatorCatalog = null,
+        IMediaPreparationCoordinator? mediaPreparation = null,
         IVisualSourceCatalog? visualSourceCatalog = null,
         IVisualProgramRouter? visualRouter = null)
     {
@@ -90,6 +92,7 @@ public sealed class EdgeAgentRuntime : IDisposable
         _mediaOutput = mediaOutput;
         _recordingService = recordingService;
         _operatorCatalog = operatorCatalog;
+        _mediaPreparation = mediaPreparation;
         _visualSourceCatalog = visualSourceCatalog;
         _visualRouter = visualRouter;
         if (_audioCapture is not null) _audioCapture.AudioFrameCaptured += OnAudioFrameCaptured;
@@ -136,6 +139,8 @@ public sealed class EdgeAgentRuntime : IDisposable
     {
         ThrowIfDisposed();
         var identity = await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        if (_mediaPreparation is MediaPreparationCoordinator mediaPreparationCoordinator)
+            mediaPreparationCoordinator.BindOrganization(identity.OrganizationId);
         var scope = new OutboundEventScope(identity.OrganizationId, identity.DeviceId);
         var publisher = new HttpEdgeEventPublisher(_httpClient, identity, _credentialStore);
         var dispatcher = new OutboundEventDispatcher(_queue, publisher, _clock);
@@ -150,7 +155,10 @@ public sealed class EdgeAgentRuntime : IDisposable
             _state, _mediaOutput, presentationClient, _recordingService, _clock,
             visualSourceCatalog: _visualSourceCatalog, visualRouter: _visualRouter);
         if (_operatorCatalog is not null)
+        {
             _operatorCatalog.BindClient(new HttpOperatorCatalogClient(_httpClient, identity, _credentialStore, _clock));
+            _operatorCatalog.BindPresentationProvider(presentationClient);
+        }
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);
@@ -300,6 +308,22 @@ public sealed class EdgeAgentRuntime : IDisposable
 
     private async Task AlignOperatorCatalogScopeAsync(Guid? activeServiceId, CancellationToken cancellationToken)
     {
+        if (_mediaPreparation is not null)
+        {
+            try
+            {
+                await _mediaPreparation.SetActiveServiceAsync(activeServiceId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception error)
+            {
+                _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
+                Console.Error.WriteLine($"Media preparation scope unavailable: {error.GetType().Name}: {error.Message}");
+            }
+        }
         if (_operatorCatalog is null) return;
         try
         {
@@ -322,6 +346,12 @@ public sealed class EdgeAgentRuntime : IDisposable
         try
         {
             await _operatorCatalog.RefreshAsync(cancellationToken).ConfigureAwait(false);
+            if (_mediaPreparation is not null && _state.Snapshot.ActiveServiceId is { } activeServiceId)
+            {
+                var catalog = await _operatorCatalog.QueryAsync(cancellationToken).ConfigureAwait(false);
+                if (catalog?.Service?.ServiceId == activeServiceId)
+                    _ = PrefetchMediaAsync(activeServiceId, catalog.Items, cancellationToken);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -331,6 +361,24 @@ public sealed class EdgeAgentRuntime : IDisposable
         {
             _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
             Console.Error.WriteLine($"Operator catalog refresh unavailable: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private async Task PrefetchMediaAsync(
+        Guid activeServiceId,
+        IReadOnlyList<OperatorCatalogItem> items,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _mediaPreparation!.PrefetchAsync(activeServiceId, items, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception error)
+        {
+            Console.Error.WriteLine($"Media prefetch unavailable: {error.GetType().Name}: {error.Message}");
         }
     }
 

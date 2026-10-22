@@ -103,7 +103,10 @@
     "test:theme-studio-field-uat-gate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate-selftest.mjs",
     "theme-studio:field-uat:init": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs --init",
     "theme-studio:field-uat": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/theme-studio-field-uat-gate.mjs",
-    "test:licensing-admin-ui": "node scripts/licensing-admin-ui-selftest.mjs"
+    "test:licensing-admin-ui": "node scripts/licensing-admin-ui-selftest.mjs",
+    "test:edge-presentation-resolver": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-presentation-resolver-selftest.mjs",
+    "test:edge-media-playback-acceptance": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-media-playback-acceptance-selftest.mjs",
+    "test:edge-media-playback-field-uat-gate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/edge-media-playback-field-uat-gate-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

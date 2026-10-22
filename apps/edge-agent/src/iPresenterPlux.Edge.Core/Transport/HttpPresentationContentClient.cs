@@ -38,6 +38,7 @@ public sealed class HttpPresentationContentClient(
 
         var metadata = payload.Item.Metadata ?? new Dictionary<string, string>();
         await _themeAssetCache.HydrateAsync(metadata, cancellationToken).ConfigureAwait(false);
+        var media = payload.Item.Media is null ? null : MapMedia(payload.Item.Media);
 
         return new PresentationRenderItem(
             payload.Item.ItemId,
@@ -46,7 +47,36 @@ public sealed class HttpPresentationContentClient(
             payload.Item.Title,
             payload.Item.Body,
             payload.Item.Footer,
-            metadata);
+            metadata,
+            media);
+    }
+
+
+    private static PresentationMediaDescriptor MapMedia(PresentationMediaPayload payload)
+    {
+        if (!Guid.TryParse(payload.SourceId, out var sourceId) || sourceId == Guid.Empty ||
+            !Uri.TryCreate(payload.DownloadUrl, UriKind.Absolute, out var downloadUrl) ||
+            payload.TrimStartSeconds is null || payload.Loop is null || payload.Volume is null)
+            throw new InvalidDataException("The presentation media descriptor was invalid.");
+        try
+        {
+            return new PresentationMediaDescriptor(
+                sourceId,
+                payload.MediaKind ?? string.Empty,
+                downloadUrl,
+                payload.AssetVersion ?? string.Empty,
+                payload.ContentTypeHint,
+                payload.Title ?? string.Empty,
+                payload.TrimStartSeconds.Value,
+                payload.TrimEndSeconds,
+                payload.Loop.Value,
+                payload.Volume.Value,
+                payload.Fit ?? string.Empty).Validate();
+        }
+        catch (Exception error) when (error is ArgumentException or UriFormatException)
+        {
+            throw new InvalidDataException("The presentation media descriptor was invalid.", error);
+        }
     }
 
     private async Task<DeviceCredential> ReadUsableCredentialAsync(CancellationToken cancellationToken)
@@ -67,5 +97,19 @@ public sealed class HttpPresentationContentClient(
         string Title,
         string Body,
         string? Footer,
-        IReadOnlyDictionary<string, string>? Metadata);
+        IReadOnlyDictionary<string, string>? Metadata,
+        PresentationMediaPayload? Media);
+
+    private sealed record PresentationMediaPayload(
+        string? SourceId,
+        string? MediaKind,
+        string? DownloadUrl,
+        string? AssetVersion,
+        string? ContentTypeHint,
+        string? Title,
+        double? TrimStartSeconds,
+        double? TrimEndSeconds,
+        bool? Loop,
+        double? Volume,
+        string? Fit);
 }

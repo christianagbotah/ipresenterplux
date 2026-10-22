@@ -56,9 +56,14 @@ static async Task<int> RunAsync()
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
     using var asrHttp = CreateAsrHttpClient();
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
-    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
     await using var recordingService = new LocalAudioRecordingService(dataDirectory);
     var operatorCatalog = new OperatorCatalogCoordinator(new OperatorCatalogStore(dataDirectory));
+    var mediaRemotePolicy = new MediaRemoteEndpointPolicy();
+    using var mediaAssetCache = new MediaAssetCache(
+        Path.Combine(dataDirectory, "media-cache"), mediaRemotePolicy, new MediaAssetCacheOptions(), TimeProvider.System);
+    using var mediaPreparation = new MediaPreparationCoordinator(mediaAssetCache, operatorCatalog);
+    var mediaPlayback = new MediaPlaybackCoordinator();
+    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory, mediaAssetCache, mediaPreparation, mediaPlayback);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -78,12 +83,17 @@ static async Task<int> RunAsync()
         if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
     }
 
-    var renderedProgramSource = new RenderedProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer());
+    using var mediaVideoFrameProvider = new WindowsMediaFoundationMediaVideoFrameProvider();
+    var renderedProgramSource = new PresentationProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer(), mediaPlayback, mediaPreparation, mediaVideoFrameProvider);
     var visualCatalog = new WindowsVisualSourceCatalog();
     var visualFactory = new WindowsVisualCaptureFactory();
     await using var visualRouter = new VisualProgramRouter(visualCatalog, visualFactory, renderedProgramSource);
 
     var contributionAudioBuffer = new BoundedContributionAudioBuffer();
+    using var mediaAudioFrameProvider = new WindowsMediaFoundationMediaAudioFrameProvider();
+    await using var programAudioMixCoordinator = new ProgramAudioMixCoordinator(
+        contributionAudioBuffer, mediaAudioFrameProvider, mediaPlayback, mediaPreparation);
+    await programAudioMixCoordinator.StartAsync(CancellationToken.None);
     var contributionTransport = new EncodedContributionStreamTransport(
         new WindowsMediaFoundationEncodedProgramVideoSource(visualRouter),
         new WindowsMediaFoundationEncodedProgramAudioSource(contributionAudioBuffer),
@@ -95,7 +105,7 @@ static async Task<int> RunAsync()
     var runtimeMediaOutput = new StreamPublishingMediaOutputService(mediaOutput, streamPublisher);
     EventHandler<AudioFrame> contributionAudioHandler = (_, frame) =>
     {
-        _ = contributionAudioBuffer.TrySubmit(frame);
+        _ = programAudioMixCoordinator.TrySubmitLive(frame);
     };
     audioCapture.AudioFrameCaptured += contributionAudioHandler;
 
@@ -121,12 +131,14 @@ static async Task<int> RunAsync()
         mediaOutput: runtimeMediaOutput,
         recordingService: recordingService,
         operatorCatalog: operatorCatalog,
+        mediaPreparation: mediaPreparation,
         visualSourceCatalog: visualCatalog,
         visualRouter: visualRouter);
 
     await using var localOperatorIpc = new LocalOperatorIpcServer(
         dataDirectory,
-        new LocalOperatorCommandHandler(runtime.State, mediaOutput, recordingService, operatorCatalog: operatorCatalog));
+        new LocalOperatorCommandHandler(
+            runtime.State, mediaOutput, recordingService, operatorCatalog: operatorCatalog, mediaPreparation: mediaPreparation));
     await localOperatorIpc.StartAsync(CancellationToken.None);
 
     var hostStartedAt = DateTimeOffset.UtcNow;
@@ -171,7 +183,11 @@ static string? ReadSecret(string prompt)
     return chars.Count == 0 ? null : new string(chars.ToArray()).Trim();
 }
 
-static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(string dataDirectory)
+static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(
+    string dataDirectory,
+    IMediaAssetCache mediaAssetCache,
+    IMediaPreparationCoordinator mediaPreparation,
+    MediaPlaybackCoordinator mediaPlayback)
 {
     const int defaultPort = 49321;
     var port = defaultPort;
@@ -183,7 +199,12 @@ static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(string 
         port = defaultPort;
     }
 
-    var output = new LocalWebProgramOutputService(port, new FileProgramStateStore(dataDirectory));
+    var output = new LocalWebProgramOutputService(
+        port,
+        new FileProgramStateStore(dataDirectory),
+        mediaAssetCache: mediaAssetCache,
+        mediaPreparation: mediaPreparation,
+        mediaPlayback: mediaPlayback);
     try
     {
         await output.RestoreAsync(CancellationToken.None);

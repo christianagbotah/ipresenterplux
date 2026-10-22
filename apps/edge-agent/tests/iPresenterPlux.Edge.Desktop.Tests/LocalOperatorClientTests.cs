@@ -1,3 +1,4 @@
+using System.Text.Json;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.State;
 using Xunit;
@@ -50,6 +51,55 @@ public sealed class LocalOperatorClientTests
         {
             if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
         }
+    }
+
+    [Fact]
+    public void PrepareItemRequestSerializesOnlyTrustedItemIdentity()
+    {
+        var itemId = Guid.NewGuid().ToString("D");
+        var request = new LocalOperatorRequest(
+            Guid.NewGuid().ToString("D"),
+            LocalOperatorCommands.PreviewPrepareItem,
+            Item: new LocalOperatorItemRequest(itemId));
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Contains(itemId, json, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("https://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("downloadUrl", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("localPath", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PreparePreviewItemRejectsInvalidIdentityBeforeConnecting()
+    {
+        var client = new LocalOperatorClient(Path.GetTempPath());
+        await Assert.ThrowsAsync<ArgumentException>(() => client.PreparePreviewItemAsync(" "));
+    }
+
+    [Fact]
+    public void MediaControlRequestContainsOnlyTransportData()
+    {
+        var request = new LocalOperatorRequest(
+            Guid.NewGuid().ToString("D"), LocalOperatorCommands.MediaSeek,
+            Media: new LocalOperatorMediaControl(12.25));
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Contains("media.seek", json, StringComparison.Ordinal);
+        Assert.Contains("12.25", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("https://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("localPath", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MediaSeekClientRejectsNonFinitePositionBeforeConnecting()
+    {
+        var client = new LocalOperatorClient(Path.GetTempPath());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.SeekMediaAsync(double.NaN));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => client.SeekMediaAsync(double.PositiveInfinity));
     }
 
     [Fact]
