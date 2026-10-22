@@ -154,7 +154,7 @@ public sealed class PresentationProgramVideoSourceTests
     }
 
     private static PresentationRenderItem MediaItem(PreparedMediaAsset asset) => new(
-        asset.ItemId, asset.ServiceId, "media", asset.Descriptor.DisplayName ?? asset.MediaKind, "", null,
+        asset.ItemId, asset.ServiceId, "media", asset.Descriptor.Title, "", null,
         new Dictionary<string, string>(), asset.Descriptor);
 
     private static PreparedMediaAsset ReadyAsset(
