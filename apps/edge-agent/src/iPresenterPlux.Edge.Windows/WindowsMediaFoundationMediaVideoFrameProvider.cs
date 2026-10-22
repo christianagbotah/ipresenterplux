@@ -183,8 +183,6 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
             throw new PlatformNotSupportedException("Media Foundation media-video decoding requires Windows.");
     }
 
-    private static ulong Pack(uint high, uint low) => ((ulong)high << 32) | low;
-
     private static void ReleaseCom(object? value)
     {
         if (value is null || !Marshal.IsComObject(value)) return;
@@ -194,19 +192,17 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
     private sealed class DecoderSession : IDisposable
     {
         private readonly IMFSourceReader _reader;
-        private readonly int _width;
-        private readonly int _height;
-        private readonly int _stride;
+        private int _width;
+        private int _height;
+        private int _stride;
         private byte[]? _lastFrame;
         private long _lastTimestamp100Ns;
         private bool _disposed;
 
-        private DecoderSession(IMFSourceReader reader, int width, int height)
+        private DecoderSession(IMFSourceReader reader)
         {
             _reader = reader;
-            _width = width;
-            _height = height;
-            _stride = checked(width * 4);
+            RefreshNegotiatedLayout();
         }
 
         public double LastRequestedPositionSeconds { get; private set; } = -1;
@@ -216,7 +212,6 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
             EnsureMediaFoundationStarted();
             IMFAttributes? attributes = null;
             IMFSourceReader? reader = null;
-            IMFMediaType? nativeType = null;
             IMFMediaType? outputType = null;
             try
             {
@@ -224,27 +219,19 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                 attributes.SetUINT32(PInvoke.MF_SOURCE_READER_ENABLE_VIDEO_PROCESSING, 1);
                 Marshal.ThrowExceptionForHR(MFCreateSourceReaderFromURL(localPath, attributes, out var createdReader));
                 reader = createdReader;
-                createdReader.GetNativeMediaType(VideoStream, 0, out nativeType);
-                nativeType.GetUINT64(PInvoke.MF_MT_FRAME_SIZE, out var packedSize);
-                var width = checked((int)(packedSize >> 32));
-                var height = checked((int)(packedSize & uint.MaxValue));
-                if (width <= 0 || height <= 0)
-                    throw new InvalidDataException("Video has invalid dimensions.");
 
                 PInvoke.MFCreateMediaType(out outputType).ThrowOnFailure();
                 outputType.SetGUID(PInvoke.MF_MT_MAJOR_TYPE, PInvoke.MFMediaType_Video);
                 outputType.SetGUID(PInvoke.MF_MT_SUBTYPE, PInvoke.MFVideoFormat_RGB32);
-                outputType.SetUINT64(PInvoke.MF_MT_FRAME_SIZE, Pack((uint)width, (uint)height));
                 createdReader.SetCurrentMediaType(VideoStream, outputType);
 
-                var session = new DecoderSession(createdReader, width, height);
+                var session = new DecoderSession(createdReader);
                 reader = null;
                 return session;
             }
             finally
             {
                 ReleaseCom(outputType);
-                ReleaseCom(nativeType);
                 ReleaseCom(reader);
                 ReleaseCom(attributes);
             }
@@ -269,10 +256,12 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                 }
                 if ((flags & (SourceReaderFlagNativeMediaTypeChanged | SourceReaderFlagCurrentMediaTypeChanged)) != 0)
                 {
-                    // Media Foundation may return one transition sample in the old/native format
-                    // when the source reader changes to requested RGB32. Never interpret that
-                    // transition sample as BGRA; wait for the first stable RGB32 sample instead.
                     ReleaseCom(sample);
+                    if ((flags & SourceReaderFlagCurrentMediaTypeChanged) != 0)
+                    {
+                        RefreshNegotiatedLayout();
+                        _lastFrame = null;
+                    }
                     continue;
                 }
                 if (sample is null) continue;
@@ -284,7 +273,9 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
                     buffer.GetCurrentLength(out var currentLength);
                     var tightLength = checked(_stride * _height);
                     if (currentLength < tightLength || currentLength > int.MaxValue || currentLength % (uint)_height != 0)
-                        throw new MediaVideoFrameProviderException("media_video_decode_failed", "Decoded video frame had an unexpected size.");
+                        throw new MediaVideoFrameProviderException(
+                            "media_video_decode_failed",
+                            $"Decoded RGB32 frame size {currentLength} does not match negotiated {_width}x{_height} layout.");
 
                     var sourceStride = checked((int)(currentLength / (uint)_height));
                     if (sourceStride < _stride)
@@ -319,8 +310,29 @@ public sealed class WindowsMediaFoundationMediaVideoFrameProvider : IMediaVideoF
 
             LastRequestedPositionSeconds = positionSeconds;
             if (_lastFrame is null)
-                throw new MediaVideoFrameProviderException("media_video_decode_failed", "Video produced no decoded frames.");
+                throw new MediaVideoFrameProviderException("media_video_decode_failed", "Video produced no decoded RGB32 frames.");
             return new DecodedFrame(_width, _height, _stride, _lastFrame, _lastTimestamp100Ns);
+        }
+
+        private void RefreshNegotiatedLayout()
+        {
+            IMFMediaType? currentType = null;
+            try
+            {
+                _reader.GetCurrentMediaType(VideoStream, out currentType);
+                currentType.GetUINT64(PInvoke.MF_MT_FRAME_SIZE, out var packedSize);
+                var width = checked((int)(packedSize >> 32));
+                var height = checked((int)(packedSize & uint.MaxValue));
+                if (width <= 0 || height <= 0)
+                    throw new MediaVideoFrameProviderException("media_video_decode_failed", "Negotiated RGB32 video has invalid dimensions.");
+                _width = width;
+                _height = height;
+                _stride = checked(width * 4);
+            }
+            finally
+            {
+                ReleaseCom(currentType);
+            }
         }
 
         public void Dispose()
