@@ -157,34 +157,33 @@ public sealed class LocalOperatorCommandHandler
         if (catalogItem is null) return Failure(requestId, "catalog_item_not_found");
 
         PresentationRenderItem renderItem;
+        try
+        {
+            renderItem = await _operatorCatalog.ResolvePresentationAsync(itemId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            return Failure(requestId, "presentation_unavailable");
+        }
+        catch (InvalidDataException)
+        {
+            return Failure(requestId, "presentation_invalid");
+        }
+
+        if (!string.Equals(renderItem.ItemId, itemId, StringComparison.OrdinalIgnoreCase) ||
+            renderItem.ServiceId != activeServiceId ||
+            _operatorCatalog.ActiveServiceId != activeServiceId ||
+            _state.Snapshot.ActiveServiceId != activeServiceId)
+        {
+            return Failure(requestId, "catalog_scope_mismatch");
+        }
+        if (!string.Equals(renderItem.ItemType, catalogItem.ItemType, StringComparison.OrdinalIgnoreCase))
+            return Failure(requestId, "presentation_invalid");
+
         if (string.Equals(catalogItem.ItemType, "media", StringComparison.OrdinalIgnoreCase))
         {
+            if (renderItem.Media is null) return Failure(requestId, "presentation_invalid");
             if (_mediaPreparation is null) return Failure(requestId, "media_preparation_unavailable");
-            try
-            {
-                renderItem = await _operatorCatalog.ResolvePresentationAsync(itemId, cancellationToken).ConfigureAwait(false);
-            }
-            catch (HttpRequestException)
-            {
-                return Failure(requestId, "presentation_unavailable");
-            }
-            catch (InvalidDataException)
-            {
-                return Failure(requestId, "presentation_invalid");
-            }
-
-            if (!string.Equals(renderItem.ItemId, itemId, StringComparison.OrdinalIgnoreCase) ||
-                renderItem.ServiceId != activeServiceId ||
-                _operatorCatalog.ActiveServiceId != activeServiceId ||
-                _state.Snapshot.ActiveServiceId != activeServiceId)
-            {
-                return Failure(requestId, "catalog_scope_mismatch");
-            }
-            if (!string.Equals(renderItem.ItemType, catalogItem.ItemType, StringComparison.OrdinalIgnoreCase) ||
-                renderItem.Media is null)
-            {
-                return Failure(requestId, "presentation_invalid");
-            }
 
             var preparation = await _mediaPreparation.PrepareAsync(renderItem, cancellationToken).ConfigureAwait(false);
             if (preparation.ServiceId != activeServiceId ||
@@ -193,21 +192,7 @@ public sealed class LocalOperatorCommandHandler
                 return Failure(requestId, "catalog_scope_mismatch");
             }
             if (preparation.State is not (MediaPreparationState.Ready or MediaPreparationState.NotRequired))
-            {
                 return Failure(requestId, preparation.ErrorCode ?? PreparationError(preparation.State));
-            }
-        }
-        else
-        {
-            renderItem = new PresentationRenderItem(
-                catalogItem.ItemId,
-                activeServiceId.Value,
-                catalogItem.ItemType,
-                catalogItem.Title,
-                catalogItem.Body,
-                catalogItem.Footer,
-                catalogItem.Metadata,
-                Media: null);
         }
 
         await _mediaOutput.SetPreviewAsync(renderItem, cancellationToken).ConfigureAwait(false);

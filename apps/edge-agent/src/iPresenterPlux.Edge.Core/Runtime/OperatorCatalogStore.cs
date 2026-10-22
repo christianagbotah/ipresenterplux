@@ -184,7 +184,8 @@ public sealed class OperatorCatalogStore
         var id = Clean(item.ItemId, 128);
         var type = Clean(item.ItemType, 32);
         var body = CleanBody(item.Body, 12000);
-        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(type) || string.IsNullOrWhiteSpace(body)) return null;
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(type)) return null;
+        if (!string.Equals(type, "media", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(body)) return null;
         return item with
         {
             ItemId = id,
