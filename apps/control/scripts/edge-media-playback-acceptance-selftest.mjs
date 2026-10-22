@@ -12,7 +12,8 @@ const files = {
   windowsAudio: "../../edge-agent/src/iPresenterPlux.Edge.Windows/WindowsMediaFoundationMediaAudioFrameProvider.cs",
   macAudio: "../../edge-agent/src/iPresenterPlux.Edge.MacOS/MacOSMediaAudioFrameProvider.cs",
   macBridge: "../../edge-agent/native/macos/iPresenterPlux.MediaBridge/Sources/iPresenterPluxMediaBridge/MediaBridge.swift",
-  fieldUat: "../../../docs/qa/edge-media-playback-field-uat.md"
+  fieldUat: "../../../docs/qa/edge-media-playback-field-uat.md",
+  controlCi: "../../../.github/workflows/control-ci.yml"
 };
 for (const relative of Object.values(files)) await access(new URL(relative, import.meta.url));
 const source = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([key, relative]) => [key, await readFile(new URL(relative, import.meta.url), "utf8")])));
@@ -32,4 +33,10 @@ assert.match(source.macAudio, /IMediaAudioFrameProvider/);
 assert.match(source.macBridge, /bridgeApiVersion[\s\S]{0,120}\b5\b/);
 assert.doesNotMatch(source.desktop, /https:\/\/[^\s\"']+.*preview\.prepare_item/i, "desktop must not provide a remote media URL to Preview");
 for (const token of ["windows", "macos", "offline", "projector", "contribution", "restart", "250 ms", "120 ms"]) assert.ok(source.fieldUat.toLowerCase().includes(token.toLowerCase()), `field UAT must document ${token}`);
-console.log(JSON.stringify({ ok: true, safeReadinessTransport: true, authoritativeBadges: true, takeGate: true, localAssetPlayback: true, windowsMediaAudio: true, macosMediaAudio: true, twoPlatformFieldGate: true }));
+for (const command of [
+  "pnpm test:edge-media-playback-acceptance",
+  "pnpm test:edge-media-playback-field-uat-gate"
+]) {
+  assert.ok(source.controlCi.includes(command), `Control CI must run ${command}`);
+}
+console.log(JSON.stringify({ ok: true, safeReadinessTransport: true, authoritativeBadges: true, takeGate: true, localAssetPlayback: true, windowsMediaAudio: true, macosMediaAudio: true, twoPlatformFieldGate: true, ciWired: true }));
