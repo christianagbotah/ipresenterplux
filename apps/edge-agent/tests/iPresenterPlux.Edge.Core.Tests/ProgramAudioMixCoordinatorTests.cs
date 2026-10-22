@@ -36,6 +36,41 @@ public sealed class ProgramAudioMixCoordinatorTests
     }
 
     [Fact]
+    public async Task PausedMediaResetsActiveProviderSessionOnce()
+    {
+        var clock = new ManualTimeProvider(DateTimeOffset.Parse("2026-10-22T16:00:00Z"));
+        var fixture = await Fixture.CreateAsync(clock, trimEnd: 5);
+
+        await fixture.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        Assert.Single(fixture.Provider.Requests);
+        Assert.Equal(0, fixture.Provider.ResetCalls);
+
+        await fixture.Playback.PauseAsync(CancellationToken.None);
+        await fixture.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        await fixture.Coordinator.ProcessOnceAsync(CancellationToken.None);
+
+        Assert.Equal(1, fixture.Provider.ResetCalls);
+    }
+
+    [Fact]
+    public async Task ClearAndServiceMismatchResetActiveProviderSession()
+    {
+        var clock = new ManualTimeProvider(DateTimeOffset.Parse("2026-10-22T16:00:00Z"));
+        var fixture = await Fixture.CreateAsync(clock, trimEnd: 5);
+
+        await fixture.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        await fixture.Playback.ClearAsync(CancellationToken.None);
+        await fixture.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        Assert.Equal(1, fixture.Provider.ResetCalls);
+
+        var second = await Fixture.CreateAsync(clock, trimEnd: 5);
+        await second.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        second.Preparation.OverrideServiceId = Guid.NewGuid();
+        await second.Coordinator.ProcessOnceAsync(CancellationToken.None);
+        Assert.Equal(1, second.Provider.ResetCalls);
+    }
+
+    [Fact]
     public async Task SeekChangesRevisionAndRequestedMediaPosition()
     {
         var clock = new ManualTimeProvider(DateTimeOffset.Parse("2026-10-22T16:00:00Z"));
@@ -156,7 +191,10 @@ public sealed class ProgramAudioMixCoordinatorTests
     private sealed class FakeMediaAudioFrameProvider : IMediaAudioFrameProvider
     {
         public short SampleValue { get; set; } = 1000;
+        public int ResetCalls { get; private set; }
         public List<(long Revision, double PositionSeconds)> Requests { get; } = [];
+
+        public void Reset() => ResetCalls++;
 
         public Task<AudioFrame?> ReadPcmAsync(
             PreparedMediaAsset asset,
