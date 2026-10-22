@@ -101,6 +101,20 @@ public sealed class EdgeAgentRuntime : IDisposable
     public async Task<AgentIdentity> InitializeAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
+
+        if (!string.IsNullOrWhiteSpace(_pairingCode))
+        {
+            var manager = new DeviceEnrollmentManager(
+                new HttpDeviceEnrollmentClient(_httpClient),
+                _credentialStore,
+                _identityStore);
+            var enrolled = await manager.EnrollAsync(
+                new PairingCodeExchangeRequest(_pairingCode, _options.DeviceName, _options.SoftwareVersion),
+                cancellationToken).ConfigureAwait(false);
+            _pairingCode = null;
+            return enrolled.Metadata.Identity;
+        }
+
         var identity = await _identityStore.ReadAsync(cancellationToken).ConfigureAwait(false);
         if (identity is not null)
         {
@@ -115,18 +129,7 @@ public sealed class EdgeAgentRuntime : IDisposable
             }
         }
 
-        if (string.IsNullOrWhiteSpace(_pairingCode))
-            throw new EdgeEnrollmentRequiredException("This Edge Agent must be paired with the control plane before it can start.");
-
-        var manager = new DeviceEnrollmentManager(
-            new HttpDeviceEnrollmentClient(_httpClient),
-            _credentialStore,
-            _identityStore);
-        var enrolled = await manager.EnrollAsync(
-            new PairingCodeExchangeRequest(_pairingCode, _options.DeviceName, _options.SoftwareVersion),
-            cancellationToken).ConfigureAwait(false);
-        _pairingCode = null;
-        return enrolled.Metadata.Identity;
+        throw new EdgeEnrollmentRequiredException("This Edge Agent must be paired with the control plane before it can start.");
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
