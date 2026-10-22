@@ -62,7 +62,8 @@ static async Task<int> RunAsync()
     using var mediaAssetCache = new MediaAssetCache(
         Path.Combine(dataDirectory, "media-cache"), mediaRemotePolicy, new MediaAssetCacheOptions(), TimeProvider.System);
     using var mediaPreparation = new MediaPreparationCoordinator(mediaAssetCache, operatorCatalog);
-    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory, mediaAssetCache, mediaPreparation);
+    var mediaPlayback = new MediaPlaybackCoordinator();
+    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory, mediaAssetCache, mediaPreparation, mediaPlayback);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -82,7 +83,8 @@ static async Task<int> RunAsync()
         if (!opened) Console.Error.WriteLine($"No supported Chromium browser was available for kiosk Program output. Open {mediaOutput.ProgramUri} manually.");
     }
 
-    var renderedProgramSource = new RenderedProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer());
+    using var mediaVideoFrameProvider = new WindowsMediaFoundationMediaVideoFrameProvider();
+    var renderedProgramSource = new PresentationProgramVideoSource(mediaOutput, new SkiaProgramFrameRenderer(), mediaPlayback, mediaPreparation, mediaVideoFrameProvider);
     var visualCatalog = new WindowsVisualSourceCatalog();
     var visualFactory = new WindowsVisualCaptureFactory();
     await using var visualRouter = new VisualProgramRouter(visualCatalog, visualFactory, renderedProgramSource);
@@ -180,7 +182,8 @@ static string? ReadSecret(string prompt)
 static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(
     string dataDirectory,
     IMediaAssetCache mediaAssetCache,
-    IMediaPreparationCoordinator mediaPreparation)
+    IMediaPreparationCoordinator mediaPreparation,
+    MediaPlaybackCoordinator mediaPlayback)
 {
     const int defaultPort = 49321;
     var port = defaultPort;
@@ -196,7 +199,8 @@ static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(
         port,
         new FileProgramStateStore(dataDirectory),
         mediaAssetCache: mediaAssetCache,
-        mediaPreparation: mediaPreparation);
+        mediaPreparation: mediaPreparation,
+        mediaPlayback: mediaPlayback);
     try
     {
         await output.RestoreAsync(CancellationToken.None);

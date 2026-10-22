@@ -44,6 +44,8 @@ public sealed class PresentationProgramVideoSourceTests
         var videoAsset = ReadyAsset(serviceId, "video-1", "video", "video/mp4", "/tmp/video.mp4", 10, trimStart: .2);
         preparation.Set(videoAsset);
         await TakeAsync(output, MediaItem(videoAsset));
+        await playback.PauseAsync(CancellationToken.None);
+        await playback.SeekAsync(.2, CancellationToken.None);
         var first = source.GetCurrentFrame();
         await playback.SeekAsync(1.2, CancellationToken.None);
         var second = source.GetCurrentFrame();
@@ -131,6 +133,7 @@ public sealed class PresentationProgramVideoSourceTests
         await router.SelectPreviewAsync(nativeDescriptor.SourceId, CancellationToken.None);
         await router.TakePreviewAsync(CancellationToken.None);
         var native = router.GetCurrentFrame();
+        await playback.PauseAsync(CancellationToken.None);
         await playback.SeekAsync(1.1, CancellationToken.None);
         await router.UseRenderedProgramAsync(CancellationToken.None);
         var mediaAfter = router.GetCurrentFrame();
