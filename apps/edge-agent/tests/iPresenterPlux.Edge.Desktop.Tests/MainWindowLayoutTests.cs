@@ -69,6 +69,18 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("Grid.SetColumn(main, 2)", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SetupExposesPersistedProgramDisplaySelectionAndHotplugRefresh()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Program output display", source, StringComparison.Ordinal);
+        Assert.Contains("Screens.All", source, StringComparison.Ordinal);
+        Assert.Contains("Screens.Changed", source, StringComparison.Ordinal);
+        Assert.Contains("ProgramDisplaySelector.Resolve", source, StringComparison.Ordinal);
+        Assert.Contains("_programDisplay", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
