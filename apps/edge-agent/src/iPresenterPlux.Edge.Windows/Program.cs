@@ -56,13 +56,13 @@ static async Task<int> RunAsync()
     using var http = new HttpClient { BaseAddress = controlUrl, Timeout = TimeSpan.FromSeconds(15) };
     using var asrHttp = CreateAsrHttpClient();
     ISpeechRecognitionEngine? speechRecognition = asrHttp is null ? null : new HttpSpeechRecognitionEngine(asrHttp);
-    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory);
     await using var recordingService = new LocalAudioRecordingService(dataDirectory);
     var operatorCatalog = new OperatorCatalogCoordinator(new OperatorCatalogStore(dataDirectory));
     var mediaRemotePolicy = new MediaRemoteEndpointPolicy();
     using var mediaAssetCache = new MediaAssetCache(
         Path.Combine(dataDirectory, "media-cache"), mediaRemotePolicy, new MediaAssetCacheOptions(), TimeProvider.System);
     using var mediaPreparation = new MediaPreparationCoordinator(mediaAssetCache, operatorCatalog);
+    await using var mediaOutput = await CreateProgramOutputAsync(dataDirectory, mediaAssetCache, mediaPreparation);
     activeServiceId ??= mediaOutput.LastKnownServiceId;
 
     ProgramDisplayConfiguration displayConfiguration;
@@ -177,7 +177,10 @@ static string? ReadSecret(string prompt)
     return chars.Count == 0 ? null : new string(chars.ToArray()).Trim();
 }
 
-static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(string dataDirectory)
+static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(
+    string dataDirectory,
+    IMediaAssetCache mediaAssetCache,
+    IMediaPreparationCoordinator mediaPreparation)
 {
     const int defaultPort = 49321;
     var port = defaultPort;
@@ -189,7 +192,11 @@ static async Task<LocalWebProgramOutputService> CreateProgramOutputAsync(string 
         port = defaultPort;
     }
 
-    var output = new LocalWebProgramOutputService(port, new FileProgramStateStore(dataDirectory));
+    var output = new LocalWebProgramOutputService(
+        port,
+        new FileProgramStateStore(dataDirectory),
+        mediaAssetCache: mediaAssetCache,
+        mediaPreparation: mediaPreparation);
     try
     {
         await output.RestoreAsync(CancellationToken.None);

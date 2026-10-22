@@ -22,7 +22,13 @@ public sealed class MediaPreparationWiringTests
             Assert.Contains("new MediaRemoteEndpointPolicy", host, StringComparison.Ordinal);
             Assert.Contains("new MediaAssetCache", host, StringComparison.Ordinal);
             Assert.Contains("new MediaPreparationCoordinator", host, StringComparison.Ordinal);
+            Assert.Contains("CreateProgramOutputAsync(dataDirectory, mediaAssetCache, mediaPreparation)", host, StringComparison.Ordinal);
+            Assert.Contains("mediaAssetCache: mediaAssetCache", host, StringComparison.Ordinal);
             Assert.Contains("mediaPreparation: mediaPreparation", host, StringComparison.Ordinal);
+            Assert.Contains(
+                "operatorCatalog: operatorCatalog,\n        mediaPreparation: mediaPreparation",
+                host,
+                StringComparison.Ordinal);
         }
     }
 
