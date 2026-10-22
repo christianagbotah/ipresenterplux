@@ -17,8 +17,9 @@ public sealed class MediaPreparationWiringTests
         Assert.Contains("SetActiveServiceAsync(activeServiceId", runtime, StringComparison.Ordinal);
         Assert.Contains("PrefetchAsync", runtime, StringComparison.Ordinal);
 
-        foreach (var host in new[] { windows, macos })
+        foreach (var rawHost in new[] { windows, macos })
         {
+            var host = rawHost.Replace("\r\n", "\n", StringComparison.Ordinal);
             Assert.Contains("new MediaRemoteEndpointPolicy", host, StringComparison.Ordinal);
             Assert.Contains("new MediaAssetCache", host, StringComparison.Ordinal);
             Assert.Contains("new MediaPreparationCoordinator", host, StringComparison.Ordinal);
