@@ -150,7 +150,10 @@ public sealed class EdgeAgentRuntime : IDisposable
             _state, _mediaOutput, presentationClient, _recordingService, _clock,
             visualSourceCatalog: _visualSourceCatalog, visualRouter: _visualRouter);
         if (_operatorCatalog is not null)
+        {
             _operatorCatalog.BindClient(new HttpOperatorCatalogClient(_httpClient, identity, _credentialStore, _clock));
+            _operatorCatalog.BindPresentationProvider(presentationClient);
+        }
 
         _state.Update(snapshot => snapshot with { ConnectionStatus = "Starting", ActiveServiceId = _options.ActiveServiceId });
         await RefreshServiceAssignmentAsync(assignmentClient, cancellationToken).ConfigureAwait(false);

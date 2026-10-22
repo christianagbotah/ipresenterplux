@@ -143,13 +143,18 @@ public sealed class HttpOperatorCatalogClient(
     private static OperatorCatalogItem MapItem(ItemPayload item)
     {
         var metadata = ValidateMetadata(item.Metadata);
+        var itemType = RequiredText(item.ItemType, 32, "catalog item type");
+        var body = NormalizeText(item.Body, 12000, preserveNewLines: true);
+        if (!string.Equals(itemType, "media", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(body))
+            throw new InvalidDataException("The catalog item body was invalid.");
         return new OperatorCatalogItem(
             RequiredText(item.ItemId, 128, "catalog item id"),
-            RequiredText(item.ItemType, 32, "catalog item type"),
+            itemType,
             OptionalText(item.Title, 200),
-            RequiredText(item.Body, 12000, "catalog item body", preserveNewLines: true),
+            body,
             string.IsNullOrWhiteSpace(item.Footer) ? null : OptionalText(item.Footer, 500),
-            metadata);
+            metadata,
+            Media: null);
     }
 
     private static IReadOnlyDictionary<string, string> ValidateMetadata(IReadOnlyDictionary<string, string>? metadata)

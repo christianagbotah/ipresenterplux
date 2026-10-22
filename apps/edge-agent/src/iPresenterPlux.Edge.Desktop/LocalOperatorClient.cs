@@ -28,6 +28,19 @@ public sealed class LocalOperatorClient
     public Task<LocalOperatorResponse> QueryCatalogAsync(CancellationToken cancellationToken = default) =>
         SendAsync(LocalOperatorCommands.CatalogQuery, cancellationToken: cancellationToken);
 
+    public Task<LocalOperatorResponse> PreparePreviewItemAsync(
+        string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        itemId = itemId.Trim();
+        if (itemId.Length > 128) throw new ArgumentOutOfRangeException(nameof(itemId));
+        return SendAsync(
+            LocalOperatorCommands.PreviewPrepareItem,
+            cancellationToken: cancellationToken,
+            item: new LocalOperatorItemRequest(itemId));
+    }
+
     public Task<LocalOperatorResponse> ResolveScriptureAsync(
         string reference,
         string? version = null,
@@ -51,14 +64,15 @@ public sealed class LocalOperatorClient
         string command,
         LocalOperatorPresentation? presentation = null,
         CancellationToken cancellationToken = default,
-        LocalOperatorScriptureQuery? scripture = null)
+        LocalOperatorScriptureQuery? scripture = null,
+        LocalOperatorItemRequest? item = null)
     {
         if (!LocalOperatorCommands.IsAllowed(command))
             throw new ArgumentOutOfRangeException(nameof(command), "Unsupported local operator command.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(_timeout);
-        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), command, presentation, scripture);
+        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), command, presentation, scripture, item);
 
         await using var stream = await ConnectAsync(timeout.Token).ConfigureAwait(false);
         using var reader = new StreamReader(stream, Encoding.UTF8, false, 4096, leaveOpen: true);

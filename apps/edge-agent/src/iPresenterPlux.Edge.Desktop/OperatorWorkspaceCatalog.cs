@@ -8,10 +8,24 @@ public sealed record OperatorWorkspaceItem(
     string Title,
     string Body,
     string? Footer,
-    string Accent)
+    string Accent,
+    string SourceItemType = "",
+    bool IsSynced = false)
 {
     public LocalOperatorPresentation ToPresentation() =>
-        new(Id, Category.ToLowerInvariant(), Title, Body, Footer);
+        new(Id, LocalPresentationType(), Title, Body, Footer);
+
+    private string LocalPresentationType() => !string.IsNullOrWhiteSpace(SourceItemType)
+        ? SourceItemType.Trim().ToLowerInvariant()
+        : Category.Trim().ToLowerInvariant() switch
+        {
+            "scripture" => "scripture",
+            "songs" => "song",
+            "slides" => "slide",
+            "media" => "media",
+            "announcements" => "announcement",
+            _ => "slide"
+        };
 
     public override string ToString() => Title;
 }
@@ -87,7 +101,7 @@ public static class OperatorWorkspaceCatalog
             ? Array.Empty<OperatorWorkspaceItem>()
             : catalog.Items
                 .GroupBy(item => item.ItemId, StringComparer.Ordinal)
-                .Select(group => FromResolved(group.First()))
+                .Select(group => FromResolved(group.First(), synced: true))
                 .ToArray();
 
         var items = catalog.Service is null
@@ -95,7 +109,7 @@ public static class OperatorWorkspaceCatalog
             : catalog.Items
                 .Concat(catalog.ScriptureQueue)
                 .GroupBy(item => item.ItemId, StringComparer.Ordinal)
-                .Select(group => FromResolved(group.First()))
+                .Select(group => FromResolved(group.First(), synced: true))
                 .ToArray();
 
         var status = catalog.Service is null
@@ -126,12 +140,12 @@ public static class OperatorWorkspaceCatalog
             .ToArray();
     }
 
-    public static OperatorWorkspaceItem FromResolved(OperatorCatalogItem item)
+    public static OperatorWorkspaceItem FromResolved(OperatorCatalogItem item, bool synced = false)
     {
         ArgumentNullException.ThrowIfNull(item);
         var (category, accent) = PresentationKind(item.ItemType);
         return new OperatorWorkspaceItem(
-            item.ItemId, category, item.Title, item.Body, item.Footer, accent);
+            item.ItemId, category, item.Title, item.Body, item.Footer, accent, item.ItemType, synced);
     }
 
     private static (string Category, string Accent) PresentationKind(string? itemType) =>

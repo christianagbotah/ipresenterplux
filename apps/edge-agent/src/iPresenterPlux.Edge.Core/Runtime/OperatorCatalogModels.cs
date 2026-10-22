@@ -1,3 +1,5 @@
+using iPresenterPlux.Edge.Core.Contracts;
+
 namespace iPresenterPlux.Edge.Core.Runtime;
 
 public sealed record OperatorCatalogService(
@@ -20,7 +22,8 @@ public sealed record OperatorCatalogItem(
     string Title,
     string Body,
     string? Footer,
-    IReadOnlyDictionary<string, string> Metadata);
+    IReadOnlyDictionary<string, string> Metadata,
+    PresentationMediaDescriptor? Media = null);
 
 public sealed record OperatorCatalogSnapshot(
     int SchemaVersion,

@@ -945,6 +945,30 @@ public sealed class MainWindow : Window
             return;
         }
         _selectedRundownItemId = item.Id;
+        if (item.IsSynced)
+        {
+            if (_operatorBusy) return;
+            _operatorBusy = true;
+            try
+            {
+                var response = await _operatorClient.PreparePreviewItemAsync(item.Id, CancellationToken.None);
+                RenderOperatorSnapshot(response.Snapshot);
+                if (response.Ok)
+                    SetOperatorFeedback($"Preview prepared: {item.Title}", false);
+                else
+                    SetOperatorFeedback(SafeOperatorError(response.ErrorCode), true);
+            }
+            catch
+            {
+                SetOperatorUnavailable();
+            }
+            finally
+            {
+                _operatorBusy = false;
+            }
+            return;
+        }
+
         await SendOperatorAsync(LocalOperatorCommands.PreviewRender, item.ToPresentation(), $"Preview prepared: {item.Title}");
     }
 
