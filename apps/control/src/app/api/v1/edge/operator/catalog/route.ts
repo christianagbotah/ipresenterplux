@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { authenticateEdgeDevice } from "@/lib/edge-auth";
 import { query } from "@/lib/db";
 import {
-  extractOperatorPresentationFields,
   normalizeOperatorPresentationBody,
   normalizeOperatorText,
   normalizeOperatorTimestamp,
 } from "@/lib/edge-operator-catalog";
+import { normalizeEdgePresentationCatalogFields } from "@/lib/edge-presentation-resolver";
 import {
   EDGE_OPERATOR_ACTIVE_SERVICE_SQL,
   EDGE_OPERATOR_BIBLE_VERSIONS_SQL,
@@ -103,13 +103,12 @@ export async function GET(request: Request) {
   ]);
 
   const items = presentationResult.rows.map((row) => {
-    const fields = extractOperatorPresentationFields(row.content);
-    const title = normalizeOperatorText(row.title, 200);
+    const fields = normalizeEdgePresentationCatalogFields(row.item_type, row.title, row.content);
     return {
       itemId: row.id,
-      itemType: normalizeOperatorText(row.item_type, 32),
-      title,
-      body: fields.body || title,
+      itemType: fields.itemType,
+      title: fields.title,
+      body: fields.body || fields.title,
       footer: fields.footer,
       metadata: {
         ...fields.metadata,

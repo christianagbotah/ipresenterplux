@@ -152,6 +152,8 @@ jobs:
         run: pnpm test:scripture-auto-live-field-uat-gate
       - name: Whole-chapter Scripture rendering self-test
         run: pnpm test:scripture-whole-chapter
+      - name: Edge presentation resolver self-test
+        run: pnpm test:edge-presentation-resolver
       - name: Edge operator catalog self-test
         run: pnpm test:edge-operator-catalog
       - name: Scripture quote integration self-test

@@ -11,8 +11,13 @@ const javascript = ts.transpileModule(resolverSource, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const resolver = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
-const { resolveEdgePresentationItem, EdgePresentationResolverError } = resolver;
+const { resolveEdgePresentationItem, EdgePresentationResolverError, presentationThemeContentVariant } = resolver;
 assert.equal(typeof resolveEdgePresentationItem, "function", "resolveEdgePresentationItem must be exported");
+assert.equal(typeof presentationThemeContentVariant, "function", "presentationThemeContentVariant must be exported");
+assert.equal(presentationThemeContentVariant("scripture"), "scripture");
+assert.equal(presentationThemeContentVariant("song"), "song");
+assert.equal(presentationThemeContentVariant("announcement"), "announcement");
+assert.equal(presentationThemeContentVariant("media"), "generic");
 
 const deviceId = "11111111-1111-4111-8111-111111111111";
 const organizationId = "22222222-2222-4222-8222-222222222222";
