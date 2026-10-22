@@ -7,6 +7,7 @@ const controlRoot = path.resolve(import.meta.dirname, "..");
 const routesPath = path.join(controlRoot, "src/components/navigation/studio-routes.ts");
 const sidebarPath = path.join(controlRoot, "src/components/navigation/StudioSidebar.tsx");
 const mobilePath = path.join(controlRoot, "src/components/navigation/StudioMobileNav.tsx");
+const cockpitHeaderPath = path.join(controlRoot, "src/components/cockpit/CockpitHeader.tsx");
 const dashboardPath = path.join(controlRoot, "src/app/DashboardPage.tsx");
 
 assert.ok(existsSync(routesPath), "shared studio route source must exist");
@@ -19,6 +20,7 @@ const expectedRoutes = [
   ["Control Room", "/"],
   ["Scripture", "/scripture"],
   ["Songs & Media", "/media"],
+  ["Theme Studio", "/themes"],
   ["Cameras", "/cameras"],
   ["AI Director", "/ai-director"],
   ["Translations", "/translations"],
@@ -71,6 +73,11 @@ const allCapabilities = visibleStudioRoutes({
 });
 assert.deepEqual(allCapabilities.map((route) => route.href), studioRoutes.map((route) => route.href));
 
+const cockpitHeader = readFileSync(cockpitHeaderPath, "utf8");
+assert.match(cockpitHeader, /visibleStudioRoutes/, "Cockpit Workspaces menu must consume the shared capability-aware Studio routes");
+assert.match(cockpitHeader, /visibleStudioRoutes\(model\.capabilities\)/, "Cockpit Workspaces menu must filter routes by the current role and entitlements");
+assert.doesNotMatch(cockpitHeader, /const\s+domainLinks\s*=\s*\[/, "Cockpit header must not keep a second hard-coded workspace route list");
+
 for (const filePath of [sidebarPath, mobilePath]) {
   assert.ok(existsSync(filePath), `${path.basename(filePath)} must exist`);
   const source = readFileSync(filePath, "utf8");
@@ -92,18 +99,28 @@ const dashboard = readFileSync(dashboardPath, "utf8");
 const cockpitViewModelPath = path.join(controlRoot, "src/lib/cockpit/view-model.ts");
 const cockpitViewModel = readFileSync(cockpitViewModelPath, "utf8");
 const cockpitWorkspacePath = path.join(controlRoot, "src/components/cockpit/CockpitWorkspace.tsx");
+const cockpitMobilePath = path.join(controlRoot, "src/components/cockpit/CockpitMobile.tsx");
+const mobileBottomNavPath = path.join(controlRoot, "src/components/cockpit/mobile/MobileBottomNav.tsx");
 const cockpitWorkspace = readFileSync(cockpitWorkspacePath, "utf8");
+const cockpitMobile = readFileSync(cockpitMobilePath, "utf8");
+const mobileBottomNav = readFileSync(mobileBottomNavPath, "utf8");
 assert.match(dashboard, /getCockpitViewModel/, "Control Room must load the authoritative Cockpit projection");
 assert.match(cockpitViewModel, /getCurrentServiceForUser/, "Cockpit projection must delegate membership/service selection to the shared resolver");
 assert.doesNotMatch(dashboard, /user_organization_roles where user_id=\$1 order by created_at limit 1/, "Control Room must not query nonexistent membership created_at");
 assert.match(dashboard, /CockpitWorkspace/, "Control Room must render the shared Cockpit workspace");
 assert.match(cockpitWorkspace, /StudioSidebar/, "Cockpit workspace must render the shared desktop sidebar");
-assert.match(cockpitWorkspace, /StudioMobileNav/, "Cockpit workspace must render the shared mobile navigation");
+assert.match(cockpitWorkspace, /CockpitMobile/, "Cockpit workspace must render the role-projected mobile Live Assist shell");
+assert.doesNotMatch(cockpitWorkspace, /<StudioMobileNav\b/, "Cockpit must not stack legacy mobile navigation on top of Live Assist");
+assert.match(cockpitMobile, /MobileBottomNav/, "Cockpit mobile must compose the Live Assist bottom navigation");
+for (const destination of ["live", "scripture", "service", "media_sources", "audience"]) {
+  assert.ok(mobileBottomNav.includes(`\"${destination}\"`), `Live Assist navigation must retain ${destination}`);
+}
 assert.doesNotMatch(dashboard, /const\s+nav\s*=\s*\[/, "Control Room must not retain a second hard-coded studio route list");
 
 console.log(JSON.stringify({
   ok: true,
   routes: studioRoutes.length,
   activeState: "pathname",
-  desktopMobileRouteParity: true
+  sharedStudioNavigation: true,
+  cockpitMobileNavigation: "role_projected_live_assist"
 }));

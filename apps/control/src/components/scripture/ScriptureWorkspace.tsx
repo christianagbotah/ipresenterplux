@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ScriptureAutomationControl } from "./ScriptureAutomationControl";
 import {
   BookOpen,
   CheckCircle2,
@@ -20,6 +21,17 @@ type Service = {
   title: string;
   status: string;
   activeBibleVersion: string;
+  scriptureAutomation: {
+    mode: "manual" | "auto_preview" | "auto_live";
+    armed: boolean;
+    armedAt: string | null;
+    armedBy: string | null;
+    referenceThreshold: number;
+    quoteThreshold: number;
+    organizationAutoLiveEnabled: boolean;
+    suspendedReason: string | null;
+  };
+  hasActiveEdge: boolean;
 };
 
 type BibleVersion = { id: string; name: string; abbreviation: string; languageCode: string };
@@ -314,6 +326,21 @@ export function ScriptureWorkspace({
           You can browse and inspect Scripture, but your role is view-only for live output controls.
         </section>
       ) : null}
+
+      {service ? <ScriptureAutomationControl
+        key={`${service.id}:${service.scriptureAutomation.mode}:${service.scriptureAutomation.armedAt ?? "off"}:${service.scriptureAutomation.referenceThreshold}:${service.scriptureAutomation.quoteThreshold}`}
+        scope="service"
+        serviceId={service.id}
+        serviceStatus={service.status}
+        mode={service.scriptureAutomation.mode}
+        armed={service.scriptureAutomation.armed}
+        referenceThreshold={service.scriptureAutomation.referenceThreshold}
+        quoteThreshold={service.scriptureAutomation.quoteThreshold}
+        organizationAutoLiveEnabled={service.scriptureAutomation.organizationAutoLiveEnabled}
+        suspendedReason={service.scriptureAutomation.suspendedReason}
+        hasActiveEdge={service.hasActiveEdge}
+        canControl={canControl}
+      /> : null}
 
       <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,.65fr)]">
         <div className="space-y-4">

@@ -27,6 +27,15 @@ type ServiceRow = {
   active_bible_version: string;
   auto_preview_threshold: string | number;
   ai_enabled: boolean;
+  active_theme_id: string | null;
+  active_theme_name: string | null;
+  scripture_automation_mode: "manual" | "auto_preview" | "auto_live";
+  auto_scripture_reference_threshold: string | number;
+  auto_scripture_quote_threshold: string | number;
+  scripture_automation_armed_at: string | null;
+  scripture_automation_armed_by: string | null;
+  scripture_automation_suspended_reason: string | null;
+  auto_scripture_live_enabled: boolean;
   updated_at: string;
 };
 
@@ -117,9 +126,14 @@ export async function getCurrentServiceForUser(userId: string, options: Options 
   const roles = member.roles ?? [];
   const serviceResult = await client.query<ServiceRow>(
     `select s.id::text,s.organization_id::text,s.campus_id::text,c.name as campus_name,
-            s.title,s.status,s.active_bible_version,s.auto_preview_threshold,s.ai_enabled,s.updated_at::text
+            s.title,s.status,s.active_bible_version,s.auto_preview_threshold,s.ai_enabled,s.active_theme_id::text,t.name as active_theme_name,
+            s.scripture_automation_mode,s.auto_scripture_reference_threshold,s.auto_scripture_quote_threshold,
+            s.scripture_automation_armed_at::text,s.scripture_automation_armed_by::text,
+            s.scripture_automation_suspended_reason,o.auto_scripture_live_enabled,s.updated_at::text
        from services s
+       join organizations o on o.id=s.organization_id
        left join campuses c on c.id=s.campus_id
+       left join presentation_themes t on t.id=s.active_theme_id and t.organization_id=s.organization_id
       where s.organization_id=$1::uuid and s.status in ('live','ready')
       order by case s.status when 'live' then 0 else 1 end,s.updated_at desc,s.id desc
       limit 1`,
@@ -161,6 +175,18 @@ export async function getCurrentServiceForUser(userId: string, options: Options 
       activeBibleVersion: row.active_bible_version,
       autoPreviewThreshold: Number(row.auto_preview_threshold),
       aiEnabled: row.ai_enabled,
+      activeThemeId: row.active_theme_id,
+      activeThemeName: row.active_theme_name,
+      scriptureAutomation: {
+        mode: row.scripture_automation_mode,
+        armed: Boolean(row.scripture_automation_armed_at && row.scripture_automation_armed_by),
+        armedAt: row.scripture_automation_armed_at,
+        armedBy: row.scripture_automation_armed_by,
+        referenceThreshold: Number(row.auto_scripture_reference_threshold),
+        quoteThreshold: Number(row.auto_scripture_quote_threshold),
+        organizationAutoLiveEnabled: row.auto_scripture_live_enabled,
+        suspendedReason: row.scripture_automation_suspended_reason
+      },
       updatedAt: row.updated_at
     } : null
   };

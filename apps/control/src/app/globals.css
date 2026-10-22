@@ -191,13 +191,19 @@ a[aria-disabled="true"] {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  padding: clamp(.75rem, 3cqw, 1.5rem);
 }
-.ip-stage-copy > * { flex-shrink: 0; }
-.ip-stage-copy > :first-child { margin-top: auto; }
-.ip-stage-copy > :last-child { margin-bottom: auto; }
-.ip-stage-title { font-size: clamp(1rem, 5cqw, 2rem); line-height: 1.2; }
+.ip-stage-fit-content {
+  width: 100%;
+  max-width: 100%;
+  transform-origin: center center;
+  will-change: transform;
+}
+.ip-stage-title { font-size: clamp(1rem, 5cqw, 2rem); line-height: 1.2; text-wrap: balance; }
 .ip-stage-body { font-size: clamp(.875rem, 3.6cqw, 1.5rem); }
 
 .ip-studio-tool {

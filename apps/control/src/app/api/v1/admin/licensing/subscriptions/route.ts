@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireProductAdminEmail } from "@/lib/licensing/product-admin";
 import {
   configureSubscriptionPlan,
+  changeSubscriptionPlan,
   createSubscriptionPlan,
   createOrganizationSubscription,
   extendSubscription,
@@ -24,6 +25,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("set_status"), subscriptionId: z.string().uuid(), status: z.enum(["trial","active","past_due","suspended","expired","cancelled"]), reason: z.string().trim().max(240).optional() }),
   z.object({ action: z.literal("extend"), subscriptionId: z.string().uuid(), days: z.number().int().min(1).max(3650), reason: z.string().trim().max(240).optional() }),
   z.object({ action: z.literal("set_seats"), subscriptionId: z.string().uuid(), seatLimit: z.number().int().min(1).max(1000).nullable() }),
+  z.object({ action: z.literal("change_plan"), subscriptionId: z.string().uuid(), planId: z.string().uuid() }),
   z.object({ action: z.literal("configure_plan"), planId: z.string().uuid(), name: z.string().trim().min(1).max(120).optional(), enabled: z.boolean().optional(), defaultDeviceSeatLimit: z.number().int().min(1).max(1000).optional(), features: z.record(z.string(), z.boolean()).optional(), numericLimits: z.record(z.string(), z.number()).optional() })
 ]);
 
@@ -80,6 +82,9 @@ export async function POST(request: Request) {
         break;
       case "set_seats":
         result = await setSubscriptionSeatLimit(client, { ...parsed.data, actorUserId: session.user.id });
+        break;
+      case "change_plan":
+        result = await changeSubscriptionPlan(client, { ...parsed.data, actorUserId: session.user.id });
         break;
       case "configure_plan":
         result = await configureSubscriptionPlan(client, { ...parsed.data, actorUserId: session.user.id });

@@ -12,6 +12,7 @@ export type StudioIconKey =
   | "dashboard"
   | "scripture"
   | "media"
+  | "theme"
   | "camera"
   | "ai"
   | "translations"
@@ -32,6 +33,7 @@ export const studioRoutes: readonly StudioRoute[] = [
   { label: "Control Room", href: "/", icon: "dashboard", placement: "primary" },
   { label: "Scripture", href: "/scripture", icon: "scripture", placement: "primary" },
   { label: "Songs & Media", href: "/media", icon: "media", capability: "canMedia", placement: "primary" },
+  { label: "Theme Studio", href: "/themes", icon: "theme", capability: "canMedia", placement: "primary" },
   { label: "Cameras", href: "/cameras", icon: "camera", capability: "canCameras", placement: "primary" },
   { label: "AI Director", href: "/ai-director", icon: "ai", capability: "canAIDirector", placement: "primary" },
   { label: "Translations", href: "/translations", icon: "translations", capability: "canTranslations", placement: "primary" },

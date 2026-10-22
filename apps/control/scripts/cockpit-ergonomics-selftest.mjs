@@ -43,6 +43,13 @@ assert.match(depth, /href=\"\/scripture\"/, "operators need one-tap Scripture ac
 assert.match(depth, /href=\"\/media\"/, "operators need one-tap Media access beside the live stage");
 assert.match(depth, /href=\"\/cameras\"/, "operators need one-tap Cameras access beside the live stage");
 assert.match(depth, /href=\"\/ai-director\"/, "operators need one-tap AI Director access beside the live stage");
+assert.match(depth, /aria-label=\"Operator command bar\"/, "desktop depth, source and focus controls must share one compact operator command bar");
+assert.equal(depth.includes('aria-label="Operator source shortcuts"'), false, "source shortcuts must not consume a separate desktop toolbar row");
+assert.doesNotMatch(depth, /<p id=\"ip-cockpit-depth-hint\" className=\"mb-3 -mt-1/, "depth guidance must be assistive-only instead of a persistent row above the stage");
+for (const href of ["/scripture", "/media", "/cameras", "/ai-director"]) {
+  const escaped = href.replaceAll("/", "\\/");
+  assert.match(depth, new RegExp(`href=\"${escaped}\"[^>]*min-h-11`), `${href} quick action must keep a 44px minimum target`);
+}
 
 assert.match(stage, /TAKE PREVIEW LIVE/, "the primary live action must say exactly what will happen");
 assert.match(stage, /CLEAR LIVE/, "the destructive live action must use plain operator language");
@@ -55,11 +62,18 @@ assert.match(stage, /ON AIR/, "Program must expose an unmistakable on-air state"
 assert.match(stage, /Ready to take/, "Preview must expose a ready-to-take state");
 assert.match(stage, /ip-stage-canvas/, "monitor content must use the bounded stage canvas");
 assert.match(stage, /ip-stage-copy/, "long monitor content must use the bounded stage copy container");
-assert.match(stage, /overflow-y-auto/, "long monitor content must scroll inside the 16:9 surface instead of stretching it");
+assert.doesNotMatch(stage, /overflow-y-auto/, "Preview/Program canvases must never expose internal vertical scrolling");
+assert.doesNotMatch(stage, /ip-scrollbar-thin/, "Preview/Program canvases must not behave like scrollable web panels");
+assert.match(stage, /ip-stage-fit-content/, "stage content must render through the auto-fit content wrapper");
+assert.match(stage, /ResizeObserver/, "stage auto-fit must recompute when the monitor size changes");
+assert.match(stage, /scrollHeight/, "stage auto-fit must measure rendered content height before scaling");
+assert.match(stage, /content\.style\.transform\s*=\s*`scale\(\$\{scale\}\)`/, "stage content must scale proportionally to remain inside the fixed canvas");
 
 assert.match(css, /\.ip-stage-canvas/, "stage canvas styling must be shared in globals.css");
 assert.match(css, /container-type:\s*inline-size/, "monitor typography must scale to monitor width rather than viewport width");
+assert.match(css, /\.ip-stage-copy[\s\S]*overflow:\s*hidden/, "stage copy must clip its fixed canvas instead of creating a scrollbar");
 assert.match(css, /\.ip-stage-copy[\s\S]*overflow-wrap:\s*anywhere/, "long stage copy must wrap safely inside the monitor");
+assert.match(css, /\.ip-stage-fit-content[\s\S]*transform-origin:\s*center/, "auto-fit content must scale from the monitor center");
 
 assert.match(nextRail, /index === 0/, "the first Next item must receive a stronger visual priority treatment");
 assert.match(nextRail, /break-words/, "long Next titles and reasons must wrap rather than truncate out of context");
@@ -92,6 +106,8 @@ for (const [name, source] of [["ProgramPreviewStage", stage], ["CockpitDepthCont
 console.log(JSON.stringify({
   ok: true,
   landscapeStages: true,
+  fixedStageCanvases: true,
+  autoFitStageContent: true,
   persistentLiveStage: true,
   independentRails: true,
   modalViewportSafe: true,

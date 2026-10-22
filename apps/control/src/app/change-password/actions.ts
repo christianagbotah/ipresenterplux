@@ -49,7 +49,7 @@ export async function changePassword(
   );
 
   const memberships = await query<{ organization_id: string }>(
-    "select organization_id::text from user_organization_roles where user_id=$1 order by created_at limit 1",
+    "select organization_id::text from user_organization_roles where user_id=$1 order by granted_at limit 1",
     [session.user.id]
   );
   if (memberships.rows[0]) {

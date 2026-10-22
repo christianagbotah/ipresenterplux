@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 import type { CockpitAttentionItem } from "./contracts.ts";
+import { VISUAL_SOURCE_TYPES, reportedVisualSourceName, sanitizeVisualSourceMetadata, visualSourceKind, type VisualCaptureStatus, type VisualSourceKind } from "../visual-source-metadata.ts";
 
 const FRESHNESS_MS = 120_000;
 
@@ -25,6 +26,7 @@ export type CockpitAttentionInput = {
   now?: Date;
   serviceLive: boolean;
   edge: null | { name: string; status: string; lastSeenAt: string | null };
+  programVisualSource?: null | { name: string; kind: VisualSourceKind; captureStatus: VisualCaptureStatus | null; lastSeenAt: string | null };
   asr: null | { name: string; status: string; lastSeenAt: string | null; workerStatus: string | null; engine: string | null };
   translation: { languages: string[]; worker: WorkerTruth | null };
   tts: { languages: string[]; worker: WorkerTruth | null };
@@ -82,6 +84,24 @@ export function buildCockpitAttention(input: CockpitAttentionInput): CockpitAtte
         recoveryIntent: "navigation.open:/settings/devices"
       });
     }
+  }
+
+  const programVisualSource = input.programVisualSource ?? null;
+  if (programVisualSource
+      && fresh(programVisualSource.lastSeenAt, now)
+      && ["disconnected", "error"].includes(programVisualSource.captureStatus ?? "")) {
+    items.push({
+      id: "visual-program-source-loss",
+      severity: input.serviceLive ? "critical" : "warning",
+      affectedCapability: "visual.program",
+      impact: `${programVisualSource.name} is the Edge-confirmed Program visual source and its capture is ${programVisualSource.captureStatus}. Program video may hold briefly and then fall back safely.`,
+      containment: "No automatic source switch has been performed. Other content and outputs remain under operator control.",
+      recommendedAction: "Open Visual Sources, Preview a replacement, then return to the Cockpit to take the replacement live.",
+      detailHref: "/cameras",
+      observedAt: programVisualSource.lastSeenAt,
+      freshUntil: isoPlus(programVisualSource.lastSeenAt),
+      recoveryIntent: "navigation.open:/cameras"
+    });
   }
 
   if (input.asr) {
@@ -206,6 +226,7 @@ export function buildCockpitAttention(input: CockpitAttentionInput): CockpitAtte
 type WorkerRow = { provider:string; state:string; error_code:string|null; observed_at:string|null };
 type EdgeRow = { name:string; status:string; last_seen_at:string|null };
 type AsrRow = { name:string; status:string; last_seen_at:string|null; metadata:Record<string,unknown>|null };
+type VisualRow = { name:string; source_type:string; last_seen_at:string|null; metadata:unknown };
 type StreamRow = { name:string; destination_type:string; status:string; provider_health_state:string; provider_live_state:string; observed_at:string|null; provider_error_code:string|null; provider_issue_codes:string[]|null };
 type SubscriptionRow = { status:string; expires_at:string|null; grace_until:string|null };
 
@@ -225,6 +246,16 @@ export async function loadCockpitAttention(
       where organization_id=$1 and source_type='audio_input'
       order by last_seen_at desc nulls last,id limit 1`,
     [input.organizationId]
+  );
+  const visuals = await client.query<VisualRow>(
+    `select ms.name,ms.source_type,ms.last_seen_at::text,ms.metadata
+       from media_sources ms
+       join edge_devices ed on ed.id=ms.edge_device_id and ed.organization_id=ms.organization_id
+      where ms.organization_id=$1
+        and ed.active_service_id=$2
+        and ms.source_type = any($3::text[])
+      order by ms.last_seen_at desc nulls last,ms.id`,
+    [input.organizationId,input.serviceId,[...VISUAL_SOURCE_TYPES]]
   );
   const translation = await client.query<WorkerRow>(
     `select provider,state,error_code,observed_at::text from translation_worker_status order by observed_at desc,worker_id limit 1`
@@ -262,10 +293,23 @@ export async function loadCockpitAttention(
 
   const audio = asr.rows[0];
   const metadata = audio?.metadata ?? {};
+  const programVisualSource = visuals.rows.flatMap((row) => {
+    const kind = visualSourceKind(row.source_type);
+    if (!kind) return [];
+    const visualMetadata = sanitizeVisualSourceMetadata(row.metadata);
+    if (visualMetadata.programActive !== true) return [];
+    return [{
+      name:reportedVisualSourceName(row.metadata,row.name),
+      kind,
+      captureStatus:visualMetadata.captureStatus ?? null,
+      lastSeenAt:row.last_seen_at
+    }];
+  })[0] ?? null;
   return buildCockpitAttention({
     now,
     serviceLive: input.serviceLive,
     edge: edge.rows[0] ? { name:edge.rows[0].name,status:edge.rows[0].status,lastSeenAt:edge.rows[0].last_seen_at } : null,
+    programVisualSource,
     asr: audio ? {
       name:audio.name,status:audio.status,lastSeenAt:audio.last_seen_at,
       workerStatus:typeof metadata.asrWorkerStatus === "string" ? metadata.asrWorkerStatus : null,

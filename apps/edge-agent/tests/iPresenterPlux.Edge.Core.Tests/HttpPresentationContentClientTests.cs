@@ -4,6 +4,7 @@ using System.Text.Json;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Transport;
+using iPresenterPlux.Edge.Core.Runtime;
 using Xunit;
 
 namespace iPresenterPlux.Edge.Core.Tests;
@@ -46,6 +47,34 @@ public sealed class HttpPresentationContentClientTests
         Assert.Equal("John 3:16", item.Title);
         Assert.Equal("KJV", item.Footer);
         Assert.Equal("John", item.Metadata["book"]);
+    }
+
+
+    [Fact]
+    public async Task HydratesApprovedThemeAssetsWhileFetchingPresentationContent()
+    {
+        var identity = Identity();
+        var itemId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var assetId = Guid.NewGuid();
+        var directory = Path.Combine(Path.GetTempPath(), $"ipresenter-theme-client-{Guid.NewGuid():N}");
+        try
+        {
+            using var http = new HttpClient(new StubHandler(request =>
+            {
+                if (request.RequestUri?.AbsolutePath == $"/api/v1/edge/presentation/items/{itemId:D}")
+                    return Json(HttpStatusCode.OK, JsonSerializer.Serialize(new { ok=true,item=new { itemId=itemId.ToString("D"),serviceId=serviceId.ToString("D"),itemType="scripture",title="John 3:16",body="Text",footer="WEBP",metadata=new Dictionary<string,string> { [PresentationThemeAssetCache.MetadataKey]=JsonSerializer.Serialize(new Dictionary<string,string> { [assetId.ToString("D")]="https://cdn.example.invalid/theme.webp" }) } } }));
+                var asset = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([7,8,9]) };
+                asset.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/webp");
+                return asset;
+            })) { BaseAddress = new Uri("http://127.0.0.1:3011") };
+            var cache = new PresentationThemeAssetCache(http,directory);
+            var client = new HttpPresentationContentClient(http,identity,new FixedCredentialStore(Credential(identity)),themeAssetCache:cache);
+            await client.GetAsync(itemId.ToString("D"),CancellationToken.None);
+            Assert.True(cache.TryResolve(assetId,out _,out var contentType));
+            Assert.Equal("image/webp",contentType);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory,true); }
     }
 
     private static AgentIdentity Identity() => new(
