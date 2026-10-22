@@ -78,6 +78,21 @@ public sealed class LocalOperatorClientTests
     }
 
     [Fact]
+    public void PrepareItemRequestCarriesOnlyTrustedItemId()
+    {
+        var itemId = Guid.NewGuid().ToString("D");
+        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), LocalOperatorCommands.PreviewPrepareItem, ItemId: itemId);
+
+        var json = JsonSerializer.Serialize(request, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Contains(itemId, json, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("https://", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("downloadUrl", json, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(typeof(LocalOperatorClient).GetMethod("PrepareItemAsync"));
+    }
+
+    [Fact]
     public async Task ClientRefusesCommandsOutsideTheLocalAllowlist()
     {
         var client = new LocalOperatorClient(Path.GetTempPath());

@@ -75,6 +75,35 @@ public sealed class HttpOperatorCatalogClientTests
     }
 
     [Fact]
+    public async Task MediaCatalogItemPreservesTypeAndAllowsIntentionallyEmptyBody()
+    {
+        var identity = Identity();
+        var serviceId = Guid.NewGuid();
+        var itemId = Guid.NewGuid().ToString("D");
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, new
+        {
+            ok = true,
+            service = new { serviceId, title = "Sunday Worship", status = "live", activeBibleVersion = "KJV", scheduledStart = (string?)null, startedAt = (string?)null },
+            bibleVersions = Array.Empty<object>(),
+            items = new[] { new { itemId, itemType = "media", title = "Worship Opener", body = "", footer = (string?)null, metadata = new Dictionary<string,string> { ["state"] = "queued" } } },
+            scriptureQueue = Array.Empty<object>(),
+            catalogRevision = "media-empty-body",
+            observedAt = "2026-10-22T13:00:00Z"
+        }))) { BaseAddress = new Uri("https://control.example.test") };
+        var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
+
+        var catalog = await client.GetCatalogAsync(CancellationToken.None);
+
+        var media = Assert.Single(catalog.Items);
+        Assert.Equal(itemId, media.ItemId);
+        Assert.Equal("media", media.ItemType);
+        Assert.Equal("Worship Opener", media.Title);
+        Assert.Equal(string.Empty, media.Body);
+        Assert.DoesNotContain("http://", JsonSerializer.Serialize(media), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("https://", JsonSerializer.Serialize(media), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task AcceptsPostgresTimestampTextFromProductionCatalog()
     {
         var identity = Identity();

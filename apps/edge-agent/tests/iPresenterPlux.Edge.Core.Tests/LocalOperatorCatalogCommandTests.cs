@@ -1,5 +1,6 @@
 using System.Text.Json;
 using iPresenterPlux.Edge.Core.Abstractions;
+using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.State;
 using Xunit;
@@ -163,6 +164,51 @@ public sealed class LocalOperatorCatalogCommandTests
     }
 
     [Fact]
+    public async Task PrepareItemUsesTrustedHydrationAndRejectsCrossServiceScope()
+    {
+        using var fixture = new Fixture();
+        var itemId = Guid.NewGuid().ToString("D");
+        await fixture.Coordinator.SetActiveServiceAsync(fixture.ServiceId, CancellationToken.None);
+        await fixture.Store.WriteAsync(fixture.Snapshot(
+            DateTimeOffset.Parse("2026-10-22T13:00:00Z"),
+            items: [new OperatorCatalogItem(itemId, "media", "Worship Opener", "", null, new Dictionary<string,string>())]), CancellationToken.None);
+        var descriptor = new PresentationMediaDescriptor(
+            Guid.NewGuid(), "video", new Uri("https://media.example.test/worship.mp4"), "asset-v1", "video/mp4",
+            "Worship Opener", 0, null, false, 1, "contain").Validate();
+        var render = new PresentationRenderItem(itemId, fixture.ServiceId, "media", "Worship Opener", "", null, new Dictionary<string,string>(), descriptor);
+        var provider = new FakePresentationProvider(render);
+        fixture.Coordinator.BindPresentationProvider(provider);
+        var preparation = new FakePreparationCoordinator(new MediaPreparationSnapshot(
+            itemId, fixture.ServiceId, MediaPreparationState.Ready,
+            new PreparedMediaAsset(itemId, fixture.ServiceId, "cache-key", "/edge/cache/video.mp4", "video/mp4", "video", TimeSpan.FromSeconds(20), descriptor), null));
+        var state = State(fixture.ServiceId);
+        await using var output = new LocalWebProgramOutputService(49410);
+        var handler = new LocalOperatorCommandHandler(state, output, operatorCatalog: fixture.Coordinator, mediaPreparation: preparation);
+        var request = new LocalOperatorRequest(Guid.NewGuid().ToString("D"), LocalOperatorCommands.PreviewPrepareItem, ItemId: itemId);
+
+        var requestJson = JsonSerializer.Serialize(request);
+        Assert.Contains(itemId, requestJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://", requestJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("https://", requestJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("/edge/cache", requestJson, StringComparison.OrdinalIgnoreCase);
+        var response = await handler.HandleAsync(request, CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.Equal("preview_ready", response.State);
+        Assert.Equal(itemId, response.Snapshot.Preview?.ItemId);
+        Assert.Equal("media", response.Snapshot.Preview?.ItemType);
+        Assert.Equal(1, provider.Calls);
+        Assert.Equal(1, preparation.PrepareCalls);
+
+        var wrongState = State(Guid.NewGuid());
+        var wrongHandler = new LocalOperatorCommandHandler(wrongState, output, operatorCatalog: fixture.Coordinator, mediaPreparation: preparation);
+        var rejected = await wrongHandler.HandleAsync(request with { RequestId = Guid.NewGuid().ToString("D") }, CancellationToken.None);
+        Assert.False(rejected.Ok);
+        Assert.Equal("catalog_scope_mismatch", rejected.ErrorCode);
+        Assert.Equal(1, provider.Calls);
+    }
+
+    [Fact]
     public async Task ScriptureQueryBoundsFailBeforeCoordinatorInvocation()
     {
         using var fixture = new Fixture();
@@ -288,6 +334,33 @@ public sealed class LocalOperatorCatalogCommandTests
         public IDisposable AcquireReadyLease(string itemId) => new Lease();
         public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
         private sealed class Lease : IDisposable { public void Dispose() { } }
+    }
+
+    private sealed class FakePresentationProvider(PresentationRenderItem item) : IPresentationContentProvider
+    {
+        public int Calls { get; private set; }
+        public Task<PresentationRenderItem> GetAsync(string itemId, CancellationToken cancellationToken)
+        {
+            Calls++;
+            Assert.Equal(item.ItemId, itemId);
+            return Task.FromResult(item);
+        }
+    }
+
+    private sealed class FakePreparationCoordinator(MediaPreparationSnapshot result) : IMediaPreparationCoordinator
+    {
+        public int PrepareCalls { get; private set; }
+        public event EventHandler<MediaPreparationSnapshot>? StatusChanged;
+        public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken)
+        {
+            PrepareCalls++;
+            return Task.FromResult(result);
+        }
+        public MediaPreparationSnapshot? TryGet(string itemId) => null;
+        public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public IDisposable AcquireReadyLease(string itemId) => new NoopLease();
+        public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
+        private sealed class NoopLease : IDisposable { public void Dispose() { } }
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
