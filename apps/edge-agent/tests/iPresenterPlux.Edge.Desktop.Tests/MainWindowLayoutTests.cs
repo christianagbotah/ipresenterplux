@@ -90,6 +90,23 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("PreparePreviewItemAsync(item.Id", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OperatorMediaTransportAppearsOnlyForDynamicProgramMediaAndKeepsExistingHotkeys()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_mediaPause", source, StringComparison.Ordinal);
+        Assert.Contains("_mediaResume", source, StringComparison.Ordinal);
+        Assert.Contains("_mediaSeek", source, StringComparison.Ordinal);
+        Assert.Contains("IsDynamicProgramMedia", source, StringComparison.Ordinal);
+        Assert.Contains("LocalOperatorCommands.MediaPause", source, StringComparison.Ordinal);
+        Assert.Contains("LocalOperatorCommands.MediaResume", source, StringComparison.Ordinal);
+        Assert.Contains("SeekMediaAsync", source, StringComparison.Ordinal);
+        Assert.Contains("if (args.Key == Key.F8) _ = TakeAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("if (args.Key == Key.F7) _ = ClearProgramAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("if (args.Key == Key.F6) _ = PreviewSelectedAsync();", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
