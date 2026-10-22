@@ -177,7 +177,7 @@ public sealed class LocalOperatorCommandHandlerTests
 
     private sealed class FailedPreparationCoordinator : IMediaPreparationCoordinator
     {
-        public event EventHandler<MediaPreparationSnapshot>? StatusChanged;
+        public event EventHandler<MediaPreparationSnapshot>? StatusChanged { add { } remove { } }
         public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken) =>
             Task.FromResult(new MediaPreparationSnapshot(item.ItemId, item.ServiceId, MediaPreparationState.Failed, null, "media_download_failed"));
         public MediaPreparationSnapshot? TryGet(string itemId) => null;

@@ -303,7 +303,7 @@ public sealed class LocalOperatorCatalogCommandTests
 
     private sealed class FakePreparationCoordinator(MediaPreparationState state) : IMediaPreparationCoordinator
     {
-        public event EventHandler<MediaPreparationSnapshot>? StatusChanged;
+        public event EventHandler<MediaPreparationSnapshot>? StatusChanged { add { } remove { } }
         public int PrepareCalls { get; private set; }
         public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken)
         {
