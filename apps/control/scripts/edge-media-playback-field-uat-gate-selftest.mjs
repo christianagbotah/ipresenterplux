@@ -43,6 +43,8 @@ for (const [name, report, blocker] of [
   ["projector", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), projectorChecked: false }, evidence("macos")] }, "projector_check_required"],
   ["contribution", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), contributionAvChecked: false }] }, "contribution_av_required"],
   ["restart", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), dynamicRestartNoAutoResume: false }] }, "dynamic_restart_no_auto_resume_required"],
+  ["missing_video_measurement", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), videoDriftMs: null }, evidence("macos")] }, "video_drift_measurement_required"],
+  ["blank_av_measurement", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), contributionAvSkewMs: "" }] }, "contribution_av_skew_measurement_required"],
   ["video_drift", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), videoDriftMs: 251 }, evidence("macos")] }, "video_drift_above_250ms"],
   ["av_skew", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), contributionAvSkewMs: 121 }] }, "contribution_av_skew_above_120ms"]
 ]) {
