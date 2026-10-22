@@ -147,6 +147,60 @@ public sealed class MediaAssetLoopbackTests
     }
 
     [Fact]
+    public async Task ReadyVideoProgramStateExposesPlaybackClockAndOnlyLoopbackAssetIdentity()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            var bytes = new byte[] { 0, 1, 2, 3, 4, 5 };
+            var path = Path.Combine(directory, "video.mp4");
+            await File.WriteAllBytesAsync(path, bytes);
+            var entry = new MediaAssetCacheEntry(
+                new string('c', 64), path, "video/mp4", "video", new string('d', 64),
+                bytes.LongLength, DateTimeOffset.UtcNow);
+            var cache = new FakeCache(entry);
+            var serviceId = Guid.NewGuid();
+            var itemId = Guid.NewGuid().ToString("D");
+            var descriptor = new PresentationMediaDescriptor(
+                Guid.NewGuid(), "video", new Uri("https://cdn.example.test/worship.mp4"),
+                "asset-video-v1", "video/mp4", "Worship Video", 1, 8, false, .75, "contain").Validate();
+            var asset = new PreparedMediaAsset(
+                itemId, serviceId, entry.CacheKey, path, "video/mp4", "video",
+                TimeSpan.FromSeconds(8), descriptor);
+            var preparation = new FakePreparation(new MediaPreparationSnapshot(
+                itemId, serviceId, MediaPreparationState.Ready, asset, null), cache);
+            var playback = new MediaPlaybackCoordinator();
+            var item = new PresentationRenderItem(
+                itemId, serviceId, "media", "Worship Video", "", null,
+                new Dictionary<string, string>(), descriptor);
+            var port = FreePort();
+            await using var output = new LocalWebProgramOutputService(
+                port, mediaAssetCache: cache, mediaPreparation: preparation, mediaPlayback: playback);
+
+            await output.SetActiveServiceAsync(serviceId, CancellationToken.None);
+            await output.SetPreviewAsync(item, CancellationToken.None);
+            await output.TakePreviewToProgramAsync(CancellationToken.None);
+            await output.StartProgramOutputAsync(CancellationToken.None);
+            using var client = new HttpClient();
+
+            var state = await client.GetStringAsync($"http://127.0.0.1:{port}/api/state/program");
+
+            Assert.Contains($"/api/media-assets/{entry.CacheKey}", state, StringComparison.Ordinal);
+            Assert.Contains("\"mediaKind\":\"video\"", state, StringComparison.Ordinal);
+            Assert.Contains("\"playback\":{", state, StringComparison.Ordinal);
+            Assert.Contains("\"revision\":", state, StringComparison.Ordinal);
+            Assert.Contains("\"state\":\"playing\"", state, StringComparison.Ordinal);
+            Assert.Contains("\"effectivePositionSeconds\":", state, StringComparison.Ordinal);
+            Assert.Contains("\"serverTimeUtc\":", state, StringComparison.Ordinal);
+            Assert.DoesNotContain("cdn.example.test", state, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("https://", state, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("downloadUrl", state, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(path, state, StringComparison.OrdinalIgnoreCase);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task PreviewReplacementReleasesReadyMediaLease()
     {
         var directory = TempDirectory();
