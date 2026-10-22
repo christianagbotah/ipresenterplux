@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using Xunit;
@@ -182,6 +183,94 @@ public sealed class LocalWebProgramOutputServiceTests
             Assert.Contains("logo.src",page);
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory,true); }
+    }
+
+    [Fact]
+    public async Task ProgramPageDefinesPersistentVideoAudioPlaybackSynchronization()
+    {
+        var port = FreePort();
+        await using var output = new LocalWebProgramOutputService(port);
+        await output.StartProgramOutputAsync(CancellationToken.None);
+        using var client = new HttpClient();
+
+        var page = await client.GetStringAsync($"http://127.0.0.1:{port}/program");
+
+        Assert.Equal(1, CountOccurrences(page, "id=\"media-video\""));
+        Assert.Equal(1, CountOccurrences(page, "id=\"media-audio\""));
+        Assert.Contains("playback.revision", page, StringComparison.Ordinal);
+        Assert.Contains("effectivePositionSeconds", page, StringComparison.Ordinal);
+        Assert.Contains("Math.abs", page, StringComparison.Ordinal);
+        Assert.Contains("0.25", page, StringComparison.Ordinal);
+        Assert.Contains("/api/media-playback/report", page, StringComparison.Ordinal);
+        Assert.Contains("media_browser_playback_blocked", page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BrowserPlaybackReportAcceptsOnlyCurrentKnownPlaybackFailure()
+    {
+        var port = FreePort();
+        var serviceId = Guid.NewGuid();
+        var itemId = Guid.NewGuid().ToString("D");
+        var descriptor = new PresentationMediaDescriptor(
+            Guid.NewGuid(), "video", new Uri("https://cdn.example.test/video.mp4"), "v1",
+            "video/mp4", "Video", 0, 10, false, 1, "contain").Validate();
+        var asset = new PreparedMediaAsset(
+            itemId, serviceId, new string('e', 64), "/tmp/video.mp4", "video/mp4", "video",
+            TimeSpan.FromSeconds(10), descriptor);
+        var preparation = new ReadyPreparation(asset);
+        var playback = new MediaPlaybackCoordinator();
+        await using var output = new LocalWebProgramOutputService(
+            port, mediaPreparation: preparation, mediaPlayback: playback);
+        await output.SetActiveServiceAsync(serviceId, CancellationToken.None);
+        await output.SetPreviewAsync(new PresentationRenderItem(
+            itemId, serviceId, "media", "Video", "", null, new Dictionary<string,string>(), descriptor), CancellationToken.None);
+        await output.TakePreviewToProgramAsync(CancellationToken.None);
+        await output.StartProgramOutputAsync(CancellationToken.None);
+        using var client = new HttpClient();
+        var live = Assert.IsType<MediaPlaybackSnapshot>(playback.Snapshot);
+
+        using var accepted = await client.PostAsync(
+            $"http://127.0.0.1:{port}/api/media-playback/report",
+            new StringContent($"{{\"itemId\":\"{itemId}\",\"revision\":{live.Revision},\"errorCode\":\"media_browser_playback_blocked\"}}", Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
+        var failed = Assert.IsType<MediaPlaybackSnapshot>(playback.Snapshot);
+        Assert.Equal("error", failed.State);
+        Assert.Equal("media_browser_playback_blocked", failed.ErrorCode);
+
+        using var stale = await client.PostAsync(
+            $"http://127.0.0.1:{port}/api/media-playback/report",
+            new StringContent($"{{\"itemId\":\"{itemId}\",\"revision\":{live.Revision},\"errorCode\":\"media_browser_playback_blocked\"}}", Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+
+        using var unknown = await client.PostAsync(
+            $"http://127.0.0.1:{port}/api/media-playback/report",
+            new StringContent($"{{\"itemId\":\"{itemId}\",\"revision\":{failed.Revision},\"errorCode\":\"arbitrary_error\"}}", Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
+    }
+
+    private static int CountOccurrences(string value, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+        return count;
+    }
+
+    private sealed class ReadyPreparation(PreparedMediaAsset asset) : iPresenterPlux.Edge.Core.Abstractions.IMediaPreparationCoordinator
+    {
+        private readonly MediaPreparationSnapshot _snapshot = new(
+            asset.ItemId, asset.ServiceId, MediaPreparationState.Ready, asset, null);
+        public event EventHandler<MediaPreparationSnapshot>? StatusChanged { add { } remove { } }
+        public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken) => Task.FromResult(_snapshot);
+        public MediaPreparationSnapshot? TryGet(string itemId) => string.Equals(itemId, asset.ItemId, StringComparison.Ordinal) ? _snapshot : null;
+        public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public IDisposable AcquireReadyLease(string itemId) => new Lease();
+        public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
+        private sealed class Lease : IDisposable { public void Dispose() { } }
     }
 
     private static int FreePort()
