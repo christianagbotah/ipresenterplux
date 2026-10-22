@@ -146,6 +146,7 @@ public sealed class MediaPreparationCoordinatorTests
     private sealed class Fixture : IDisposable
     {
         public Guid ServiceId { get; } = Guid.NewGuid();
+        public Guid OrganizationId { get; } = Guid.NewGuid();
         public string Directory { get; } = Path.Combine(Path.GetTempPath(), "ipresenter-preparation-tests", Guid.NewGuid().ToString("N"));
         public FakeCache Cache { get; } = new();
         public FakePresentationProvider Provider { get; } = new();
@@ -157,6 +158,7 @@ public sealed class MediaPreparationCoordinatorTests
             System.IO.Directory.CreateDirectory(Directory);
             Catalog = new OperatorCatalogCoordinator(new OperatorCatalogStore(Directory));
             Coordinator = new MediaPreparationCoordinator(Cache, Catalog);
+            Coordinator.BindOrganization(OrganizationId);
         }
 
         public PresentationRenderItem MediaItem(string? itemId = null, Guid? serviceId = null)
