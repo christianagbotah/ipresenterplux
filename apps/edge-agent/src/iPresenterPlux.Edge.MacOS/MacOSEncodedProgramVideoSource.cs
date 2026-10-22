@@ -6,7 +6,7 @@ namespace iPresenterPlux.Edge.MacOS;
 public sealed class MacOSEncodedProgramVideoSource : IEncodedProgramVideoSource
 {
     private const string LibraryName = "iPresenterPluxMediaBridge";
-    private const int RequiredBridgeApiVersion = 4;
+    private const int RequiredBridgeApiVersion = 5;
     private readonly object _gate = new();
     private readonly ProgramVideoFrameCallback _callback;
     private bool _capturing;
