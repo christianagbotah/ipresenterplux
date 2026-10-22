@@ -118,7 +118,7 @@ public sealed class LocalOperatorCatalogCommandTests
         fixture.Coordinator.BindPresentationProvider(fixture.PresentationProvider);
         var preparation = new FakePreparationCoordinator(MediaPreparationState.Ready);
         var state = State(fixture.ServiceId);
-        await using var output = new LocalWebProgramOutputService(49410);
+        await using var output = new LocalWebProgramOutputService(49410, mediaPreparation: preparation);
         var handler = new LocalOperatorCommandHandler(
             state, output, operatorCatalog: fixture.Coordinator, mediaPreparation: preparation);
         var request = new LocalOperatorRequest(
@@ -303,15 +303,25 @@ public sealed class LocalOperatorCatalogCommandTests
 
     private sealed class FakePreparationCoordinator(MediaPreparationState state) : IMediaPreparationCoordinator
     {
+        private MediaPreparationSnapshot? _current;
         public event EventHandler<MediaPreparationSnapshot>? StatusChanged { add { } remove { } }
         public int PrepareCalls { get; private set; }
         public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken)
         {
             PrepareCalls++;
-            return Task.FromResult(new MediaPreparationSnapshot(item.ItemId, item.ServiceId, state, null,
-                state == MediaPreparationState.Failed ? "media_download_failed" : null));
+            PreparedMediaAsset? asset = null;
+            if (state == MediaPreparationState.Ready && item.Media is not null)
+            {
+                asset = new PreparedMediaAsset(
+                    item.ItemId, item.ServiceId, "fake-ready-cache", "/tmp/fake-ready.media",
+                    item.Media.ContentTypeHint ?? "video/mp4", item.Media.MediaKind, null, item.Media);
+            }
+            _current = new MediaPreparationSnapshot(item.ItemId, item.ServiceId, state, asset,
+                state == MediaPreparationState.Failed ? "media_download_failed" : null);
+            return Task.FromResult(_current);
         }
-        public MediaPreparationSnapshot? TryGet(string itemId) => null;
+        public MediaPreparationSnapshot? TryGet(string itemId) =>
+            _current is not null && string.Equals(_current.ItemId, itemId, StringComparison.Ordinal) ? _current : null;
         public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
         public IDisposable AcquireReadyLease(string itemId) => new Lease();
         public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
