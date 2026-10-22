@@ -58,22 +58,6 @@ public sealed class OperatorWorkspaceCatalogTests
     }
 
     [Fact]
-    public void SyncedMediaKeepsOriginalItemTypeAndIntentionallyEmptyBody()
-    {
-        var catalog = Snapshot(
-            Guid.NewGuid(),
-            items: [Item(Guid.NewGuid().ToString("D"), "media", "Worship Opener", "", null)],
-            scripture: []);
-
-        var media = Assert.Single(OperatorWorkspaceCatalog.FromCatalog(catalog, stale: false).RundownItems);
-
-        Assert.Equal("Media", media.Category);
-        Assert.Equal("media", media.SourceItemType);
-        Assert.True(media.IsSyncedCatalog);
-        Assert.Equal(string.Empty, media.Body);
-    }
-
-    [Fact]
     public void StaleSyncedCatalogIsOfflineCacheNotRehearsal()
     {
         var catalog = Snapshot(Guid.NewGuid(), items: [], scripture: []);

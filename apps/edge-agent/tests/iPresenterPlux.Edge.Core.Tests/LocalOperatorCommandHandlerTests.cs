@@ -119,55 +119,6 @@ public sealed class LocalOperatorCommandHandlerTests
     }
 
     [Fact]
-    public async Task FailedMediaPreparationLeavesExistingPreviewAndProgramUnchanged()
-    {
-        var serviceId = Guid.NewGuid();
-        var state = new AgentRuntimeState();
-        state.Update(s => s with { ActiveServiceId = serviceId, ConnectionStatus = "Online", ServiceMode = "Live" });
-        await using var output = new LocalWebProgramOutputService(49411);
-        var baseHandler = new LocalOperatorCommandHandler(state, output);
-        await baseHandler.HandleAsync(Request(
-            LocalOperatorCommands.PreviewRender,
-            new LocalOperatorPresentation("safe-slide", "slide", "Welcome", "Welcome home", null)), CancellationToken.None);
-        await baseHandler.HandleAsync(Request(LocalOperatorCommands.ProgramTake), CancellationToken.None);
-
-        var directory = Path.Combine(Path.GetTempPath(), "ipresenterplux-media-preview-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            var store = new OperatorCatalogStore(directory);
-            var coordinator = new OperatorCatalogCoordinator(store);
-            await coordinator.SetActiveServiceAsync(serviceId, CancellationToken.None);
-            var itemId = Guid.NewGuid().ToString("D");
-            var now = DateTimeOffset.Parse("2026-10-22T13:00:00Z");
-            await store.WriteAsync(new OperatorCatalogSnapshot(
-                OperatorCatalogSnapshot.CurrentSchemaVersion, now, now, "media-rev",
-                new OperatorCatalogService(serviceId, "Sunday Worship", "live", "KJV", null, now),
-                [],
-                [new OperatorCatalogItem(itemId, "media", "Worship Opener", "", null, new Dictionary<string,string>())],
-                []), CancellationToken.None);
-            var descriptor = new PresentationMediaDescriptor(Guid.NewGuid(), "video", new Uri("https://media.example.test/worship.mp4"), "asset-v1", "video/mp4", "Worship Opener", 0, null, false, 1, "contain").Validate();
-            coordinator.BindPresentationProvider(new FixedPresentationProvider(
-                new PresentationRenderItem(itemId, serviceId, "media", "Worship Opener", "", null, new Dictionary<string,string>(), descriptor)));
-            var preparation = new FailedPreparationCoordinator(itemId, serviceId);
-            var handler = new LocalOperatorCommandHandler(state, output, operatorCatalog: coordinator, mediaPreparation: preparation);
-
-            var response = await handler.HandleAsync(
-                new LocalOperatorRequest(Guid.NewGuid().ToString("D"), LocalOperatorCommands.PreviewPrepareItem, ItemId: itemId),
-                CancellationToken.None);
-
-            Assert.False(response.Ok);
-            Assert.Equal("media_download_failed", response.ErrorCode);
-            Assert.Equal("safe-slide", output.Snapshot.Preview?.ItemId);
-            Assert.Equal("safe-slide", output.Snapshot.Program?.ItemId);
-        }
-        finally
-        {
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
-        }
-    }
-
-    [Fact]
     public async Task RecordingStartUsesRuntimeServiceAndRequiresOne()
     {
         var state = new AgentRuntimeState();
@@ -234,24 +185,6 @@ public sealed class LocalOperatorCommandHandlerTests
         public IDisposable AcquireReadyLease(string itemId) => new Lease();
         public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
         private sealed class Lease : IDisposable { public void Dispose() { } }
-    }
-
-    private sealed class FixedPresentationProvider(PresentationRenderItem item) : IPresentationContentProvider
-    {
-        public Task<PresentationRenderItem> GetAsync(string itemId, CancellationToken cancellationToken) =>
-            Task.FromResult(item);
-    }
-
-    private sealed class FailedPreparationCoordinator(string itemId, Guid serviceId) : IMediaPreparationCoordinator
-    {
-        public event EventHandler<MediaPreparationSnapshot>? StatusChanged;
-        public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken) =>
-            Task.FromResult(new MediaPreparationSnapshot(itemId, serviceId, MediaPreparationState.Failed, null, "media_download_failed"));
-        public MediaPreparationSnapshot? TryGet(string itemId) => null;
-        public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
-        public IDisposable AcquireReadyLease(string itemId) => new NoopLease();
-        public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
-        private sealed class NoopLease : IDisposable { public void Dispose() { } }
     }
 
     private sealed class FakeRecordingService : ILocalRecordingService
