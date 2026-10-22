@@ -74,6 +74,51 @@ public sealed class LocalOperatorCommandHandlerTests
     }
 
     [Fact]
+    public async Task FailedMediaPreparationDoesNotMutateExistingPreviewOrProgram()
+    {
+        var serviceId = Guid.NewGuid();
+        var mediaId = Guid.NewGuid().ToString("D");
+        var state = new AgentRuntimeState();
+        state.Update(s => s with { ActiveServiceId = serviceId, ConnectionStatus = "Online", ServiceMode = "Live" });
+        await using var output = new LocalWebProgramOutputService(49412);
+        var existing = new PresentationRenderItem("existing", serviceId, "slide", "Existing", "Keep me live", null, new Dictionary<string,string>());
+        await output.SetPreviewAsync(existing, CancellationToken.None);
+        await output.TakePreviewToProgramAsync(CancellationToken.None);
+
+        var directory = Path.Combine(Path.GetTempPath(), "ipresenterplux-prepare-failure", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var store = new OperatorCatalogStore(directory);
+            var coordinator = new OperatorCatalogCoordinator(store);
+            await coordinator.SetActiveServiceAsync(serviceId, CancellationToken.None);
+            var now = DateTimeOffset.UtcNow;
+            await store.WriteAsync(new OperatorCatalogSnapshot(
+                OperatorCatalogSnapshot.CurrentSchemaVersion, now, now, "rev-media",
+                new OperatorCatalogService(serviceId, "Service", "live", "KJV", null, now),
+                [], [new OperatorCatalogItem(mediaId, "media", "Video", "", null, new Dictionary<string,string>())], []),
+                CancellationToken.None);
+            coordinator.BindPresentationProvider(new FixedPresentationProvider(MediaPresentation(mediaId, serviceId)));
+            var preparation = new FailedPreparationCoordinator();
+            var handler = new LocalOperatorCommandHandler(
+                state, output, operatorCatalog: coordinator, mediaPreparation: preparation);
+
+            var response = await handler.HandleAsync(new LocalOperatorRequest(
+                Guid.NewGuid().ToString("D"), LocalOperatorCommands.PreviewPrepareItem,
+                Item: new LocalOperatorItemRequest(mediaId)), CancellationToken.None);
+
+            Assert.False(response.Ok);
+            Assert.Equal("media_download_failed", response.ErrorCode);
+            Assert.Equal("existing", response.Snapshot.Preview?.ItemId);
+            Assert.Equal("existing", response.Snapshot.Program?.ItemId);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
+    [Fact]
     public async Task RecordingStartUsesRuntimeServiceAndRequiresOne()
     {
         var state = new AgentRuntimeState();
@@ -119,6 +164,28 @@ public sealed class LocalOperatorCommandHandlerTests
 
     private static LocalOperatorRequest Request(string command, LocalOperatorPresentation? presentation = null) =>
         new(Guid.NewGuid().ToString("D"), command, presentation);
+
+    private static PresentationRenderItem MediaPresentation(string itemId, Guid serviceId) => new(
+        itemId, serviceId, "media", "Video", "", null, new Dictionary<string,string>(),
+        new PresentationMediaDescriptor(Guid.NewGuid(), "video", new Uri("https://media.example.test/video.mp4"),
+            new string('b', 64), "video/mp4", "Video", 0, null, false, 1, "contain").Validate());
+
+    private sealed class FixedPresentationProvider(PresentationRenderItem item) : IPresentationContentProvider
+    {
+        public Task<PresentationRenderItem> GetAsync(string itemId, CancellationToken cancellationToken) => Task.FromResult(item);
+    }
+
+    private sealed class FailedPreparationCoordinator : IMediaPreparationCoordinator
+    {
+        public event EventHandler<MediaPreparationSnapshot>? StatusChanged;
+        public Task<MediaPreparationSnapshot> PrepareAsync(PresentationRenderItem item, CancellationToken cancellationToken) =>
+            Task.FromResult(new MediaPreparationSnapshot(item.ItemId, item.ServiceId, MediaPreparationState.Failed, null, "media_download_failed"));
+        public MediaPreparationSnapshot? TryGet(string itemId) => null;
+        public Task PrefetchAsync(Guid serviceId, IReadOnlyList<OperatorCatalogItem> items, CancellationToken cancellationToken) => Task.CompletedTask;
+        public IDisposable AcquireReadyLease(string itemId) => new Lease();
+        public Task SetActiveServiceAsync(Guid? serviceId, CancellationToken cancellationToken) => Task.CompletedTask;
+        private sealed class Lease : IDisposable { public void Dispose() { } }
+    }
 
     private sealed class FakeRecordingService : ILocalRecordingService
     {

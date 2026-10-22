@@ -81,6 +81,15 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("_programDisplay", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SyncedRundownPreviewUsesItemIdentityInsteadOfSerializedPresentation()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("item.IsSynced", source, StringComparison.Ordinal);
+        Assert.Contains("PreparePreviewItemAsync(item.Id", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

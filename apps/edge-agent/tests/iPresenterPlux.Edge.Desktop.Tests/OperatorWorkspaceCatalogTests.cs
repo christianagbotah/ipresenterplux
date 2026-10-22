@@ -43,6 +43,21 @@ public sealed class OperatorWorkspaceCatalogTests
     }
 
     [Fact]
+    public void SyncedMediaKeepsSourceItemTypeAndEmptyBodyForItemBasedPreview()
+    {
+        var media = Item("media-1", "media", "Worship Video", "", null);
+        var view = OperatorWorkspaceCatalog.FromCatalog(
+            Snapshot(Guid.NewGuid(), items: [media], scripture: []),
+            stale: false);
+
+        var item = Assert.Single(view.RundownItems);
+        Assert.Equal("Media", item.Category);
+        Assert.Equal("media", item.SourceItemType);
+        Assert.True(item.IsSynced);
+        Assert.Equal(string.Empty, item.Body);
+    }
+
+    [Fact]
     public void StaleSyncedCatalogIsOfflineCacheNotRehearsal()
     {
         var catalog = Snapshot(Guid.NewGuid(), items: [], scripture: []);
@@ -112,6 +127,8 @@ public sealed class OperatorWorkspaceCatalogTests
         Assert.Equal("SCRIPTURE", item.Accent);
         Assert.Equal("Psalm 23:1", item.Title);
         Assert.Equal("KJV", item.Footer);
+        Assert.Equal("scripture", item.SourceItemType);
+        Assert.False(item.IsSynced);
         Assert.Equal("scripture", item.ToPresentation().ItemType);
     }
 

@@ -50,6 +50,31 @@ public sealed class HttpOperatorCatalogClientTests
     }
 
     [Fact]
+    public async Task PreservesMediaTypeAndAllowsEmptyCatalogBodyWithoutDownloadDescriptor()
+    {
+        var identity = Identity();
+        var serviceId = Guid.NewGuid();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, new
+        {
+            ok = true,
+            service = new { serviceId, title = "Sunday Worship", status = "live", activeBibleVersion = "KJV", scheduledStart = (string?)null, startedAt = (string?)null },
+            bibleVersions = Array.Empty<object>(),
+            items = new[] { new { itemId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", itemType = "media", title = "Worship Video", body = "", footer = (string?)null, metadata = new Dictionary<string,string> { ["state"] = "queued" } } },
+            scriptureQueue = Array.Empty<object>(),
+            catalogRevision = "media-empty-body",
+            observedAt = "2026-10-06T10:00:00Z"
+        }))) { BaseAddress = new Uri("https://control.example.test") };
+        var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
+
+        var catalog = await client.GetCatalogAsync(CancellationToken.None);
+
+        var media = Assert.Single(catalog.Items);
+        Assert.Equal("media", media.ItemType);
+        Assert.Equal(string.Empty, media.Body);
+        Assert.Null(media.Media);
+    }
+
+    [Fact]
     public async Task AcceptsPostgresTimestampTextFromProductionCatalog()
     {
         var identity = Identity();
