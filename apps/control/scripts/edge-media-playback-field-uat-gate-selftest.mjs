@@ -41,6 +41,7 @@ for (const [name, report, blocker] of [
   ["commit_mismatch", { buildCommit: "abc1234", evidence: [evidence("windows"), evidence("macos", "def5678")] }, "build_commit_mismatch"],
   ["offline", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), offlinePlayback: false }, evidence("macos")] }, "offline_playback_required"],
   ["projector", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), projectorChecked: false }, evidence("macos")] }, "projector_check_required"],
+  ["blank_fixture_id", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), mediaFixtureIds: ["image-fixture", "", "audio-fixture"] }, evidence("macos")] }, "media_fixtures_required"],
   ["contribution", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), contributionAvChecked: false }] }, "contribution_av_required"],
   ["restart", { buildCommit: "abc1234", evidence: [evidence("windows"), { ...evidence("macos"), dynamicRestartNoAutoResume: false }] }, "dynamic_restart_no_auto_resume_required"],
   ["missing_video_measurement", { buildCommit: "abc1234", evidence: [{ ...evidence("windows"), videoDriftMs: null }, evidence("macos")] }, "video_drift_measurement_required"],
