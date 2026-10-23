@@ -34,7 +34,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly EdgeHostHealthSampler _healthSampler;
     private readonly AgentRuntimeState _state;
     private readonly IAudioCaptureService? _audioCapture;
-    private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
+    private ISpeechRecognitionEngine? _speechRecognitionEngine;
     private readonly IMediaOutputService? _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
     private readonly OperatorCatalogCoordinator? _operatorCatalog;
@@ -139,6 +139,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     {
         ThrowIfDisposed();
         var identity = await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        _speechRecognitionEngine ??= new HttpEdgeSpeechRecognitionEngine(_httpClient, identity, _credentialStore);
         if (_mediaPreparation is MediaPreparationCoordinator mediaPreparationCoordinator)
             mediaPreparationCoordinator.BindOrganization(identity.OrganizationId);
         var scope = new OutboundEventScope(identity.OrganizationId, identity.DeviceId);
