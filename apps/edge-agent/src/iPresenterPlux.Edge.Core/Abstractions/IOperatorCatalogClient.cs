@@ -7,6 +7,10 @@ public sealed record OperatorResolvedScripture(
     OperatorCatalogItem Item,
     DateTimeOffset ObservedAt);
 
+public sealed record OperatorResolvedLibraryItem(
+    OperatorCatalogItem Item,
+    DateTimeOffset ObservedAt);
+
 public interface IOperatorCatalogClient
 {
     Task<OperatorCatalogSnapshot> GetCatalogAsync(CancellationToken cancellationToken);
@@ -15,4 +19,9 @@ public interface IOperatorCatalogClient
         string reference,
         string? version,
         CancellationToken cancellationToken);
+
+    Task<OperatorResolvedLibraryItem> ResolveLibraryItemAsync(
+        string itemId,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("Organization library item resolution is not supported by this client.");
 }

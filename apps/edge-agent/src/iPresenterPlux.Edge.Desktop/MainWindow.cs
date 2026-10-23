@@ -1048,7 +1048,9 @@ public sealed class MainWindow : Window
         _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
             ? $"{title} · {_workspace.ServiceStatus ?? "service"}"
             : _workspace.IsRehearsal
-                ? "Demo content · no synced service yet"
+                ? _workspace.HasSyncedCatalog
+                    ? "Cloud library available · no service assigned"
+                    : "Demo content · no synced service yet"
                 : "No active service assigned to this Edge.";
 
         _operatorService.Text = _workspace.ServiceTitle is { Length: > 0 } serviceTitle
@@ -1434,8 +1436,9 @@ public sealed class MainWindow : Window
         if (_activeSelectionSurface == "schedule") _selectedScheduleItemId = item.Id;
         else _selectedRundownItemId = item.Id;
 
-        var canPrepareByIdentity = item.IsSynced && _workspace.RundownItems.Any(candidate =>
-            candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        var canPrepareByIdentity = item.IsSynced &&
+            (_workspace.RundownItems.Any(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal)) ||
+             item.Category.Equals("Media", StringComparison.OrdinalIgnoreCase));
         if (canPrepareByIdentity)
         {
             _operatorBusy = true;

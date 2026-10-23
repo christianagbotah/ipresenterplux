@@ -38,7 +38,8 @@ public sealed class HttpOperatorCatalogClient(
         if (!payload.Ok) throw new InvalidDataException("The operator catalog response was invalid.");
         if (payload.BibleVersions is null || payload.Items is null || payload.ScriptureQueue is null)
             throw new InvalidDataException("The operator catalog collections were missing.");
-        if (payload.BibleVersions.Count > 32 || payload.Items.Count > 200 || payload.ScriptureQueue.Count > 200)
+        var libraryItems = payload.LibraryItems ?? Array.Empty<ItemPayload>();
+        if (payload.BibleVersions.Count > 32 || payload.Items.Count > 200 || payload.ScriptureQueue.Count > 200 || libraryItems.Count > 200)
             throw new InvalidDataException("The operator catalog exceeded client safety limits.");
         if (string.IsNullOrWhiteSpace(payload.CatalogRevision) || payload.CatalogRevision.Length > 128)
             throw new InvalidDataException("The operator catalog revision was invalid.");
@@ -56,7 +57,10 @@ public sealed class HttpOperatorCatalogClient(
             service,
             payload.BibleVersions.Select(MapVersion).ToArray(),
             payload.Items.Select(MapItem).ToArray(),
-            payload.ScriptureQueue.Select(MapItem).ToArray());
+            payload.ScriptureQueue.Select(MapItem).ToArray())
+        {
+            LibraryItems = libraryItems.Select(MapItem).ToArray()
+        };
     }
 
     public async Task<OperatorResolvedScripture> ResolveScriptureAsync(
@@ -88,6 +92,32 @@ public sealed class HttpOperatorCatalogClient(
             throw new InvalidDataException("The scripture resolver service id was invalid.");
 
         return new OperatorResolvedScripture(serviceId, MapItem(payload.Item), observedAt);
+    }
+
+    public async Task<OperatorResolvedLibraryItem> ResolveLibraryItemAsync(
+        string itemId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        itemId = itemId.Trim();
+        if (!Guid.TryParse(itemId, out _)) throw new ArgumentException("Library item id must be a UUID.", nameof(itemId));
+
+        using var request = await CreateAuthenticatedRequestAsync(
+            HttpMethod.Get,
+            $"/api/v1/edge/operator/library/{Uri.EscapeDataString(itemId)}",
+            cancellationToken).ConfigureAwait(false);
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<LibraryItemResponse>(cancellationToken: cancellationToken)
+            .ConfigureAwait(false) ?? throw new InvalidDataException("The library resolver response was empty.");
+        if (!payload.Ok || payload.Item is null)
+            throw new InvalidDataException("The library resolver response was invalid.");
+        if (!string.Equals(payload.Item.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The resolved library item identity did not match the request.");
+        return new OperatorResolvedLibraryItem(
+            MapItem(payload.Item),
+            ParseTimestamp(payload.ObservedAt, "observedAt"));
     }
 
     private async Task<HttpRequestMessage> CreateAuthenticatedRequestAsync(
@@ -154,7 +184,34 @@ public sealed class HttpOperatorCatalogClient(
             body,
             string.IsNullOrWhiteSpace(item.Footer) ? null : OptionalText(item.Footer, 500),
             metadata,
-            Media: null);
+            Media: item.Media is null ? null : MapMedia(item.Media));
+    }
+
+    private static PresentationMediaDescriptor MapMedia(PresentationMediaPayload payload)
+    {
+        if (!Guid.TryParse(payload.SourceId, out var sourceId) || sourceId == Guid.Empty ||
+            !Uri.TryCreate(payload.DownloadUrl, UriKind.Absolute, out var downloadUrl) ||
+            payload.TrimStartSeconds is null || payload.Loop is null || payload.Volume is null)
+            throw new InvalidDataException("The operator library media descriptor was invalid.");
+        try
+        {
+            return new PresentationMediaDescriptor(
+                sourceId,
+                payload.MediaKind ?? string.Empty,
+                downloadUrl,
+                payload.AssetVersion ?? string.Empty,
+                payload.ContentTypeHint,
+                payload.Title ?? string.Empty,
+                payload.TrimStartSeconds.Value,
+                payload.TrimEndSeconds,
+                payload.Loop.Value,
+                payload.Volume.Value,
+                payload.Fit ?? string.Empty).Validate();
+        }
+        catch (Exception error) when (error is ArgumentException or UriFormatException)
+        {
+            throw new InvalidDataException("The operator library media descriptor was invalid.", error);
+        }
     }
 
     private static IReadOnlyDictionary<string, string> ValidateMetadata(IReadOnlyDictionary<string, string>? metadata)
@@ -226,10 +283,12 @@ public sealed class HttpOperatorCatalogClient(
         IReadOnlyList<BibleVersionPayload>? BibleVersions,
         IReadOnlyList<ItemPayload>? Items,
         IReadOnlyList<ItemPayload>? ScriptureQueue,
+        IReadOnlyList<ItemPayload>? LibraryItems,
         string? CatalogRevision,
         string? ObservedAt);
 
     private sealed record ScriptureResponse(bool Ok, ResolvedItemPayload? Item, string? ObservedAt);
+    private sealed record LibraryItemResponse(bool Ok, ItemPayload? Item, string? ObservedAt);
 
     private sealed record ServicePayload(
         string? ServiceId,
@@ -247,7 +306,8 @@ public sealed class HttpOperatorCatalogClient(
         string? Title,
         string? Body,
         string? Footer,
-        IReadOnlyDictionary<string, string>? Metadata);
+        IReadOnlyDictionary<string, string>? Metadata,
+        PresentationMediaPayload? Media = null);
 
     private sealed record ResolvedItemPayload(
         string? ItemId,
@@ -256,6 +316,20 @@ public sealed class HttpOperatorCatalogClient(
         string? Title,
         string? Body,
         string? Footer,
-        IReadOnlyDictionary<string, string>? Metadata)
-        : ItemPayload(ItemId, ItemType, Title, Body, Footer, Metadata);
+        IReadOnlyDictionary<string, string>? Metadata,
+        PresentationMediaPayload? Media = null)
+        : ItemPayload(ItemId, ItemType, Title, Body, Footer, Metadata, Media);
+
+    private sealed record PresentationMediaPayload(
+        string? SourceId,
+        string? MediaKind,
+        string? DownloadUrl,
+        string? AssetVersion,
+        string? ContentTypeHint,
+        string? Title,
+        double? TrimStartSeconds,
+        double? TrimEndSeconds,
+        bool? Loop,
+        double? Volume,
+        string? Fit);
 }

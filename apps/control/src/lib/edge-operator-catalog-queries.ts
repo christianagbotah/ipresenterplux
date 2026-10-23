@@ -21,6 +21,16 @@ where service_id=$1
 order by sort_order,id
 limit 200`;
 
+export const EDGE_OPERATOR_LIBRARY_ITEMS_SQL = `select mli.id::text,mli.item_type,mli.title,mli.planner_input,
+       mli.media_source_id::text,mli.updated_at::text,
+       ms.name as source_name,ms.source_type,ms.status as source_status
+from media_library_items mli
+left join media_sources ms
+  on ms.id=mli.media_source_id and ms.organization_id=mli.organization_id
+where mli.organization_id=$1
+order by mli.updated_at desc,mli.id desc
+limit 200`;
+
 export const EDGE_OPERATOR_SCRIPTURE_QUEUE_SQL = `select sd.id::text,sd.scripture_reference,sd.bible_version,sd.book,sd.chapter,
        sd.verse_start,sd.verse_end,sd.source_text,sd.state,sd.detected_at::text,
        coalesce((

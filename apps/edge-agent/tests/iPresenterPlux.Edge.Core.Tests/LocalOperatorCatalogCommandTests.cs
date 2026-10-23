@@ -163,6 +163,40 @@ public sealed class LocalOperatorCatalogCommandTests
     }
 
     [Fact]
+    public async Task PrepareOrganizationLibraryMediaUsesRehearsalPresentationScopeWithoutCloudService()
+    {
+        using var fixture = new Fixture();
+        var itemId = Guid.NewGuid().ToString("D");
+        await fixture.Coordinator.SetActiveServiceAsync(null, CancellationToken.None);
+        await fixture.Store.WriteAsync(fixture.LibrarySnapshot(
+            DateTimeOffset.UtcNow,
+            [fixture.MediaCatalogItem(itemId)]), CancellationToken.None);
+        fixture.Client.LibraryResolved = new OperatorResolvedLibraryItem(
+            fixture.MediaCatalogItem(itemId) with
+            {
+                Media = fixture.MediaPresentation(itemId, LocalOperatorPresentationScope.RehearsalServiceId).Media
+            },
+            DateTimeOffset.UtcNow);
+        var preparation = new FakePreparationCoordinator(MediaPreparationState.Ready);
+        var state = State(null);
+        await using var output = new LocalWebProgramOutputService(49415, mediaPreparation: preparation);
+        var handler = new LocalOperatorCommandHandler(
+            state, output, operatorCatalog: fixture.Coordinator, mediaPreparation: preparation);
+
+        var response = await handler.HandleAsync(new LocalOperatorRequest(
+            Guid.NewGuid().ToString("D"),
+            LocalOperatorCommands.PreviewPrepareItem,
+            Item: new LocalOperatorItemRequest(itemId)), CancellationToken.None);
+
+        Assert.True(response.Ok);
+        Assert.Null(response.Snapshot.ActiveServiceId);
+        Assert.Equal(LocalOperatorPresentationScope.RehearsalServiceId, response.Snapshot.Preview?.ServiceId);
+        Assert.Equal("media", response.Snapshot.Preview?.ItemType);
+        Assert.NotNull(response.Snapshot.Preview?.Media);
+        Assert.Equal(1, preparation.PrepareCalls);
+    }
+
+    [Fact]
     public async Task PrepareItemRejectsHydratedPresentationFromAnotherService()
     {
         using var fixture = new Fixture();
@@ -211,10 +245,15 @@ public sealed class LocalOperatorCatalogCommandTests
         Assert.Equal(0, fixture.Client.ResolveCalls);
     }
 
-    private static AgentRuntimeState State(Guid serviceId)
+    private static AgentRuntimeState State(Guid? serviceId)
     {
         var state = new AgentRuntimeState();
-        state.Update(snapshot => snapshot with { ActiveServiceId = serviceId, ConnectionStatus = "Connected", ServiceMode = "live" });
+        state.Update(snapshot => snapshot with
+        {
+            ActiveServiceId = serviceId,
+            ConnectionStatus = "Connected",
+            ServiceMode = serviceId is null ? "rehearsal" : "live"
+        });
         return state;
     }
 
@@ -249,6 +288,18 @@ public sealed class LocalOperatorCatalogCommandTests
             items ?? [],
             scripture ?? []);
 
+        public OperatorCatalogSnapshot LibrarySnapshot(
+            DateTimeOffset syncedAt,
+            IReadOnlyList<OperatorCatalogItem> libraryItems) => new(
+            OperatorCatalogSnapshot.CurrentSchemaVersion,
+            syncedAt,
+            syncedAt,
+            "rev-library",
+            null,
+            [new OperatorBibleVersion("KJV", "King James Version", "KJV", "en")],
+            [],
+            []) with { LibraryItems = libraryItems };
+
         public OperatorCatalogItem Scripture(string id) => new(
             id, "scripture", "John 3:16", "For God so loved the world...", "KJV",
             new Dictionary<string, string> { ["book"] = "John", ["chapter"] = "3", ["verses"] = "16", ["bibleVersion"] = "KJV" });
@@ -276,8 +327,10 @@ public sealed class LocalOperatorCatalogCommandTests
     private sealed class FakeCatalogClient : IOperatorCatalogClient
     {
         public OperatorResolvedScripture? Resolved { get; set; }
+        public OperatorResolvedLibraryItem? LibraryResolved { get; set; }
         public Exception? Error { get; set; }
         public int ResolveCalls { get; private set; }
+        public int LibraryResolveCalls { get; private set; }
 
         public Task<OperatorCatalogSnapshot> GetCatalogAsync(CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -287,6 +340,13 @@ public sealed class LocalOperatorCatalogCommandTests
             ResolveCalls++;
             if (Error is not null) throw Error;
             return Task.FromResult(Resolved ?? throw new InvalidOperationException("No resolved scripture fixture configured."));
+        }
+
+        public Task<OperatorResolvedLibraryItem> ResolveLibraryItemAsync(string itemId, CancellationToken cancellationToken)
+        {
+            LibraryResolveCalls++;
+            if (Error is not null) throw Error;
+            return Task.FromResult(LibraryResolved ?? throw new InvalidOperationException("No resolved library fixture configured."));
         }
     }
 
