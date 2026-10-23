@@ -59,7 +59,14 @@ public sealed class DesktopBibleLibrary
         Public("YLT", "Young's Literal Translation", "YLT", "engylt"),
         Public("JPS1917", "JPS TaNaKH 1917", "OJPS", "engjps"),
         Public("BRENTON", "Brenton Septuagint Translation", "Brenton", "eng-Brenton"),
+        Public("FRA-LSG", "Louis Segond 1910", "LSG", "fraLSG", "fr"),
+        Public("FRA-SBL", "Sainte Bible libre pour le monde", "SBL", "frasbl", "fr"),
+        Public("FRA-OST", "French Ostervald Bible", "FOB", "fra_fob", "fr"),
+        Public("FRA-JND", "Bible J.N. Darby (French)", "JND", "frajnd", "fr"),
 
+        Restricted("TWI-AKUAPEM", "Akuapem Twi Nkwa Asɛm", "WAKNA", "Biblica", "tw"),
+        Restricted("TWI-ASANTE", "Asante Twi Nkwa Asɛm", "WASNA", "Biblica", "tw"),
+        Restricted("EWE-OAL", "Éwé Bible · Agbenya La", "OAL", "Biblica", "ee"),
         Restricted("NIV", "New International Version", "NIV", "Biblica/Zondervan"),
         Restricted("NKJV", "New King James Version", "NKJV", "Thomas Nelson"),
         Restricted("ESV", "English Standard Version", "ESV", "Crossway"),
@@ -79,12 +86,22 @@ public sealed class DesktopBibleLibrary
     public static IReadOnlyList<BiblePackageDescriptor> Downloadable { get; } =
         Catalog.Where(package => package.CanDownload && package.DownloadUri is not null).ToArray();
 
-    private static BiblePackageDescriptor Public(string id, string name, string abbreviation, string ebibleId) =>
-        new(id, name, abbreviation, "en", new Uri($"https://ebible.org/Scriptures/{ebibleId}_vpl.zip"),
+    private static BiblePackageDescriptor Public(
+        string id,
+        string name,
+        string abbreviation,
+        string ebibleId,
+        string languageCode = "en") =>
+        new(id, name, abbreviation, languageCode, new Uri($"https://ebible.org/Scriptures/{ebibleId}_vpl.zip"),
             "Public Domain", true, "One-click offline download");
 
-    private static BiblePackageDescriptor Restricted(string id, string name, string abbreviation, string rightsHolder) =>
-        new(id, name, abbreviation, "en", null, rightsHolder, false, "License/provider required");
+    private static BiblePackageDescriptor Restricted(
+        string id,
+        string name,
+        string abbreviation,
+        string rightsHolder,
+        string languageCode = "en") =>
+        new(id, name, abbreviation, languageCode, null, rightsHolder, false, "License/provider required");
 
     public DesktopBibleLibrary(string rootDirectory, HttpClient? httpClient = null)
     {
