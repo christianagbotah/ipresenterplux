@@ -97,13 +97,15 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void SetupWorkspaceScrollsAsOneSurfaceInsteadOfClippingSidebar()
+    public void SetupWorkspaceKeepsSidebarAndMainAsIndependentVerticalScrollSurfaces()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("MinWidth = 900", source, StringComparison.Ordinal);
-        Assert.Contains("Content = root", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetColumn(main, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("var sidebarScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("var mainScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(mainScroll, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("return root;", source, StringComparison.Ordinal);
     }
 
     [Fact]

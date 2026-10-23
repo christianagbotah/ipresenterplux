@@ -398,6 +398,8 @@ public sealed class MainWindow : Window
                 _selectedRundownItemId = row.Item.Id;
             _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
         };
+        _rundown.Tapped += (_, _) => _ = PreviewSelectedAsync();
+        _rundown.DoubleTapped += (_, _) => _ = PreviewSelectedAndTakeAsync();
         Grid.SetRow(_rundown, 4);
         leftGrid.Children.Add(_rundown);
 
@@ -696,8 +698,13 @@ public sealed class MainWindow : Window
         quickLinks.Children.Add(LinkButton("Streaming Studio", () => CloudUri("/streaming")));
         sidebar.Children.Add(Card("Quick access", quickLinks));
 
-        Grid.SetColumn(sidebar, 0);
-        root.Children.Add(sidebar);
+        var sidebarScroll = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = sidebar
+        };
+        Grid.SetColumn(sidebarScroll, 0);
+        root.Children.Add(sidebarScroll);
 
         var main = new StackPanel { Spacing = 18 };
         main.Children.Add(new StackPanel {
@@ -714,16 +721,15 @@ public sealed class MainWindow : Window
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0, 2));
+        setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0));
+        setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 0, 1));
         setupGrid.Children.Add(Field("Device name", _deviceName, 1, 0));
-        setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 1, 1));
         _programDisplayHint.TextWrapping = TextWrapping.Wrap;
         var displayPicker = new StackPanel {
             Spacing = 6,
             Children = { _programDisplay, _programDisplayHint }
         };
-        setupGrid.Children.Add(Field("Program output display", displayPicker, 2, 0, 2));
+        setupGrid.Children.Add(Field("Program output display", displayPicker, 1, 1));
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _save, _start, _restart, _stop })
@@ -731,7 +737,7 @@ public sealed class MainWindow : Window
             button.Margin = new Thickness(0, 0, 10, 0);
             actions.Children.Add(button);
         }
-        Grid.SetRow(actions, 3);
+        Grid.SetRow(actions, 2);
         Grid.SetColumnSpan(actions, 2);
         setupGrid.Children.Add(actions);
         main.Children.Add(Card("Connection & enrollment", setupGrid));
@@ -749,13 +755,14 @@ public sealed class MainWindow : Window
         _feedback.TextWrapping = TextWrapping.Wrap;
         main.Children.Add(_feedback);
 
-        Grid.SetColumn(main, 2);
-        root.Children.Add(main);
-        return new ScrollViewer {
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        var mainScroll = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = root
+            Content = main
         };
+        Grid.SetColumn(mainScroll, 2);
+        root.Children.Add(mainScroll);
+        return root;
     }
 
     private Control BuildCapabilities()
@@ -1006,6 +1013,31 @@ public sealed class MainWindow : Window
         }
 
         await SendOperatorAsync(LocalOperatorCommands.PreviewRender, item.ToPresentation(), $"Preview prepared: {item.Title}");
+    }
+
+    private async Task PreviewSelectedAndTakeAsync()
+    {
+        var selected = SelectedRundownItem();
+        if (selected is null) return;
+        var itemId = selected.Id;
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (_operatorBusy && DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(25);
+        if (_operatorBusy)
+        {
+            SetOperatorFeedback("The previous operator action is still finishing. Try the item again.", true);
+            return;
+        }
+
+        if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal))
+        {
+            await PreviewSelectedAsync();
+            if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal))
+                return;
+        }
+
+        await TakeAsync();
     }
 
     private async Task TakeAsync()
