@@ -147,14 +147,57 @@ public sealed class DesktopBibleLibraryTests
     }
 
     [Fact]
-    public void DownloadCatalogContainsOnlyHttpsPublicDomainPackages()
+    public void CatalogSeparatesRedistributableAndLicensedEditions()
     {
-        Assert.NotEmpty(DesktopBibleLibrary.Downloadable);
+        Assert.True(DesktopBibleLibrary.Catalog.Count >= 20);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "WEBP" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "BBE" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "DBY" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "DRA" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "GNV" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "OEB" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "WEBSTER" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "YLT" && package.CanDownload);
+
+        foreach (var id in new[] { "NIV", "NKJV", "ESV", "NLT", "CSB", "NASB", "AMP", "MSG", "NRSVUE" })
+        {
+            var edition = Assert.Single(DesktopBibleLibrary.Catalog.Where(package => package.Id == id));
+            Assert.False(edition.CanDownload);
+            Assert.Null(edition.DownloadUri);
+            Assert.Contains("required", edition.AvailabilityLabel, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void DownloadCatalogContainsOnlyHttpsRedistributablePackages()
+    {
+        Assert.True(DesktopBibleLibrary.Downloadable.Count >= 10);
         Assert.All(DesktopBibleLibrary.Downloadable, package =>
         {
-            Assert.Equal(Uri.UriSchemeHttps, package.DownloadUri.Scheme);
-            Assert.Equal("Public Domain", package.LicenseLabel);
+            Assert.True(package.CanDownload);
+            Assert.NotNull(package.DownloadUri);
+            Assert.Equal(Uri.UriSchemeHttps, package.DownloadUri!.Scheme);
+            Assert.DoesNotContain("required", package.AvailabilityLabel, StringComparison.OrdinalIgnoreCase);
         });
+        Assert.Equal("https://ebible.org/Scriptures/eng-kjv2006_vpl.zip",
+            DesktopBibleLibrary.Downloadable.Single(package => package.Id == "KJV").DownloadUri!.ToString());
+    }
+
+    [Fact]
+    public void RestrictedEditionCannotBeInstalledThroughLibraryApi()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ipresenterplux-bible-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var http = new HttpClient(new StaticZipHandler(BuildVplZip(new[] { "JOH 3:16 Test." })));
+            var library = new DesktopBibleLibrary(root, http);
+            Assert.ThrowsAsync<InvalidOperationException>(() => library.InstallAsync("NIV", CancellationToken.None)).GetAwaiter().GetResult();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static byte[] BuildVplZip(IEnumerable<string> lines)

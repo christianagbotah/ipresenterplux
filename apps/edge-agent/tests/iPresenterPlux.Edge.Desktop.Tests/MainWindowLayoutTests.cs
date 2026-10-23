@@ -260,6 +260,18 @@ public sealed class MainWindowLayoutTests
         Assert.DoesNotContain("_schedule.DoubleTapped +=", source, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void BibleManagerSupportsCatalogSearchAndLicenseRequiredRows()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "BibleVersionManagerWindow.cs"));
+
+        Assert.Contains("Search Bible versions", source, StringComparison.Ordinal);
+        Assert.Contains("DesktopBibleLibrary.Catalog", source, StringComparison.Ordinal);
+        Assert.Contains("License/provider required", source, StringComparison.Ordinal);
+        Assert.Contains("CanDownload", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
