@@ -144,6 +144,41 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("if (args.Key == Key.F6) _ = PreviewSelectedAsync();", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RundownPointerGesturesPreviewOnSingleTapAndTakeOnDoubleTap()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_rundown.Tapped +=", source, StringComparison.Ordinal);
+        Assert.Contains("_rundown.DoubleTapped +=", source, StringComparison.Ordinal);
+        Assert.Contains("PreviewSelectedAndTakeAsync", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptureLookupExposesOfflineBibleManagerAndLocalFirstResolution()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Bible Versions", source, StringComparison.Ordinal);
+        Assert.Contains("_desktopBibleLibrary.ResolveAsync", source, StringComparison.Ordinal);
+        Assert.Contains("RefreshBibleVersionChoices", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var scriptureEnabled = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is not null", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupPairsEnrollmentFieldsAndScrollsSidebarAndMainIndependently()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Field(\"Control Plane URL\", _controlUrl, 0, 0)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"One-time pairing code\", _pairingCode, 0, 1)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"Device name\", _deviceName, 1, 0)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"Program output display\", displayPicker, 1, 1)", source, StringComparison.Ordinal);
+        Assert.Contains("var sidebarScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("var mainScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content = root\n        };", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
