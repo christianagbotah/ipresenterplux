@@ -286,15 +286,15 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(14), MinHeight = 420 };
+        var root = new Grid { Margin = new Thickness(10), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(220)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(10)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(240)));
 
         var header = new Border {
             Background = Surface,
@@ -347,19 +347,22 @@ public sealed class MainWindow : Window
         _resolveScripture.IsEnabled = false;
         _bibleVersion.Background = SurfaceRaised;
         _bibleVersion.Foreground = Brushes.White;
+        _bibleVersion.MinHeight = 38;
+        _bibleVersion.HorizontalAlignment = HorizontalAlignment.Stretch;
         _resolveScripture.MinWidth = 112;
         _resolveScripture.MinHeight = 38;
         _resolveScripture.Padding = new Thickness(10, 6);
-        var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
-        scriptureRow.Children.Add(_bibleVersion);
-        Grid.SetColumn(_resolveScripture, 1);
-        scriptureRow.Children.Add(_resolveScripture);
+        _resolveScripture.HorizontalAlignment = HorizontalAlignment.Stretch;
+        var scriptureLookupControls = new StackPanel {
+            Spacing = 6,
+            Children = { _bibleVersion, _resolveScripture }
+        };
         var scriptureTools = new StackPanel {
             Spacing = 6,
             Children = {
                 Label("SCRIPTURE LOOKUP", 9, FontWeight.Bold, Muted),
                 _scriptureReference,
-                scriptureRow
+                scriptureLookupControls
             }
         };
         Grid.SetRow(scriptureTools, 1);
@@ -443,11 +446,13 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 10, MaxHeight = 169 };
+        var stages = new Grid { ColumnSpacing = 8, MaxHeight = 169 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
         var programStage = BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Good);
+        previewStage.HorizontalAlignment = HorizontalAlignment.Right;
+        programStage.HorizontalAlignment = HorizontalAlignment.Left;
         Grid.SetColumn(previewStage, 0);
         Grid.SetColumn(programStage, 1);
         stages.Children.Add(previewStage);
