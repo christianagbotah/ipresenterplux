@@ -11,10 +11,10 @@ public sealed class MainWindowLayoutTests
 
         Assert.Contains("Width = 640", source, StringComparison.Ordinal);
         Assert.Contains("Height = 360", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 300", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 169", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 340", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 191", source, StringComparison.Ordinal);
         Assert.Contains("Stretch = Stretch.Uniform", source, StringComparison.Ordinal);
-        Assert.Contains("var root = new Grid { Margin = new Thickness(14), MinHeight = 420 }", source, StringComparison.Ordinal);
+        Assert.Contains("var root = new Grid { Margin = new Thickness(6), MinHeight = 420 }", source, StringComparison.Ordinal);
         Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Width = 1600", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Height = 900", source, StringComparison.Ordinal);
@@ -27,7 +27,7 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var root = new Grid { Margin = new Thickness(14), MinHeight = 420 }", source, StringComparison.Ordinal);
+        Assert.Contains("var root = new Grid { Margin = new Thickness(6), MinHeight = 420 }", source, StringComparison.Ordinal);
         Assert.Contains("_rundown.MinHeight = 160", source, StringComparison.Ordinal);
         Assert.Contains("var left = new ScrollViewer", source, StringComparison.Ordinal);
         Assert.Contains("var right = new ScrollViewer", source, StringComparison.Ordinal);
@@ -40,13 +40,50 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(220)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 300", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 169", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(240)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(4)", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 340", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 191", source, StringComparison.Ordinal);
         Assert.Contains("var transitionActions = new WrapPanel", source, StringComparison.Ordinal);
         Assert.Contains("return root;", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,\n            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,\n            Content = root", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptureLookupStacksVersionAndActionWithoutNarrowTwoColumnCollision()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_bibleVersion.MinHeight = 38", source, StringComparison.Ordinal);
+        Assert.Contains("_resolveScripture.HorizontalAlignment = HorizontalAlignment.Stretch", source, StringComparison.Ordinal);
+        Assert.Contains("var scriptureLookupControls = new Grid { RowSpacing = 8 }", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetRow(_resolveScripture, 1)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions(\"*,Auto\"), ColumnSpacing = 8 }", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreviewAndProgramHugTheCenterWhileSidePanesGainUsableWidth()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("new GridLength(240)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
+        Assert.Contains("previewStage.HorizontalAlignment = HorizontalAlignment.Right", source, StringComparison.Ordinal);
+        Assert.Contains("programStage.HorizontalAlignment = HorizontalAlignment.Left", source, StringComparison.Ordinal);
+        Assert.Contains("var stages = new Grid { ColumnSpacing = 4, MaxHeight = 191 }", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TransitionSafetyHintLivesOnDedicatedRowBelowActions()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var transitionContent = new StackPanel { Spacing = 4 }", source, StringComparison.Ordinal);
+        Assert.Contains("transitionContent.Children.Add(transitionActions)", source, StringComparison.Ordinal);
+        Assert.Contains("transitionContent.Children.Add(transitionHint)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("transitionActions.Children.Add(transitionHint)", source, StringComparison.Ordinal);
+        Assert.Contains("transitionActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
     }
 
     [Fact]
