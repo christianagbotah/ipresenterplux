@@ -9,8 +9,10 @@ public sealed record BiblePackageDescriptor(
     string Name,
     string Abbreviation,
     string LanguageCode,
-    Uri DownloadUri,
-    string LicenseLabel);
+    Uri? DownloadUri,
+    string LicenseLabel,
+    bool CanDownload,
+    string AvailabilityLabel);
 
 public sealed record DesktopBiblePassage(
     string Reference,
@@ -42,12 +44,47 @@ public sealed class DesktopBibleLibrary
     private readonly string _rootDirectory;
     private readonly HttpClient _httpClient;
 
-    public static IReadOnlyList<BiblePackageDescriptor> Downloadable { get; } =
+    public static IReadOnlyList<BiblePackageDescriptor> Catalog { get; } =
     [
-        new("WEBP", "World English Bible", "WEB", "en", new Uri("https://ebible.org/Scriptures/engwebp_vpl.zip"), "Public Domain"),
-        new("ASV", "American Standard Version (1901)", "ASV", "en", new Uri("https://ebible.org/Scriptures/eng-asv_vpl.zip"), "Public Domain"),
-        new("KJV", "King James Version", "KJV", "en", new Uri("https://ebible.org/Scriptures/eng-kjv_vpl.zip"), "Public Domain")
+        Public("WEBP", "World English Bible", "WEB", "engwebp"),
+        Public("WEBU", "World English Bible Updated", "WEBU", "engwebu"),
+        Public("ASV", "American Standard Version (1901)", "ASV", "eng-asv"),
+        Public("KJV", "King James Version", "KJV", "eng-kjv2006"),
+        Public("BBE", "Bible in Basic English", "BBE", "engBBE"),
+        Public("DBY", "Darby Translation", "DBY", "engDBY"),
+        Public("DRA", "Douay-Rheims 1899", "DRV", "engDRA"),
+        Public("GNV", "Geneva Bible 1599", "GNV", "enggnv"),
+        Public("OEB", "Open English Bible (U.S.)", "OEB", "engoebus"),
+        Public("WEBSTER", "Noah Webster Bible", "Webster", "engwebster"),
+        Public("YLT", "Young's Literal Translation", "YLT", "engylt"),
+        Public("JPS1917", "JPS TaNaKH 1917", "OJPS", "engjps"),
+        Public("BRENTON", "Brenton Septuagint Translation", "Brenton", "eng-Brenton"),
+
+        Restricted("NIV", "New International Version", "NIV", "Biblica/Zondervan"),
+        Restricted("NKJV", "New King James Version", "NKJV", "Thomas Nelson"),
+        Restricted("ESV", "English Standard Version", "ESV", "Crossway"),
+        Restricted("NLT", "New Living Translation", "NLT", "Tyndale House"),
+        Restricted("CSB", "Christian Standard Bible", "CSB", "Holman/B&H"),
+        Restricted("NASB", "New American Standard Bible", "NASB", "Lockman Foundation"),
+        Restricted("AMP", "Amplified Bible", "AMP", "Zondervan/Lockman"),
+        Restricted("MSG", "The Message", "MSG", "NavPress"),
+        Restricted("NRSVUE", "New Revised Standard Version Updated Edition", "NRSVue", "National Council of Churches/Friendship Press"),
+        Restricted("RSV", "Revised Standard Version", "RSV", "National Council of Churches"),
+        Restricted("NET", "NET Bible", "NET", "Biblical Studies Press"),
+        Restricted("GNT", "Good News Translation", "GNT", "American Bible Society"),
+        Restricted("CEV", "Contemporary English Version", "CEV", "American Bible Society"),
+        Restricted("NCV", "New Century Version", "NCV", "Thomas Nelson")
     ];
+
+    public static IReadOnlyList<BiblePackageDescriptor> Downloadable { get; } =
+        Catalog.Where(package => package.CanDownload && package.DownloadUri is not null).ToArray();
+
+    private static BiblePackageDescriptor Public(string id, string name, string abbreviation, string ebibleId) =>
+        new(id, name, abbreviation, "en", new Uri($"https://ebible.org/Scriptures/{ebibleId}_vpl.zip"),
+            "Public Domain", true, "One-click offline download");
+
+    private static BiblePackageDescriptor Restricted(string id, string name, string abbreviation, string rightsHolder) =>
+        new(id, name, abbreviation, "en", null, rightsHolder, false, "License/provider required");
 
     public DesktopBibleLibrary(string rootDirectory, HttpClient? httpClient = null)
     {
@@ -137,7 +174,9 @@ public sealed class DesktopBibleLibrary
     public async Task InstallAsync(string versionId, CancellationToken cancellationToken)
     {
         var package = Package(versionId)
-            ?? throw new ArgumentException("Bible version is not available for download.", nameof(versionId));
+            ?? throw new ArgumentException("Bible version is not available.", nameof(versionId));
+        if (!package.CanDownload || package.DownloadUri is null)
+            throw new InvalidOperationException("This Bible edition requires a licensed/provider source and cannot be downloaded by iPresenterPlux.");
         if (!string.Equals(package.DownloadUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Bible packages must use HTTPS.");
 
@@ -258,7 +297,7 @@ public sealed class DesktopBibleLibrary
     {
         if (string.IsNullOrWhiteSpace(versionId)) return null;
         var normalized = versionId.Trim();
-        return Downloadable.FirstOrDefault(package =>
+        return Catalog.FirstOrDefault(package =>
             string.Equals(package.Id, normalized, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(package.Abbreviation, normalized, StringComparison.OrdinalIgnoreCase));
     }

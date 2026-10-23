@@ -16,6 +16,7 @@ public sealed class BibleVersionManagerWindow : Window
 
     private readonly DesktopBibleLibrary _library;
     private readonly StackPanel _versionList = new() { Spacing = 10 };
+    private readonly TextBox _search = new() { Watermark = "Search Bible versions", MinHeight = 40 };
     private readonly TextBlock _feedback = new() { FontSize = 12, Foreground = Muted, TextWrapping = TextWrapping.Wrap };
 
     public BibleVersionManagerWindow(DesktopBibleLibrary library)
@@ -45,6 +46,8 @@ public sealed class BibleVersionManagerWindow : Window
             }
         };
 
+        _search.TextChanged += (_, _) => RenderVersions();
+
         var scroll = new ScrollViewer
         {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
@@ -64,12 +67,15 @@ public sealed class BibleVersionManagerWindow : Window
 
         var layout = new Grid { RowSpacing = 14 };
         layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         layout.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
         layout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         Grid.SetRow(heading, 0);
-        Grid.SetRow(scroll, 1);
-        Grid.SetRow(footer, 2);
+        Grid.SetRow(_search, 1);
+        Grid.SetRow(scroll, 2);
+        Grid.SetRow(footer, 3);
         layout.Children.Add(heading);
+        layout.Children.Add(_search);
         layout.Children.Add(scroll);
         layout.Children.Add(footer);
 
@@ -88,12 +94,20 @@ public sealed class BibleVersionManagerWindow : Window
     private void RenderVersions()
     {
         _versionList.Children.Clear();
-        foreach (var package in DesktopBibleLibrary.Downloadable)
+        var query = _search.Text?.Trim() ?? string.Empty;
+        var packages = DesktopBibleLibrary.Catalog.Where(package =>
+            query.Length == 0 ||
+            package.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            package.Abbreviation.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            package.Id.Contains(query, StringComparison.OrdinalIgnoreCase));
+        foreach (var package in packages)
         {
             var installed = _library.IsInstalled(package.Id);
             var status = new TextBlock
             {
-                Text = installed ? "INSTALLED · OFFLINE READY" : package.LicenseLabel.ToUpperInvariant(),
+                Text = installed ? "INSTALLED · OFFLINE READY" : package.CanDownload
+                    ? $"{package.LicenseLabel.ToUpperInvariant()} · DOWNLOADABLE"
+                    : $"{package.LicenseLabel.ToUpperInvariant()} · License/provider required",
                 FontSize = 10,
                 FontWeight = FontWeight.SemiBold,
                 Foreground = installed ? Good : Gold
@@ -106,10 +120,11 @@ public sealed class BibleVersionManagerWindow : Window
                 Foreground = Brushes.White
             };
             var description = new StackPanel { Spacing = 4, Children = { title, status } };
-            var action = ActionButton(installed ? "Installed" : "Download");
-            action.IsEnabled = !installed;
-            action.MinWidth = 112;
-            action.Click += async (_, _) => await DownloadAsync(package, action);
+            var action = ActionButton(installed ? "Installed" : package.CanDownload ? "Download" : "License required");
+            action.IsEnabled = !installed && package.CanDownload;
+            action.MinWidth = 126;
+            if (package.CanDownload)
+                action.Click += async (_, _) => await DownloadAsync(package, action);
 
             var row = new Grid { ColumnSpacing = 12 };
             row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
