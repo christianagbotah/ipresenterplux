@@ -480,11 +480,11 @@ public sealed class MainWindow : Window
         var center = new Grid();
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        center.RowDefinitions.Add(new RowDefinition(new GridLength(3, GridUnitType.Star)) { MinHeight = 180 });
         center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
-        center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        center.RowDefinitions.Add(new RowDefinition(new GridLength(2, GridUnitType.Star)) { MinHeight = 96 });
 
         var centerHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         centerHeader.Children.Add(new StackPanel {
@@ -502,7 +502,7 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 4, MaxHeight = 191 };
+        var stages = new Grid { ColumnSpacing = 8, MinHeight = 180, MaxHeight = 330 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
@@ -586,12 +586,12 @@ public sealed class MainWindow : Window
                 _scriptureBrowserPanel
             }
         };
-        var detailsCard = Card("Details & Bible browser", new ScrollViewer {
-            MaxHeight = 280,
+        var detailsScroll = new ScrollViewer {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             Content = detailsContent
-        });
+        };
+        var detailsCard = Card("Details & Bible browser", detailsScroll);
         Grid.SetRow(detailsCard, 6);
         center.Children.Add(detailsCard);
 
@@ -776,8 +776,8 @@ public sealed class MainWindow : Window
         };
 
         return new Viewbox {
-            MaxWidth = 340,
-            MaxHeight = 191,
+            MaxWidth = 560,
+            MaxHeight = 315,
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
