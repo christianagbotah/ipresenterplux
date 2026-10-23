@@ -976,9 +976,14 @@ public sealed class MainWindow : Window
 
     private void MoveRundownSelection(int delta)
     {
-        if (_operatorBusy || _workspace.Items.Count == 0) return;
-        _selectedRundownItemId = LibraryNavigator().MoveSelection(_selectedRundownItemId, delta);
-        _activeSelectionSurface = "library";
+        if (_operatorBusy) return;
+        if (_activeSelectionSurface == "schedule" && _localSchedule.Count > 0)
+            _selectedScheduleItemId = ScheduleNavigator().MoveSelection(_selectedScheduleItemId, delta);
+        else if (_workspace.Items.Count > 0)
+        {
+            _selectedRundownItemId = LibraryNavigator().MoveSelection(_selectedRundownItemId, delta);
+            _activeSelectionSurface = "library";
+        }
         RefreshRundown();
     }
 

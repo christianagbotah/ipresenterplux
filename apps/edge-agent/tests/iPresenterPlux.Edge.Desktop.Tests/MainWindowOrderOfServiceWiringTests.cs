@@ -9,8 +9,9 @@ public sealed class MainWindowOrderOfServiceWiringTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("ORDER OF SERVICE", source, StringComparison.Ordinal);
+        Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
         Assert.Contains("OperatorRundownNavigator", source, StringComparison.Ordinal);
+        Assert.Contains("ScheduleNavigator", source, StringComparison.Ordinal);
         Assert.Contains("RundownItems", source, StringComparison.Ordinal);
         Assert.Contains("AdvanceAfterTake", source, StringComparison.Ordinal);
         Assert.Contains("response.Ok", source, StringComparison.Ordinal);
