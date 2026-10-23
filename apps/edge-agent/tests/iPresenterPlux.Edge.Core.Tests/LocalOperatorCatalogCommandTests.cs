@@ -309,7 +309,7 @@ public sealed class LocalOperatorCatalogCommandTests
 
         public OperatorCatalogSnapshot LibrarySnapshot(
             DateTimeOffset syncedAt,
-            IReadOnlyList<OperatorCatalogItem> libraryItems) => new(
+            IReadOnlyList<OperatorCatalogItem> libraryItems) => new OperatorCatalogSnapshot(
             OperatorCatalogSnapshot.CurrentSchemaVersion,
             syncedAt,
             syncedAt,
