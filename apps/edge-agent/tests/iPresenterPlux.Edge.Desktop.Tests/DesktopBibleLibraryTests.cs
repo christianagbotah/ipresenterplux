@@ -165,7 +165,7 @@ public sealed class DesktopBibleLibraryTests
 
         foreach (var id in new[] { "NIV", "NKJV", "ESV", "NLT", "CSB", "NASB", "AMP", "MSG", "NRSVUE", "TWI-AKUAPEM", "TWI-ASANTE", "EWE-OAL" })
         {
-            var edition = Assert.Single(DesktopBibleLibrary.Catalog.Where(package => package.Id == id));
+            var edition = Assert.Single(DesktopBibleLibrary.Catalog, package => package.Id == id);
             Assert.False(edition.CanDownload);
             Assert.Null(edition.DownloadUri);
             Assert.Contains("required", edition.AvailabilityLabel, StringComparison.OrdinalIgnoreCase);
@@ -188,7 +188,7 @@ public sealed class DesktopBibleLibraryTests
     }
 
     [Fact]
-    public void RestrictedEditionCannotBeInstalledThroughLibraryApi()
+    public async Task RestrictedEditionCannotBeInstalledThroughLibraryApi()
     {
         var root = Path.Combine(Path.GetTempPath(), "ipresenterplux-bible-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -196,7 +196,7 @@ public sealed class DesktopBibleLibraryTests
         {
             using var http = new HttpClient(new StaticZipHandler(BuildVplZip(new[] { "JOH 3:16 Test." })));
             var library = new DesktopBibleLibrary(root, http);
-            Assert.ThrowsAsync<InvalidOperationException>(() => library.InstallAsync("NIV", CancellationToken.None)).GetAwaiter().GetResult();
+            await Assert.ThrowsAsync<InvalidOperationException>(() => library.InstallAsync("NIV", CancellationToken.None));
         }
         finally
         {
