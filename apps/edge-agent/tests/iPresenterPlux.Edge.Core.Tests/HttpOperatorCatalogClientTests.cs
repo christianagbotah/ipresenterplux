@@ -75,6 +75,87 @@ public sealed class HttpOperatorCatalogClientTests
     }
 
     [Fact]
+    public async Task FetchesOrganizationLibraryWithoutRequiringAnActiveService()
+    {
+        var identity = Identity();
+        using var http = new HttpClient(new StubHandler(_ => Json(HttpStatusCode.OK, new
+        {
+            ok = true,
+            service = (object?)null,
+            bibleVersions = Array.Empty<object>(),
+            items = Array.Empty<object>(),
+            scriptureQueue = Array.Empty<object>(),
+            libraryItems = new object[]
+            {
+                new { itemId = "library-song-1", itemType = "song", title = "Amazing Grace", body = "Verse 1\nAmazing grace", footer = "John Newton", metadata = new Dictionary<string,string> { ["library"] = "true" } },
+                new { itemId = "library-media-1", itemType = "media", title = "Welcome Loop", body = "", footer = (string?)null, metadata = new Dictionary<string,string> { ["library"] = "true", ["mediaKind"] = "video" } },
+            },
+            catalogRevision = "library-no-service",
+            observedAt = "2026-10-23T12:00:00Z"
+        }))) { BaseAddress = new Uri("https://control.example.test") };
+        var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
+
+        var catalog = await client.GetCatalogAsync(CancellationToken.None);
+
+        Assert.Null(catalog.Service);
+        Assert.Empty(catalog.Items);
+        Assert.Equal(2, catalog.LibraryItems.Count);
+        Assert.Contains(catalog.LibraryItems, item => item.ItemType == "song" && item.Title == "Amazing Grace");
+        Assert.Contains(catalog.LibraryItems, item => item.ItemType == "media" && item.Media is null);
+    }
+
+    [Fact]
+    public async Task ResolvesOrganizationLibraryMediaOnlyThroughAuthenticatedItemResolve()
+    {
+        var identity = Identity();
+        var itemId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+        var sourceId = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+        using var http = new HttpClient(new StubHandler(request =>
+        {
+            Assert.Equal($"/api/v1/edge/operator/library/{itemId}", request.RequestUri?.AbsolutePath);
+            Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
+            return Json(HttpStatusCode.OK, new
+            {
+                ok = true,
+                item = new
+                {
+                    itemId,
+                    itemType = "media",
+                    title = "Welcome Loop",
+                    body = "",
+                    footer = (string?)null,
+                    metadata = new Dictionary<string,string> { ["library"] = "true", ["mediaKind"] = "video" },
+                    media = new
+                    {
+                        sourceId,
+                        mediaKind = "video",
+                        downloadUrl = "https://media.example.test/welcome.mp4",
+                        assetVersion = new string('a', 64),
+                        contentTypeHint = "video/mp4",
+                        title = "Welcome Loop",
+                        trimStartSeconds = 0d,
+                        trimEndSeconds = (double?)null,
+                        loop = true,
+                        volume = 1d,
+                        fit = "contain"
+                    }
+                },
+                observedAt = "2026-10-23T12:00:00Z"
+            });
+        })) { BaseAddress = new Uri("https://control.example.test") };
+        var client = new HttpOperatorCatalogClient(http, identity, new FixedCredentialStore(Credential(identity, new string('x', 48))));
+
+        var resolved = await client.ResolveLibraryItemAsync(itemId, CancellationToken.None);
+
+        Assert.Equal(itemId, resolved.Item.ItemId);
+        Assert.Equal("media", resolved.Item.ItemType);
+        Assert.NotNull(resolved.Item.Media);
+        Assert.Equal(sourceId, resolved.Item.Media!.SourceId);
+        Assert.Equal("video", resolved.Item.Media.MediaKind);
+        Assert.Equal("https://media.example.test/welcome.mp4", resolved.Item.Media.DownloadUrl.AbsoluteUri);
+    }
+
+    [Fact]
     public async Task AcceptsPostgresTimestampTextFromProductionCatalog()
     {
         var identity = Identity();

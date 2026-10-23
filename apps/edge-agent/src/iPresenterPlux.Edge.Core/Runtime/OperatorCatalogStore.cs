@@ -127,6 +127,7 @@ public sealed class OperatorCatalogStore
             .ToArray();
         var items = NormalizeItems(snapshot.Items, 200);
         var scripture = NormalizeItems(snapshot.ScriptureQueue, 200);
+        var library = NormalizeItems(snapshot.LibraryItems, 200);
         var revision = Clean(snapshot.CatalogRevision, 128);
         if (string.IsNullOrWhiteSpace(revision)) revision = "unknown";
 
@@ -138,6 +139,7 @@ public sealed class OperatorCatalogStore
             BibleVersions = versions,
             Items = items,
             ScriptureQueue = scripture,
+            LibraryItems = library,
         };
     }
 

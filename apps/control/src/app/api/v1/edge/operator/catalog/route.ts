@@ -9,8 +9,14 @@ import {
 } from "@/lib/edge-operator-catalog";
 import { normalizeEdgePresentationCatalogFields } from "@/lib/edge-presentation-resolver";
 import {
+  EdgeOperatorLibraryError,
+  normalizeEdgeOperatorLibrarySummary,
+  type EdgeOperatorLibraryRow,
+} from "@/lib/edge-operator-library";
+import {
   EDGE_OPERATOR_ACTIVE_SERVICE_SQL,
   EDGE_OPERATOR_BIBLE_VERSIONS_SQL,
+  EDGE_OPERATOR_LIBRARY_ITEMS_SQL,
   EDGE_OPERATOR_PRESENTATION_ITEMS_SQL,
   EDGE_OPERATOR_SCRIPTURE_QUEUE_SQL,
 } from "@/lib/edge-operator-catalog-queries";
@@ -68,9 +74,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "Device authentication required" }, { status: 401 });
   }
 
-  const [serviceResult, versionsResult] = await Promise.all([
+  const [serviceResult, versionsResult, libraryResult] = await Promise.all([
     query<ServiceRow>(EDGE_OPERATOR_ACTIVE_SERVICE_SQL, [device.deviceId, device.organizationId]),
     query<BibleVersionRow>(EDGE_OPERATOR_BIBLE_VERSIONS_SQL),
+    query<EdgeOperatorLibraryRow>(EDGE_OPERATOR_LIBRARY_ITEMS_SQL, [device.organizationId]),
   ]);
 
   const service = serviceResult.rows[0] ?? null;
@@ -80,6 +87,18 @@ export async function GET(request: Request) {
     abbreviation: normalizeOperatorText(row.abbreviation, 32),
     languageCode: normalizeOperatorText(row.language_code, 16),
   }));
+  const libraryItems = libraryResult.rows.flatMap((row) => {
+    try {
+      return [normalizeEdgeOperatorLibrarySummary(row)];
+    } catch (error) {
+      if (error instanceof EdgeOperatorLibraryError) return [];
+      throw error;
+    }
+  });
+  const latestLibrary = libraryResult.rows.reduce<string | null>(
+    (latest, row) => !latest || row.updated_at > latest ? row.updated_at : latest,
+    null,
+  );
   const observedAt = new Date().toISOString();
 
   if (!service) {
@@ -90,7 +109,8 @@ export async function GET(request: Request) {
         bibleVersions,
         items: [],
         scriptureQueue: [],
-        catalogRevision: revision(["no-service", ...bibleVersions.map((item) => item.id)]),
+        libraryItems,
+        catalogRevision: revision(["no-service", latestLibrary, ...bibleVersions.map((item) => item.id)]),
         observedAt,
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -163,7 +183,8 @@ export async function GET(request: Request) {
       bibleVersions,
       items,
       scriptureQueue,
-      catalogRevision: revision([service.id, service.updated_at, latestPresentation, latestScripture]),
+      libraryItems,
+      catalogRevision: revision([service.id, service.updated_at, latestPresentation, latestScripture, latestLibrary]),
       observedAt,
     },
     { headers: { "Cache-Control": "no-store" } },

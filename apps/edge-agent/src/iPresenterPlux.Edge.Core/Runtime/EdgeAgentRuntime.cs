@@ -34,7 +34,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     private readonly EdgeHostHealthSampler _healthSampler;
     private readonly AgentRuntimeState _state;
     private readonly IAudioCaptureService? _audioCapture;
-    private readonly ISpeechRecognitionEngine? _speechRecognitionEngine;
+    private ISpeechRecognitionEngine? _speechRecognitionEngine;
     private readonly IMediaOutputService? _mediaOutput;
     private readonly ILocalRecordingService? _recordingService;
     private readonly OperatorCatalogCoordinator? _operatorCatalog;
@@ -139,6 +139,7 @@ public sealed class EdgeAgentRuntime : IDisposable
     {
         ThrowIfDisposed();
         var identity = await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        _speechRecognitionEngine ??= new HttpEdgeSpeechRecognitionEngine(_httpClient, identity, _credentialStore);
         if (_mediaPreparation is MediaPreparationCoordinator mediaPreparationCoordinator)
             mediaPreparationCoordinator.BindOrganization(identity.OrganizationId);
         var scope = new OutboundEventScope(identity.OrganizationId, identity.DeviceId);
@@ -277,8 +278,6 @@ public sealed class EdgeAgentRuntime : IDisposable
             if (previousServiceId == nextServiceId) return;
 
             await AlignOperatorCatalogScopeAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
-            if (_mediaOutput is IServiceScopedMediaOutput scopedOutput)
-                await scopedOutput.SetActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             if (_recordingService is not null)
                 await _recordingService.HandleActiveServiceAsync(nextServiceId, cancellationToken).ConfigureAwait(false);
             _transcriptionPipeline?.SetServiceId(nextServiceId);
@@ -308,11 +307,15 @@ public sealed class EdgeAgentRuntime : IDisposable
 
     private async Task AlignOperatorCatalogScopeAsync(Guid? activeServiceId, CancellationToken cancellationToken)
     {
-        if (_mediaPreparation is not null)
+        var presentationScope = LocalOperatorPresentationScope.Resolve(activeServiceId);
+        if (_mediaPreparation is not null || _mediaOutput is IServiceScopedMediaOutput)
         {
             try
             {
-                await _mediaPreparation.SetActiveServiceAsync(activeServiceId, cancellationToken).ConfigureAwait(false);
+                if (_mediaPreparation is not null)
+                    await _mediaPreparation.SetActiveServiceAsync(presentationScope, cancellationToken).ConfigureAwait(false);
+                if (_mediaOutput is IServiceScopedMediaOutput scopedOutput)
+                    await scopedOutput.SetActiveServiceAsync(presentationScope, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -321,7 +324,7 @@ public sealed class EdgeAgentRuntime : IDisposable
             catch (Exception error)
             {
                 _state.Update(snapshot => snapshot with { ConnectionStatus = "Degraded" });
-                Console.Error.WriteLine($"Media preparation scope unavailable: {error.GetType().Name}: {error.Message}");
+                Console.Error.WriteLine($"Presentation media scope unavailable: {error.GetType().Name}: {error.Message}");
             }
         }
         if (_operatorCatalog is null) return;
@@ -387,11 +390,13 @@ public sealed class EdgeAgentRuntime : IDisposable
         if (_speechRecognitionEngine is null)
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("disabled");
+            PublishSpeechStatus();
             return;
         }
         if (_speechRecognitionEngine is not ISpeechRecognitionHealthProbe probe)
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("unsupported");
+            PublishSpeechStatus();
             return;
         }
 
@@ -417,6 +422,17 @@ public sealed class EdgeAgentRuntime : IDisposable
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("error");
         }
+        PublishSpeechStatus();
+    }
+
+    private void PublishSpeechStatus()
+    {
+        _state.Update(snapshot => snapshot with
+        {
+            AsrStatus = _latestAsrWorkerHealth?.Status ?? "unknown",
+            TranscriptionStatus = _transcriptionPipeline?.HealthStatus ?? "starting",
+            TranscriptPublishStatus = _transcriptionPipeline?.PublishStatus ?? "starting"
+        });
     }
 
     private async Task StopAudioAsync()

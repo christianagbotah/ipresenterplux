@@ -193,21 +193,28 @@ public sealed class LocalOperatorCommandHandler
         if (_operatorCatalog is null) return Failure(requestId, "catalog_unavailable");
 
         var activeServiceId = _state.Snapshot.ActiveServiceId;
-        if (activeServiceId is null) return Failure(requestId, "service_required");
         if (_operatorCatalog.ActiveServiceId != activeServiceId)
             return Failure(requestId, "catalog_scope_mismatch");
 
         var catalog = await _operatorCatalog.QueryAsync(cancellationToken).ConfigureAwait(false);
-        if (catalog?.Service?.ServiceId != activeServiceId)
+        if (catalog is null || catalog.Service?.ServiceId != activeServiceId)
             return Failure(requestId, "catalog_scope_mismatch");
-        var catalogItem = catalog.Items.FirstOrDefault(item =>
+        var serviceItem = catalog.Items.FirstOrDefault(item =>
             string.Equals(item.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+        var libraryItem = catalog.LibraryItems.FirstOrDefault(item =>
+            string.Equals(item.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
+        var catalogItem = serviceItem ?? libraryItem;
         if (catalogItem is null) return Failure(requestId, "catalog_item_not_found");
+        if (serviceItem is not null && activeServiceId is null)
+            return Failure(requestId, "service_required");
 
+        var presentationScope = LocalOperatorPresentationScope.Resolve(activeServiceId);
         PresentationRenderItem renderItem;
         try
         {
-            renderItem = await _operatorCatalog.ResolvePresentationAsync(itemId, cancellationToken).ConfigureAwait(false);
+            renderItem = libraryItem is not null
+                ? await _operatorCatalog.ResolveLibraryPresentationAsync(itemId, presentationScope, cancellationToken).ConfigureAwait(false)
+                : await _operatorCatalog.ResolvePresentationAsync(itemId, cancellationToken).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {
@@ -218,8 +225,9 @@ public sealed class LocalOperatorCommandHandler
             return Failure(requestId, "presentation_invalid");
         }
 
+        var expectedScope = libraryItem is not null ? presentationScope : activeServiceId!.Value;
         if (!string.Equals(renderItem.ItemId, itemId, StringComparison.OrdinalIgnoreCase) ||
-            renderItem.ServiceId != activeServiceId ||
+            renderItem.ServiceId != expectedScope ||
             _operatorCatalog.ActiveServiceId != activeServiceId ||
             _state.Snapshot.ActiveServiceId != activeServiceId)
         {
@@ -234,7 +242,7 @@ public sealed class LocalOperatorCommandHandler
             if (_mediaPreparation is null) return Failure(requestId, "media_preparation_unavailable");
 
             var preparation = await _mediaPreparation.PrepareAsync(renderItem, cancellationToken).ConfigureAwait(false);
-            if (preparation.ServiceId != activeServiceId ||
+            if (preparation.ServiceId != expectedScope ||
                 !string.Equals(preparation.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
             {
                 return Failure(requestId, "catalog_scope_mismatch");
@@ -319,7 +327,7 @@ public sealed class LocalOperatorCommandHandler
         if (body.Length is < 1 or > 12000) { error = "body_invalid"; return false; }
         if (footer is { Length: > 500 }) { error = "footer_too_long"; return false; }
 
-        var serviceId = _state.Snapshot.ActiveServiceId ?? Guid.Empty;
+        var serviceId = LocalOperatorPresentationScope.Resolve(_state.Snapshot.ActiveServiceId);
         item = new PresentationRenderItem(
             itemId,
             serviceId,
@@ -347,9 +355,10 @@ public sealed class LocalOperatorCommandHandler
         var runtime = _state.Snapshot;
         var output = _mediaOutput.Snapshot;
         var recording = _recordingService?.Status;
-        var preparations = runtime.ActiveServiceId is { } activeServiceId && _mediaPreparation is not null
+        var presentationScope = LocalOperatorPresentationScope.Resolve(runtime.ActiveServiceId);
+        var preparations = _mediaPreparation is not null
             ? _mediaPreparation.GetSnapshots()
-                .Where(snapshot => snapshot.ServiceId == activeServiceId)
+                .Where(snapshot => snapshot.ServiceId == presentationScope)
                 .Select(snapshot => new LocalOperatorMediaPreparation(
                     snapshot.ItemId, snapshot.ServiceId, snapshot.State, snapshot.ErrorCode))
                 .ToArray()
@@ -365,6 +374,11 @@ public sealed class LocalOperatorCommandHandler
             runtime.ServiceMode,
             _clock.GetUtcNow(),
             _mediaOutput.PlaybackSnapshot,
-            preparations);
+            preparations,
+            runtime.AudioStatus,
+            runtime.ActiveAudioInput,
+            runtime.AsrStatus,
+            runtime.TranscriptionStatus,
+            runtime.TranscriptPublishStatus);
     }
 }

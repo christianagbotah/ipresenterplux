@@ -37,6 +37,8 @@ public sealed record OperatorCatalogSnapshot(
 {
     public const int CurrentSchemaVersion = 1;
 
+    public IReadOnlyList<OperatorCatalogItem> LibraryItems { get; init; } = Array.Empty<OperatorCatalogItem>();
+
     public bool IsStale(DateTimeOffset now, TimeSpan maxAge)
     {
         if (maxAge <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxAge));

@@ -104,21 +104,23 @@ public static class OperatorWorkspaceCatalog
                 .Select(group => FromResolved(group.First(), synced: true))
                 .ToArray();
 
-        var items = catalog.Service is null
-            ? Array.Empty<OperatorWorkspaceItem>()
-            : catalog.Items
-                .Concat(catalog.ScriptureQueue)
-                .GroupBy(item => item.ItemId, StringComparer.Ordinal)
-                .Select(group => FromResolved(group.First(), synced: true))
-                .ToArray();
+        var serviceAndAdHoc = catalog.Service is null
+            ? Array.Empty<OperatorCatalogItem>()
+            : catalog.Items.Concat(catalog.ScriptureQueue).ToArray();
+        var items = serviceAndAdHoc
+            .Concat(catalog.LibraryItems)
+            .GroupBy(item => item.ItemId, StringComparer.Ordinal)
+            .Select(group => FromResolved(group.First(), synced: true))
+            .ToArray();
 
-        var status = catalog.Service is null
-            ? "NO ACTIVE SERVICE"
+        var isRehearsal = catalog.Service is null;
+        var status = isRehearsal
+            ? stale ? "LOCAL REHEARSAL · OFFLINE LIBRARY" : "LOCAL REHEARSAL · CLOUD LIBRARY"
             : stale ? "OFFLINE CACHE" : "LIVE CATALOG";
 
         return new OperatorWorkspaceView(
             items, rundownItems, catalog.BibleVersions, activeVersion, catalog.Service?.Title, catalog.Service?.Status,
-            HasSyncedCatalog: true, IsRehearsal: false, IsStale: stale, StatusLabel: status);
+            HasSyncedCatalog: true, IsRehearsal: isRehearsal, IsStale: stale, StatusLabel: status);
     }
 
     public static string? ResolveMediaStatus(OperatorWorkspaceItem item, LocalOperatorSnapshot snapshot)

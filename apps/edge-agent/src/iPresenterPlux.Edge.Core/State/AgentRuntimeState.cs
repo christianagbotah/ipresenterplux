@@ -11,6 +11,10 @@ public sealed record AgentSnapshot(
     DateTimeOffset UpdatedAt,
     IReadOnlyList<SourceHealth> Sources)
 {
+    public string? AsrStatus { get; init; }
+    public string? TranscriptionStatus { get; init; }
+    public string? TranscriptPublishStatus { get; init; }
+
     public static AgentSnapshot Offline { get; } = new(
         "Offline",
         "Stopped",

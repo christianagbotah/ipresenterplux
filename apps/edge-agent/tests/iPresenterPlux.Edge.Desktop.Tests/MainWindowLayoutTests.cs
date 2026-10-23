@@ -28,9 +28,9 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("var root = new Grid { Margin = new Thickness(6), MinHeight = 420 }", source, StringComparison.Ordinal);
-        Assert.Contains("_rundown.MinHeight = 160", source, StringComparison.Ordinal);
-        Assert.Contains("var left = new ScrollViewer", source, StringComparison.Ordinal);
-        Assert.Contains("var right = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("_rundown.MinHeight = 130", source, StringComparison.Ordinal);
+        Assert.Contains("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("var detailsScroll = new ScrollViewer", source, StringComparison.Ordinal);
         Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
         Assert.Contains("return root;", source, StringComparison.Ordinal);
     }
@@ -40,12 +40,12 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(240)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(4)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(270)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(6)", source, StringComparison.Ordinal);
         Assert.Contains("MaxWidth = 340", source, StringComparison.Ordinal);
         Assert.Contains("MaxHeight = 191", source, StringComparison.Ordinal);
-        Assert.Contains("var transitionActions = new WrapPanel", source, StringComparison.Ordinal);
+        Assert.Contains("var production = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
         Assert.Contains("return root;", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,\n            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,\n            Content = root", source, StringComparison.Ordinal);
     }
@@ -55,10 +55,10 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("_bibleVersion.MinHeight = 38", source, StringComparison.Ordinal);
-        Assert.Contains("_resolveScripture.HorizontalAlignment = HorizontalAlignment.Stretch", source, StringComparison.Ordinal);
-        Assert.Contains("var scriptureLookupControls = new Grid { RowSpacing = 8 }", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetRow(_resolveScripture, 1)", source, StringComparison.Ordinal);
+        Assert.Contains("_bibleVersion.MinHeight = 36", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(_resolveScripture, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("var scriptureLookup = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(_resolveScripture, 2)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions(\"*,Auto\"), ColumnSpacing = 8 }", source, StringComparison.Ordinal);
     }
 
@@ -67,11 +67,11 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(240)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
-        Assert.Contains("previewStage.HorizontalAlignment = HorizontalAlignment.Right", source, StringComparison.Ordinal);
-        Assert.Contains("programStage.HorizontalAlignment = HorizontalAlignment.Left", source, StringComparison.Ordinal);
-        Assert.Contains("var stages = new Grid { ColumnSpacing = 4, MaxHeight = 191 }", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(270)", source, StringComparison.Ordinal);
+        Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
+        Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
+        Assert.Contains("var production = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -79,11 +79,9 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var transitionContent = new StackPanel { Spacing = 4 }", source, StringComparison.Ordinal);
-        Assert.Contains("transitionContent.Children.Add(transitionActions)", source, StringComparison.Ordinal);
-        Assert.Contains("transitionContent.Children.Add(transitionHint)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("transitionActions.Children.Add(transitionHint)", source, StringComparison.Ordinal);
-        Assert.Contains("transitionActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
+        Assert.Contains("previewActions.Children.Add(_take)", source, StringComparison.Ordinal);
+        Assert.Contains("programActions.Children.Add(_clear)", source, StringComparison.Ordinal);
+        Assert.Contains("programActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -97,13 +95,15 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void SetupWorkspaceScrollsAsOneSurfaceInsteadOfClippingSidebar()
+    public void SetupWorkspaceKeepsSidebarAndMainAsIndependentVerticalScrollSurfaces()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("MinWidth = 900", source, StringComparison.Ordinal);
-        Assert.Contains("Content = root", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetColumn(main, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("var sidebarScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("var mainScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(mainScroll, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("return root;", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -142,6 +142,134 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("if (args.Key == Key.F8) _ = TakeAsync();", source, StringComparison.Ordinal);
         Assert.Contains("if (args.Key == Key.F7) _ = ClearProgramAsync();", source, StringComparison.Ordinal);
         Assert.Contains("if (args.Key == Key.F6) _ = PreviewSelectedAsync();", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RundownPointerUsesExactClickedRowForPreviewAndDoubleClickLive()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_rundown.PointerPressed += OnLibraryPointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("FindPointerRundownRow", source, StringComparison.Ordinal);
+        Assert.Contains("args.ClickCount >= 2", source, StringComparison.Ordinal);
+        Assert.Contains("PreviewItemAndTakeAsync(row.Item)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptureLookupExposesOfflineBibleManagerAndLocalFirstResolution()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Bible Versions", source, StringComparison.Ordinal);
+        Assert.Contains("_desktopBibleLibrary.ResolveAsync", source, StringComparison.Ordinal);
+        Assert.Contains("RefreshBibleVersionChoices", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var scriptureEnabled = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is not null", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SetupPairsEnrollmentFieldsAndScrollsSidebarAndMainIndependently()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Field(\"Control Plane URL\", _controlUrl, 0, 0)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"One-time pairing code\", _pairingCode, 0, 1)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"Device name\", _deviceName, 1, 0)", source, StringComparison.Ordinal);
+        Assert.Contains("Field(\"Program output display\", displayPicker, 1, 1)", source, StringComparison.Ordinal);
+        Assert.Contains("var sidebarScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("var mainScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content = root\n        };", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorHeartbeatDoesNotRebindLibraryWhenPreviewProgramIdentityIsUnchanged()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("OperatorPresentationChanged", source, StringComparison.Ordinal);
+        Assert.Contains("var previousSnapshot = _operatorSnapshot", source, StringComparison.Ordinal);
+        Assert.Contains("if (OperatorPresentationChanged(previousSnapshot, snapshot))", source, StringComparison.Ordinal);
+        Assert.Contains("RefreshOperatorFeedback", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorSeparatesLibraryDetailsAndServiceSchedule()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("LIBRARY", source, StringComparison.Ordinal);
+        Assert.Contains("SELECTED CONTENT", source, StringComparison.Ordinal);
+        Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
+        Assert.Contains("_libraryResults", source, StringComparison.Ordinal);
+        Assert.Contains("_schedule", source, StringComparison.Ordinal);
+        Assert.Contains("Add Selected", source, StringComparison.Ordinal);
+        Assert.Contains("Move Up", source, StringComparison.Ordinal);
+        Assert.Contains("Move Down", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptureDetailsExposeBookChapterAndVerseBrowser()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_browserBook", source, StringComparison.Ordinal);
+        Assert.Contains("_browserChapter", source, StringComparison.Ordinal);
+        Assert.Contains("_browserFromVerse", source, StringComparison.Ordinal);
+        Assert.Contains("_browserToVerse", source, StringComparison.Ordinal);
+        Assert.Contains("LoadBibleChapterAsync", source, StringComparison.Ordinal);
+        Assert.Contains("Preview Verse Range", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AiScriptureAutomationIsDiscoverableFromOperator()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("AI Scripture", source, StringComparison.Ordinal);
+        Assert.Contains("Manual · Auto Preview · guarded Auto Live", source, StringComparison.Ordinal);
+        Assert.Contains("CloudUri(\"/scripture\")", source, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void OperatorKeepsSchedulePreviewProgramVisibleAboveScrollableResourceDeck()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var production = new Grid", source, StringComparison.Ordinal);
+        Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
+        Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
+        Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
+        Assert.Contains("var resourceDeck = new Grid", source, StringComparison.Ordinal);
+        Assert.Contains("RESOURCE DECK", source, StringComparison.Ordinal);
+        Assert.Contains("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumnSpan(resourceDeckCard, 5)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorUsesPointerClickCountForExactRowPreviewAndLive()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_rundown.PointerPressed += OnLibraryPointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("_schedule.PointerPressed += OnSchedulePointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("args.ClickCount >= 2", source, StringComparison.Ordinal);
+        Assert.Contains("FindPointerRundownRow", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_rundown.Tapped +=", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_rundown.DoubleTapped +=", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_schedule.Tapped +=", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_schedule.DoubleTapped +=", source, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void BibleManagerSupportsCatalogSearchAndLicenseRequiredRows()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "BibleVersionManagerWindow.cs"));
+
+        Assert.Contains("Search Bible versions", source, StringComparison.Ordinal);
+        Assert.Contains("DesktopBibleLibrary.Catalog", source, StringComparison.Ordinal);
+        Assert.Contains("License/provider required", source, StringComparison.Ordinal);
+        Assert.Contains("CanDownload", source, StringComparison.Ordinal);
     }
 
     private static string FindSourceFile(params string[] pathParts)

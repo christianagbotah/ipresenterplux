@@ -120,7 +120,7 @@ public sealed class OperatorWorkspaceCatalogTests
     }
 
     [Fact]
-    public void MissingCatalogUsesExplicitLocalRehearsalButSyncedNoServiceDoesNot()
+    public void SyncedNoServiceUsesLocalRehearsalWithoutInventingDemoOrServiceSchedule()
     {
         var rehearsal = OperatorWorkspaceCatalog.FromCatalog(null, stale: false);
         Assert.True(rehearsal.IsRehearsal);
@@ -141,11 +141,69 @@ public sealed class OperatorWorkspaceCatalogTests
             []);
         var synced = OperatorWorkspaceCatalog.FromCatalog(noService, stale: false);
 
-        Assert.False(synced.IsRehearsal);
+        Assert.True(synced.IsRehearsal);
         Assert.True(synced.HasSyncedCatalog);
         Assert.Empty(synced.Items);
         Assert.Empty(synced.RundownItems);
-        Assert.Equal("NO ACTIVE SERVICE", synced.StatusLabel);
+        Assert.Equal("LOCAL REHEARSAL · CLOUD LIBRARY", synced.StatusLabel);
+    }
+
+    [Fact]
+    public void CloudLibraryRemainsSearchableDuringLocalRehearsalWithoutBecomingServiceSchedule()
+    {
+        var now = DateTimeOffset.Parse("2026-10-23T12:00:00Z");
+        var catalog = new OperatorCatalogSnapshot(
+            OperatorCatalogSnapshot.CurrentSchemaVersion,
+            now,
+            now,
+            "cloud-library-rehearsal",
+            null,
+            [new OperatorBibleVersion("KJV", "King James Version", "KJV", "en")],
+            [],
+            []) with
+        {
+            LibraryItems =
+            [
+                Item("library-song-1", "song", "Amazing Grace", "Verse 1\nAmazing grace", "John Newton"),
+                Item("library-slide-1", "slide", "Welcome", "Welcome home", null),
+                Item("library-media-1", "media", "Welcome Loop", "", null),
+            ]
+        };
+
+        var view = OperatorWorkspaceCatalog.FromCatalog(catalog, stale: false);
+
+        Assert.True(view.IsRehearsal);
+        Assert.True(view.HasSyncedCatalog);
+        Assert.Equal("LOCAL REHEARSAL · CLOUD LIBRARY", view.StatusLabel);
+        Assert.Equal(3, view.Items.Count);
+        Assert.Empty(view.RundownItems);
+        Assert.Contains(view.Items, item => item.Id == "library-song-1" && item.Category == "Songs" && item.IsSynced);
+        Assert.Contains(view.Items, item => item.Id == "library-media-1" && item.Category == "Media" && item.IsSynced);
+    }
+
+    [Fact]
+    public void ActiveServiceCatalogCombinesCloudLibraryWithServiceAndAdHocItemsWithoutChangingRundown()
+    {
+        var catalog = Snapshot(
+            Guid.NewGuid(),
+            items: [Item("service-slide", "slide", "Giving", "Give faithfully", null)],
+            scripture: [Item("adhoc-scripture", "scripture", "John 3:16", "For God so loved", "KJV")]) with
+        {
+            LibraryItems =
+            [
+                Item("library-song", "song", "Amazing Grace", "Amazing grace", "John Newton"),
+                Item("service-slide", "slide", "Giving library copy", "Must be deduplicated by id", null),
+            ]
+        };
+
+        var view = OperatorWorkspaceCatalog.FromCatalog(catalog, stale: false);
+
+        Assert.Equal(3, view.Items.Count);
+        Assert.Contains(view.Items, item => item.Id == "library-song");
+        Assert.Contains(view.Items, item => item.Id == "adhoc-scripture");
+        Assert.Single(view.Items, item => item.Id == "service-slide");
+        Assert.Single(view.RundownItems);
+        Assert.Equal("service-slide", view.RundownItems[0].Id);
     }
 
     [Fact]

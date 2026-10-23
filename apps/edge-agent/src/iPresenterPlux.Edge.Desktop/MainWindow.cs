@@ -1,10 +1,13 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using iPresenterPlux.Edge.Core.Contracts;
 using iPresenterPlux.Edge.Core.Runtime;
 using iPresenterPlux.Edge.Core.Security;
@@ -28,6 +31,8 @@ public sealed class MainWindow : Window
     private readonly DesktopSettingsStore _settingsStore;
     private readonly EdgeHostSupervisor _supervisor;
     private readonly LocalOperatorClient _operatorClient;
+    private readonly DesktopBibleLibrary _desktopBibleLibrary;
+    private readonly DesktopOperatorScheduleStore _scheduleStore;
     private readonly DesktopEntitlementStore _entitlementStore;
     private readonly HttpClient _licensingHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly EntitlementClient _entitlementClient;
@@ -38,12 +43,29 @@ public sealed class MainWindow : Window
     private readonly TextBox _scriptureReference = Input("John 3:16 or Psalm 23", false);
     private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
     private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
-    private readonly TextBlock _rundownEyebrow = Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold);
-    private readonly TextBlock _rundownTitle = Label("Content & cues", 19, FontWeight.Bold);
+    private readonly Button _manageBibleVersions = ActionButton("Bible Versions", false);
+    private readonly TextBlock _rundownEyebrow = Label("LIBRARY", 10, FontWeight.Bold, Gold);
+    private readonly TextBlock _rundownTitle = Label("Search & browse", 19, FontWeight.Bold);
     private readonly TextBlock _rundownCurrent = Label("CURRENT · Program clear", 10, FontWeight.SemiBold, Muted);
     private readonly TextBlock _catalogStatus = Label("LOCAL REHEARSAL", 10, FontWeight.Bold, Warning);
     private readonly TextBlock _catalogService = Label("Demo content · no synced service yet", 11, FontWeight.Normal, Muted);
-    private readonly ListBox _rundown = new();
+    private readonly ListBox _libraryResults = new();
+    private ListBox _rundown => _libraryResults;
+    private readonly ListBox _schedule = new();
+    private readonly TextBlock _detailsTitle = Label("Select content", 18, FontWeight.Bold);
+    private readonly TextBlock _detailsMeta = Label("Choose Scripture, a song, slide or media item from the Library.", 10, FontWeight.SemiBold, Gold);
+    private readonly TextBlock _detailsBody = Label("Selected content details will appear here before you add it to the service schedule or send it to Preview.", 12, FontWeight.Normal, Muted);
+    private readonly ComboBox _browserBook = new() { MinHeight = 36, MinWidth = 150 };
+    private readonly ComboBox _browserChapter = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ComboBox _browserFromVerse = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ComboBox _browserToVerse = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ListBox _browserVerses = new() { MinHeight = 110, MaxHeight = 210 };
+    private readonly StackPanel _scriptureBrowserPanel = new() { Spacing = 8, IsVisible = false };
+    private readonly Button _browserPreviewRange = ActionButton("Preview Verse Range", true);
+    private readonly Button _addSelectedToSchedule = ActionButton("Add Selected", false);
+    private readonly Button _removeScheduled = ActionButton("Remove", false);
+    private readonly Button _moveScheduledUp = ActionButton("Move Up", false);
+    private readonly Button _moveScheduledDown = ActionButton("Move Down", false);
     private readonly TextBlock _previewTitle = Label("Preview is clear", 22, FontWeight.Bold);
     private readonly TextBlock _previewBody = Label("Select a cue and press Preview Selected.", 16, FontWeight.Normal, Muted);
     private readonly TextBlock _previewFooter = Label("PREVIEW", 11, FontWeight.Bold, Gold);
@@ -53,6 +75,9 @@ public sealed class MainWindow : Window
     private readonly TextBlock _operatorRuntime = Label("EDGE OFFLINE", 11, FontWeight.Bold, Muted);
     private readonly TextBlock _operatorService = Label("LOCAL REHEARSAL", 11, FontWeight.Bold, Warning);
     private readonly TextBlock _operatorRecording = Label("RECORDING OFF", 11, FontWeight.Bold, Muted);
+    private readonly TextBlock _microphoneStatus = Label("MIC · WAITING", 10, FontWeight.Bold, Muted);
+    private readonly TextBlock _asrStatus = Label("ASR · CHECKING", 10, FontWeight.Bold, Muted);
+    private readonly TextBlock _voiceScriptureStatus = Label("VOICE SCRIPTURE · DETECT", 10, FontWeight.Bold, Gold);
     private readonly TextBlock _operatorFeedback = Label("Local operator channel is waiting for Edge.", 12, FontWeight.Normal, Muted);
     private readonly Button _prepare = ActionButton("Preview Selected", false);
     private readonly Button _take = ActionButton("TAKE → PROGRAM", true);
@@ -76,6 +101,13 @@ public sealed class MainWindow : Window
         ServiceMode: "rehearsal",
         UpdatedAt: DateTimeOffset.MinValue);
     private string? _selectedRundownItemId;
+    private string? _selectedScheduleItemId;
+    private string _activeSelectionSurface = "library";
+    private List<OperatorWorkspaceItem> _localSchedule = [];
+    private OperatorWorkspaceItem? _selectedDetailItem;
+    private IReadOnlyList<DesktopBibleVerse> _visibleBibleVerses = Array.Empty<DesktopBibleVerse>();
+    private bool _browserBusy;
+    private bool _rebuildingOperatorCollections;
     private string? _catalogRevision;
     private bool _catalogStale;
     private bool _operatorBusy;
@@ -113,6 +145,8 @@ public sealed class MainWindow : Window
         _settingsStore = new DesktopSettingsStore(_paths.SettingsDirectory);
         _supervisor = new EdgeHostSupervisor(_paths);
         _operatorClient = new LocalOperatorClient(_paths.EdgeDataDirectory);
+        _desktopBibleLibrary = new DesktopBibleLibrary(Path.Combine(_paths.EdgeDataDirectory, "bibles"));
+        _scheduleStore = new DesktopOperatorScheduleStore(Path.Combine(_paths.EdgeDataDirectory, "operator"));
         _entitlementStore = DesktopEntitlementStore.CreateDefault();
         _entitlementPublicKeys = EntitlementPublicKeyCatalog.Load();
         _entitlementClient = new EntitlementClient(_licensingHttpClient, _entitlementStore, _entitlementPublicKeys);
@@ -138,6 +172,7 @@ public sealed class MainWindow : Window
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
 
         Content = BuildContent();
+        RefreshBibleVersionChoices();
         Opened += OnWindowOpened;
         Closing += OnClosing;
         KeyDown += (_, args) =>
@@ -180,11 +215,20 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter && _mediaSeekApply.IsEnabled) _ = SeekProgramMediaAsync();
         };
         _resolveScripture.Click += async (_, _) => await ResolveAndPreviewScriptureAsync();
+        _manageBibleVersions.Click += async (_, _) => await OpenBibleVersionsAsync();
         _scriptureReference.KeyDown += (_, args) =>
         {
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
         };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
+        _browserBook.SelectionChanged += async (_, _) => await LoadBibleBookChaptersAsync();
+        _browserChapter.SelectionChanged += async (_, _) => await LoadBibleChapterAsync();
+        _browserFromVerse.SelectionChanged += (_, _) => NormalizeBrowserVerseRange();
+        _browserPreviewRange.Click += async (_, _) => await PreviewBrowserVerseRangeAsync();
+        _addSelectedToSchedule.Click += async (_, _) => await AddSelectedToScheduleAsync();
+        _removeScheduled.Click += async (_, _) => await RemoveScheduledAsync();
+        _moveScheduledUp.Click += async (_, _) => await MoveScheduledAsync(-1);
+        _moveScheduledDown.Click += async (_, _) => await MoveScheduledAsync(1);
         _programDisplay.SelectionChanged += (_, _) =>
         {
             if (_programDisplay.SelectedItem is ProgramDisplayTarget target)
@@ -288,282 +332,367 @@ public sealed class MainWindow : Window
     {
         var root = new Grid { Margin = new Thickness(6), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        root.RowDefinitions.Add(new RowDefinition(new GridLength(10)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(6)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(270)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(6)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(240)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(250)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
+        var operatorStatus = new WrapPanel {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        foreach (var status in new[] { _operatorRuntime, _operatorService, _operatorRecording })
+        {
+            status.Margin = new Thickness(0, 0, 12, 0);
+            operatorStatus.Children.Add(status);
+        }
+        var openProgramHeader = LocalOutputButton("Open Program", "program");
+        openProgramHeader.MinHeight = 32;
+        openProgramHeader.Padding = new Thickness(10, 5);
+        operatorStatus.Children.Add(openProgramHeader);
+
+        var voiceStatus = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        foreach (var status in new[] { _microphoneStatus, _asrStatus, _voiceScriptureStatus })
+        {
+            status.Margin = new Thickness(0, 0, 10, 0);
+            voiceStatus.Children.Add(status);
+        }
+        var headerRight = new StackPanel {
+            Spacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { operatorStatus, voiceStatus, HeaderHint() }
+        };
+        var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+        headerGrid.Children.Add(new StackPanel {
+            Spacing = 1,
+            Children = {
+                Label("IPRESENTERPLUX · OPERATOR", 9, FontWeight.Bold, Gold),
+                Label("Live Production", 22, FontWeight.Bold),
+                Label("Schedule · Preview · Program stay visible while you search and browse resources", 10, FontWeight.Normal, Muted)
+            }
+        });
+        Grid.SetColumn(headerRight, 1);
+        headerGrid.Children.Add(headerRight);
         var header = new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(18, 13),
-            Child = new Grid {
-                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-                Children = {
-                    new StackPanel {
-                        Spacing = 2,
-                        Children = {
-                            Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
-                            Label("Production Operator", 24, FontWeight.Bold),
-                            Label("Service rundown · Preview · Program · local resilient control", 11, FontWeight.Normal, Muted)
-                        }
-                    },
-                    HeaderHint()
-                }
-            }
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(14, 9),
+            Child = headerGrid
         };
         Grid.SetColumnSpan(header, 5);
         root.Children.Add(header);
 
-        var leftGrid = new Grid();
-        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        leftGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        leftGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        leftGrid.RowSpacing = 10;
+        var production = new Grid { ColumnSpacing = 6 };
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
-        var leftTitle = new StackPanel {
-            Spacing = 3,
+        _schedule.Background = SurfaceRaised;
+        _schedule.MinHeight = 140;
+        _schedule.SelectionChanged += (_, _) =>
+        {
+            if (!_rebuildingOperatorCollections && _schedule.SelectedItem is OperatorRundownRow row)
+            {
+                _selectedScheduleItemId = row.Item.Id;
+                _activeSelectionSurface = "schedule";
+                RenderSelectedDetails(row.Item);
+            }
+            RefreshScheduleActionState();
+        };
+        _schedule.PointerPressed += OnSchedulePointerPressed;
+        var scheduleActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var button in new[] { _removeScheduled, _moveScheduledUp, _moveScheduledDown })
+        {
+            button.MinWidth = 0;
+            button.MinHeight = 32;
+            button.Padding = new Thickness(8, 4);
+            button.Margin = new Thickness(0, 0, 5, 4);
+            scheduleActions.Children.Add(button);
+        }
+        var scheduleLayout = new Grid { RowSpacing = 6 };
+        scheduleLayout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scheduleLayout.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        scheduleLayout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        var scheduleHeader = new StackPanel {
+            Spacing = 2,
             Children = {
-                _rundownEyebrow,
-                _rundownTitle,
+                Label("SERVICE SCHEDULE", 9, FontWeight.Bold, Gold),
                 _rundownCurrent,
-                Label("Rows track CURRENT · PREVIEW · NEXT from Edge truth", 9, FontWeight.SemiBold, Muted),
-                _catalogStatus,
-                _catalogService
+                Label("Click → Preview · double-click → Program", 9, FontWeight.Normal, Muted)
             }
         };
-        Grid.SetRow(leftTitle, 0);
-        leftGrid.Children.Add(leftTitle);
+        scheduleLayout.Children.Add(scheduleHeader);
+        Grid.SetRow(_schedule, 1);
+        scheduleLayout.Children.Add(_schedule);
+        Grid.SetRow(scheduleActions, 2);
+        scheduleLayout.Children.Add(scheduleActions);
+        var scheduleCard = new Border {
+            Background = Surface,
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(10),
+            Child = scheduleLayout
+        };
+        production.Children.Add(scheduleCard);
 
-        _scriptureReference.MinHeight = 38;
-        _scriptureReference.IsEnabled = false;
-        _bibleVersion.IsEnabled = false;
-        _resolveScripture.IsEnabled = false;
+        var previewActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _prepare.MinHeight = 34;
+        _prepare.Padding = new Thickness(10, 5);
+        _prepare.Margin = new Thickness(0, 0, 6, 0);
+        _take.MinHeight = 34;
+        _take.Padding = new Thickness(12, 5);
+        previewActions.Children.Add(_prepare);
+        previewActions.Children.Add(_take);
+        var previewPane = BuildProductionPane(
+            "PREVIEW",
+            "Safe staging — selecting content never changes the congregation screen.",
+            BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold),
+            previewActions,
+            Gold);
+        Grid.SetColumn(previewPane, 1);
+        production.Children.Add(previewPane);
+
+        var programActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _clear.MinHeight = 34;
+        _clear.Padding = new Thickness(10, 5);
+        _clear.Margin = new Thickness(0, 0, 6, 0);
+        var openProgram = LocalOutputButton("Open Program", "program");
+        openProgram.MinHeight = 34;
+        openProgram.Padding = new Thickness(10, 5);
+        openProgram.Margin = new Thickness(0, 0, 6, 0);
+        programActions.Children.Add(_clear);
+        programActions.Children.Add(openProgram);
+        _record.MinHeight = 34;
+        _record.Padding = new Thickness(10, 5);
+        programActions.Children.Add(_record);
+        var mediaActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var control in new Control[] { _mediaPause, _mediaResume, _mediaSeek, _mediaSeekApply })
+        {
+            control.Margin = new Thickness(0, 0, 5, 0);
+            mediaActions.Children.Add(control);
+        }
+        var programActionStack = new StackPanel { Spacing = 4, Children = { programActions, mediaActions } };
+        var programPane = BuildProductionPane(
+            "PROGRAM · LIVE",
+            "Exactly what the TV/projector is showing now.",
+            BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Good),
+            programActionStack,
+            Good);
+        Grid.SetColumn(programPane, 2);
+        production.Children.Add(programPane);
+
+        Grid.SetRow(production, 2);
+        Grid.SetColumnSpan(production, 5);
+        root.Children.Add(production);
+
+        _operatorSearch.MinHeight = 36;
+        _scriptureReference.MinHeight = 36;
+        _scriptureReference.IsEnabled = true;
         _bibleVersion.Background = SurfaceRaised;
         _bibleVersion.Foreground = Brushes.White;
-        _bibleVersion.MinHeight = 38;
-        _bibleVersion.HorizontalAlignment = HorizontalAlignment.Stretch;
-        _resolveScripture.MinWidth = 112;
-        _resolveScripture.MinHeight = 38;
-        _resolveScripture.Padding = new Thickness(10, 6);
-        _resolveScripture.HorizontalAlignment = HorizontalAlignment.Stretch;
-        var scriptureLookupControls = new Grid { RowSpacing = 8 };
-        scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        Grid.SetRow(_bibleVersion, 0);
-        Grid.SetRow(_resolveScripture, 1);
-        scriptureLookupControls.Children.Add(_bibleVersion);
-        scriptureLookupControls.Children.Add(_resolveScripture);
-        var scriptureTools = new StackPanel {
-            Spacing = 6,
-            Children = {
-                Label("SCRIPTURE LOOKUP", 9, FontWeight.Bold, Muted),
-                _scriptureReference,
-                scriptureLookupControls
-            }
-        };
-        Grid.SetRow(scriptureTools, 1);
-        leftGrid.Children.Add(scriptureTools);
+        _bibleVersion.MinHeight = 36;
+        _resolveScripture.MinHeight = 36;
+        _resolveScripture.Padding = new Thickness(10, 5);
+        _manageBibleVersions.MinHeight = 36;
+        _manageBibleVersions.Padding = new Thickness(10, 5);
 
-        _operatorSearch.MinHeight = 40;
-        Grid.SetRow(_operatorSearch, 2);
-        leftGrid.Children.Add(_operatorSearch);
-
-        var categories = new WrapPanel { Orientation = Orientation.Horizontal };
+        var categoryBar = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var category in OperatorWorkspaceCatalog.Categories)
         {
             var button = ActionButton(category, false);
             button.MinWidth = 0;
-            button.MinHeight = 32;
-            button.Padding = new Thickness(10, 5);
-            button.Margin = new Thickness(0, 0, 6, 6);
+            button.MinHeight = 30;
+            button.Padding = new Thickness(9, 4);
+            button.Margin = new Thickness(0, 0, 5, 5);
             var captured = category;
             button.Click += (_, _) => { _activeCategory = captured; RefreshRundown(); };
-            categories.Children.Add(button);
+            categoryBar.Children.Add(button);
         }
-        Grid.SetRow(categories, 3);
-        leftGrid.Children.Add(categories);
+
+        var scriptureLookup = new Grid { ColumnSpacing = 6 };
+        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
+        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        scriptureLookup.Children.Add(_bibleVersion);
+        Grid.SetColumn(_scriptureReference, 1);
+        scriptureLookup.Children.Add(_scriptureReference);
+        Grid.SetColumn(_resolveScripture, 2);
+        scriptureLookup.Children.Add(_resolveScripture);
+        Grid.SetColumn(_manageBibleVersions, 3);
+        scriptureLookup.Children.Add(_manageBibleVersions);
 
         _rundown.Background = SurfaceRaised;
-        _rundown.MinHeight = 160;
+        _rundown.MinHeight = 130;
         _rundown.SelectionChanged += (_, _) =>
         {
-            if (_rundown.SelectedItem is OperatorRundownRow row)
+            if (!_rebuildingOperatorCollections && _rundown.SelectedItem is OperatorRundownRow row)
+            {
                 _selectedRundownItemId = row.Item.Id;
-            _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
-        };
-        Grid.SetRow(_rundown, 4);
-        leftGrid.Children.Add(_rundown);
-
-        var leftActions = new StackPanel {
-            Spacing = 8,
-            Children = {
-                _prepare,
-                Label("Ctrl+↑/↓ Select · F6 Preview · F8 Take · F7 Clear", 10, FontWeight.SemiBold, Muted)
+                _activeSelectionSurface = "library";
+                RenderSelectedDetails(row.Item);
             }
+            _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
+            _addSelectedToSchedule.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
         };
-        Grid.SetRow(leftActions, 5);
-        leftGrid.Children.Add(leftActions);
+        _rundown.PointerPressed += OnLibraryPointerPressed;
 
-        var leftCard = new Border {
-            Background = Surface,
-            CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(14),
-            Child = leftGrid
-        };
-        var left = new ScrollViewer {
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = leftCard
-        };
-        Grid.SetRow(left, 2);
-        Grid.SetColumn(left, 0);
-        root.Children.Add(left);
-
-        var center = new Grid();
-        center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
-        center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-
-        var centerHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-        centerHeader.Children.Add(new StackPanel {
-            Spacing = 3,
+        var libraryPanel = new Grid { RowSpacing = 6 };
+        libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        libraryPanel.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        libraryPanel.Children.Add(new StackPanel {
+            Spacing = 2,
             Children = {
-                Label("LIVE WORKSPACE", 10, FontWeight.Bold, Gold),
-                Label("Preview & Program", 22, FontWeight.Bold),
-                Label("The runtime is authoritative. The shell changes state only after Edge acknowledges each command.", 11, FontWeight.Normal, Muted)
+                Label("RESOURCE DECK", 9, FontWeight.Bold, Gold),
+                Label("Scripture · Songs · Media · Slides · Announcements", 14, FontWeight.Bold),
+                Label("Search or browse without ever hiding Preview and Program.", 9, FontWeight.Normal, Muted)
             }
         });
-        var mode = Label("CUT MODE", 10, FontWeight.Bold, Good);
-        mode.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(mode, 1);
-        centerHeader.Children.Add(mode);
-        Grid.SetRow(centerHeader, 0);
-        center.Children.Add(centerHeader);
+        Grid.SetRow(categoryBar, 1);
+        libraryPanel.Children.Add(categoryBar);
+        Grid.SetRow(_operatorSearch, 2);
+        libraryPanel.Children.Add(_operatorSearch);
+        Grid.SetRow(scriptureLookup, 3);
+        libraryPanel.Children.Add(scriptureLookup);
+        Grid.SetRow(_rundown, 4);
+        libraryPanel.Children.Add(_rundown);
 
-        var stages = new Grid { ColumnSpacing = 4, MaxHeight = 191 };
-        stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
-        var programStage = BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Good);
-        previewStage.HorizontalAlignment = HorizontalAlignment.Right;
-        programStage.HorizontalAlignment = HorizontalAlignment.Left;
-        Grid.SetColumn(previewStage, 0);
-        Grid.SetColumn(programStage, 1);
-        stages.Children.Add(previewStage);
-        stages.Children.Add(programStage);
-        Grid.SetRow(stages, 2);
-        center.Children.Add(stages);
+        _browserBook.ItemsSource = _desktopBibleLibrary.ListBooks();
+        _browserVerses.Background = SurfaceRaised;
+        var browserSelectors = new Grid { ColumnSpacing = 5 };
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(2, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.Children.Add(Field("Book", _browserBook, 0, 0));
+        browserSelectors.Children.Add(Field("Chapter", _browserChapter, 0, 1));
+        browserSelectors.Children.Add(Field("From", _browserFromVerse, 0, 2));
+        browserSelectors.Children.Add(Field("To", _browserToVerse, 0, 3));
+        _scriptureBrowserPanel.Children.Clear();
+        _scriptureBrowserPanel.Children.Add(Label("BIBLE BROWSER · WHOLE CHAPTER", 9, FontWeight.Bold, Gold));
+        _scriptureBrowserPanel.Children.Add(browserSelectors);
+        _scriptureBrowserPanel.Children.Add(_browserVerses);
+        _scriptureBrowserPanel.Children.Add(_browserPreviewRange);
 
-        var transitionActions = new WrapPanel {
-            Orientation = Orientation.Horizontal,
-            VerticalAlignment = VerticalAlignment.Center
+        _detailsBody.TextWrapping = TextWrapping.Wrap;
+        var detailsActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _addSelectedToSchedule.Margin = new Thickness(0, 0, 6, 0);
+        detailsActions.Children.Add(_addSelectedToSchedule);
+        detailsActions.Children.Add(LinkButton("AI Scripture", () => CloudUri("/scripture")));
+        var detailsPanel = new StackPanel {
+            Spacing = 6,
+            Children = {
+                Label("SELECTED CONTENT", 9, FontWeight.Bold, Gold),
+                _detailsTitle,
+                _detailsMeta,
+                _detailsBody,
+                Label("AI Scripture · Manual · Auto Preview · guarded Auto Live", 9, FontWeight.SemiBold, Muted),
+                detailsActions,
+                _scriptureBrowserPanel
+            }
         };
-        _take.Margin = new Thickness(0, 0, 8, 6);
-        _clear.Margin = new Thickness(0, 0, 8, 6);
-        _mediaPause.Margin = new Thickness(0, 0, 6, 6);
-        _mediaResume.Margin = new Thickness(0, 0, 6, 6);
-        _mediaSeek.Width = 82;
-        _mediaSeek.Margin = new Thickness(0, 0, 6, 6);
-        _mediaSeekApply.Margin = new Thickness(0, 0, 8, 6);
-        var transitionHint = TransitionHint();
-        transitionHint.Margin = new Thickness(0);
-        transitionHint.HorizontalAlignment = HorizontalAlignment.Left;
-        var openProgram = LocalOutputButton("Open Program", "program");
-        openProgram.Margin = new Thickness(0, 0, 0, 6);
-        transitionActions.Children.Add(_take);
-        transitionActions.Children.Add(_clear);
-        transitionActions.Children.Add(_mediaPause);
-        transitionActions.Children.Add(_mediaResume);
-        transitionActions.Children.Add(_mediaSeek);
-        transitionActions.Children.Add(_mediaSeekApply);
-        transitionActions.Children.Add(openProgram);
-        var transitionContent = new StackPanel { Spacing = 4 };
-        transitionContent.Children.Add(transitionActions);
-        transitionContent.Children.Add(transitionHint);
-        var transitionBar = new Border {
-            Background = Surface,
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(8, 6),
-            Child = transitionContent
-        };
-        Grid.SetRow(transitionBar, 4);
-        center.Children.Add(transitionBar);
 
-        Grid.SetRow(center, 2);
-        Grid.SetColumn(center, 2);
-        root.Children.Add(center);
-
-        var rightStack = new StackPanel { Spacing = 12 };
-        var runtimeStart = ActionButton("Start Edge", true);
-        var runtimeRestart = ActionButton("Restart", false);
-        var runtimeStop = ActionButton("Stop", false);
-        runtimeStart.Click += async (_, _) => await StartAsync();
-        runtimeRestart.Click += async (_, _) => await RestartAsync();
-        runtimeStop.Click += async (_, _) => await StopAsync();
-        rightStack.Children.Add(Card("Runtime truth", new StackPanel {
-            Spacing = 9,
-            Children = {
-                _operatorRuntime,
-                _operatorService,
-                _operatorRecording,
-                Separator(),
-                _operatorFeedback,
-                new WrapPanel { Children = { runtimeStart, runtimeRestart, runtimeStop } }
-            }
-        }));
-
-        var outputStart = ActionButton("Start Output", false);
-        var outputStop = ActionButton("Stop Output", false);
-        outputStart.Click += async (_, _) => await SendOperatorAsync(LocalOperatorCommands.OutputStart, null, "Local output started.");
-        outputStop.Click += async (_, _) => await SendOperatorAsync(LocalOperatorCommands.OutputStop, null, "Local output stopped.");
-        _record.MinWidth = 132;
-        rightStack.Children.Add(Card("Output & recording", new StackPanel {
-            Spacing = 8,
-            Children = {
-                new WrapPanel { Children = { LocalOutputButton("Open Preview", "preview"), LocalOutputButton("Open Program", "program") } },
-                new WrapPanel { Children = { outputStart, outputStop } },
-                _record,
-                Label("Recording is service-scoped. In local rehearsal mode, Preview/Program remain available but recording stays disabled.", 10, FontWeight.Normal, Muted)
-            }
-        }));
-
-        rightStack.Children.Add(Card("AI & language", new StackPanel {
-            Spacing = 7,
-            Children = {
-                StatusLine("Transcript", "Runtime-managed ASR"),
-                StatusLine("Interpretation", "Cloud workflow foundation"),
-                StatusLine("Audience audio", "Mobile playback foundation"),
-                Label("No AI/provider secret is exposed to this desktop workspace.", 10, FontWeight.Normal, Muted)
-            }
-        }));
-
-        rightStack.Children.Add(Card("Cloud rooms", new WrapPanel {
-            Children = {
-                LinkButton("Control Room", () => CloudUri("/")),
-                LinkButton("Streaming Studio", () => CloudUri("/streaming"))
-            }
-        }));
-
-        var right = new ScrollViewer {
+        var resourceDeck = new Grid { ColumnSpacing = 8 };
+        resourceDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.15, GridUnitType.Star)));
+        resourceDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(0.85, GridUnitType.Star)));
+        resourceDeck.Children.Add(libraryPanel);
+        var detailsScroll = new ScrollViewer {
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = rightStack
+            Content = detailsPanel
         };
-        Grid.SetRow(right, 2);
-        Grid.SetColumn(right, 4);
-        root.Children.Add(right);
+        Grid.SetColumn(detailsScroll, 1);
+        resourceDeck.Children.Add(detailsScroll);
+
+        var resourceDeckScroll = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = resourceDeck
+        };
+        var resourceDeckCard = new Border {
+            Background = Surface,
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(10),
+            Child = resourceDeckScroll
+        };
+        Grid.SetRow(resourceDeckCard, 4);
+        Grid.SetColumnSpan(resourceDeckCard, 5);
+        root.Children.Add(resourceDeckCard);
 
         RefreshRundown();
         return root;
+    }
+
+    private static Border BuildProductionPane(
+        string title,
+        string subtitle,
+        Control stage,
+        Control actions,
+        IBrush accent)
+    {
+        var grid = new Grid { RowSpacing = 5 };
+        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        grid.Children.Add(new StackPanel {
+            Spacing = 1,
+            Children = {
+                Label(title, 10, FontWeight.Bold, accent),
+                Label(subtitle, 9, FontWeight.Normal, Muted)
+            }
+        });
+        Grid.SetRow(stage, 1);
+        grid.Children.Add(stage);
+        Grid.SetRow(actions, 2);
+        grid.Children.Add(actions);
+        return new Border {
+            Background = Surface,
+            CornerRadius = new CornerRadius(16),
+            Padding = new Thickness(9),
+            Child = grid
+        };
+    }
+
+    private async void OnLibraryPointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(_rundown).Properties.IsLeftButtonPressed) return;
+        var row = FindPointerRundownRow(args);
+        if (row is null) return;
+        _activeSelectionSurface = "library";
+        _selectedRundownItemId = row.Item.Id;
+        _rundown.SelectedItem = row;
+        RenderSelectedDetails(row.Item);
+        args.Handled = true;
+        if (args.ClickCount >= 2) await PreviewItemAndTakeAsync(row.Item);
+        else await PreviewItemAsync(row.Item);
+    }
+
+    private async void OnSchedulePointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(_schedule).Properties.IsLeftButtonPressed) return;
+        var row = FindPointerRundownRow(args);
+        if (row is null) return;
+        _activeSelectionSurface = "schedule";
+        _selectedScheduleItemId = row.Item.Id;
+        _schedule.SelectedItem = row;
+        RenderSelectedDetails(row.Item);
+        args.Handled = true;
+        if (args.ClickCount >= 2) await PreviewItemAndTakeAsync(row.Item);
+        else await PreviewItemAsync(row.Item);
+    }
+
+    private static OperatorRundownRow? FindPointerRundownRow(PointerPressedEventArgs args)
+    {
+        if (args.Source is not Visual visual) return null;
+        var container = visual.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+        return container?.Content as OperatorRundownRow ?? container?.DataContext as OperatorRundownRow;
     }
 
     private static Control HeaderHint()
@@ -696,8 +825,13 @@ public sealed class MainWindow : Window
         quickLinks.Children.Add(LinkButton("Streaming Studio", () => CloudUri("/streaming")));
         sidebar.Children.Add(Card("Quick access", quickLinks));
 
-        Grid.SetColumn(sidebar, 0);
-        root.Children.Add(sidebar);
+        var sidebarScroll = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = sidebar
+        };
+        Grid.SetColumn(sidebarScroll, 0);
+        root.Children.Add(sidebarScroll);
 
         var main = new StackPanel { Spacing = 18 };
         main.Children.Add(new StackPanel {
@@ -714,16 +848,15 @@ public sealed class MainWindow : Window
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        setupGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0, 2));
+        setupGrid.Children.Add(Field("Control Plane URL", _controlUrl, 0, 0));
+        setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 0, 1));
         setupGrid.Children.Add(Field("Device name", _deviceName, 1, 0));
-        setupGrid.Children.Add(Field("One-time pairing code", _pairingCode, 1, 1));
         _programDisplayHint.TextWrapping = TextWrapping.Wrap;
         var displayPicker = new StackPanel {
             Spacing = 6,
             Children = { _programDisplay, _programDisplayHint }
         };
-        setupGrid.Children.Add(Field("Program output display", displayPicker, 2, 0, 2));
+        setupGrid.Children.Add(Field("Program output display", displayPicker, 1, 1));
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _save, _start, _restart, _stop })
@@ -731,7 +864,7 @@ public sealed class MainWindow : Window
             button.Margin = new Thickness(0, 0, 10, 0);
             actions.Children.Add(button);
         }
-        Grid.SetRow(actions, 3);
+        Grid.SetRow(actions, 2);
         Grid.SetColumnSpan(actions, 2);
         setupGrid.Children.Add(actions);
         main.Children.Add(Card("Connection & enrollment", setupGrid));
@@ -749,13 +882,14 @@ public sealed class MainWindow : Window
         _feedback.TextWrapping = TextWrapping.Wrap;
         main.Children.Add(_feedback);
 
-        Grid.SetColumn(main, 2);
-        root.Children.Add(main);
-        return new ScrollViewer {
-            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+        var mainScroll = new ScrollViewer {
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-            Content = root
+            Content = main
         };
+        Grid.SetColumn(mainScroll, 2);
+        root.Children.Add(mainScroll);
+        return root;
     }
 
     private Control BuildCapabilities()
@@ -796,29 +930,54 @@ public sealed class MainWindow : Window
         return grid;
     }
 
-    private OperatorRundownNavigator RundownNavigator() => new(_workspace.RundownItems);
+    private OperatorRundownNavigator LibraryNavigator() => new(_workspace.Items);
+
+    private OperatorRundownNavigator ScheduleNavigator() => new(_localSchedule);
 
     private void RefreshRundown()
     {
-        var canonical = _workspace.RundownItems;
-        var visibleItems = OperatorWorkspaceCatalog.Filter(canonical, _activeCategory, _operatorSearch.Text);
-        var navigator = new OperatorRundownNavigator(canonical);
-        var state = navigator.BuildState(_operatorSnapshot, visibleItems.Select(item => item.Id));
+        var libraryItems = _workspace.Items;
+        var visibleItems = OperatorWorkspaceCatalog.Filter(libraryItems, _activeCategory, _operatorSearch.Text);
+        var libraryNavigator = new OperatorRundownNavigator(libraryItems);
+        var libraryState = libraryNavigator.BuildState(_operatorSnapshot, visibleItems.Select(item => item.Id));
 
-        if (_selectedRundownItemId is null || !canonical.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
-            _selectedRundownItemId = visibleItems.FirstOrDefault()?.Id ?? canonical.FirstOrDefault()?.Id;
+        if (_selectedRundownItemId is null || !libraryItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+            _selectedRundownItemId = visibleItems.FirstOrDefault()?.Id ?? libraryItems.FirstOrDefault()?.Id;
 
-        _rundown.ItemsSource = state.Rows;
-        _rundown.SelectedItem = state.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal));
+        var scheduleState = ScheduleNavigator().BuildState(_operatorSnapshot);
+        if (_selectedScheduleItemId is null || !_localSchedule.Any(item => item.Id.Equals(_selectedScheduleItemId, StringComparison.Ordinal)))
+            _selectedScheduleItemId = _localSchedule.FirstOrDefault()?.Id;
+
+        _rebuildingOperatorCollections = true;
+        try
+        {
+            _rundown.ItemsSource = libraryState.Rows;
+            _rundown.SelectedItem = libraryState.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal));
+            _schedule.ItemsSource = scheduleState.Rows;
+            _schedule.SelectedItem = scheduleState.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedScheduleItemId, StringComparison.Ordinal));
+        }
+        finally
+        {
+            _rebuildingOperatorCollections = false;
+        }
+
         _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
-        _rundownCurrent.Text = $"CURRENT · {state.CurrentLabel}";
-        _rundownCurrent.Foreground = state.ProgramIsAdHoc ? Warning : state.CurrentItemId is null ? Muted : Good;
+        _addSelectedToSchedule.IsEnabled = _selectedDetailItem is not null || _rundown.SelectedItem is OperatorRundownRow;
+        _rundownCurrent.Text = $"CURRENT · {scheduleState.CurrentLabel}";
+        _rundownCurrent.Foreground = scheduleState.ProgramIsAdHoc ? Warning : scheduleState.CurrentItemId is null ? Muted : Good;
+        RefreshScheduleActionState();
     }
 
     private void MoveRundownSelection(int delta)
     {
-        if (_operatorBusy || _workspace.RundownItems.Count == 0) return;
-        _selectedRundownItemId = RundownNavigator().MoveSelection(_selectedRundownItemId, delta);
+        if (_operatorBusy) return;
+        if (_activeSelectionSurface == "schedule" && _localSchedule.Count > 0)
+            _selectedScheduleItemId = ScheduleNavigator().MoveSelection(_selectedScheduleItemId, delta);
+        else if (_workspace.Items.Count > 0)
+        {
+            _selectedRundownItemId = LibraryNavigator().MoveSelection(_selectedRundownItemId, delta);
+            _activeSelectionSurface = "library";
+        }
         RefreshRundown();
     }
 
@@ -834,14 +993,7 @@ public sealed class MainWindow : Window
             var catalogResponse = await _operatorClient.QueryCatalogAsync(CancellationToken.None);
             ApplyCatalogResponse(catalogResponse);
 
-            var connected = response.Snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ||
-                response.Snapshot.ConnectionStatus.Equals("Connected", StringComparison.OrdinalIgnoreCase);
-            _operatorFeedback.Text = connected
-                ? _workspace.IsStale
-                    ? "Local control is connected; the displayed service catalog is an offline cache."
-                    : "Local control and Control Plane are connected."
-                : "Local control is available; cloud connectivity may be degraded.";
-            _operatorFeedback.Foreground = connected && !_workspace.IsStale ? Good : Warning;
+            RefreshOperatorFeedback(response.Snapshot);
         }
         catch
         {
@@ -860,7 +1012,6 @@ public sealed class MainWindow : Window
             _catalogStatus.Text = "CATALOG WAITING";
             _catalogStatus.Foreground = Warning;
             _catalogService.Text = SafeOperatorError(response.ErrorCode);
-            _resolveScripture.IsEnabled = false;
             return;
         }
 
@@ -877,44 +1028,274 @@ public sealed class MainWindow : Window
             _catalogRevision = revision;
             _catalogStale = response.CatalogStale;
             if (_selectedRundownItemId is not null &&
-                !_workspace.RundownItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+                !_workspace.Items.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
                 _selectedRundownItemId = null;
 
-            var versions = _workspace.BibleVersions
-                .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
-                .Where(version => !string.IsNullOrWhiteSpace(version))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            _bibleVersion.ItemsSource = versions;
-            var preferred = selectedVersion is not null && versions.Contains(selectedVersion, StringComparer.OrdinalIgnoreCase)
-                ? versions.First(version => version.Equals(selectedVersion, StringComparison.OrdinalIgnoreCase))
-                : versions.FirstOrDefault(version => version.Equals(_workspace.ActiveBibleVersion, StringComparison.OrdinalIgnoreCase))
-                  ?? versions.FirstOrDefault();
-            _bibleVersion.SelectedItem = preferred;
+            RefreshBibleVersionChoices(selectedVersion);
             RefreshRundown();
         }
 
-        var hasServiceOrder = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is { Length: > 0 };
-        _rundownEyebrow.Text = hasServiceOrder ? "ORDER OF SERVICE" : "SERVICE RUNDOWN";
-        _rundownTitle.Text = hasServiceOrder ? "Planned rundown" : "Content & cues";
+        _rundownEyebrow.Text = "LIBRARY";
+        _rundownTitle.Text = "Search & browse";
         _catalogStatus.Text = _workspace.StatusLabel;
         _catalogStatus.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
         _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
             ? $"{title} · {_workspace.ServiceStatus ?? "service"}"
             : _workspace.IsRehearsal
-                ? "Demo content · no synced service yet"
+                ? _workspace.HasSyncedCatalog
+                    ? "Cloud library available · no service assigned"
+                    : "Demo content · no synced service yet"
                 : "No active service assigned to this Edge.";
-
-        var hasVersions = (_bibleVersion.ItemsSource as IEnumerable<string>)?.Any() == true;
-        var scriptureEnabled = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is not null;
-        _bibleVersion.IsEnabled = scriptureEnabled && hasVersions;
-        _scriptureReference.IsEnabled = scriptureEnabled;
-        _resolveScripture.IsEnabled = scriptureEnabled;
 
         _operatorService.Text = _workspace.ServiceTitle is { Length: > 0 } serviceTitle
             ? $"{serviceTitle.ToUpperInvariant()} · {_workspace.StatusLabel}"
             : _workspace.StatusLabel;
         _operatorService.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
+    }
+
+    private void RefreshBibleVersionChoices(string? preferredSelection = null)
+    {
+        preferredSelection ??= _bibleVersion.SelectedItem as string;
+        var syncedVersions = _workspace.BibleVersions
+            .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
+            .Where(version => !string.IsNullOrWhiteSpace(version));
+        var localVersions = _desktopBibleLibrary.InstalledVersions().Select(package => package.Abbreviation);
+        var versions = syncedVersions
+            .Concat(localVersions)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(version => version, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _bibleVersion.ItemsSource = versions;
+        var activeVersion = _workspace.ActiveBibleVersion;
+        var activePackage = DesktopBibleLibrary.Downloadable.FirstOrDefault(package =>
+            string.Equals(package.Id, activeVersion, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(package.Abbreviation, activeVersion, StringComparison.OrdinalIgnoreCase));
+        if (activePackage is not null) activeVersion = activePackage.Abbreviation;
+
+        var preferred = preferredSelection is not null && versions.Contains(preferredSelection, StringComparer.OrdinalIgnoreCase)
+            ? versions.First(version => version.Equals(preferredSelection, StringComparison.OrdinalIgnoreCase))
+            : activeVersion is not null && versions.Contains(activeVersion, StringComparer.OrdinalIgnoreCase)
+                ? versions.First(version => version.Equals(activeVersion, StringComparison.OrdinalIgnoreCase))
+                : versions.FirstOrDefault();
+        _bibleVersion.SelectedItem = preferred;
+
+        var hasVersion = preferred is not null;
+        var localReady = preferred is not null && _desktopBibleLibrary.IsInstalled(preferred);
+        var syncedServiceReady = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is { Length: > 0 };
+        _scriptureReference.IsEnabled = true;
+        _bibleVersion.IsEnabled = hasVersion;
+        _resolveScripture.IsEnabled = hasVersion && (localReady || syncedServiceReady);
+        _manageBibleVersions.IsEnabled = true;
+    }
+
+    private async Task OpenBibleVersionsAsync()
+    {
+        var manager = new BibleVersionManagerWindow(_desktopBibleLibrary);
+        await manager.ShowDialog(this);
+        RefreshBibleVersionChoices();
+        if (_selectedDetailItem is { Category: "Scripture" } selected)
+            RenderSelectedDetails(selected);
+    }
+
+    private void RenderSelectedDetails(OperatorWorkspaceItem item)
+    {
+        _selectedDetailItem = item;
+        _detailsTitle.Text = item.Title;
+        _detailsMeta.Text = $"{item.Category.ToUpperInvariant()} · {item.Footer ?? item.Accent}";
+        _detailsBody.Text = item.Body;
+        _addSelectedToSchedule.IsEnabled = true;
+
+        var version = item.Footer ?? _bibleVersion.SelectedItem as string;
+        var canBrowseScripture = item.Category.Equals("Scripture", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(version) &&
+            _desktopBibleLibrary.IsInstalled(version);
+        _scriptureBrowserPanel.IsVisible = canBrowseScripture;
+        if (canBrowseScripture)
+            _ = PopulateBibleBrowserAsync(item.Title, version!);
+    }
+
+    private async Task PopulateBibleBrowserAsync(string reference, string version)
+    {
+        if (_browserBusy || !_desktopBibleLibrary.IsInstalled(version) ||
+            !DesktopBibleLibrary.TryDescribeReference(reference, out var described)) return;
+        _browserBusy = true;
+        try
+        {
+            var books = _desktopBibleLibrary.ListBooks();
+            _browserBook.ItemsSource = books;
+            _browserBook.SelectedItem = books.FirstOrDefault(book => book.Code.Equals(described.BookCode, StringComparison.OrdinalIgnoreCase));
+            var chapters = await _desktopBibleLibrary.ListChaptersAsync(version, described.BookCode, CancellationToken.None);
+            _browserChapter.ItemsSource = chapters;
+            _browserChapter.SelectedItem = chapters.Contains(described.Chapter) ? described.Chapter : chapters.FirstOrDefault();
+            _visibleBibleVerses = await _desktopBibleLibrary.LoadChapterAsync(version, described.BookCode, described.Chapter, CancellationToken.None);
+            ApplyBibleVersesToBrowser(described.VerseStart, described.VerseEnd);
+        }
+        catch
+        {
+            _scriptureBrowserPanel.IsVisible = false;
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+    }
+
+    private async Task LoadBibleBookChaptersAsync()
+    {
+        if (_browserBusy || _browserBook.SelectedItem is not DesktopBibleBookDescriptor book) return;
+        var version = BrowserBibleVersion();
+        if (version is null) return;
+        _browserBusy = true;
+        try
+        {
+            var chapters = await _desktopBibleLibrary.ListChaptersAsync(version, book.Code, CancellationToken.None);
+            _browserChapter.ItemsSource = chapters;
+            _browserChapter.SelectedItem = chapters.FirstOrDefault();
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+        await LoadBibleChapterAsync();
+    }
+
+    private async Task LoadBibleChapterAsync()
+    {
+        if (_browserBusy || _browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter) return;
+        var version = BrowserBibleVersion();
+        if (version is null) return;
+        _browserBusy = true;
+        try
+        {
+            _visibleBibleVerses = await _desktopBibleLibrary.LoadChapterAsync(version, book.Code, chapter, CancellationToken.None);
+            ApplyBibleVersesToBrowser(null, null);
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+    }
+
+    private void ApplyBibleVersesToBrowser(int? verseStart, int? verseEnd)
+    {
+        _browserVerses.ItemsSource = _visibleBibleVerses;
+        var verseNumbers = _visibleBibleVerses.Select(item => item.Verse).ToArray();
+        _browserFromVerse.ItemsSource = verseNumbers;
+        _browserToVerse.ItemsSource = verseNumbers;
+        if (verseNumbers.Length == 0)
+        {
+            _browserFromVerse.SelectedItem = null;
+            _browserToVerse.SelectedItem = null;
+            _browserPreviewRange.IsEnabled = false;
+            return;
+        }
+        var from = verseStart is { } requestedStart && verseNumbers.Contains(requestedStart) ? requestedStart : verseNumbers[0];
+        var to = verseEnd is { } requestedEnd && verseNumbers.Contains(requestedEnd) ? requestedEnd : from;
+        _browserFromVerse.SelectedItem = from;
+        _browserToVerse.SelectedItem = to;
+        _browserPreviewRange.IsEnabled = true;
+    }
+
+    private void NormalizeBrowserVerseRange()
+    {
+        if (_browserBusy || _browserFromVerse.SelectedItem is not int from || _browserToVerse.SelectedItem is not int to) return;
+        if (to < from) _browserToVerse.SelectedItem = from;
+    }
+
+    private string? BrowserBibleVersion()
+    {
+        var detailVersion = _selectedDetailItem?.Footer;
+        if (!string.IsNullOrWhiteSpace(detailVersion) && _desktopBibleLibrary.IsInstalled(detailVersion)) return detailVersion;
+        var selected = _bibleVersion.SelectedItem as string;
+        return !string.IsNullOrWhiteSpace(selected) && _desktopBibleLibrary.IsInstalled(selected) ? selected : null;
+    }
+
+    private async Task PreviewBrowserVerseRangeAsync()
+    {
+        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter ||
+            _browserFromVerse.SelectedItem is not int from ||
+            _browserToVerse.SelectedItem is not int to)
+        {
+            SetOperatorFeedback("Choose a Bible book, chapter and verse range first.", true);
+            return;
+        }
+        var version = BrowserBibleVersion();
+        if (version is null)
+        {
+            SetOperatorFeedback("Download the selected Bible version before browsing verses offline.", true);
+            return;
+        }
+        var passage = await _desktopBibleLibrary.ResolveRangeAsync(version, book.Code, chapter, from, to, CancellationToken.None);
+        if (passage is null)
+        {
+            SetOperatorFeedback("That verse range is not available in the downloaded Bible.", true);
+            return;
+        }
+        var item = LocalScriptureItem(passage);
+        _activeSelectionSurface = "library";
+        RenderSelectedDetails(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task AddSelectedToScheduleAsync()
+    {
+        var item = _selectedDetailItem ?? SelectedOperatorItem();
+        if (item is null)
+        {
+            SetOperatorFeedback("Select a Library item before adding it to the service schedule.", true);
+            return;
+        }
+        if (_localSchedule.Any(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal)))
+        {
+            _selectedScheduleItemId = item.Id;
+            RefreshRundown();
+            SetOperatorFeedback($"{item.Title} is already in the local service schedule.", false);
+            return;
+        }
+        _localSchedule.Add(item);
+        _selectedScheduleItemId = item.Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+        SetOperatorFeedback($"Added to service schedule: {item.Title}", false);
+    }
+
+    private async Task RemoveScheduledAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        var index = _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        if (index < 0) return;
+        _localSchedule.RemoveAt(index);
+        _selectedScheduleItemId = _localSchedule.Count == 0 ? null : _localSchedule[Math.Min(index, _localSchedule.Count - 1)].Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+        SetOperatorFeedback($"Removed from service schedule: {item.Title}", false);
+    }
+
+    private async Task MoveScheduledAsync(int direction)
+    {
+        var item = SelectedScheduleItem();
+        if (item is null || direction == 0) return;
+        var index = _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        if (index < 0) return;
+        var target = Math.Clamp(index + Math.Sign(direction), 0, _localSchedule.Count - 1);
+        if (target == index) return;
+        (_localSchedule[index], _localSchedule[target]) = (_localSchedule[target], _localSchedule[index]);
+        _selectedScheduleItemId = item.Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+    }
+
+    private void RefreshScheduleActionState()
+    {
+        var item = SelectedScheduleItem();
+        var index = item is null ? -1 : _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        _removeScheduled.IsEnabled = index >= 0;
+        _moveScheduledUp.IsEnabled = index > 0;
+        _moveScheduledDown.IsEnabled = index >= 0 && index < _localSchedule.Count - 1;
     }
 
     private async Task ResolveAndPreviewScriptureAsync()
@@ -931,6 +1312,42 @@ public sealed class MainWindow : Window
         try
         {
             var version = _bibleVersion.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                SetOperatorFeedback("No Bible version is ready. Open Bible Versions and download one for offline use.", true);
+                return;
+            }
+
+            if (_desktopBibleLibrary.IsInstalled(version))
+            {
+                var passage = await _desktopBibleLibrary.ResolveAsync(reference, version, CancellationToken.None);
+                if (passage is null)
+                {
+                    SetOperatorFeedback($"Passage not found in the downloaded {version} Bible. Check the reference and try again.", true);
+                    return;
+                }
+
+                var localItem = LocalScriptureItem(passage);
+                _activeSelectionSurface = "library";
+                RenderSelectedDetails(localItem);
+                var localPreview = await _operatorClient.SendAsync(
+                    LocalOperatorCommands.PreviewRender,
+                    localItem.ToPresentation(),
+                    CancellationToken.None);
+                RenderOperatorSnapshot(localPreview.Snapshot);
+                if (localPreview.Ok)
+                    SetOperatorFeedback($"Scripture prepared in Preview: {localItem.Title} · {passage.VersionAbbreviation} · offline Bible.", false);
+                else
+                    SetOperatorFeedback(SafeOperatorError(localPreview.ErrorCode), true);
+                return;
+            }
+
+            if (!_workspace.HasSyncedCatalog || _workspace.ServiceTitle is not { Length: > 0 })
+            {
+                SetOperatorFeedback($"{version} is not downloaded on this PC. Open Bible Versions to install an offline edition, or sync/start a service for cloud Scripture.", true);
+                return;
+            }
+
             var resolved = await _operatorClient.ResolveScriptureAsync(reference, version, CancellationToken.None);
             RenderOperatorSnapshot(resolved.Snapshot);
             if (!resolved.Ok)
@@ -945,13 +1362,15 @@ public sealed class MainWindow : Window
             }
 
             var item = OperatorWorkspaceCatalog.FromResolved(resolved.ResolvedPresentation);
+            _activeSelectionSurface = "library";
+            RenderSelectedDetails(item);
             var preview = await _operatorClient.SendAsync(
                 LocalOperatorCommands.PreviewRender,
                 item.ToPresentation(),
                 CancellationToken.None);
             RenderOperatorSnapshot(preview.Snapshot);
             if (preview.Ok)
-                SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version ?? "default version"}.", false);
+                SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version}.", false);
             else
                 SetOperatorFeedback(SafeOperatorError(preview.ErrorCode), true);
         }
@@ -969,30 +1388,59 @@ public sealed class MainWindow : Window
         }
     }
 
-    private OperatorWorkspaceItem? SelectedRundownItem() =>
+    private static OperatorWorkspaceItem LocalScriptureItem(DesktopBiblePassage passage)
+    {
+        var identity = Encoding.UTF8.GetBytes($"{passage.VersionId}:{passage.Reference}");
+        var hash = Convert.ToHexString(SHA256.HashData(identity)).ToLowerInvariant()[..16];
+        return new OperatorWorkspaceItem(
+            $"local-scripture-{hash}",
+            "Scripture",
+            passage.Reference,
+            passage.Text,
+            passage.VersionAbbreviation,
+            "SCRIPTURE",
+            "scripture",
+            IsSynced: false);
+    }
+
+    private OperatorWorkspaceItem? SelectedLibraryItem() =>
         _rundown.SelectedItem is OperatorRundownRow row ? row.Item : null;
 
-    private async Task PreviewSelectedAsync()
+    private OperatorWorkspaceItem? SelectedScheduleItem() =>
+        _schedule.SelectedItem is OperatorRundownRow row ? row.Item : null;
+
+    private OperatorWorkspaceItem? SelectedOperatorItem() =>
+        _activeSelectionSurface == "schedule" ? SelectedScheduleItem() : SelectedLibraryItem();
+
+    private Task PreviewSelectedAsync()
     {
-        var item = SelectedRundownItem();
+        var item = SelectedOperatorItem();
         if (item is null)
         {
-            SetOperatorFeedback("Select a rundown item first.", true);
-            return;
+            SetOperatorFeedback("Select a Library or Schedule item first.", true);
+            return Task.CompletedTask;
         }
-        _selectedRundownItemId = item.Id;
-        if (item.IsSynced)
+        return PreviewItemAsync(item);
+    }
+
+    private async Task PreviewItemAsync(OperatorWorkspaceItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (_operatorBusy) return;
+        if (_activeSelectionSurface == "schedule") _selectedScheduleItemId = item.Id;
+        else _selectedRundownItemId = item.Id;
+
+        var canPrepareByIdentity = item.IsSynced &&
+            (_workspace.RundownItems.Any(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal)) ||
+             item.Category.Equals("Media", StringComparison.OrdinalIgnoreCase));
+        if (canPrepareByIdentity)
         {
-            if (_operatorBusy) return;
             _operatorBusy = true;
             try
             {
                 var response = await _operatorClient.PreparePreviewItemAsync(item.Id, CancellationToken.None);
                 RenderOperatorSnapshot(response.Snapshot);
-                if (response.Ok)
-                    SetOperatorFeedback($"Preview prepared: {item.Title}", false);
-                else
-                    SetOperatorFeedback(SafeOperatorError(response.ErrorCode), true);
+                SetOperatorFeedback(response.Ok ? $"Preview prepared: {item.Title}" : SafeOperatorError(response.ErrorCode), !response.Ok);
             }
             catch
             {
@@ -1008,10 +1456,53 @@ public sealed class MainWindow : Window
         await SendOperatorAsync(LocalOperatorCommands.PreviewRender, item.ToPresentation(), $"Preview prepared: {item.Title}");
     }
 
+    private async Task PreviewSelectedAndTakeAsync()
+    {
+        var selected = SelectedOperatorItem();
+        if (selected is null) return;
+        await PreviewItemAndTakeAsync(selected);
+    }
+
+    private async Task PreviewScheduleSelectedAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        _activeSelectionSurface = "schedule";
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewScheduleSelectedAndTakeAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        _activeSelectionSurface = "schedule";
+        await PreviewItemAndTakeAsync(item);
+    }
+
+    private async Task PreviewItemAndTakeAsync(OperatorWorkspaceItem selected)
+    {
+        var itemId = selected.Id;
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (_operatorBusy && DateTimeOffset.UtcNow < deadline)
+            await Task.Delay(25);
+        if (_operatorBusy)
+        {
+            SetOperatorFeedback("The previous operator action is still finishing. Try the item again.", true);
+            return;
+        }
+
+        if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal))
+        {
+            await PreviewItemAsync(selected);
+            if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal)) return;
+        }
+        await TakeAsync();
+    }
+
     private async Task TakeAsync()
     {
         if (_operatorBusy) return;
-        var selectionBeforeTake = _selectedRundownItemId;
+        var scheduleSelectionBeforeTake = _selectedScheduleItemId;
         _operatorBusy = true;
         try
         {
@@ -1019,10 +1510,13 @@ public sealed class MainWindow : Window
             RenderOperatorSnapshot(response.Snapshot);
             if (response.Ok)
             {
-                _selectedRundownItemId = RundownNavigator().AdvanceAfterTake(
-                    selectionBeforeTake,
-                    response.Snapshot.Program?.ItemId,
-                    response.Ok);
+                if (_activeSelectionSurface == "schedule")
+                {
+                    _selectedScheduleItemId = ScheduleNavigator().AdvanceAfterTake(
+                        scheduleSelectionBeforeTake,
+                        response.Snapshot.Program?.ItemId,
+                        response.Ok);
+                }
                 RefreshRundown();
                 SetOperatorFeedback("Preview taken to Program.", false);
             }
@@ -1119,6 +1613,7 @@ public sealed class MainWindow : Window
 
     private void RenderOperatorSnapshot(LocalOperatorSnapshot snapshot)
     {
+        var previousSnapshot = _operatorSnapshot;
         _operatorSnapshot = snapshot;
         RenderStage(snapshot.Preview, _previewTitle, _previewBody, _previewFooter, "Preview is clear", "Select a cue and press Preview Selected.", "PREVIEW", Gold);
         RenderStage(snapshot.Program, _programTitle, _programBody, _programFooter, "Program is clear", "Nothing is currently live on Program.", "PROGRAM", Good);
@@ -1132,6 +1627,16 @@ public sealed class MainWindow : Window
         _recordingActive = snapshot.IsRecording;
         _operatorRecording.Text = snapshot.IsRecording ? "RECORDING ACTIVE" : "RECORDING OFF";
         _operatorRecording.Foreground = snapshot.IsRecording ? Danger : Muted;
+        _microphoneStatus.Text = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase)
+            ? $"MIC · {snapshot.ActiveAudioInput ?? "LISTENING"}"
+            : $"MIC · {(snapshot.AudioStatus ?? "WAITING").ToUpperInvariant()}";
+        _microphoneStatus.Foreground = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase) ? Good : Warning;
+        _asrStatus.Text = $"ASR · {(snapshot.AsrStatus ?? "CHECKING").ToUpperInvariant()}";
+        _asrStatus.Foreground = string.Equals(snapshot.AsrStatus, "ready", StringComparison.OrdinalIgnoreCase) ? Good : Warning;
+        var voiceReady = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(snapshot.AsrStatus, "ready", StringComparison.OrdinalIgnoreCase);
+        _voiceScriptureStatus.Text = voiceReady ? "VOICE SCRIPTURE · LISTENING" : "VOICE SCRIPTURE · WAITING";
+        _voiceScriptureStatus.Foreground = voiceReady ? Good : Gold;
         _record.Content = snapshot.IsRecording ? "Stop Recording" : "Start Recording";
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
         _take.IsEnabled = OperatorWorkspaceCatalog.CanTakePreview(snapshot);
@@ -1151,7 +1656,42 @@ public sealed class MainWindow : Window
         _mediaSeekApply.IsEnabled = dynamicProgram && playback is not null;
         if (playback is not null && !_mediaSeek.IsFocused)
             _mediaSeek.Text = playback.EffectivePositionSeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        RefreshRundown();
+        if (OperatorPresentationChanged(previousSnapshot, snapshot))
+            RefreshRundown();
+    }
+
+    private void RefreshOperatorFeedback(LocalOperatorSnapshot snapshot)
+    {
+        var connected = snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ||
+            snapshot.ConnectionStatus.Equals("Connected", StringComparison.OrdinalIgnoreCase);
+        var text = connected
+            ? _workspace.IsStale
+                ? "Local control is connected; the displayed service catalog is an offline cache."
+                : "Local control and Control Plane are connected."
+            : "Local control is available; cloud connectivity may be degraded.";
+        var foreground = connected && !_workspace.IsStale ? Good : Warning;
+        if (!string.Equals(_operatorFeedback.Text, text, StringComparison.Ordinal))
+            _operatorFeedback.Text = text;
+        if (!ReferenceEquals(_operatorFeedback.Foreground, foreground))
+            _operatorFeedback.Foreground = foreground;
+    }
+
+    private static bool OperatorPresentationChanged(LocalOperatorSnapshot previous, LocalOperatorSnapshot current)
+    {
+        if (!string.Equals(previous.Preview?.ItemId, current.Preview?.ItemId, StringComparison.Ordinal) ||
+            !string.Equals(previous.Program?.ItemId, current.Program?.ItemId, StringComparison.Ordinal) ||
+            previous.ActiveServiceId != current.ActiveServiceId)
+            return true;
+
+        var previousPlayback = previous.MediaPlayback?.State;
+        var currentPlayback = current.MediaPlayback?.State;
+        if (!string.Equals(previousPlayback, currentPlayback, StringComparison.Ordinal)) return true;
+
+        static string PreparationKey(LocalOperatorSnapshot snapshot) => string.Join('|',
+            (snapshot.MediaPreparations ?? Array.Empty<LocalOperatorMediaPreparation>())
+                .OrderBy(item => item.ItemId, StringComparer.Ordinal)
+                .Select(item => $"{item.ItemId}:{item.State}:{item.ErrorCode}"));
+        return !string.Equals(PreparationKey(previous), PreparationKey(current), StringComparison.Ordinal);
     }
 
     private static bool IsDynamicProgramMedia(PresentationRenderItem? item) =>
@@ -1310,6 +1850,9 @@ public sealed class MainWindow : Window
         _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
         RefreshProgramDisplays();
+        _localSchedule = (await _scheduleStore.LoadAsync(CancellationToken.None)).ToList();
+        _selectedScheduleItemId = _localSchedule.FirstOrDefault()?.Id;
+        RefreshRundown();
 
         var validation = await LoadEntitlementAsync();
         _tabs.SelectedIndex = validation?.IsUsable == true ? OperatorTabIndex : ActivationTabIndex;

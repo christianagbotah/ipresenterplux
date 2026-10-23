@@ -41,6 +41,28 @@ public sealed class OperatorCatalogCoordinator
         return provider.GetAsync(itemId.Trim(), cancellationToken);
     }
 
+    public async Task<PresentationRenderItem> ResolveLibraryPresentationAsync(
+        string itemId,
+        Guid presentationScope,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(itemId);
+        if (presentationScope == Guid.Empty) throw new ArgumentException("Presentation scope must be nonempty.", nameof(presentationScope));
+        var client = _client ?? throw new InvalidOperationException("The operator catalog client is not bound.");
+        var resolved = await client.ResolveLibraryItemAsync(itemId.Trim(), cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(resolved.Item.ItemId, itemId.Trim(), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The resolved library item identity did not match the request.");
+        return new PresentationRenderItem(
+            resolved.Item.ItemId,
+            presentationScope,
+            resolved.Item.ItemType,
+            resolved.Item.Title,
+            resolved.Item.Body,
+            resolved.Item.Footer,
+            resolved.Item.Metadata,
+            resolved.Item.Media);
+    }
+
     public async Task SetActiveServiceAsync(Guid? activeServiceId, CancellationToken cancellationToken)
     {
         if (activeServiceId == Guid.Empty) activeServiceId = null;
