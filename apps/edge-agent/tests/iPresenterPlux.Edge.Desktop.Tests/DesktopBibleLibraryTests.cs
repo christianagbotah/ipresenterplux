@@ -158,8 +158,12 @@ public sealed class DesktopBibleLibraryTests
         Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "OEB" && package.CanDownload);
         Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "WEBSTER" && package.CanDownload);
         Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "YLT" && package.CanDownload);
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "FRA-LSG" && package.CanDownload && package.LanguageCode == "fr");
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "FRA-SBL" && package.CanDownload && package.LanguageCode == "fr");
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "FRA-OST" && package.CanDownload && package.LanguageCode == "fr");
+        Assert.Contains(DesktopBibleLibrary.Catalog, package => package.Id == "FRA-JND" && package.CanDownload && package.LanguageCode == "fr");
 
-        foreach (var id in new[] { "NIV", "NKJV", "ESV", "NLT", "CSB", "NASB", "AMP", "MSG", "NRSVUE" })
+        foreach (var id in new[] { "NIV", "NKJV", "ESV", "NLT", "CSB", "NASB", "AMP", "MSG", "NRSVUE", "TWI-AKUAPEM", "TWI-ASANTE", "EWE-OAL" })
         {
             var edition = Assert.Single(DesktopBibleLibrary.Catalog.Where(package => package.Id == id));
             Assert.False(edition.CanDownload);
