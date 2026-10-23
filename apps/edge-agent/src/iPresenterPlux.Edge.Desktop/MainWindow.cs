@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -28,6 +30,7 @@ public sealed class MainWindow : Window
     private readonly DesktopSettingsStore _settingsStore;
     private readonly EdgeHostSupervisor _supervisor;
     private readonly LocalOperatorClient _operatorClient;
+    private readonly DesktopBibleLibrary _desktopBibleLibrary;
     private readonly DesktopEntitlementStore _entitlementStore;
     private readonly HttpClient _licensingHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly EntitlementClient _entitlementClient;
@@ -38,6 +41,7 @@ public sealed class MainWindow : Window
     private readonly TextBox _scriptureReference = Input("John 3:16 or Psalm 23", false);
     private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
     private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
+    private readonly Button _manageBibleVersions = ActionButton("Bible Versions", false);
     private readonly TextBlock _rundownEyebrow = Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold);
     private readonly TextBlock _rundownTitle = Label("Content & cues", 19, FontWeight.Bold);
     private readonly TextBlock _rundownCurrent = Label("CURRENT · Program clear", 10, FontWeight.SemiBold, Muted);
@@ -113,6 +117,7 @@ public sealed class MainWindow : Window
         _settingsStore = new DesktopSettingsStore(_paths.SettingsDirectory);
         _supervisor = new EdgeHostSupervisor(_paths);
         _operatorClient = new LocalOperatorClient(_paths.EdgeDataDirectory);
+        _desktopBibleLibrary = new DesktopBibleLibrary(Path.Combine(_paths.EdgeDataDirectory, "bibles"));
         _entitlementStore = DesktopEntitlementStore.CreateDefault();
         _entitlementPublicKeys = EntitlementPublicKeyCatalog.Load();
         _entitlementClient = new EntitlementClient(_licensingHttpClient, _entitlementStore, _entitlementPublicKeys);
@@ -138,6 +143,7 @@ public sealed class MainWindow : Window
         if (File.Exists(icon)) Icon = new WindowIcon(icon);
 
         Content = BuildContent();
+        RefreshBibleVersionChoices();
         Opened += OnWindowOpened;
         Closing += OnClosing;
         KeyDown += (_, args) =>
@@ -180,6 +186,7 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter && _mediaSeekApply.IsEnabled) _ = SeekProgramMediaAsync();
         };
         _resolveScripture.Click += async (_, _) => await ResolveAndPreviewScriptureAsync();
+        _manageBibleVersions.Click += async (_, _) => await OpenBibleVersionsAsync();
         _scriptureReference.KeyDown += (_, args) =>
         {
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
@@ -342,9 +349,10 @@ public sealed class MainWindow : Window
         leftGrid.Children.Add(leftTitle);
 
         _scriptureReference.MinHeight = 38;
-        _scriptureReference.IsEnabled = false;
+        _scriptureReference.IsEnabled = true;
         _bibleVersion.IsEnabled = false;
         _resolveScripture.IsEnabled = false;
+        _manageBibleVersions.IsEnabled = true;
         _bibleVersion.Background = SurfaceRaised;
         _bibleVersion.Foreground = Brushes.White;
         _bibleVersion.MinHeight = 38;
@@ -356,10 +364,13 @@ public sealed class MainWindow : Window
         var scriptureLookupControls = new Grid { RowSpacing = 8 };
         scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         Grid.SetRow(_bibleVersion, 0);
         Grid.SetRow(_resolveScripture, 1);
+        Grid.SetRow(_manageBibleVersions, 2);
         scriptureLookupControls.Children.Add(_bibleVersion);
         scriptureLookupControls.Children.Add(_resolveScripture);
+        scriptureLookupControls.Children.Add(_manageBibleVersions);
         var scriptureTools = new StackPanel {
             Spacing = 6,
             Children = {
@@ -867,7 +878,7 @@ public sealed class MainWindow : Window
             _catalogStatus.Text = "CATALOG WAITING";
             _catalogStatus.Foreground = Warning;
             _catalogService.Text = SafeOperatorError(response.ErrorCode);
-            _resolveScripture.IsEnabled = false;
+            RefreshBibleVersionChoices();
             return;
         }
 
@@ -887,17 +898,7 @@ public sealed class MainWindow : Window
                 !_workspace.RundownItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
                 _selectedRundownItemId = null;
 
-            var versions = _workspace.BibleVersions
-                .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
-                .Where(version => !string.IsNullOrWhiteSpace(version))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            _bibleVersion.ItemsSource = versions;
-            var preferred = selectedVersion is not null && versions.Contains(selectedVersion, StringComparer.OrdinalIgnoreCase)
-                ? versions.First(version => version.Equals(selectedVersion, StringComparison.OrdinalIgnoreCase))
-                : versions.FirstOrDefault(version => version.Equals(_workspace.ActiveBibleVersion, StringComparison.OrdinalIgnoreCase))
-                  ?? versions.FirstOrDefault();
-            _bibleVersion.SelectedItem = preferred;
+            RefreshBibleVersionChoices(selectedVersion);
             RefreshRundown();
         }
 
@@ -912,16 +913,55 @@ public sealed class MainWindow : Window
                 ? "Demo content · no synced service yet"
                 : "No active service assigned to this Edge.";
 
-        var hasVersions = (_bibleVersion.ItemsSource as IEnumerable<string>)?.Any() == true;
-        var scriptureEnabled = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is not null;
-        _bibleVersion.IsEnabled = scriptureEnabled && hasVersions;
-        _scriptureReference.IsEnabled = scriptureEnabled;
-        _resolveScripture.IsEnabled = scriptureEnabled;
+        RefreshBibleVersionChoices();
 
         _operatorService.Text = _workspace.ServiceTitle is { Length: > 0 } serviceTitle
             ? $"{serviceTitle.ToUpperInvariant()} · {_workspace.StatusLabel}"
             : _workspace.StatusLabel;
         _operatorService.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
+    }
+
+    private void RefreshBibleVersionChoices(string? preferredSelection = null)
+    {
+        preferredSelection ??= _bibleVersion.SelectedItem as string;
+        var syncedVersions = _workspace.BibleVersions
+            .Select(version => string.IsNullOrWhiteSpace(version.Abbreviation) ? version.Id : version.Abbreviation)
+            .Where(version => !string.IsNullOrWhiteSpace(version));
+        var localVersions = _desktopBibleLibrary.InstalledVersions().Select(package => package.Abbreviation);
+        var versions = syncedVersions
+            .Concat(localVersions)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(version => version, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        _bibleVersion.ItemsSource = versions;
+        var activeVersion = _workspace.ActiveBibleVersion;
+        var activePackage = DesktopBibleLibrary.Downloadable.FirstOrDefault(package =>
+            string.Equals(package.Id, activeVersion, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(package.Abbreviation, activeVersion, StringComparison.OrdinalIgnoreCase));
+        if (activePackage is not null) activeVersion = activePackage.Abbreviation;
+
+        var preferred = preferredSelection is not null && versions.Contains(preferredSelection, StringComparer.OrdinalIgnoreCase)
+            ? versions.First(version => version.Equals(preferredSelection, StringComparison.OrdinalIgnoreCase))
+            : activeVersion is not null && versions.Contains(activeVersion, StringComparer.OrdinalIgnoreCase)
+                ? versions.First(version => version.Equals(activeVersion, StringComparison.OrdinalIgnoreCase))
+                : versions.FirstOrDefault();
+        _bibleVersion.SelectedItem = preferred;
+
+        var hasVersion = preferred is not null;
+        var localReady = preferred is not null && _desktopBibleLibrary.IsInstalled(preferred);
+        var syncedServiceReady = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is { Length: > 0 };
+        _scriptureReference.IsEnabled = true;
+        _bibleVersion.IsEnabled = hasVersion;
+        _resolveScripture.IsEnabled = hasVersion && (localReady || syncedServiceReady);
+        _manageBibleVersions.IsEnabled = true;
+    }
+
+    private async Task OpenBibleVersionsAsync()
+    {
+        var manager = new BibleVersionManagerWindow(_desktopBibleLibrary);
+        await manager.ShowDialog(this);
+        RefreshBibleVersionChoices();
     }
 
     private async Task ResolveAndPreviewScriptureAsync()
@@ -938,6 +978,40 @@ public sealed class MainWindow : Window
         try
         {
             var version = _bibleVersion.SelectedItem as string;
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                SetOperatorFeedback("No Bible version is ready. Open Bible Versions and download one for offline use.", true);
+                return;
+            }
+
+            if (_desktopBibleLibrary.IsInstalled(version))
+            {
+                var passage = await _desktopBibleLibrary.ResolveAsync(reference, version, CancellationToken.None);
+                if (passage is null)
+                {
+                    SetOperatorFeedback($"Passage not found in the downloaded {version} Bible. Check the reference and try again.", true);
+                    return;
+                }
+
+                var localItem = LocalScriptureItem(passage);
+                var localPreview = await _operatorClient.SendAsync(
+                    LocalOperatorCommands.PreviewRender,
+                    localItem.ToPresentation(),
+                    CancellationToken.None);
+                RenderOperatorSnapshot(localPreview.Snapshot);
+                if (localPreview.Ok)
+                    SetOperatorFeedback($"Scripture prepared in Preview: {localItem.Title} · {passage.VersionAbbreviation} · offline Bible.", false);
+                else
+                    SetOperatorFeedback(SafeOperatorError(localPreview.ErrorCode), true);
+                return;
+            }
+
+            if (!_workspace.HasSyncedCatalog || _workspace.ServiceTitle is not { Length: > 0 })
+            {
+                SetOperatorFeedback($"{version} is not downloaded on this PC. Open Bible Versions to install an offline edition, or sync/start a service for cloud Scripture.", true);
+                return;
+            }
+
             var resolved = await _operatorClient.ResolveScriptureAsync(reference, version, CancellationToken.None);
             RenderOperatorSnapshot(resolved.Snapshot);
             if (!resolved.Ok)
@@ -958,7 +1032,7 @@ public sealed class MainWindow : Window
                 CancellationToken.None);
             RenderOperatorSnapshot(preview.Snapshot);
             if (preview.Ok)
-                SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version ?? "default version"}.", false);
+                SetOperatorFeedback($"Scripture prepared in Preview: {item.Title} · {item.Footer ?? version}.", false);
             else
                 SetOperatorFeedback(SafeOperatorError(preview.ErrorCode), true);
         }
@@ -974,6 +1048,21 @@ public sealed class MainWindow : Window
         {
             _operatorBusy = false;
         }
+    }
+
+    private static OperatorWorkspaceItem LocalScriptureItem(DesktopBiblePassage passage)
+    {
+        var identity = Encoding.UTF8.GetBytes($"{passage.VersionId}:{passage.Reference}");
+        var hash = Convert.ToHexString(SHA256.HashData(identity)).ToLowerInvariant()[..16];
+        return new OperatorWorkspaceItem(
+            $"local-scripture-{hash}",
+            "Scripture",
+            passage.Reference,
+            passage.Text,
+            passage.VersionAbbreviation,
+            "SCRIPTURE",
+            "scripture",
+            IsSynced: false);
     }
 
     private OperatorWorkspaceItem? SelectedRundownItem() =>
