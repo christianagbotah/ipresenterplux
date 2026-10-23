@@ -50,7 +50,8 @@ public sealed class LocalOperatorCommandHandlerTests
             CancellationToken.None);
 
         Assert.True(response.Ok);
-        Assert.Equal(Guid.Empty, response.Snapshot.Preview?.ServiceId);
+        Assert.Equal(LocalOperatorPresentationScope.RehearsalServiceId, response.Snapshot.Preview?.ServiceId);
+        Assert.True(LocalOperatorPresentationScope.IsRehearsal(response.Snapshot.Preview!.ServiceId));
         Assert.Null(response.Snapshot.ActiveServiceId);
     }
 
