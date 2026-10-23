@@ -43,3 +43,13 @@ Initial downloadable catalog: World English Bible (WEBP/WEB), American Standard 
 - Selected Scripture with a downloaded local edition opens its entire chapter in the details browser; a verse/range is explicitly previewed.
 - Manual AI mode leaves detections for operator action; Auto Preview may stage eligible detections; Auto Live remains separately armed and guarded by organization permission, live service and active Edge checks.
 - If local Bible lookup fails and no active synced service can resolve the passage, show a direct operator error instead of silently doing nothing.
+
+## Persistent production-workspace redesign
+Field UAT showed that adding Details/Bible browsing into the center column can displace the two output monitors, which is unacceptable during a live service. The Operator geometry is therefore fixed as follows:
+- compact status/header strip across the top;
+- a fixed production row containing **Service Schedule | Preview | Program**;
+- a bottom **Resource Deck** spanning the workspace for Scripture, Songs, Media, Slides and Announcements;
+- Resource Deck search/details/Bible browsing scroll internally and can never replace or push away Preview/Program;
+- runtime/output health is compact status in the production workspace; deep setup controls remain on Setup & Runtime.
+
+Pointer interaction uses the ListBox item under the pointer and the platform click count: one left click previews exactly that row; a double click previews that same row if needed and then takes it to Program. This avoids racing separate Tapped and DoubleTapped recognizers.

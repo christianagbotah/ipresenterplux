@@ -124,6 +124,23 @@
 - [ ] Preserve safe media descriptor validation before local Preview.
 - [ ] Merge organization library results into desktop Library independently of the active service rundown.
 
+
+### Task 7A: Persistent production workspace redesign
+
+**Files:**
+- Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
+- Modify: `apps/edge-agent/tests/iPresenterPlux.Edge.Desktop.Tests/MainWindowLayoutTests.cs`
+
+**Interfaces:**
+- Produces fixed `Service Schedule | Preview | Program` production row.
+- Produces bottom Resource Deck whose scroll/layout cannot displace production monitors.
+- Produces pointer click-count handlers bound to the exact clicked row.
+
+- [ ] Pin persistent stage geometry and resource-deck separation.
+- [ ] Pin pointer click-count interaction and removal of competing Tapped/DoubleTapped handlers.
+- [ ] Implement compact runtime status in header/production row and move deep runtime controls out of the live workspace.
+- [ ] Verify restored 1040×640 viewport keeps Schedule, Preview and Program visible while Scripture details overflow internally.
+
 ### Task 8: Integration verification and field-UAT artifact
 
 **Files:**
