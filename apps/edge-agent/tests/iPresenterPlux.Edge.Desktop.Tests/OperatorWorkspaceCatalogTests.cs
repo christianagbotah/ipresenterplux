@@ -120,7 +120,7 @@ public sealed class OperatorWorkspaceCatalogTests
     }
 
     [Fact]
-    public void MissingCatalogUsesExplicitLocalRehearsalButSyncedNoServiceDoesNot()
+    public void SyncedNoServiceUsesLocalRehearsalWithoutInventingDemoOrServiceSchedule()
     {
         var rehearsal = OperatorWorkspaceCatalog.FromCatalog(null, stale: false);
         Assert.True(rehearsal.IsRehearsal);
@@ -141,11 +141,11 @@ public sealed class OperatorWorkspaceCatalogTests
             []);
         var synced = OperatorWorkspaceCatalog.FromCatalog(noService, stale: false);
 
-        Assert.False(synced.IsRehearsal);
+        Assert.True(synced.IsRehearsal);
         Assert.True(synced.HasSyncedCatalog);
         Assert.Empty(synced.Items);
         Assert.Empty(synced.RundownItems);
-        Assert.Equal("NO ACTIVE SERVICE", synced.StatusLabel);
+        Assert.Equal("LOCAL REHEARSAL · CLOUD LIBRARY", synced.StatusLabel);
     }
 
     [Fact]
