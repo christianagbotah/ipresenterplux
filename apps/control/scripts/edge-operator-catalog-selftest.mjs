@@ -84,12 +84,18 @@ const scriptureRoute = await readFile(new URL("../src/app/api/v1/edge/operator/s
 assert.match(catalogRoute, /authenticateEdgeDevice\(request\)/);
 assert.match(catalogRoute, /EDGE_OPERATOR_ACTIVE_SERVICE_SQL/);
 assert.match(catalogRoute, /EDGE_OPERATOR_PRESENTATION_ITEMS_SQL/);
+assert.match(catalogRoute, /EDGE_OPERATOR_LIBRARY_ITEMS_SQL/,
+  "catalog API must load the organization presentation library for the Edge device");
+assert.match(catalogRoute, /libraryItems/,
+  "catalog API must include organization library items in the Edge catalog payload");
 assert.match(catalogRoute, /scheduledStart:\s*normalizeOperatorTimestamp\(service\.scheduled_start\)/,
   "catalog API must normalize scheduledStart to ISO before sending it to Edge");
 assert.match(catalogRoute, /startedAt:\s*normalizeOperatorTimestamp\(service\.started_at\)/,
   "catalog API must normalize startedAt to ISO before sending it to Edge");
-assert.match(catalogRoute, /catalogRevision:\s*revision\(\[service\.id, service\.updated_at, latestPresentation, latestScripture\]\)/,
-  "catalog revision must include authoritative service/presentation/scripture timestamps");
+assert.match(catalogRoute, /catalogRevision:\s*revision\(\[service\.id, service\.updated_at, latestPresentation, latestScripture, latestLibrary\]\)/,
+  "catalog revision must include authoritative service/presentation/scripture/library timestamps");
+assert.match(catalogRoute, /catalogRevision:\s*revision\(\["no-service", latestLibrary, \.\.\.bibleVersions\.map/,
+  "no-service catalog revision must still change when the organization library changes");
 assert.match(scriptureRoute, /authenticateEdgeDevice\(request\)/);
 assert.match(scriptureRoute, /EDGE_OPERATOR_SCRIPTURE_SERVICE_SQL/);
 assert.match(scriptureRoute, /EDGE_OPERATOR_SCRIPTURE_RANGE_SQL/);
