@@ -75,6 +75,9 @@ public sealed class MainWindow : Window
     private readonly TextBlock _operatorRuntime = Label("EDGE OFFLINE", 11, FontWeight.Bold, Muted);
     private readonly TextBlock _operatorService = Label("LOCAL REHEARSAL", 11, FontWeight.Bold, Warning);
     private readonly TextBlock _operatorRecording = Label("RECORDING OFF", 11, FontWeight.Bold, Muted);
+    private readonly TextBlock _microphoneStatus = Label("MIC · WAITING", 10, FontWeight.Bold, Muted);
+    private readonly TextBlock _asrStatus = Label("ASR · CHECKING", 10, FontWeight.Bold, Muted);
+    private readonly TextBlock _voiceScriptureStatus = Label("VOICE SCRIPTURE · DETECT", 10, FontWeight.Bold, Gold);
     private readonly TextBlock _operatorFeedback = Label("Local operator channel is waiting for Edge.", 12, FontWeight.Normal, Muted);
     private readonly Button _prepare = ActionButton("Preview Selected", false);
     private readonly Button _take = ActionButton("TAKE → PROGRAM", true);
@@ -353,10 +356,16 @@ public sealed class MainWindow : Window
         openProgramHeader.Padding = new Thickness(10, 5);
         operatorStatus.Children.Add(openProgramHeader);
 
+        var voiceStatus = new WrapPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        foreach (var status in new[] { _microphoneStatus, _asrStatus, _voiceScriptureStatus })
+        {
+            status.Margin = new Thickness(0, 0, 10, 0);
+            voiceStatus.Children.Add(status);
+        }
         var headerRight = new StackPanel {
             Spacing = 4,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Children = { operatorStatus, HeaderHint() }
+            Children = { operatorStatus, voiceStatus, HeaderHint() }
         };
         var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
         headerGrid.Children.Add(new StackPanel {
@@ -1618,6 +1627,16 @@ public sealed class MainWindow : Window
         _recordingActive = snapshot.IsRecording;
         _operatorRecording.Text = snapshot.IsRecording ? "RECORDING ACTIVE" : "RECORDING OFF";
         _operatorRecording.Foreground = snapshot.IsRecording ? Danger : Muted;
+        _microphoneStatus.Text = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase)
+            ? $"MIC · {snapshot.ActiveAudioInput ?? "LISTENING"}"
+            : $"MIC · {(snapshot.AudioStatus ?? "WAITING").ToUpperInvariant()}";
+        _microphoneStatus.Foreground = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase) ? Good : Warning;
+        _asrStatus.Text = $"ASR · {(snapshot.AsrStatus ?? "CHECKING").ToUpperInvariant()}";
+        _asrStatus.Foreground = string.Equals(snapshot.AsrStatus, "ready", StringComparison.OrdinalIgnoreCase) ? Good : Warning;
+        var voiceReady = string.Equals(snapshot.AudioStatus, "Capturing", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(snapshot.AsrStatus, "ready", StringComparison.OrdinalIgnoreCase);
+        _voiceScriptureStatus.Text = voiceReady ? "VOICE SCRIPTURE · LISTENING" : "VOICE SCRIPTURE · WAITING";
+        _voiceScriptureStatus.Foreground = voiceReady ? Good : Gold;
         _record.Content = snapshot.IsRecording ? "Stop Recording" : "Start Recording";
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
         _take.IsEnabled = OperatorWorkspaceCatalog.CanTakePreview(snapshot);

@@ -390,11 +390,13 @@ public sealed class EdgeAgentRuntime : IDisposable
         if (_speechRecognitionEngine is null)
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("disabled");
+            PublishSpeechStatus();
             return;
         }
         if (_speechRecognitionEngine is not ISpeechRecognitionHealthProbe probe)
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("unsupported");
+            PublishSpeechStatus();
             return;
         }
 
@@ -420,6 +422,17 @@ public sealed class EdgeAgentRuntime : IDisposable
         {
             _latestAsrWorkerHealth = new SpeechRecognitionHealth("error");
         }
+        PublishSpeechStatus();
+    }
+
+    private void PublishSpeechStatus()
+    {
+        _state.Update(snapshot => snapshot with
+        {
+            AsrStatus = _latestAsrWorkerHealth?.Status ?? "unknown",
+            TranscriptionStatus = _transcriptionPipeline?.HealthStatus ?? "starting",
+            TranscriptPublishStatus = _transcriptionPipeline?.PublishStatus ?? "starting"
+        });
     }
 
     private async Task StopAudioAsync()

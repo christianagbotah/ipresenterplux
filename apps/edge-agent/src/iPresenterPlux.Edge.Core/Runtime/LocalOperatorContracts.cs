@@ -66,7 +66,12 @@ public sealed record LocalOperatorSnapshot(
     string ServiceMode,
     DateTimeOffset UpdatedAt,
     MediaPlaybackSnapshot? MediaPlayback = null,
-    IReadOnlyList<LocalOperatorMediaPreparation>? MediaPreparations = null);
+    IReadOnlyList<LocalOperatorMediaPreparation>? MediaPreparations = null,
+    string? AudioStatus = null,
+    string? ActiveAudioInput = null,
+    string? AsrStatus = null,
+    string? TranscriptionStatus = null,
+    string? TranscriptPublishStatus = null);
 
 public sealed record LocalOperatorResponse(
     string RequestId,

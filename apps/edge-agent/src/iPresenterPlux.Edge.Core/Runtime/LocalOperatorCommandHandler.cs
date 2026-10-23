@@ -374,6 +374,11 @@ public sealed class LocalOperatorCommandHandler
             runtime.ServiceMode,
             _clock.GetUtcNow(),
             _mediaOutput.PlaybackSnapshot,
-            preparations);
+            preparations,
+            runtime.AudioStatus,
+            runtime.ActiveAudioInput,
+            runtime.AsrStatus,
+            runtime.TranscriptionStatus,
+            runtime.TranscriptPublishStatus);
     }
 }
