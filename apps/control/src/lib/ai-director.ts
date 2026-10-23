@@ -1,11 +1,18 @@
 import type { PoolClient } from "pg";
 import { LIVE_OPERATOR_ROLES } from "./role-policy.js";
 import { EntitlementAccessError, requireEntitlementFeature } from "./licensing/entitlement-access.ts";
+import { projectPredictiveNext } from "./cockpit/predictive-next.ts";
+import type { CockpitNextItem } from "./cockpit/contracts.ts";
+import { AUDIENCE_SESSION_ACTIVE_MS } from "./audience-session.ts";
+import { resolveAudienceChannelReadiness, type AudienceJobStatus } from "./audience-readiness.ts";
 
 const HEALTH_STALE_MS = 120_000;
 const MIN_THRESHOLD = 50;
 const MAX_THRESHOLD = 100;
 const RECOMMENDATION_LIMIT = 12;
+const LIVE_TRANSCRIPT_LIMIT = 12;
+const SMART_NEXT_LIMIT = 8;
+const LIVE_TRANSCRIPT_FRESH_MS = 120_000;
 
 export class AIDirectorError extends Error {
   status: number;
@@ -53,6 +60,35 @@ type DetectionRow = {
   source_observed_at: string;
 };
 
+type TranscriptRow = {
+  id: string;
+  text: string;
+  speaker_id: string | null;
+  speaker_source: string | null;
+  source_language: string | null;
+  asr_confidence: number | null;
+  source_observed_at: string;
+};
+
+type LanguageDemandRow = {
+  id: string;
+  language_code: string;
+  language_name: string;
+  channel_mode: string;
+  listeners: number;
+  last_seen_at: string | null;
+  translation_status: string | null;
+  synthesis_status: string | null;
+};
+
+type MemoryRow = {
+  status: "pending" | "ready" | "failed";
+  summary: string;
+  generated_at: string | null;
+  last_error: string | null;
+  chapter_count: number;
+};
+
 export type AIDirectorHealth = {
   state: "healthy" | "degraded" | "offline";
   label: string;
@@ -83,6 +119,33 @@ export type AIDirectorState = {
     evidence: string;
     observedAt: string;
   }>;
+  liveTranscript: Array<{
+    id: string;
+    text: string;
+    speakerId: string | null;
+    speakerSource: string | null;
+    sourceLanguage: string | null;
+    asrConfidence: number | null;
+    observedAt: string;
+    fresh: boolean;
+  }>;
+  smartNext: CockpitNextItem[];
+  languageDemand: Array<{
+    id: string;
+    languageCode: string;
+    languageName: string;
+    channelMode: string;
+    listeners: number;
+    lastSeenAt: string | null;
+    readiness: ReturnType<typeof resolveAudienceChannelReadiness>;
+  }>;
+  memory: {
+    status: "unavailable" | "pending" | "ready" | "failed";
+    summary: string;
+    chapterCount: number;
+    generatedAt: string | null;
+    lastError: string | null;
+  };
   canManageSettings: boolean;
   entitled: boolean;
 };
@@ -136,6 +199,17 @@ function toObservedDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function isFresh(value: string | null | undefined, now: Date, maxAgeMs = LIVE_TRANSCRIPT_FRESH_MS) {
+  const observed = toObservedDate(value);
+  if (!observed) return false;
+  const age = now.getTime() - observed.getTime();
+  return age >= -5_000 && age <= maxAgeMs;
+}
+
+function jobStatus(value: string | null): AudienceJobStatus | null {
+  return value === "pending" || value === "processing" || value === "succeeded" || value === "failed" ? value : null;
 }
 
 function workerHealth(row: WorkerRow | undefined, now: Date, label: string): AIDirectorHealth {
@@ -221,6 +295,53 @@ export async function getAIDirectorState(
         [service.id, RECOMMENDATION_LIMIT]
       )
     : { rows: [] as DetectionRow[] };
+  const liveTranscript = service
+    ? await client.query<TranscriptRow>(
+        `select id::text,text,speaker_id,speaker_source,source_language,asr_confidence::float8 as asr_confidence,source_observed_at::text
+           from transcript_segments
+          where service_id=$1::uuid
+          order by source_observed_at desc,created_at desc,id desc
+          limit $2`,
+        [service.id, LIVE_TRANSCRIPT_LIMIT]
+      )
+    : { rows: [] as TranscriptRow[] };
+  const transcriptAvailable = liveTranscript.rows.some((row) => isFresh(row.source_observed_at, now));
+  const languageDemand = service
+    ? await client.query<LanguageDemandRow>(
+        `select lc.id::text,lc.language_code,lc.language_name,lc.channel_mode,
+                (select count(*)::int from audience_sessions aus
+                  where aus.service_id=$2::uuid and aus.language_channel_id=lc.id and aus.last_seen_at >= $3::timestamptz) as listeners,
+                (select max(aus.last_seen_at)::text from audience_sessions aus
+                  where aus.service_id=$2::uuid and aus.language_channel_id=lc.id) as last_seen_at,
+                (select j.status from transcript_translation_jobs j
+                  join transcript_segments ts on ts.id=j.transcript_segment_id
+                 where ts.service_id=$2::uuid and j.language_channel_id=lc.id and j.transcript_segment_id=$4::uuid
+                 order by j.updated_at desc,j.id desc limit 1) as translation_status,
+                (select sj.status from speech_synthesis_jobs sj
+                  join transcript_translation_jobs j on j.id=sj.translation_job_id
+                  join transcript_segments ts on ts.id=j.transcript_segment_id
+                 where ts.service_id=$2::uuid and sj.organization_id=$1::uuid and sj.language_channel_id=lc.id and j.transcript_segment_id=$4::uuid
+                 order by sj.updated_at desc,sj.id desc limit 1) as synthesis_status
+           from language_channels lc
+          where lc.organization_id=$1::uuid and lc.enabled=true
+          order by listeners desc,lc.language_name,lc.id`,
+        [options.organizationId, service.id, new Date(now.getTime() - AUDIENCE_SESSION_ACTIVE_MS), liveTranscript.rows[0]?.id ?? null]
+      )
+    : { rows: [] as LanguageDemandRow[] };
+  const memoryResult = service
+    ? await client.query<MemoryRow>(
+        `select sm.status,sm.summary,sm.generated_at::text,sm.last_error,
+                (select count(*)::int from service_memory_chapters smc
+                  where smc.organization_id=sm.organization_id and smc.service_id=sm.service_id) as chapter_count
+           from service_memories sm
+          where sm.organization_id=$1::uuid and sm.service_id=$2::uuid
+          limit 1`,
+        [options.organizationId, service.id]
+      )
+    : { rows: [] as MemoryRow[] };
+  const smartNext = service
+    ? (await projectPredictiveNext(client, { organizationId: options.organizationId, serviceId: service.id, now })).slice(0, SMART_NEXT_LIMIT)
+    : [];
   const entitled = await entitlementAvailable(client, options.organizationId, now);
 
   return {
@@ -246,6 +367,45 @@ export async function getAIDirectorState(
       evidence: row.source_text.trim().slice(0, 280),
       observedAt: row.source_observed_at
     })),
+    liveTranscript: liveTranscript.rows.map((row) => ({
+      id: row.id,
+      text: row.text.trim().slice(0, 500),
+      speakerId: row.speaker_id,
+      speakerSource: row.speaker_source,
+      sourceLanguage: row.source_language,
+      asrConfidence: row.asr_confidence === null ? null : Number(row.asr_confidence),
+      observedAt: row.source_observed_at,
+      fresh: isFresh(row.source_observed_at, now)
+    })),
+    smartNext,
+    languageDemand: languageDemand.rows.map((row) => ({
+      id: row.id,
+      languageCode: row.language_code,
+      languageName: row.language_name,
+      channelMode: row.channel_mode,
+      listeners: Number(row.listeners),
+      lastSeenAt: row.last_seen_at,
+      readiness: resolveAudienceChannelReadiness({
+        serviceLive: service?.status === "live",
+        channelMode: row.channel_mode,
+        transcriptAvailable,
+        translationStatus: jobStatus(row.translation_status),
+        synthesisStatus: jobStatus(row.synthesis_status)
+      })
+    })),
+    memory: memoryResult.rows[0] ? {
+      status: memoryResult.rows[0].status,
+      summary: memoryResult.rows[0].summary.trim().slice(0, 20_000),
+      chapterCount: Number(memoryResult.rows[0].chapter_count),
+      generatedAt: memoryResult.rows[0].generated_at,
+      lastError: memoryResult.rows[0].last_error
+    } : {
+      status: "unavailable",
+      summary: "",
+      chapterCount: 0,
+      generatedAt: null,
+      lastError: null
+    },
     canManageSettings: roles.some((role) => LIVE_OPERATOR_ROLES.includes(role)),
     entitled
   };

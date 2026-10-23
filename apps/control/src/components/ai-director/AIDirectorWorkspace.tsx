@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Activity, Bot, BrainCircuit, Languages, Mic2, Save, ShieldCheck, Sparkles, Volume2 } from "lucide-react";
+import { Activity, Archive, Bot, BrainCircuit, Languages, ListChecks, Mic2, Radio, Save, ShieldCheck, Sparkles, Users, Volume2 } from "lucide-react";
 import type { AIDirectorHealth, AIDirectorState } from "@/lib/ai-director";
 
 type Props = {
@@ -42,6 +42,8 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
   const canEdit = Boolean(service && state.canManageSettings && state.entitled);
   const recommendationCount = state.recommendations.length;
   const previewCount = useMemo(() => state.recommendations.filter((item) => item.state === "preview").length, [state.recommendations]);
+  const freshTranscript = useMemo(() => state.liveTranscript.filter((item) => item.fresh), [state.liveTranscript]);
+  const activeListeners = useMemo(() => state.languageDemand.reduce((sum, item) => sum + item.listeners, 0), [state.languageDemand]);
 
   async function saveSettings() {
     if (!service || !canEdit || saving) return;
@@ -95,6 +97,100 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
           <HealthCard icon={<Mic2 size={18} />} health={state.health.asr} />
           <HealthCard icon={<Languages size={18} />} health={state.health.translation} />
           <HealthCard icon={<Volume2 size={18} />} health={state.health.tts} />
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-12">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-black"><Radio size={17} className="text-emerald-300" />Live Sermon</div>
+                <p className="mt-1 text-xs leading-5 text-white/50">Fresh ASR speech from this service only. Stale speech is never presented as current.</p>
+              </div>
+              <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-emerald-200">{freshTranscript.length ? `${freshTranscript.length} fresh` : "Waiting"}</span>
+            </div>
+            <div className="mt-4 space-y-2">
+              {freshTranscript.length ? freshTranscript.slice(0, 6).map((segment, index) => (
+                <article key={segment.id} className={`rounded-2xl border p-3 ${index === 0 ? "border-emerald-400/18 bg-emerald-400/[.045]" : "border-white/[.06] bg-black/15"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[.1em] text-white/45">
+                    <span>{segment.speakerId ?? "Speaker"}{segment.sourceLanguage ? ` · ${segment.sourceLanguage.toUpperCase()}` : ""}</span>
+                    <span>{segment.asrConfidence === null ? "confidence —" : `${Math.round(segment.asrConfidence * 100)}% confidence`} · {new Date(segment.observedAt).toLocaleTimeString()}</span>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/78">{segment.text}</p>
+                </article>
+              )) : (
+                <div className="rounded-2xl border border-dashed border-white/[.09] p-7 text-center">
+                  <Mic2 size={22} className="mx-auto text-white/30" />
+                  <div className="mt-2 text-sm font-black">Waiting for fresh sermon speech</div>
+                  <p className="mt-1 text-xs text-white/45">Presentation remains fully usable while ASR is quiet, stale or offline.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-black"><ListChecks size={17} className="text-[#d7a94a]" />Smart Next</div>
+                <p className="mt-1 text-xs leading-5 text-white/50">Pinned, predicted and planned cues ranked from current service truth.</p>
+              </div>
+              <Link href="/cockpit" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Open Cockpit</Link>
+            </div>
+            <div className="mt-4 space-y-2">
+              {state.smartNext.length ? state.smartNext.slice(0, 6).map((item, index) => (
+                <div key={`${item.source}:${item.id}`} className="rounded-2xl border border-white/[.06] bg-black/15 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-[.11em] text-[#d7a94a]">{index + 1}. {item.source}</div>
+                      <div className="mt-1 truncate text-sm font-black">{item.title}</div>
+                    </div>
+                    {item.confidence !== null ? <span className="shrink-0 rounded-lg border border-[#d7a94a]/15 px-2 py-1 text-xs font-black text-[#e7c477]">{Math.round(item.confidence)}%</span> : null}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/48">{item.reason ?? "Planned service rundown"}</p>
+                </div>
+              )) : <div className="rounded-2xl border border-dashed border-white/[.09] p-6 text-center text-xs text-white/45">No fresh next-cue prediction yet.</div>}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-black"><Users size={17} className="text-sky-300" />Language Demand</div>
+                <p className="mt-1 text-xs leading-5 text-white/50">Anonymous active audience sessions show which language channels need attention now.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full border border-sky-400/15 bg-sky-400/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-sky-200">{activeListeners} active</span>
+                <Link href="/translations" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Translations</Link>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {state.languageDemand.length ? state.languageDemand.map((language) => (
+                <div key={language.id} className="rounded-2xl border border-white/[.06] bg-black/15 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div><div className="text-sm font-black">{language.languageName}</div><div className="mt-1 text-[10px] font-bold uppercase tracking-[.1em] text-white/40">{language.channelMode.replaceAll("_", " ")}</div></div>
+                    <span className="text-lg font-black">{language.listeners}</span>
+                  </div>
+                  <div className={`mt-3 text-[11px] font-bold ${language.readiness.tone === "healthy" ? "text-emerald-300" : language.readiness.tone === "warning" ? "text-amber-200" : "text-white/50"}`}>{language.readiness.label}</div>
+                </div>
+              )) : <div className="col-span-full rounded-2xl border border-dashed border-white/[.09] p-6 text-center text-xs text-white/45">No enabled audience language channels.</div>}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-black"><Archive size={17} className="text-violet-300" />Service Memory</div>
+                <p className="mt-1 text-xs leading-5 text-white/50">Post-service intelligence remembers Scripture, speakers, content, incidents and language usage.</p>
+              </div>
+              <Link href="/archive" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Archive</Link>
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/[.06] bg-black/15 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-black uppercase tracking-[.12em] text-white/45">{state.memory.status}</span>
+                <span className="text-xs font-bold text-white/55">{state.memory.chapterCount} chapter{state.memory.chapterCount === 1 ? "" : "s"}</span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-white/65">{state.memory.summary || (state.memory.status === "unavailable" ? "Memory will be generated after the service ends. Live service is never blocked by memory generation." : state.memory.lastError || "Service memory is being prepared.")}</p>
+            </div>
+          </div>
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[.86fr_1.14fr]">
