@@ -8,6 +8,7 @@ public sealed class MainWindowOrderOfServiceWiringTests
     public void MainWindowWiresCanonicalOrderOfServiceNavigation()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+        var navigator = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "OperatorRundownNavigator.cs"));
 
         Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
         Assert.Contains("OperatorRundownNavigator", source, StringComparison.Ordinal);
@@ -17,9 +18,9 @@ public sealed class MainWindowOrderOfServiceWiringTests
         Assert.Contains("response.Ok", source, StringComparison.Ordinal);
         Assert.Contains("MoveRundownSelection", source, StringComparison.Ordinal);
         Assert.Contains("args.Source is not TextBox", source, StringComparison.Ordinal);
-        Assert.Contains("CURRENT", source, StringComparison.Ordinal);
-        Assert.Contains("PREVIEW", source, StringComparison.Ordinal);
-        Assert.Contains("NEXT", source, StringComparison.Ordinal);
+        Assert.Contains("CURRENT", navigator, StringComparison.Ordinal);
+        Assert.Contains("PREVIEW", navigator, StringComparison.Ordinal);
+        Assert.Contains("NEXT", navigator, StringComparison.Ordinal);
     }
 
     [Fact]
