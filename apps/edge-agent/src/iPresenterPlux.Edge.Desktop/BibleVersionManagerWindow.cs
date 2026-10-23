@@ -16,7 +16,7 @@ public sealed class BibleVersionManagerWindow : Window
 
     private readonly DesktopBibleLibrary _library;
     private readonly StackPanel _versionList = new() { Spacing = 10 };
-    private readonly TextBox _search = new() { Watermark = "Search Bible versions", MinHeight = 40 };
+    private readonly TextBox _search = new() { PlaceholderText = "Search Bible versions", MinHeight = 40 };
     private readonly TextBlock _feedback = new() { FontSize = 12, Foreground = Muted, TextWrapping = TextWrapping.Wrap };
 
     public BibleVersionManagerWindow(DesktopBibleLibrary library)
