@@ -1,3 +1,5 @@
+using Xunit;
+
 namespace iPresenterPlux.Edge.Desktop.Tests;
 
 public sealed class VoiceScriptureStatusTests
