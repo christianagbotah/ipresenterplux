@@ -286,15 +286,15 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(10), MinHeight = 420 };
+        var root = new Grid { Margin = new Thickness(6), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        root.RowDefinitions.Add(new RowDefinition(new GridLength(14)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(10)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(240)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(4)));
+        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(250)));
 
         var header = new Border {
             Background = Surface,
@@ -353,10 +353,13 @@ public sealed class MainWindow : Window
         _resolveScripture.MinHeight = 38;
         _resolveScripture.Padding = new Thickness(10, 6);
         _resolveScripture.HorizontalAlignment = HorizontalAlignment.Stretch;
-        var scriptureLookupControls = new StackPanel {
-            Spacing = 6,
-            Children = { _bibleVersion, _resolveScripture }
-        };
+        var scriptureLookupControls = new Grid { RowSpacing = 8 };
+        scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scriptureLookupControls.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        Grid.SetRow(_bibleVersion, 0);
+        Grid.SetRow(_resolveScripture, 1);
+        scriptureLookupControls.Children.Add(_bibleVersion);
+        scriptureLookupControls.Children.Add(_resolveScripture);
         var scriptureTools = new StackPanel {
             Spacing = 6,
             Children = {
@@ -411,7 +414,7 @@ public sealed class MainWindow : Window
         var leftCard = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(16),
+            Padding = new Thickness(14),
             Child = leftGrid
         };
         var left = new ScrollViewer {
@@ -425,9 +428,9 @@ public sealed class MainWindow : Window
 
         var center = new Grid();
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(12)));
+        center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        center.RowDefinitions.Add(new RowDefinition(new GridLength(12)));
+        center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
         var centerHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
@@ -446,7 +449,7 @@ public sealed class MainWindow : Window
         Grid.SetRow(centerHeader, 0);
         center.Children.Add(centerHeader);
 
-        var stages = new Grid { ColumnSpacing = 8, MaxHeight = 169 };
+        var stages = new Grid { ColumnSpacing = 4, MaxHeight = 191 };
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         stages.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         var previewStage = BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold);
@@ -472,7 +475,8 @@ public sealed class MainWindow : Window
         _mediaSeek.Margin = new Thickness(0, 0, 6, 6);
         _mediaSeekApply.Margin = new Thickness(0, 0, 8, 6);
         var transitionHint = TransitionHint();
-        transitionHint.Margin = new Thickness(0, 0, 8, 6);
+        transitionHint.Margin = new Thickness(0);
+        transitionHint.HorizontalAlignment = HorizontalAlignment.Left;
         var openProgram = LocalOutputButton("Open Program", "program");
         openProgram.Margin = new Thickness(0, 0, 0, 6);
         transitionActions.Children.Add(_take);
@@ -481,13 +485,15 @@ public sealed class MainWindow : Window
         transitionActions.Children.Add(_mediaResume);
         transitionActions.Children.Add(_mediaSeek);
         transitionActions.Children.Add(_mediaSeekApply);
-        transitionActions.Children.Add(transitionHint);
         transitionActions.Children.Add(openProgram);
+        var transitionContent = new StackPanel { Spacing = 4 };
+        transitionContent.Children.Add(transitionActions);
+        transitionContent.Children.Add(transitionHint);
         var transitionBar = new Border {
             Background = Surface,
             CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(10, 8),
-            Child = transitionActions
+            Padding = new Thickness(8, 6),
+            Child = transitionContent
         };
         Grid.SetRow(transitionBar, 4);
         center.Children.Add(transitionBar);
@@ -635,8 +641,8 @@ public sealed class MainWindow : Window
         };
 
         return new Viewbox {
-            MaxWidth = 300,
-            MaxHeight = 169,
+            MaxWidth = 340,
+            MaxHeight = 191,
             Stretch = Stretch.Uniform,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Top,
