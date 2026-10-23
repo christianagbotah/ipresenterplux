@@ -272,6 +272,19 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("CanDownload", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OperatorSurfacesAdvancedAiWorkspacesWithoutChangingProgramAuthority()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("LinkButton(\"AI Director\", () => CloudUri(\"/ai-director\"))", source, StringComparison.Ordinal);
+        Assert.Contains("LinkButton(\"Translations\", () => CloudUri(\"/translations\"))", source, StringComparison.Ordinal);
+        Assert.Contains("_microphoneStatus", source, StringComparison.Ordinal);
+        Assert.Contains("_asrStatus", source, StringComparison.Ordinal);
+        Assert.Contains("_voiceScriptureStatus", source, StringComparison.Ordinal);
+        Assert.Contains("LocalOperatorCommands.ProgramTake", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
