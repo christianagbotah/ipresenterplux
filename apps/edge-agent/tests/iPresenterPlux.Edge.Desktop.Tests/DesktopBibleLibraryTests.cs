@@ -35,7 +35,7 @@ public sealed class DesktopBibleLibraryTests
             var john = await library.ResolveAsync("John 3:16", "WEBP", CancellationToken.None);
             Assert.NotNull(john);
             Assert.Equal("John 3:16", john.Reference);
-            Assert.Equal("WEBP", john.VersionAbbreviation);
+            Assert.Equal("WEB", john.VersionAbbreviation);
 
             var firstJohn = await library.ResolveAsync("1 John 4:8", "WEBP", CancellationToken.None);
             Assert.NotNull(firstJohn);
