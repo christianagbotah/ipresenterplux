@@ -106,6 +106,25 @@ public sealed class LocalOperatorCatalogCommandTests
     }
 
     [Fact]
+    public async Task PrepareItemWithoutCatalogInRehearsalFailsClosed()
+    {
+        using var fixture = new Fixture();
+        await fixture.Coordinator.SetActiveServiceAsync(null, CancellationToken.None);
+        var state = State(null);
+        await using var output = new LocalWebProgramOutputService(49416);
+        var handler = new LocalOperatorCommandHandler(state, output, operatorCatalog: fixture.Coordinator);
+
+        var response = await handler.HandleAsync(new LocalOperatorRequest(
+            Guid.NewGuid().ToString("D"),
+            LocalOperatorCommands.PreviewPrepareItem,
+            Item: new LocalOperatorItemRequest(Guid.NewGuid().ToString("D"))), CancellationToken.None);
+
+        Assert.False(response.Ok);
+        Assert.Equal("catalog_scope_mismatch", response.ErrorCode);
+        Assert.Null(response.Snapshot.Preview);
+    }
+
+    [Fact]
     public async Task PrepareItemHydratesTrustedMediaAfterCatalogScopeCheck()
     {
         using var fixture = new Fixture();

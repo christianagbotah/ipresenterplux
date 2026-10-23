@@ -197,7 +197,7 @@ public sealed class LocalOperatorCommandHandler
             return Failure(requestId, "catalog_scope_mismatch");
 
         var catalog = await _operatorCatalog.QueryAsync(cancellationToken).ConfigureAwait(false);
-        if (catalog?.Service?.ServiceId != activeServiceId)
+        if (catalog is null || catalog.Service?.ServiceId != activeServiceId)
             return Failure(requestId, "catalog_scope_mismatch");
         var serviceItem = catalog.Items.FirstOrDefault(item =>
             string.Equals(item.ItemId, itemId, StringComparison.OrdinalIgnoreCase));
