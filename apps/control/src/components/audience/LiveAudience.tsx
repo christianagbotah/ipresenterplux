@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { LiveTranslatedAudio } from "@/components/audience/LiveTranslatedAudio";
+import { resolveAudienceChannelReadiness, type AudienceJobStatus } from "@/lib/audience-readiness";
 import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import type { PublicAudienceVideoStatus } from "@/lib/public-audience-video-state";
 import {
@@ -20,7 +21,7 @@ type LanguageChannel = {
   listeners: number;
 };
 
-type SpeechSynthesisState = "pending" | "processing" | "succeeded" | "failed";
+type SpeechSynthesisState = AudienceJobStatus;
 
 type Props = {
   serviceId: string;
@@ -31,6 +32,7 @@ type Props = {
   transcript: string | null;
   transcriptLanguage: string | null;
   translations: Record<string, string>;
+  translationStatus: Record<string, AudienceJobStatus>;
   speechSynthesis: Record<string, SpeechSynthesisState>;
   languages: LanguageChannel[];
 };
@@ -44,20 +46,35 @@ export function LiveAudience({
   transcript,
   transcriptLanguage,
   translations,
+  translationStatus,
   speechSynthesis,
   languages
 }: Props) {
   const fallbackChannelId = languages[0]?.id ?? "";
+  const languageStorageKey=`ipresenterplux-language:${serviceId}`;
+  const audienceSessionStorageKey=`ipresenterplux-audience-session:${serviceId}`;
   const selectedChannelId = useSyncExternalStore(
     (onStoreChange) => {
       window.addEventListener("ipresenterplux-language-change", onStoreChange);
       return () => window.removeEventListener("ipresenterplux-language-change", onStoreChange);
     },
     () => {
-      const saved = window.localStorage.getItem("ipresenterplux-language");
+      const saved = window.localStorage.getItem(languageStorageKey);
       return languages.some((item) => item.id === saved) ? saved ?? fallbackChannelId : fallbackChannelId;
     },
     () => fallbackChannelId
+  );
+
+  const audienceSessionId=useSyncExternalStore(
+    () => () => {},
+    () => {
+      const saved=window.localStorage.getItem(audienceSessionStorageKey);
+      if(saved && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(saved)) return saved;
+      const created=crypto.randomUUID();
+      window.localStorage.setItem(audienceSessionStorageKey,created);
+      return created;
+    },
+    () => ""
   );
 
   const selected = useMemo(
@@ -66,9 +83,25 @@ export function LiveAudience({
   );
 
   function selectLanguage(id: string) {
-    window.localStorage.setItem("ipresenterplux-language", id);
+    window.localStorage.setItem(languageStorageKey, id);
     window.dispatchEvent(new Event("ipresenterplux-language-change"));
   }
+
+  useEffect(() => {
+    if(!audienceSessionId) return;
+    let stopped=false;
+    const heartbeat=async () => {
+      if(stopped || navigator.onLine===false) return;
+      try {
+        await fetch("/api/v1/audience/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({serviceId,sessionId:audienceSessionId,channelId:selectedChannelId||null}),cache:"no-store",keepalive:true});
+      } catch { /* Public audience remains usable even if presence telemetry is unavailable. */ }
+    };
+    void heartbeat();
+    const timer=window.setInterval(()=>void heartbeat(),20_000);
+    const onVisible=()=>{ if(document.visibilityState==="visible") void heartbeat(); };
+    document.addEventListener("visibilitychange",onVisible);
+    return ()=>{ stopped=true; window.clearInterval(timer); document.removeEventListener("visibilitychange",onVisible); };
+  },[audienceSessionId,selectedChannelId,serviceId]);
 
   const sourceSelected = selected?.mode === "original"
     || Boolean(transcriptLanguage && selected?.code === transcriptLanguage);
@@ -93,9 +126,9 @@ export function LiveAudience({
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-black tracking-tight">iPresenterPlux Live</div>
-            <div className="truncate text-[11px] uppercase tracking-[.16em] text-white/55">{serviceTitle}</div>
+            <div className="truncate text-xs uppercase tracking-[.16em] text-white/55">{serviceTitle}</div>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/[.09] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[.15em] text-red-200">
+          <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/[.09] px-3 py-1.5 text-xs font-extrabold uppercase tracking-[.15em] text-red-200">
             <Radio size={12} />
             Live
           </div>
@@ -111,7 +144,7 @@ export function LiveAudience({
               <div className="truncate text-xs font-bold">
                 {selected?.name ?? "Original audio"}
               </div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-[.12em] text-white/55">
+              <div className="mt-0.5 text-xs uppercase tracking-[.12em] text-white/55">
                 {selected?.mode.replaceAll("_", " ") ?? "original"}
               </div>
             </div>
@@ -124,13 +157,20 @@ export function LiveAudience({
             <Languages size={16} className="text-[#d7a94a]" />
             <div>
               <div className="text-sm font-bold">Listen in your language</div>
-              <div className="text-[11px] text-white/55">Choose a channel for this device</div>
+              <div className="text-xs text-white/55">Choose a channel for this device</div>
             </div>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {languages.map((language) => {
               const active = language.id === selected?.id;
+              const readiness = resolveAudienceChannelReadiness({
+                serviceLive: true,
+                channelMode: language.mode,
+                transcriptAvailable: Boolean(transcript),
+                translationStatus: translationStatus[language.id] ?? null,
+                synthesisStatus: speechSynthesis[language.id] ?? null
+              });
               return (
                 <button
                   key={language.id}
@@ -143,13 +183,15 @@ export function LiveAudience({
                       : "border-white/[.06] bg-white/[.025] text-white/70 hover:bg-white/[.045]")
                   }
                 >
-                  <div>
+                  <div className="min-w-0">
                     <div className="text-xs font-bold">{language.name}</div>
-                    <div className="mt-1 text-[11px] uppercase tracking-[.11em] opacity-70">
+                    <div className="mt-1 text-xs uppercase tracking-[.11em] opacity-65">
                       {language.mode.replaceAll("_", " ")}
                     </div>
+                    <div className={`mt-1 text-xs ${readiness.tone === "healthy" ? "text-emerald-300" : readiness.tone === "warning" ? "text-amber-200" : readiness.tone === "working" ? "text-[#efc86f]" : "text-white/50"}`}>
+                      {readiness.label}
+                    </div>
                   </div>
-                  <span className="text-[11px] opacity-65">{language.listeners}</span>
                 </button>
               );
             })}
@@ -188,7 +230,7 @@ export function LiveAudience({
                   : "Translation is being prepared for this language…")}
             </p>
             {audioStatusText ? (
-              <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-[11px] leading-4 text-white/55">
+              <div className="mt-3 rounded-lg border border-white/[.05] bg-white/[.02] px-2.5 py-2 text-xs leading-4 text-white/55">
                 {audioStatusText}
               </div>
             ) : null}
@@ -196,14 +238,14 @@ export function LiveAudience({
               <LiveTranslatedAudio key={`${serviceId}:${selected.id}`} serviceId={serviceId} channelId={selected.id} />
             ) : null}
             {transcriptLanguage ? (
-              <div className="mt-3 text-[11px] uppercase tracking-[.12em] text-white/50">
+              <div className="mt-3 text-xs uppercase tracking-[.12em] text-white/50">
                 Source language · {transcriptLanguage}
               </div>
             ) : null}
           </div>
         </section>
 
-        <footer className="pb-5 pt-2 text-center text-[11px] leading-5 text-white/55">
+        <footer className="pb-5 pt-2 text-center text-xs leading-5 text-white/55">
           iPresenterPlux · Church presentation, interpretation and live engagement
         </footer>
       </div>

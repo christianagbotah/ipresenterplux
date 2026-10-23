@@ -362,6 +362,18 @@ public sealed class MainWindow : Window
             status.Margin = new Thickness(0, 0, 10, 0);
             voiceStatus.Children.Add(status);
         }
+        foreach (var aiLink in new[]
+        {
+            LinkButton("AI Director", () => CloudUri("/ai-director")),
+            LinkButton("Translations", () => CloudUri("/translations"))
+        })
+        {
+            aiLink.MinWidth = 0;
+            aiLink.MinHeight = 30;
+            aiLink.Padding = new Thickness(9, 4);
+            aiLink.Margin = new Thickness(0, 0, 6, 0);
+            voiceStatus.Children.Add(aiLink);
+        }
         var headerRight = new StackPanel {
             Spacing = 4,
             HorizontalAlignment = HorizontalAlignment.Right,

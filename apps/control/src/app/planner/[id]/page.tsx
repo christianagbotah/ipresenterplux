@@ -7,6 +7,7 @@ import { ServicePlannerWorkspace } from "@/components/planner/ServicePlannerWork
 import type { PlannerDetailPayload } from "@/components/planner/planner-workspace-types";
 import { db } from "@/lib/db";
 import { PlannerServiceError, loadPlannerServiceDetail } from "@/lib/planner-service-queries";
+import { buildServicePreparationContext } from "@/lib/service-intelligence/preparation";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ async function loadPlannerPageData(userId: string, id: string) {
        order by case when source_type='camera' then 1 else 0 end,name,id`,
       [detail.service.organizationId]
     );
+    const initialPreparation = await buildServicePreparationContext(client, userId, id);
     const initialDetail: PlannerDetailPayload = {
       service: detail.service,
       items: detail.items.map((item) => ({ ...item, content: asRecord(item.content) })),
@@ -68,6 +70,7 @@ async function loadPlannerPageData(userId: string, id: string) {
     return {
       detail,
       initialDetail,
+      initialPreparation,
       bibleVersions: bibleResult.rows,
       mediaSources: mediaResult.rows.map((source) => ({
         id: source.id,
@@ -91,7 +94,7 @@ export default async function PlannerServicePage({ params }: PageProps) {
 
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const { detail, initialDetail, bibleVersions, mediaSources } = await loadPlannerPageData(session.user.id, id);
+  const { detail, initialDetail, initialPreparation, bibleVersions, mediaSources } = await loadPlannerPageData(session.user.id, id);
 
   return (
     <main className="min-h-screen bg-[#080b10] text-white">
@@ -118,7 +121,7 @@ export default async function PlannerServicePage({ params }: PageProps) {
       </header>
 
       <div className="mx-auto max-w-[1800px] px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-        <ServicePlannerWorkspace initialDetail={initialDetail} bibleVersions={bibleVersions} mediaSources={mediaSources} />
+        <ServicePlannerWorkspace initialDetail={initialDetail} initialPreparation={initialPreparation} bibleVersions={bibleVersions} mediaSources={mediaSources} />
       </div>
     </main>
   );

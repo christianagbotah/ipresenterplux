@@ -28,7 +28,7 @@ export default async function ArchivePage({ searchParams }: Props) {
           <section className="rounded-3xl border border-white/[.07] bg-[radial-gradient(circle_at_top_right,rgba(215,169,74,.11),transparent_34%),#0c1017] p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[.16em] text-[#d7a94a]">Service Archive</div>
+                <div className="text-xs font-black uppercase tracking-[.16em] text-[#d7a94a]">Service Archive</div>
                 <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Completed services</h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-white/40">Review final rundowns, Scripture history, transcript/caption evidence, and retained recording or media metadata from completed services.</p>
               </div>
