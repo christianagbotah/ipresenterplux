@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
+using Xunit;
 
 namespace iPresenterPlux.Edge.Desktop.Tests;
 
