@@ -162,6 +162,8 @@ jobs:
         run: pnpm test:edge-media-playback-field-uat-gate
       - name: Scripture quote integration self-test
         run: pnpm test:scripture-quote
+      - name: Authenticated Edge ASR gateway self-test
+        run: pnpm test:edge-asr-gateway
       - name: Transcript and translation integration self-test
         run: pnpm test:transcript-window
       - name: Stream contribution security self-test
