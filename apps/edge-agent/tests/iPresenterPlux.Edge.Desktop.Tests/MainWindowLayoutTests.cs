@@ -181,6 +181,55 @@ public sealed class MainWindowLayoutTests
         Assert.DoesNotContain("Content = root\n        };", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OperatorHeartbeatDoesNotRebindLibraryWhenPreviewProgramIdentityIsUnchanged()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("OperatorPresentationChanged", source, StringComparison.Ordinal);
+        Assert.Contains("var previousSnapshot = _operatorSnapshot", source, StringComparison.Ordinal);
+        Assert.Contains("if (OperatorPresentationChanged(previousSnapshot, snapshot))", source, StringComparison.Ordinal);
+        Assert.Contains("RefreshOperatorFeedback", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorSeparatesLibraryDetailsAndServiceSchedule()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("LIBRARY", source, StringComparison.Ordinal);
+        Assert.Contains("SELECTED CONTENT", source, StringComparison.Ordinal);
+        Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
+        Assert.Contains("_libraryResults", source, StringComparison.Ordinal);
+        Assert.Contains("_schedule", source, StringComparison.Ordinal);
+        Assert.Contains("Add Selected", source, StringComparison.Ordinal);
+        Assert.Contains("Move Up", source, StringComparison.Ordinal);
+        Assert.Contains("Move Down", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ScriptureDetailsExposeBookChapterAndVerseBrowser()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_browserBook", source, StringComparison.Ordinal);
+        Assert.Contains("_browserChapter", source, StringComparison.Ordinal);
+        Assert.Contains("_browserFromVerse", source, StringComparison.Ordinal);
+        Assert.Contains("_browserToVerse", source, StringComparison.Ordinal);
+        Assert.Contains("LoadBibleChapterAsync", source, StringComparison.Ordinal);
+        Assert.Contains("Preview Verse Range", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AiScriptureAutomationIsDiscoverableFromOperator()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("AI Scripture", source, StringComparison.Ordinal);
+        Assert.Contains("Manual · Auto Preview · guarded Auto Live", source, StringComparison.Ordinal);
+        Assert.Contains("CloudUri(\"/scripture\")", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

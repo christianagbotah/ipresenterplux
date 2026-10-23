@@ -107,6 +107,46 @@ public sealed class DesktopBibleLibraryTests
     }
 
     [Fact]
+    public async Task BrowsesInstalledBibleByBookChapterAndVerse()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ipresenterplux-bible-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            using var http = new HttpClient(new StaticZipHandler(BuildVplZip(new[]
+            {
+                "GEN 1:1 In the beginning.",
+                "GEN 1:2 The earth was formless.",
+                "GEN 2:1 The heavens and earth were finished.",
+                "JOH 3:16 For God so loved the world.",
+                "JOH 3:17 God did not send his Son to condemn the world."
+            })));
+            var library = new DesktopBibleLibrary(root, http);
+            await library.InstallAsync("WEBP", CancellationToken.None);
+
+            var books = library.ListBooks();
+            Assert.Contains(books, book => book.Code == "GEN" && book.Name == "Genesis");
+            Assert.Contains(books, book => book.Code == "JOH" && book.Name == "John");
+
+            var chapters = await library.ListChaptersAsync("WEBP", "JOH", CancellationToken.None);
+            Assert.Equal(new[] { 3 }, chapters);
+
+            var verses = await library.LoadChapterAsync("WEBP", "JOH", 3, CancellationToken.None);
+            Assert.Equal(2, verses.Count);
+            Assert.Equal(16, verses[0].Verse);
+            Assert.Contains("loved the world", verses[0].Text, StringComparison.Ordinal);
+
+            var range = await library.ResolveRangeAsync("WEBP", "JOH", 3, 16, 17, CancellationToken.None);
+            Assert.NotNull(range);
+            Assert.Equal("John 3:16-17", range.Reference);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DownloadCatalogContainsOnlyHttpsPublicDomainPackages()
     {
         Assert.NotEmpty(DesktopBibleLibrary.Downloadable);

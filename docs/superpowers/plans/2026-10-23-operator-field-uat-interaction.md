@@ -2,47 +2,46 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make Operator content selection, local Scripture, Bible downloads, and Setup scrolling behave correctly during physical field use.
+**Goal:** Make Operator content selection, local Scripture, Bible browsing, local scheduling, Setup scrolling and heartbeat rendering behave correctly during physical field use.
 
-**Architecture:** Keep existing Edge authority for output while adding a desktop offline Bible library for rehearsal/offline Scripture. Rundown pointer gestures call the same Preview/TAKE paths already used by keyboard/buttons. Setup becomes two independently scrolling columns.
+**Architecture:** Keep existing Edge authority for Preview/Program while adding a desktop offline Bible library and a persisted local rehearsal schedule. Library, details and schedule all call the same Preview/TAKE commands. Periodic runtime/catalog refreshes update only when presentation/catalog identity changes instead of rebinding collections every second.
 
-**Tech Stack:** .NET 8, Avalonia, System.IO.Compression, HttpClient, xUnit, existing GitHub Actions Windows/macOS CI.
+**Tech Stack:** .NET 10, Avalonia 12.1.3, System.IO.Compression, HttpClient, System.Text.Json, xUnit, existing GitHub Actions Windows/macOS CI.
 
 **Spec:** `docs/superpowers/specs/2026-10-23-operator-field-uat-interaction-design.md`
 
 ## Global Constraints
-- Preview remains safe; Program changes only through TAKE.
+- Preview remains safe; Program changes only through TAKE except separately armed server-authorized Auto Scripture Live.
 - F6/F8/F7 behavior must remain unchanged.
-- Bible packages must be HTTPS, public-domain/authorized, bounded, and extracted without arbitrary ZIP traversal.
-- No media, recording, pairing-security, or updater semantics change.
+- Bible packages must be HTTPS, public-domain/authorized, bounded and extracted without arbitrary ZIP traversal.
+- Local schedule persistence must be bounded and atomic and must not mutate the cloud planner.
+- No media download safety, recording scope, pairing-security or updater semantics change.
 - Setup must remain usable at the existing 1040×640 restored target.
 
 ## Review Focus
 - Double-click while first-click Preview is still in flight must still end on the intended item in Program.
-- Periodic catalog refresh must not auto-preview rows just because selection is rebound.
-- Malformed or oversized Bible ZIPs must fail without replacing a previously installed edition.
-- Scripture aliases such as `Psalm 23`, `John 3:16`, `1 John 4:8`, and verse ranges must resolve predictably.
-- Independent Setup scrolling must not reintroduce horizontal clipping.
+- Periodic snapshot/catalog heartbeats must not continuously rebind Library, Schedule or Bible-version controls.
+- Rebinding filtered/scheduled rows must not steal which surface is authoritative for F6/double-click.
+- Malformed/oversized Bible ZIPs or corrupt schedule JSON must fail safely without losing previously valid data.
+- Whole-chapter browsing must handle Psalms, numbered books, missing chapters and verse ranges predictably.
 
 ---
 
-### Task 1: Pin field interaction and Setup layout
+### Task 1: Pointer interaction and Setup field layout
 
 **Files:**
 - Modify: `apps/edge-agent/tests/iPresenterPlux.Edge.Desktop.Tests/MainWindowLayoutTests.cs`
 - Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
 
 **Interfaces:**
-- Produces user-pointer handlers that invoke existing Preview/TAKE methods.
-- Produces two Setup `ScrollViewer`s and requested two-column field rows.
+- Produces pointer handlers that invoke existing Preview/TAKE paths.
+- Produces two Setup `ScrollViewer`s and the requested two-column enrollment/output rows.
 
-- [ ] Add failing source/behavior contracts for single-click Preview, double-click Preview→TAKE, Bible manager visibility, requested Setup row pairing, and independent Setup scroll surfaces.
-- [ ] Verify tests/contracts fail against `0a87da2`.
-- [ ] Implement the minimal desktop wiring.
-- [ ] Verify focused desktop tests pass in CI.
-- [ ] Commit.
+- [x] Pin single-click Preview, double-click Preview→TAKE, requested Setup row pairing and independent Setup scroll surfaces.
+- [x] Observe RED against `0a87da2`.
+- [x] Implement desktop wiring without changing output authority.
 
-### Task 2: Add safe offline Bible package library
+### Task 2: Safe offline Bible package library
 
 **Files:**
 - Create: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/DesktopBibleLibrary.cs`
@@ -50,43 +49,90 @@
 
 **Interfaces:**
 - Produces `BiblePackageDescriptor` catalog entries.
-- Produces `ListInstalledAsync`, `InstallAsync`, and `ResolveAsync(reference, version, token)`.
-- Stores one validated VPL text file plus metadata per edition under the desktop local-data root.
+- Produces installed-version discovery, safe installation, reference/range resolution and book/chapter/verse browsing.
 
-- [ ] Write parser tests for references, aliases, ranges and local passage resolution plus package safety validation.
-- [ ] Verify RED in Windows/macOS CI.
-- [ ] Implement bounded HTTPS ZIP download, safe VPL extraction, atomic replacement, metadata, installed-version discovery, and local resolver.
-- [ ] Verify focused and full desktop suites.
-- [ ] Commit.
+- [x] Pin parser/reference/range/package-safety behavior.
+- [x] Implement bounded HTTPS ZIP download, safe VPL extraction, atomic replacement and local resolver.
+- [x] Add book/chapter/verse APIs and tests for whole-chapter browsing.
 
-### Task 3: Add Bible Versions manager and rehearsal lookup
+### Task 3: Bible manager and local-first Scripture
 
 **Files:**
 - Create: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/BibleVersionManagerWindow.cs`
 - Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
+
+**Interfaces:**
+- Consumes `DesktopBibleLibrary`.
+- Produces Bible Versions management and local-first rehearsal Scripture preview.
+
+- [x] Expose Bible Versions action and merge local/synced version choices.
+- [x] Resolve installed editions locally without requiring active service.
+- [x] Retain existing synced-service resolver fallback for nonlocal editions.
+- [x] Feed searched/selected Scripture into Selected Content and the whole-chapter browser.
+
+### Task 4: Stop heartbeat-driven Operator flicker
+
+**Files:**
+- Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
 - Modify: `apps/edge-agent/tests/iPresenterPlux.Edge.Desktop.Tests/MainWindowLayoutTests.cs`
 
 **Interfaces:**
-- Consumes `DesktopBibleLibrary` from Task 2.
-- Produces a visible `Bible Versions` action and installed/downloadable status.
-- Local installed editions resolve directly to Preview even when no active service exists; nonlocal versions retain current Edge resolver fallback.
+- Produces `OperatorPresentationChanged(previous,current)` and `RefreshOperatorFeedback(snapshot)`.
 
-- [ ] Write failing contracts for manager action, installed-version merge, and local-first scripture resolution.
-- [ ] Verify RED.
-- [ ] Implement manager window and refresh selector after installation.
-- [ ] Implement local-first `ResolveAndPreviewScriptureAsync` without weakening existing synced-service scope checks.
-- [ ] Verify desktop suite and source contract.
-- [ ] Commit.
+- [x] Pin that heartbeat rendering is identity-gated.
+- [x] Remove unconditional rundown/Bible-version rebinding from one-second refresh.
+- [x] Rebuild Library/Schedule only on meaningful presentation/catalog change.
 
-### Task 4: Integration verification and UAT artifact
+### Task 5: Library, details and persisted local service schedule
 
 **Files:**
-- Update: `docs/qa/edge-media-playback-field-uat.md` only if interaction checks belong there; otherwise add a focused Operator UAT note.
+- Create: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/DesktopOperatorScheduleStore.cs`
+- Create: `apps/edge-agent/tests/iPresenterPlux.Edge.Desktop.Tests/DesktopOperatorScheduleStoreTests.cs`
+- Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
+- Modify: `apps/edge-agent/tests/iPresenterPlux.Edge.Desktop.Tests/MainWindowLayoutTests.cs`
+
+**Interfaces:**
+- Produces separate Library, Selected Content and Service Schedule surfaces.
+- Produces atomic `LoadAsync`/`SaveAsync` for at most 200 local schedule items.
+
+- [x] Pin local schedule ordering, corrupt-file fail-safe behavior and screen structure.
+- [x] Implement Add Selected, Remove, Move Up and Move Down.
+- [x] Persist/restore the local schedule without writing the cloud planner.
+- [x] Route Library/Schedule single click and double click through shared Preview/TAKE helpers.
+
+### Task 6: AI Scripture discoverability
+
+**Files:**
+- Modify: `apps/edge-agent/src/iPresenterPlux.Edge.Desktop/MainWindow.cs`
+
+**Interfaces:**
+- Produces an Operator entry to the authenticated Control Plane `/scripture` automation workspace.
+
+- [x] Explain Manual, Auto Preview and guarded Auto Live on desktop.
+- [x] Keep organization permission, confidence thresholds and separate Auto Live arm action server-authoritative.
+
+### Task 7: Organization-wide Songs/Slides/Media desktop library transport
+
+**Files:**
+- Follow-on: Control Plane Edge-authenticated library endpoint, Edge catalog/client contracts, desktop catalog integration and media descriptor handling.
+
+**Interfaces:**
+- Must expose presentation-safe organization library data to the authenticated Edge runtime without browser session cookies or raw source configuration.
+
+- [ ] Reuse `media_library_items` and existing planner normalization rather than duplicating song/media parsing.
+- [ ] Add Edge-authenticated bounded library search/sync.
+- [ ] Preserve safe media descriptor validation before local Preview.
+- [ ] Merge organization library results into desktop Library independently of the active service rundown.
+
+### Task 8: Integration verification and field-UAT artifact
+
+**Files:**
+- Update focused QA notes as needed.
 
 **Interfaces:**
 - Produces a traceable Windows/macOS candidate from the exact branch head.
 
-- [ ] Run `git diff --check` and inspect branch scope.
-- [ ] Push branch and open/update a draft PR stacked on `fix/operator-layout-field-uat`.
-- [ ] Require Windows desktop tests, launch smoke, Windows package gates, and macOS desktop tests to pass.
-- [ ] Download the exact Windows installer artifact, verify SHA-256, and provide it for the next laptop/TV field check.
+- [ ] Run source contracts and `git diff --check`.
+- [ ] Commit/push branch and update draft PR #107 stacked on `fix/operator-layout-field-uat`.
+- [ ] Require Windows desktop tests, launch smoke, Windows package gates and macOS desktop tests to pass.
+- [ ] Produce exact installer artifact/checksum and provide a durable retrieval path for laptop/TV field testing.

@@ -31,6 +31,7 @@ public sealed class MainWindow : Window
     private readonly EdgeHostSupervisor _supervisor;
     private readonly LocalOperatorClient _operatorClient;
     private readonly DesktopBibleLibrary _desktopBibleLibrary;
+    private readonly DesktopOperatorScheduleStore _scheduleStore;
     private readonly DesktopEntitlementStore _entitlementStore;
     private readonly HttpClient _licensingHttpClient = new() { Timeout = TimeSpan.FromSeconds(15) };
     private readonly EntitlementClient _entitlementClient;
@@ -42,12 +43,28 @@ public sealed class MainWindow : Window
     private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
     private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
     private readonly Button _manageBibleVersions = ActionButton("Bible Versions", false);
-    private readonly TextBlock _rundownEyebrow = Label("SERVICE RUNDOWN", 10, FontWeight.Bold, Gold);
-    private readonly TextBlock _rundownTitle = Label("Content & cues", 19, FontWeight.Bold);
+    private readonly TextBlock _rundownEyebrow = Label("LIBRARY", 10, FontWeight.Bold, Gold);
+    private readonly TextBlock _rundownTitle = Label("Search & browse", 19, FontWeight.Bold);
     private readonly TextBlock _rundownCurrent = Label("CURRENT · Program clear", 10, FontWeight.SemiBold, Muted);
     private readonly TextBlock _catalogStatus = Label("LOCAL REHEARSAL", 10, FontWeight.Bold, Warning);
     private readonly TextBlock _catalogService = Label("Demo content · no synced service yet", 11, FontWeight.Normal, Muted);
-    private readonly ListBox _rundown = new();
+    private readonly ListBox _libraryResults = new();
+    private ListBox _rundown => _libraryResults;
+    private readonly ListBox _schedule = new();
+    private readonly TextBlock _detailsTitle = Label("Select content", 18, FontWeight.Bold);
+    private readonly TextBlock _detailsMeta = Label("Choose Scripture, a song, slide or media item from the Library.", 10, FontWeight.SemiBold, Gold);
+    private readonly TextBlock _detailsBody = Label("Selected content details will appear here before you add it to the service schedule or send it to Preview.", 12, FontWeight.Normal, Muted);
+    private readonly ComboBox _browserBook = new() { MinHeight = 36, MinWidth = 150 };
+    private readonly ComboBox _browserChapter = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ComboBox _browserFromVerse = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ComboBox _browserToVerse = new() { MinHeight = 36, MinWidth = 76 };
+    private readonly ListBox _browserVerses = new() { MinHeight = 110, MaxHeight = 210 };
+    private readonly StackPanel _scriptureBrowserPanel = new() { Spacing = 8, IsVisible = false };
+    private readonly Button _browserPreviewRange = ActionButton("Preview Verse Range", true);
+    private readonly Button _addSelectedToSchedule = ActionButton("Add Selected", false);
+    private readonly Button _removeScheduled = ActionButton("Remove", false);
+    private readonly Button _moveScheduledUp = ActionButton("Move Up", false);
+    private readonly Button _moveScheduledDown = ActionButton("Move Down", false);
     private readonly TextBlock _previewTitle = Label("Preview is clear", 22, FontWeight.Bold);
     private readonly TextBlock _previewBody = Label("Select a cue and press Preview Selected.", 16, FontWeight.Normal, Muted);
     private readonly TextBlock _previewFooter = Label("PREVIEW", 11, FontWeight.Bold, Gold);
@@ -80,6 +97,13 @@ public sealed class MainWindow : Window
         ServiceMode: "rehearsal",
         UpdatedAt: DateTimeOffset.MinValue);
     private string? _selectedRundownItemId;
+    private string? _selectedScheduleItemId;
+    private string _activeSelectionSurface = "library";
+    private List<OperatorWorkspaceItem> _localSchedule = [];
+    private OperatorWorkspaceItem? _selectedDetailItem;
+    private IReadOnlyList<DesktopBibleVerse> _visibleBibleVerses = Array.Empty<DesktopBibleVerse>();
+    private bool _browserBusy;
+    private bool _rebuildingOperatorCollections;
     private string? _catalogRevision;
     private bool _catalogStale;
     private bool _operatorBusy;
@@ -118,6 +142,7 @@ public sealed class MainWindow : Window
         _supervisor = new EdgeHostSupervisor(_paths);
         _operatorClient = new LocalOperatorClient(_paths.EdgeDataDirectory);
         _desktopBibleLibrary = new DesktopBibleLibrary(Path.Combine(_paths.EdgeDataDirectory, "bibles"));
+        _scheduleStore = new DesktopOperatorScheduleStore(Path.Combine(_paths.EdgeDataDirectory, "operator"));
         _entitlementStore = DesktopEntitlementStore.CreateDefault();
         _entitlementPublicKeys = EntitlementPublicKeyCatalog.Load();
         _entitlementClient = new EntitlementClient(_licensingHttpClient, _entitlementStore, _entitlementPublicKeys);
@@ -192,6 +217,14 @@ public sealed class MainWindow : Window
             if (args.Key == Key.Enter) _ = ResolveAndPreviewScriptureAsync();
         };
         _operatorSearch.TextChanged += (_, _) => RefreshRundown();
+        _browserBook.SelectionChanged += async (_, _) => await LoadBibleBookChaptersAsync();
+        _browserChapter.SelectionChanged += async (_, _) => await LoadBibleChapterAsync();
+        _browserFromVerse.SelectionChanged += (_, _) => NormalizeBrowserVerseRange();
+        _browserPreviewRange.Click += async (_, _) => await PreviewBrowserVerseRangeAsync();
+        _addSelectedToSchedule.Click += async (_, _) => await AddSelectedToScheduleAsync();
+        _removeScheduled.Click += async (_, _) => await RemoveScheduledAsync();
+        _moveScheduledUp.Click += async (_, _) => await MoveScheduledAsync(-1);
+        _moveScheduledDown.Click += async (_, _) => await MoveScheduledAsync(1);
         _programDisplay.SelectionChanged += (_, _) =>
         {
             if (_programDisplay.SelectedItem is ProgramDisplayTarget target)
@@ -340,7 +373,7 @@ public sealed class MainWindow : Window
                 _rundownEyebrow,
                 _rundownTitle,
                 _rundownCurrent,
-                Label("Rows track CURRENT · PREVIEW · NEXT from Edge truth", 9, FontWeight.SemiBold, Muted),
+                Label("Single click → Preview · double click → Program", 9, FontWeight.SemiBold, Muted),
                 _catalogStatus,
                 _catalogService
             }
@@ -405,9 +438,14 @@ public sealed class MainWindow : Window
         _rundown.MinHeight = 160;
         _rundown.SelectionChanged += (_, _) =>
         {
-            if (_rundown.SelectedItem is OperatorRundownRow row)
+            if (!_rebuildingOperatorCollections && _rundown.SelectedItem is OperatorRundownRow row)
+            {
                 _selectedRundownItemId = row.Item.Id;
+                _activeSelectionSurface = "library";
+                RenderSelectedDetails(row.Item);
+            }
             _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
+            _addSelectedToSchedule.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
         };
         _rundown.Tapped += (_, _) => _ = PreviewSelectedAsync();
         _rundown.DoubleTapped += (_, _) => _ = PreviewSelectedAndTakeAsync();
@@ -443,6 +481,8 @@ public sealed class MainWindow : Window
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
+        center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         center.RowDefinitions.Add(new RowDefinition(new GridLength(8)));
         center.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
@@ -511,11 +551,88 @@ public sealed class MainWindow : Window
         Grid.SetRow(transitionBar, 4);
         center.Children.Add(transitionBar);
 
+        _browserBook.ItemsSource = _desktopBibleLibrary.ListBooks();
+        _browserVerses.Background = SurfaceRaised;
+        var browserSelectors = new Grid { ColumnSpacing = 6 };
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(2, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        browserSelectors.Children.Add(Field("Book", _browserBook, 0, 0));
+        browserSelectors.Children.Add(Field("Chapter", _browserChapter, 0, 1));
+        browserSelectors.Children.Add(Field("From", _browserFromVerse, 0, 2));
+        browserSelectors.Children.Add(Field("To", _browserToVerse, 0, 3));
+        _scriptureBrowserPanel.Children.Add(Label("BIBLE BROWSER · WHOLE CHAPTER", 9, FontWeight.Bold, Gold));
+        _scriptureBrowserPanel.Children.Add(browserSelectors);
+        _scriptureBrowserPanel.Children.Add(_browserVerses);
+        _scriptureBrowserPanel.Children.Add(_browserPreviewRange);
+
+        _detailsBody.MaxHeight = 92;
+        var detailsActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _addSelectedToSchedule.Margin = new Thickness(0, 0, 8, 0);
+        detailsActions.Children.Add(_addSelectedToSchedule);
+        var detailsContent = new StackPanel {
+            Spacing = 7,
+            Children = {
+                Label("SELECTED CONTENT", 9, FontWeight.Bold, Gold),
+                _detailsTitle,
+                _detailsMeta,
+                new ScrollViewer {
+                    MaxHeight = 92,
+                    VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+                    Content = _detailsBody
+                },
+                detailsActions,
+                _scriptureBrowserPanel
+            }
+        };
+        var detailsCard = Card("Details & Bible browser", new ScrollViewer {
+            MaxHeight = 280,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = detailsContent
+        });
+        Grid.SetRow(detailsCard, 6);
+        center.Children.Add(detailsCard);
+
         Grid.SetRow(center, 2);
         Grid.SetColumn(center, 2);
         root.Children.Add(center);
 
         var rightStack = new StackPanel { Spacing = 12 };
+        _schedule.Background = SurfaceRaised;
+        _schedule.MinHeight = 170;
+        _schedule.SelectionChanged += (_, _) =>
+        {
+            if (!_rebuildingOperatorCollections && _schedule.SelectedItem is OperatorRundownRow row)
+            {
+                _selectedScheduleItemId = row.Item.Id;
+                _activeSelectionSurface = "schedule";
+                RenderSelectedDetails(row.Item);
+            }
+            RefreshScheduleActionState();
+        };
+        _schedule.Tapped += (_, _) => _ = PreviewScheduleSelectedAsync();
+        _schedule.DoubleTapped += (_, _) => _ = PreviewScheduleSelectedAndTakeAsync();
+        var scheduleActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var button in new[] { _removeScheduled, _moveScheduledUp, _moveScheduledDown })
+        {
+            button.MinWidth = 0;
+            button.MinHeight = 34;
+            button.Padding = new Thickness(9, 5);
+            button.Margin = new Thickness(0, 0, 5, 5);
+            scheduleActions.Children.Add(button);
+        }
+        rightStack.Children.Add(Card("Service schedule", new StackPanel {
+            Spacing = 8,
+            Children = {
+                Label("SERVICE SCHEDULE", 9, FontWeight.Bold, Gold),
+                Label("Build the local rehearsal order here. Single click previews; double click takes live.", 10, FontWeight.Normal, Muted),
+                _schedule,
+                scheduleActions
+            }
+        }));
+
         var runtimeStart = ActionButton("Start Edge", true);
         var runtimeRestart = ActionButton("Restart", false);
         var runtimeStop = ActionButton("Stop", false);
@@ -549,9 +666,14 @@ public sealed class MainWindow : Window
             }
         }));
 
-        rightStack.Children.Add(Card("AI & language", new StackPanel {
+        rightStack.Children.Add(Card("AI Scripture & language", new StackPanel {
             Spacing = 7,
             Children = {
+                Label("AI SCRIPTURE", 9, FontWeight.Bold, Gold),
+                Label("Manual · Auto Preview · guarded Auto Live", 10, FontWeight.SemiBold, Brushes.White),
+                Label("Open AI Scripture to choose how spoken Bible references and matched verses are staged. Auto Live requires a separate live-service arm action.", 10, FontWeight.Normal, Muted),
+                LinkButton("Open AI Scripture", () => CloudUri("/scripture")),
+                Separator(),
                 StatusLine("Transcript", "Runtime-managed ASR"),
                 StatusLine("Interpretation", "Cloud workflow foundation"),
                 StatusLine("Audience audio", "Mobile playback foundation"),
@@ -814,29 +936,49 @@ public sealed class MainWindow : Window
         return grid;
     }
 
-    private OperatorRundownNavigator RundownNavigator() => new(_workspace.RundownItems);
+    private OperatorRundownNavigator LibraryNavigator() => new(_workspace.Items);
+
+    private OperatorRundownNavigator ScheduleNavigator() => new(_localSchedule);
 
     private void RefreshRundown()
     {
-        var canonical = _workspace.RundownItems;
-        var visibleItems = OperatorWorkspaceCatalog.Filter(canonical, _activeCategory, _operatorSearch.Text);
-        var navigator = new OperatorRundownNavigator(canonical);
-        var state = navigator.BuildState(_operatorSnapshot, visibleItems.Select(item => item.Id));
+        var libraryItems = _workspace.Items;
+        var visibleItems = OperatorWorkspaceCatalog.Filter(libraryItems, _activeCategory, _operatorSearch.Text);
+        var libraryNavigator = new OperatorRundownNavigator(libraryItems);
+        var libraryState = libraryNavigator.BuildState(_operatorSnapshot, visibleItems.Select(item => item.Id));
 
-        if (_selectedRundownItemId is null || !canonical.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
-            _selectedRundownItemId = visibleItems.FirstOrDefault()?.Id ?? canonical.FirstOrDefault()?.Id;
+        if (_selectedRundownItemId is null || !libraryItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+            _selectedRundownItemId = visibleItems.FirstOrDefault()?.Id ?? libraryItems.FirstOrDefault()?.Id;
 
-        _rundown.ItemsSource = state.Rows;
-        _rundown.SelectedItem = state.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal));
+        var scheduleState = ScheduleNavigator().BuildState(_operatorSnapshot);
+        if (_selectedScheduleItemId is null || !_localSchedule.Any(item => item.Id.Equals(_selectedScheduleItemId, StringComparison.Ordinal)))
+            _selectedScheduleItemId = _localSchedule.FirstOrDefault()?.Id;
+
+        _rebuildingOperatorCollections = true;
+        try
+        {
+            _rundown.ItemsSource = libraryState.Rows;
+            _rundown.SelectedItem = libraryState.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal));
+            _schedule.ItemsSource = scheduleState.Rows;
+            _schedule.SelectedItem = scheduleState.Rows.FirstOrDefault(row => row.Item.Id.Equals(_selectedScheduleItemId, StringComparison.Ordinal));
+        }
+        finally
+        {
+            _rebuildingOperatorCollections = false;
+        }
+
         _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
-        _rundownCurrent.Text = $"CURRENT · {state.CurrentLabel}";
-        _rundownCurrent.Foreground = state.ProgramIsAdHoc ? Warning : state.CurrentItemId is null ? Muted : Good;
+        _addSelectedToSchedule.IsEnabled = _selectedDetailItem is not null || _rundown.SelectedItem is OperatorRundownRow;
+        _rundownCurrent.Text = $"CURRENT · {scheduleState.CurrentLabel}";
+        _rundownCurrent.Foreground = scheduleState.ProgramIsAdHoc ? Warning : scheduleState.CurrentItemId is null ? Muted : Good;
+        RefreshScheduleActionState();
     }
 
     private void MoveRundownSelection(int delta)
     {
-        if (_operatorBusy || _workspace.RundownItems.Count == 0) return;
-        _selectedRundownItemId = RundownNavigator().MoveSelection(_selectedRundownItemId, delta);
+        if (_operatorBusy || _workspace.Items.Count == 0) return;
+        _selectedRundownItemId = LibraryNavigator().MoveSelection(_selectedRundownItemId, delta);
+        _activeSelectionSurface = "library";
         RefreshRundown();
     }
 
@@ -852,14 +994,7 @@ public sealed class MainWindow : Window
             var catalogResponse = await _operatorClient.QueryCatalogAsync(CancellationToken.None);
             ApplyCatalogResponse(catalogResponse);
 
-            var connected = response.Snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ||
-                response.Snapshot.ConnectionStatus.Equals("Connected", StringComparison.OrdinalIgnoreCase);
-            _operatorFeedback.Text = connected
-                ? _workspace.IsStale
-                    ? "Local control is connected; the displayed service catalog is an offline cache."
-                    : "Local control and Control Plane are connected."
-                : "Local control is available; cloud connectivity may be degraded.";
-            _operatorFeedback.Foreground = connected && !_workspace.IsStale ? Good : Warning;
+            RefreshOperatorFeedback(response.Snapshot);
         }
         catch
         {
@@ -878,7 +1013,6 @@ public sealed class MainWindow : Window
             _catalogStatus.Text = "CATALOG WAITING";
             _catalogStatus.Foreground = Warning;
             _catalogService.Text = SafeOperatorError(response.ErrorCode);
-            RefreshBibleVersionChoices();
             return;
         }
 
@@ -895,16 +1029,15 @@ public sealed class MainWindow : Window
             _catalogRevision = revision;
             _catalogStale = response.CatalogStale;
             if (_selectedRundownItemId is not null &&
-                !_workspace.RundownItems.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
+                !_workspace.Items.Any(item => item.Id.Equals(_selectedRundownItemId, StringComparison.Ordinal)))
                 _selectedRundownItemId = null;
 
             RefreshBibleVersionChoices(selectedVersion);
             RefreshRundown();
         }
 
-        var hasServiceOrder = _workspace.HasSyncedCatalog && _workspace.ServiceTitle is { Length: > 0 };
-        _rundownEyebrow.Text = hasServiceOrder ? "ORDER OF SERVICE" : "SERVICE RUNDOWN";
-        _rundownTitle.Text = hasServiceOrder ? "Planned rundown" : "Content & cues";
+        _rundownEyebrow.Text = "LIBRARY";
+        _rundownTitle.Text = "Search & browse";
         _catalogStatus.Text = _workspace.StatusLabel;
         _catalogStatus.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
         _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
@@ -912,8 +1045,6 @@ public sealed class MainWindow : Window
             : _workspace.IsRehearsal
                 ? "Demo content · no synced service yet"
                 : "No active service assigned to this Edge.";
-
-        RefreshBibleVersionChoices();
 
         _operatorService.Text = _workspace.ServiceTitle is { Length: > 0 } serviceTitle
             ? $"{serviceTitle.ToUpperInvariant()} · {_workspace.StatusLabel}"
@@ -962,6 +1093,208 @@ public sealed class MainWindow : Window
         var manager = new BibleVersionManagerWindow(_desktopBibleLibrary);
         await manager.ShowDialog(this);
         RefreshBibleVersionChoices();
+        if (_selectedDetailItem is { Category: "Scripture" } selected)
+            RenderSelectedDetails(selected);
+    }
+
+    private void RenderSelectedDetails(OperatorWorkspaceItem item)
+    {
+        _selectedDetailItem = item;
+        _detailsTitle.Text = item.Title;
+        _detailsMeta.Text = $"{item.Category.ToUpperInvariant()} · {item.Footer ?? item.Accent}";
+        _detailsBody.Text = item.Body;
+        _addSelectedToSchedule.IsEnabled = true;
+
+        var version = item.Footer ?? _bibleVersion.SelectedItem as string;
+        var canBrowseScripture = item.Category.Equals("Scripture", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(version) &&
+            _desktopBibleLibrary.IsInstalled(version);
+        _scriptureBrowserPanel.IsVisible = canBrowseScripture;
+        if (canBrowseScripture)
+            _ = PopulateBibleBrowserAsync(item.Title, version!);
+    }
+
+    private async Task PopulateBibleBrowserAsync(string reference, string version)
+    {
+        if (_browserBusy || !_desktopBibleLibrary.IsInstalled(version) ||
+            !DesktopBibleLibrary.TryDescribeReference(reference, out var described)) return;
+        _browserBusy = true;
+        try
+        {
+            var books = _desktopBibleLibrary.ListBooks();
+            _browserBook.ItemsSource = books;
+            _browserBook.SelectedItem = books.FirstOrDefault(book => book.Code.Equals(described.BookCode, StringComparison.OrdinalIgnoreCase));
+            var chapters = await _desktopBibleLibrary.ListChaptersAsync(version, described.BookCode, CancellationToken.None);
+            _browserChapter.ItemsSource = chapters;
+            _browserChapter.SelectedItem = chapters.Contains(described.Chapter) ? described.Chapter : chapters.FirstOrDefault();
+            _visibleBibleVerses = await _desktopBibleLibrary.LoadChapterAsync(version, described.BookCode, described.Chapter, CancellationToken.None);
+            ApplyBibleVersesToBrowser(described.VerseStart, described.VerseEnd);
+        }
+        catch
+        {
+            _scriptureBrowserPanel.IsVisible = false;
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+    }
+
+    private async Task LoadBibleBookChaptersAsync()
+    {
+        if (_browserBusy || _browserBook.SelectedItem is not DesktopBibleBookDescriptor book) return;
+        var version = BrowserBibleVersion();
+        if (version is null) return;
+        _browserBusy = true;
+        try
+        {
+            var chapters = await _desktopBibleLibrary.ListChaptersAsync(version, book.Code, CancellationToken.None);
+            _browserChapter.ItemsSource = chapters;
+            _browserChapter.SelectedItem = chapters.FirstOrDefault();
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+        await LoadBibleChapterAsync();
+    }
+
+    private async Task LoadBibleChapterAsync()
+    {
+        if (_browserBusy || _browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter) return;
+        var version = BrowserBibleVersion();
+        if (version is null) return;
+        _browserBusy = true;
+        try
+        {
+            _visibleBibleVerses = await _desktopBibleLibrary.LoadChapterAsync(version, book.Code, chapter, CancellationToken.None);
+            ApplyBibleVersesToBrowser(null, null);
+        }
+        finally
+        {
+            _browserBusy = false;
+        }
+    }
+
+    private void ApplyBibleVersesToBrowser(int? verseStart, int? verseEnd)
+    {
+        _browserVerses.ItemsSource = _visibleBibleVerses;
+        var verseNumbers = _visibleBibleVerses.Select(item => item.Verse).ToArray();
+        _browserFromVerse.ItemsSource = verseNumbers;
+        _browserToVerse.ItemsSource = verseNumbers;
+        if (verseNumbers.Length == 0)
+        {
+            _browserFromVerse.SelectedItem = null;
+            _browserToVerse.SelectedItem = null;
+            _browserPreviewRange.IsEnabled = false;
+            return;
+        }
+        var from = verseStart is { } requestedStart && verseNumbers.Contains(requestedStart) ? requestedStart : verseNumbers[0];
+        var to = verseEnd is { } requestedEnd && verseNumbers.Contains(requestedEnd) ? requestedEnd : from;
+        _browserFromVerse.SelectedItem = from;
+        _browserToVerse.SelectedItem = to;
+        _browserPreviewRange.IsEnabled = true;
+    }
+
+    private void NormalizeBrowserVerseRange()
+    {
+        if (_browserBusy || _browserFromVerse.SelectedItem is not int from || _browserToVerse.SelectedItem is not int to) return;
+        if (to < from) _browserToVerse.SelectedItem = from;
+    }
+
+    private string? BrowserBibleVersion()
+    {
+        var detailVersion = _selectedDetailItem?.Footer;
+        if (!string.IsNullOrWhiteSpace(detailVersion) && _desktopBibleLibrary.IsInstalled(detailVersion)) return detailVersion;
+        var selected = _bibleVersion.SelectedItem as string;
+        return !string.IsNullOrWhiteSpace(selected) && _desktopBibleLibrary.IsInstalled(selected) ? selected : null;
+    }
+
+    private async Task PreviewBrowserVerseRangeAsync()
+    {
+        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter ||
+            _browserFromVerse.SelectedItem is not int from ||
+            _browserToVerse.SelectedItem is not int to)
+        {
+            SetOperatorFeedback("Choose a Bible book, chapter and verse range first.", true);
+            return;
+        }
+        var version = BrowserBibleVersion();
+        if (version is null)
+        {
+            SetOperatorFeedback("Download the selected Bible version before browsing verses offline.", true);
+            return;
+        }
+        var passage = await _desktopBibleLibrary.ResolveRangeAsync(version, book.Code, chapter, from, to, CancellationToken.None);
+        if (passage is null)
+        {
+            SetOperatorFeedback("That verse range is not available in the downloaded Bible.", true);
+            return;
+        }
+        var item = LocalScriptureItem(passage);
+        _activeSelectionSurface = "library";
+        RenderSelectedDetails(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task AddSelectedToScheduleAsync()
+    {
+        var item = _selectedDetailItem ?? SelectedOperatorItem();
+        if (item is null)
+        {
+            SetOperatorFeedback("Select a Library item before adding it to the service schedule.", true);
+            return;
+        }
+        if (_localSchedule.Any(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal)))
+        {
+            _selectedScheduleItemId = item.Id;
+            RefreshRundown();
+            SetOperatorFeedback($"{item.Title} is already in the local service schedule.", false);
+            return;
+        }
+        _localSchedule.Add(item);
+        _selectedScheduleItemId = item.Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+        SetOperatorFeedback($"Added to service schedule: {item.Title}", false);
+    }
+
+    private async Task RemoveScheduledAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        var index = _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        if (index < 0) return;
+        _localSchedule.RemoveAt(index);
+        _selectedScheduleItemId = _localSchedule.Count == 0 ? null : _localSchedule[Math.Min(index, _localSchedule.Count - 1)].Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+        SetOperatorFeedback($"Removed from service schedule: {item.Title}", false);
+    }
+
+    private async Task MoveScheduledAsync(int direction)
+    {
+        var item = SelectedScheduleItem();
+        if (item is null || direction == 0) return;
+        var index = _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        if (index < 0) return;
+        var target = Math.Clamp(index + Math.Sign(direction), 0, _localSchedule.Count - 1);
+        if (target == index) return;
+        (_localSchedule[index], _localSchedule[target]) = (_localSchedule[target], _localSchedule[index]);
+        _selectedScheduleItemId = item.Id;
+        await _scheduleStore.SaveAsync(_localSchedule, CancellationToken.None);
+        RefreshRundown();
+    }
+
+    private void RefreshScheduleActionState()
+    {
+        var item = SelectedScheduleItem();
+        var index = item is null ? -1 : _localSchedule.FindIndex(candidate => candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        _removeScheduled.IsEnabled = index >= 0;
+        _moveScheduledUp.IsEnabled = index > 0;
+        _moveScheduledDown.IsEnabled = index >= 0 && index < _localSchedule.Count - 1;
     }
 
     private async Task ResolveAndPreviewScriptureAsync()
@@ -994,6 +1327,8 @@ public sealed class MainWindow : Window
                 }
 
                 var localItem = LocalScriptureItem(passage);
+                _activeSelectionSurface = "library";
+                RenderSelectedDetails(localItem);
                 var localPreview = await _operatorClient.SendAsync(
                     LocalOperatorCommands.PreviewRender,
                     localItem.ToPresentation(),
@@ -1026,6 +1361,8 @@ public sealed class MainWindow : Window
             }
 
             var item = OperatorWorkspaceCatalog.FromResolved(resolved.ResolvedPresentation);
+            _activeSelectionSurface = "library";
+            RenderSelectedDetails(item);
             var preview = await _operatorClient.SendAsync(
                 LocalOperatorCommands.PreviewRender,
                 item.ToPresentation(),
@@ -1065,30 +1402,43 @@ public sealed class MainWindow : Window
             IsSynced: false);
     }
 
-    private OperatorWorkspaceItem? SelectedRundownItem() =>
+    private OperatorWorkspaceItem? SelectedLibraryItem() =>
         _rundown.SelectedItem is OperatorRundownRow row ? row.Item : null;
 
-    private async Task PreviewSelectedAsync()
+    private OperatorWorkspaceItem? SelectedScheduleItem() =>
+        _schedule.SelectedItem is OperatorRundownRow row ? row.Item : null;
+
+    private OperatorWorkspaceItem? SelectedOperatorItem() =>
+        _activeSelectionSurface == "schedule" ? SelectedScheduleItem() : SelectedLibraryItem();
+
+    private Task PreviewSelectedAsync()
     {
-        var item = SelectedRundownItem();
+        var item = SelectedOperatorItem();
         if (item is null)
         {
-            SetOperatorFeedback("Select a rundown item first.", true);
-            return;
+            SetOperatorFeedback("Select a Library or Schedule item first.", true);
+            return Task.CompletedTask;
         }
-        _selectedRundownItemId = item.Id;
-        if (item.IsSynced)
+        return PreviewItemAsync(item);
+    }
+
+    private async Task PreviewItemAsync(OperatorWorkspaceItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (_operatorBusy) return;
+        if (_activeSelectionSurface == "schedule") _selectedScheduleItemId = item.Id;
+        else _selectedRundownItemId = item.Id;
+
+        var canPrepareByIdentity = item.IsSynced && _workspace.RundownItems.Any(candidate =>
+            candidate.Id.Equals(item.Id, StringComparison.Ordinal));
+        if (canPrepareByIdentity)
         {
-            if (_operatorBusy) return;
             _operatorBusy = true;
             try
             {
                 var response = await _operatorClient.PreparePreviewItemAsync(item.Id, CancellationToken.None);
                 RenderOperatorSnapshot(response.Snapshot);
-                if (response.Ok)
-                    SetOperatorFeedback($"Preview prepared: {item.Title}", false);
-                else
-                    SetOperatorFeedback(SafeOperatorError(response.ErrorCode), true);
+                SetOperatorFeedback(response.Ok ? $"Preview prepared: {item.Title}" : SafeOperatorError(response.ErrorCode), !response.Ok);
             }
             catch
             {
@@ -1106,10 +1456,30 @@ public sealed class MainWindow : Window
 
     private async Task PreviewSelectedAndTakeAsync()
     {
-        var selected = SelectedRundownItem();
+        var selected = SelectedOperatorItem();
         if (selected is null) return;
-        var itemId = selected.Id;
+        await PreviewItemAndTakeAsync(selected);
+    }
 
+    private async Task PreviewScheduleSelectedAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        _activeSelectionSurface = "schedule";
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewScheduleSelectedAndTakeAsync()
+    {
+        var item = SelectedScheduleItem();
+        if (item is null) return;
+        _activeSelectionSurface = "schedule";
+        await PreviewItemAndTakeAsync(item);
+    }
+
+    private async Task PreviewItemAndTakeAsync(OperatorWorkspaceItem selected)
+    {
+        var itemId = selected.Id;
         var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
         while (_operatorBusy && DateTimeOffset.UtcNow < deadline)
             await Task.Delay(25);
@@ -1121,18 +1491,16 @@ public sealed class MainWindow : Window
 
         if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal))
         {
-            await PreviewSelectedAsync();
-            if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal))
-                return;
+            await PreviewItemAsync(selected);
+            if (!string.Equals(_operatorSnapshot.Preview?.ItemId, itemId, StringComparison.Ordinal)) return;
         }
-
         await TakeAsync();
     }
 
     private async Task TakeAsync()
     {
         if (_operatorBusy) return;
-        var selectionBeforeTake = _selectedRundownItemId;
+        var scheduleSelectionBeforeTake = _selectedScheduleItemId;
         _operatorBusy = true;
         try
         {
@@ -1140,10 +1508,13 @@ public sealed class MainWindow : Window
             RenderOperatorSnapshot(response.Snapshot);
             if (response.Ok)
             {
-                _selectedRundownItemId = RundownNavigator().AdvanceAfterTake(
-                    selectionBeforeTake,
-                    response.Snapshot.Program?.ItemId,
-                    response.Ok);
+                if (_activeSelectionSurface == "schedule")
+                {
+                    _selectedScheduleItemId = ScheduleNavigator().AdvanceAfterTake(
+                        scheduleSelectionBeforeTake,
+                        response.Snapshot.Program?.ItemId,
+                        response.Ok);
+                }
                 RefreshRundown();
                 SetOperatorFeedback("Preview taken to Program.", false);
             }
@@ -1240,6 +1611,7 @@ public sealed class MainWindow : Window
 
     private void RenderOperatorSnapshot(LocalOperatorSnapshot snapshot)
     {
+        var previousSnapshot = _operatorSnapshot;
         _operatorSnapshot = snapshot;
         RenderStage(snapshot.Preview, _previewTitle, _previewBody, _previewFooter, "Preview is clear", "Select a cue and press Preview Selected.", "PREVIEW", Gold);
         RenderStage(snapshot.Program, _programTitle, _programBody, _programFooter, "Program is clear", "Nothing is currently live on Program.", "PROGRAM", Good);
@@ -1272,7 +1644,42 @@ public sealed class MainWindow : Window
         _mediaSeekApply.IsEnabled = dynamicProgram && playback is not null;
         if (playback is not null && !_mediaSeek.IsFocused)
             _mediaSeek.Text = playback.EffectivePositionSeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        RefreshRundown();
+        if (OperatorPresentationChanged(previousSnapshot, snapshot))
+            RefreshRundown();
+    }
+
+    private void RefreshOperatorFeedback(LocalOperatorSnapshot snapshot)
+    {
+        var connected = snapshot.ConnectionStatus.Equals("Online", StringComparison.OrdinalIgnoreCase) ||
+            snapshot.ConnectionStatus.Equals("Connected", StringComparison.OrdinalIgnoreCase);
+        var text = connected
+            ? _workspace.IsStale
+                ? "Local control is connected; the displayed service catalog is an offline cache."
+                : "Local control and Control Plane are connected."
+            : "Local control is available; cloud connectivity may be degraded.";
+        var foreground = connected && !_workspace.IsStale ? Good : Warning;
+        if (!string.Equals(_operatorFeedback.Text, text, StringComparison.Ordinal))
+            _operatorFeedback.Text = text;
+        if (!ReferenceEquals(_operatorFeedback.Foreground, foreground))
+            _operatorFeedback.Foreground = foreground;
+    }
+
+    private static bool OperatorPresentationChanged(LocalOperatorSnapshot previous, LocalOperatorSnapshot current)
+    {
+        if (!string.Equals(previous.Preview?.ItemId, current.Preview?.ItemId, StringComparison.Ordinal) ||
+            !string.Equals(previous.Program?.ItemId, current.Program?.ItemId, StringComparison.Ordinal) ||
+            previous.ActiveServiceId != current.ActiveServiceId)
+            return true;
+
+        var previousPlayback = previous.MediaPlayback?.State;
+        var currentPlayback = current.MediaPlayback?.State;
+        if (!string.Equals(previousPlayback, currentPlayback, StringComparison.Ordinal)) return true;
+
+        static string PreparationKey(LocalOperatorSnapshot snapshot) => string.Join('|',
+            (snapshot.MediaPreparations ?? Array.Empty<LocalOperatorMediaPreparation>())
+                .OrderBy(item => item.ItemId, StringComparer.Ordinal)
+                .Select(item => $"{item.ItemId}:{item.State}:{item.ErrorCode}"));
+        return !string.Equals(PreparationKey(previous), PreparationKey(current), StringComparison.Ordinal);
     }
 
     private static bool IsDynamicProgramMedia(PresentationRenderItem? item) =>
@@ -1431,6 +1838,9 @@ public sealed class MainWindow : Window
         _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
         RefreshProgramDisplays();
+        _localSchedule = (await _scheduleStore.LoadAsync(CancellationToken.None)).ToList();
+        _selectedScheduleItemId = _localSchedule.FirstOrDefault()?.Id;
+        RefreshRundown();
 
         var validation = await LoadEntitlementAsync();
         _tabs.SelectedIndex = validation?.IsUsable == true ? OperatorTabIndex : ActivationTabIndex;

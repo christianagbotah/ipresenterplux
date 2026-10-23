@@ -18,6 +18,23 @@ public sealed record DesktopBiblePassage(
     string VersionAbbreviation,
     string Text);
 
+public sealed record DesktopBibleBookDescriptor(string Code, string Name)
+{
+    public override string ToString() => Name;
+}
+
+public sealed record DesktopBibleVerse(int Verse, string Text)
+{
+    public override string ToString() => $"{Verse}  {Text}";
+}
+
+public sealed record DesktopBibleReference(
+    string BookCode,
+    string BookName,
+    int Chapter,
+    int? VerseStart,
+    int? VerseEnd);
+
 public sealed class DesktopBibleLibrary
 {
     private const long MaxArchiveBytes = 16L * 1024 * 1024;
@@ -47,6 +64,75 @@ public sealed class DesktopBibleLibrary
 
     public IReadOnlyList<BiblePackageDescriptor> InstalledVersions() =>
         Downloadable.Where(package => File.Exists(BiblePath(package.Id))).ToArray();
+
+    public IReadOnlyList<DesktopBibleBookDescriptor> ListBooks() =>
+        BooksByAlias.Values
+            .Distinct()
+            .Select(book => new DesktopBibleBookDescriptor(book.Code, book.CanonicalName))
+            .ToArray();
+
+    public async Task<IReadOnlyList<int>> ListChaptersAsync(
+        string versionId,
+        string bookCodeOrName,
+        CancellationToken cancellationToken)
+    {
+        var path = InstalledBiblePath(versionId);
+        var book = ResolveBook(bookCodeOrName);
+        if (path is null || book is null) return Array.Empty<int>();
+
+        var chapters = new SortedSet<int>();
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (TryParseVplLine(line, out var code, out var chapter, out _, out _) &&
+                string.Equals(code, book.Code, StringComparison.OrdinalIgnoreCase))
+                chapters.Add(chapter);
+        }
+        return chapters.ToArray();
+    }
+
+    public async Task<IReadOnlyList<DesktopBibleVerse>> LoadChapterAsync(
+        string versionId,
+        string bookCodeOrName,
+        int chapter,
+        CancellationToken cancellationToken)
+    {
+        if (chapter <= 0) return Array.Empty<DesktopBibleVerse>();
+        var path = InstalledBiblePath(versionId);
+        var book = ResolveBook(bookCodeOrName);
+        if (path is null || book is null) return Array.Empty<DesktopBibleVerse>();
+
+        var verses = new List<DesktopBibleVerse>();
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryParseVplLine(line, out var code, out var candidateChapter, out var verse, out var text)) continue;
+            if (!string.Equals(code, book.Code, StringComparison.OrdinalIgnoreCase) || candidateChapter != chapter) continue;
+            verses.Add(new DesktopBibleVerse(verse, text));
+        }
+        return verses.OrderBy(item => item.Verse).ToArray();
+    }
+
+    public Task<DesktopBiblePassage?> ResolveRangeAsync(
+        string versionId,
+        string bookCodeOrName,
+        int chapter,
+        int verseStart,
+        int verseEnd,
+        CancellationToken cancellationToken)
+    {
+        var book = ResolveBook(bookCodeOrName);
+        if (book is null || chapter <= 0 || verseStart <= 0 || verseEnd < verseStart)
+            return Task.FromResult<DesktopBiblePassage?>(null);
+        var reference = verseStart == verseEnd
+            ? $"{book.CanonicalName} {chapter}:{verseStart}"
+            : $"{book.CanonicalName} {chapter}:{verseStart}-{verseEnd}";
+        return ResolveAsync(reference, versionId, cancellationToken);
+    }
 
     public async Task InstallAsync(string versionId, CancellationToken cancellationToken)
     {
@@ -154,6 +240,20 @@ public sealed class DesktopBibleLibrary
     private string VersionDirectory(string id) => Path.Combine(_rootDirectory, id.ToUpperInvariant());
     private string BiblePath(string id) => Path.Combine(VersionDirectory(id), "bible.vpl");
 
+    private string? InstalledBiblePath(string? versionId)
+    {
+        var package = Package(versionId);
+        if (package is null) return null;
+        var path = BiblePath(package.Id);
+        return File.Exists(path) ? path : null;
+    }
+
+    private static BibleBook? ResolveBook(string? codeOrName)
+    {
+        if (string.IsNullOrWhiteSpace(codeOrName)) return null;
+        return BooksByAlias.TryGetValue(NormalizeBook(codeOrName), out var book) ? book : null;
+    }
+
     private static BiblePackageDescriptor? Package(string? versionId)
     {
         if (string.IsNullOrWhiteSpace(versionId)) return null;
@@ -232,6 +332,19 @@ public sealed class DesktopBibleLibrary
             if (end < start || end - start + 1 > 80) return false;
         }
         parsed = new ParsedReference(book, chapter, start, end);
+        return true;
+    }
+
+    public static bool TryDescribeReference(string? reference, out DesktopBibleReference described)
+    {
+        described = null!;
+        if (!TryParseReference(reference, out var parsed)) return false;
+        described = new DesktopBibleReference(
+            parsed.Book.Code,
+            parsed.Book.CanonicalName,
+            parsed.Chapter,
+            parsed.VerseStart,
+            parsed.VerseEnd);
         return true;
     }
 
