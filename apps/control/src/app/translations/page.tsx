@@ -1,12 +1,11 @@
-import Link from "next/link";
-import { ArrowLeft, Languages, ShieldCheck } from "lucide-react";
+import { Languages, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
 import { TranslationDesk } from "@/components/translations/TranslationDesk";
 import { query } from "@/lib/db";
-import { TRANSLATION_OPERATOR_ROLES } from "@/lib/rbac";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 
 export const dynamic = "force-dynamic";
 
@@ -47,26 +46,14 @@ export default async function TranslationsPage({
   if (!session?.user?.id) redirect("/login");
   if (session.user.forcePasswordChange) redirect("/change-password");
 
-  const membership = await query<{ organization_id: string }>(
-    `select organization_id::text
-     from user_organization_roles
-     where user_id=$1 and role_id=any($2::text[])
-     order by created_at
-     limit 1`,
-    [session.user.id, [...TRANSLATION_OPERATOR_ROLES]]
-  );
-  const organizationId = membership.rows[0]?.organization_id;
-  if (!organizationId) redirect("/");
-
-  const services = await query<{ id: string; title: string; status: string }>(
-    `select id::text,title,status
-     from services
-     where organization_id=$1 and status in ('live','ready')
-     order by case status when 'live' then 0 else 1 end,created_at desc
-     limit 1`,
-    [organizationId]
-  );
-  const service = services.rows[0];
+  const context = await getCurrentServiceForUser(session.user.id);
+  if (!context || !context.capabilities.canTranslations) redirect("/");
+  const organizationId = context.organizationId;
+  const service = context.service ? {
+    id: context.service.id,
+    title: context.service.title,
+    status: context.service.status
+  } : null;
 
   const countsResult = await query<{ status: JobStatus; count: number }>(
     `select j.status,count(*)::int as count
@@ -111,9 +98,6 @@ export default async function TranslationsPage({
       <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080b10]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Link href="/" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-white/[.025] text-white/45 hover:text-white" aria-label="Back to Control Room">
-              <ArrowLeft size={17} />
-            </Link>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc76e]">
               <Languages size={18} />
             </div>

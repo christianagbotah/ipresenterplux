@@ -8,7 +8,7 @@ import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
 
 const OPEN_EVENT = "ipresenterplux:command-open";
 const SEARCH_DEBOUNCE_MS = 120;
-const GROUP_ORDER = ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"] as const;
+const GROUP_ORDER = ["Scripture", "Songs", "Media", "Service", "Archive", "Visual Sources", "Actions"] as const;
 
 type CommandResponse = {
   ok: boolean;
@@ -29,7 +29,7 @@ type CommandResponse = {
 
 type UniversalSearchItem = {
   id: string;
-  group: "scripture" | "songs" | "media" | "service" | "visual_sources" | "actions";
+  group: "scripture" | "songs" | "media" | "service" | "archive" | "visual_sources" | "actions";
   title: string;
   subtitle: string | null;
   href: string | null;
@@ -284,10 +284,10 @@ export function CommandPalette() {
                 })}
               </div>
             </section>)}
-            {searchLoading ? <div role="status" className="text-xs text-white/45">Searching Scripture, songs, media, service and sources…</div> : null}
+            {searchLoading ? <div role="status" className="text-xs text-white/45">Searching Scripture, songs, media, service memory, archive and sources…</div> : null}
             {searchError ? <div role="status" aria-live="polite" className="rounded-xl border border-amber-300/15 bg-amber-300/[.05] px-3 py-2 text-xs text-amber-100/75">{searchError}</div> : null}
             {!searchLoading && !searchError && search && visibleGroups.length === 0 ? <div className="text-sm text-white/45">No matching items. You can still run the text as a deterministic command.</div> : null}
-          </div> : <div className="text-sm leading-6 text-white/55">Search Scripture, Songs, Media, the current Service, Visual Sources, or safe Actions.</div>}
+          </div> : <div className="text-sm leading-6 text-white/55">Search Scripture, Songs, Media, the current Service, Archive memory, Visual Sources, or safe Actions.</div>}
 
           {response?.resolution ? <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.02] p-3"><div className="text-xs font-black uppercase tracking-[.18em] text-[#e2b85f]">Interpreted action</div><div className="mt-1 text-sm font-bold text-white/80">{response.resolution.summary}</div>{response.resolution.status !== "ready" ? <div className="mt-2 text-xs text-amber-200/80">Use the explicit live control for consequential actions that are not registered here.</div> : null}</div> : null}
           {response?.result?.kind === "prepared" ? <div className="mt-3 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.06] p-3"><div className="text-sm font-bold text-white/75">{response.result.message}</div><button type="button" disabled={pending} onClick={previewPrepared} className="ip-focus-gold mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171107]"><Eye size={15}/>Preview {response.result.followUp.reference}</button></div> : null}

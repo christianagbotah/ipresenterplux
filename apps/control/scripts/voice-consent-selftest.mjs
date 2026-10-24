@@ -11,15 +11,15 @@ const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 await client.query("begin");
 try {
-  const base = await client.query(
-    `select uor.organization_id::text as organization_id,uor.user_id::text as user_id
-     from user_organization_roles uor
-     where uor.role_id in ('owner','admin')
-     order by case uor.role_id when 'owner' then 0 else 1 end
-     limit 1`
+  const base = await client.query(`select id::text as organization_id from organizations order by created_at limit 1`);
+  assert.ok(base.rows[0]?.organization_id, "Expected an organization fixture");
+  const actor = await client.query(
+    `insert into users(email,display_name,status)
+     values ('voice-consent-selftest@example.invalid','Voice consent self-test','active')
+     returning id::text`
   );
-  assert.ok(base.rows[0]?.organization_id && base.rows[0]?.user_id, "Expected an owner/admin membership");
-  const { organization_id: organizationId, user_id: userId } = base.rows[0];
+  const organizationId = base.rows[0].organization_id;
+  const userId = actor.rows[0].id;
 
   const created = await client.query(
     `insert into voice_profiles(organization_id,display_name,consent_status,created_by)

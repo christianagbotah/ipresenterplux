@@ -14,7 +14,7 @@ for (const source of [palette, trigger, focus]) {
 }
 assert.match(palette, /\/api\/v1\/cockpit\/search\?q=/, "typing must call the read-only grouped search endpoint");
 assert.match(palette, /120/, "read-only search must debounce by 120ms");
-for (const label of ["Scripture", "Songs", "Media", "Service", "Visual Sources", "Actions"]) {
+for (const label of ["Scripture", "Songs", "Media", "Service", "Archive", "Visual Sources", "Actions"]) {
   assert.ok(palette.includes(label), `palette must know the ${label} result group`);
 }
 assert.match(palette, /ArrowDown/);
@@ -37,4 +37,4 @@ assert.doesNotMatch(header, /["']use client["']/, "Cockpit header must remain a 
 assert.match(trigger, /ipresenterplux:command-open/);
 assert.match(focus, /ipresenterplux:command-open/);
 
-console.log(JSON.stringify({ok:true,label:"What do you need next?",groups:6,debounceMs:120,keyboardNavigation:true,touchFriendly:true,highlightReadOnly:true}));
+console.log(JSON.stringify({ok:true,label:"What do you need next?",groups:7,debounceMs:120,keyboardNavigation:true,touchFriendly:true,highlightReadOnly:true}));

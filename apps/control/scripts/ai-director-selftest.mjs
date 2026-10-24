@@ -16,9 +16,18 @@ const pageSource = await readFile(new URL("../src/app/ai-director/page.tsx", imp
 assert.match(pageSource, /AIDirectorWorkspace/);
 assert.doesNotMatch(pageSource, /StudioReadinessPage/);
 const workspaceSource = await readFile(new URL("../src/components/ai-director/AIDirectorWorkspace.tsx", import.meta.url), "utf8");
+const directorSource = await readFile(new URL("../src/lib/ai-director.ts", import.meta.url), "utf8");
+for (const contract of ["liveTranscript", "smartNext", "languageDemand", "memory"]) {
+  assert.ok(directorSource.includes(contract), `AI Director state must expose '${contract}'`);
+}
 for (const copy of ["AI Director", "Advisory only", "Auto-preview threshold", "Recent recommendations"]) {
   assert.ok(workspaceSource.includes(copy), `AI Director workspace must surface '${copy}'`);
 }
+for (const copy of ["Live Sermon", "Smart Next", "Language Demand", "Service Memory"]) {
+  assert.ok(workspaceSource.includes(copy), `AI Director V2 must surface '${copy}'`);
+}
+assert.match(workspaceSource,/readiness\.text/,"AI Director must expose text readiness separately for interpreted-audio channels");
+assert.match(workspaceSource,/readiness\.voice/,"AI Director must expose voice readiness separately for interpreted-audio channels");
 assert.doesNotMatch(workspaceSource, /TAKE.{0,12}PROGRAM|take.?live/i, "AI Director must not expose direct Program authority");
 const settingsRoute = await readFile(new URL("../src/app/api/v1/ai/director/settings/route.ts", import.meta.url), "utf8");
 assert.doesNotMatch(settingsRoute, /scriptures\/.+state|presentation.+live|state\s*=\s*['\"]live/i, "settings route must not mutate Program state");
@@ -39,6 +48,10 @@ const campus = randomUUID();
 const admin = randomUUID();
 const viewer = randomUUID();
 const service = randomUUID();
+const transcript = randomUUID();
+const staleTranscript = randomUUID();
+const languageChannel = randomUUID();
+const audienceSession = randomUUID();
 const edge = randomUUID();
 const audioSource = randomUUID();
 const plan = randomUUID();
@@ -111,6 +124,42 @@ try {
     [service, new Date(now.getTime() - 10_000), new Date(now.getTime() - 40_000)]
   );
   await client.query(
+    `insert into transcript_segments(id,service_id,text,source_observed_at,source_language,speaker_id,speaker_source,asr_confidence) values
+      ($1,$2,'Faith comes by hearing the word of Christ',$3,'en','pastor-main','asr',.96),
+      ($4,$2,'This older segment must be marked stale',$5,'en','pastor-main','asr',.88)`,
+    [transcript, service, new Date(now.getTime() - 5_000), staleTranscript, new Date(now.getTime() - 5 * 60_000)]
+  );
+  await client.query(
+    `insert into presentation_items(service_id,item_type,title,content,sort_order,state,updated_at)
+     values ($1,'slide','Offering moment','{"body":"Prepare offering"}'::jsonb,1000,'queued',$2)`,
+    [service, new Date(now.getTime() - 4_000)]
+  );
+  await client.query(
+    `insert into language_channels(id,organization_id,language_code,language_name,channel_mode,enabled)
+     values ($1,$2,'fr','French','translation_text',true)`,
+    [languageChannel, org]
+  );
+  await client.query(
+    `insert into audience_sessions(id,service_id,language_channel_id,created_at,last_seen_at,updated_at)
+     values ($1,$2,$3,$4,$4,$4)`,
+    [audienceSession, service, languageChannel, new Date(now.getTime() - 10_000)]
+  );
+  await client.query(
+    `insert into transcript_translation_jobs(transcript_segment_id,language_channel_id,target_language_code,channel_mode,status,translated_text,provider,completed_at)
+     values ($1,$2,'fr','translation_text','succeeded','La foi vient de ce qu’on entend','selftest',$3)`,
+    [transcript, languageChannel, new Date(now.getTime() - 3_000)]
+  );
+  await client.query(
+    `insert into service_memories(service_id,organization_id,status,summary,generated_at)
+     values ($1,$2,'ready','Previous intelligence is available for this service context.',$3)`,
+    [service, org, new Date(now.getTime() - 2_000)]
+  );
+  await client.query(
+    `insert into service_memory_chapters(organization_id,service_id,ordinal,title,summary,source_kind,confidence)
+     values ($1,$2,0,'Opening','Opening service context','transcript',95)`,
+    [org, service]
+  );
+  await client.query(
     `insert into subscription_plans(id,code,name,enabled,billing_interval,default_device_seat_limit,features,numeric_limits)
      values ($1,'ai-director-test','AI Director Test',true,'custom',2,'{"ai.director":true}'::jsonb,'{}'::jsonb)`,
     [plan]
@@ -132,6 +181,16 @@ try {
   assert.equal(state.recommendations[0].reference, "John 3:16");
   assert.equal(state.recommendations[0].confidence, 95);
   assert.match(state.recommendations[0].evidence, /For God so loved/);
+  assert.equal(state.liveTranscript.length, 2);
+  assert.equal(state.liveTranscript[0].id, transcript);
+  assert.equal(state.liveTranscript[0].fresh, true);
+  assert.equal(state.liveTranscript[1].fresh, false);
+  assert.ok(state.smartNext.some((item) => item.title === "Offering moment"));
+  assert.equal(state.languageDemand[0].languageCode, "fr");
+  assert.equal(state.languageDemand[0].listeners, 1);
+  assert.equal(state.languageDemand[0].readiness.state, "ready");
+  assert.equal(state.memory.status, "ready");
+  assert.equal(state.memory.chapterCount, 1);
 
   await director.updateAIDirectorSettings(client, admin, {
     organizationId: org,

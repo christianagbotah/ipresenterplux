@@ -22,30 +22,55 @@ def _float_env(name: str, default: float, minimum: float, maximum: float) -> flo
     return value
 
 
-def _control_url() -> str:
-    value = os.getenv("IPRESENTERPLUX_TTS_CONTROL_URL", "http://127.0.0.1:3011").strip().rstrip("/")
+def _safe_remote_url(value: str, name: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-        raise ValueError("IPRESENTERPLUX_TTS_CONTROL_URL must be an HTTP(S) URL")
+        raise ValueError(f"{name} must be an HTTP(S) URL")
     if parsed.scheme != "https" and parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
-        raise ValueError("Remote TTS control URLs must use HTTPS")
-    return value
+        raise ValueError(f"Remote {name} must use HTTPS")
+    return value.rstrip("/")
 
 
-def _worker_token() -> str:
-    inline = os.environ.pop("IPRESENTERPLUX_TTS_WORKER_TOKEN", "").strip()
-    token_file = os.getenv("IPRESENTERPLUX_TTS_WORKER_TOKEN_FILE", "").strip()
+def _control_url() -> str:
+    value = os.getenv("IPRESENTERPLUX_TTS_CONTROL_URL", "http://127.0.0.1:3011").strip().rstrip("/")
+    return _safe_remote_url(value, "TTS control URLs")
+
+
+def _read_secret(
+    inline_name: str,
+    file_name: str,
+    label: str,
+    *,
+    required: bool,
+) -> str | None:
+    inline = os.environ.pop(inline_name, "").strip()
+    token_file = os.getenv(file_name, "").strip()
     if inline and token_file:
-        raise ValueError("Configure only one TTS worker token source")
+        raise ValueError(f"Configure only one {label} source")
     if token_file:
         path = Path(token_file).expanduser().resolve()
         mode = path.stat().st_mode & 0o777
         if mode & 0o077:
-            raise ValueError("TTS worker token file must not be group/world accessible")
+            raise ValueError(f"{label} file must not be group/world accessible")
         inline = path.read_text(encoding="utf-8").strip()
+    if not inline:
+        if required:
+            raise ValueError(f"{label} is required")
+        return None
     if len(inline) < 32 or len(inline) > 256:
-        raise ValueError("TTS worker token must contain 32 to 256 characters")
+        raise ValueError(f"{label} must contain 32 to 256 characters")
     return inline
+
+
+def _worker_token() -> str:
+    token = _read_secret(
+        "IPRESENTERPLUX_TTS_WORKER_TOKEN",
+        "IPRESENTERPLUX_TTS_WORKER_TOKEN_FILE",
+        "TTS worker token",
+        required=True,
+    )
+    assert token is not None
+    return token
 
 
 def _storage_dir() -> Path:
@@ -54,6 +79,13 @@ def _storage_dir() -> Path:
     if not path.is_absolute():
         raise ValueError("IPRESENTERPLUX_TTS_STORAGE_DIR must be an absolute path")
     return path.resolve()
+
+
+def _voice_id(name: str) -> str | None:
+    value = os.getenv(name, "").strip() or None
+    if value is not None and (len(value) > 128 or not all(c.isalnum() or c in "._:-" for c in value)):
+        raise ValueError(f"{name.removeprefix('IPRESENTERPLUX_TTS_')} is invalid")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +100,14 @@ class Settings:
     provider_timeout_seconds: float
     storage_dir: Path
     google_voice_name: str | None = None
+    google_voice_en: str | None = None
+    google_voice_fr: str | None = None
+    ghananlp_url: str | None = None
+    ghananlp_token: str | None = None
+    ghananlp_voice_id: str | None = None
+    khaya_url: str | None = None
+    khaya_token: str | None = None
+    khaya_speaker: str | None = None
 
     @property
     def enabled(self) -> bool:
@@ -80,15 +120,50 @@ def load_settings() -> Settings:
         raise ValueError("IPRESENTERPLUX_TTS_WORKER_ID is invalid")
 
     provider = os.getenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled").strip().lower()
-    if provider not in {"disabled", "google"}:
-        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled or google")
+    if provider not in {"disabled", "google", "ghananlp", "khaya", "multilingual"}:
+        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled, google, ghananlp, khaya or multilingual")
 
-    google_voice_name = os.getenv("IPRESENTERPLUX_TTS_GOOGLE_VOICE", "").strip() or None
-    if google_voice_name is not None:
-        if len(google_voice_name) > 128 or not all(c.isalnum() or c in "._:-" for c in google_voice_name):
-            raise ValueError("IPRESENTERPLUX_TTS_GOOGLE_VOICE is invalid")
+    google_voice_name = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE")
+    google_voice_en = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE_EN")
+    google_voice_fr = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE_FR")
     if provider == "google" and google_voice_name is None:
         raise ValueError("IPRESENTERPLUX_TTS_GOOGLE_VOICE is required when Google TTS is enabled")
+    if provider == "multilingual" and (google_voice_en is None or google_voice_fr is None):
+        raise ValueError("GOOGLE_VOICE_EN and GOOGLE_VOICE_FR are required when multilingual TTS is enabled")
+
+    raw_ghananlp_url = os.getenv("IPRESENTERPLUX_TTS_GHANANLP_URL", "").strip()
+    ghananlp_url = _safe_remote_url(raw_ghananlp_url, "GHANANLP_URL") if raw_ghananlp_url else None
+    needs_ghana = provider in {"ghananlp", "multilingual"}
+    ghananlp_token = _read_secret(
+        "IPRESENTERPLUX_TTS_GHANANLP_TOKEN",
+        "IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE",
+        "GHANANLP token",
+        required=needs_ghana,
+    )
+    ghananlp_voice_id = _voice_id("IPRESENTERPLUX_TTS_GHANANLP_VOICE")
+    if needs_ghana and ghananlp_url is None:
+        raise ValueError("IPRESENTERPLUX_TTS_GHANANLP_URL is required when GhanaNLP TTS is enabled")
+    if provider == "multilingual" and ghananlp_voice_id is None:
+        raise ValueError("IPRESENTERPLUX_TTS_GHANANLP_VOICE is required when multilingual TTS is enabled")
+
+    khaya_url: str | None = None
+    khaya_token: str | None = None
+    khaya_speaker: str | None = None
+    if provider == "khaya":
+        raw_khaya_url = os.getenv(
+            "IPRESENTERPLUX_TTS_KHAYA_URL",
+            "https://translation-api.ghananlp.org",
+        ).strip()
+        khaya_url = _safe_remote_url(raw_khaya_url, "KHAYA_URL")
+        khaya_token = _read_secret(
+            "IPRESENTERPLUX_TTS_KHAYA_TOKEN",
+            "IPRESENTERPLUX_TTS_KHAYA_TOKEN_FILE",
+            "Khaya subscription key",
+            required=True,
+        )
+        khaya_speaker = os.getenv("IPRESENTERPLUX_TTS_KHAYA_SPEAKER", "").strip() or None
+        if khaya_speaker is not None and khaya_speaker not in {"female", "male_low", "male_high"}:
+            raise ValueError("IPRESENTERPLUX_TTS_KHAYA_SPEAKER is invalid")
 
     lease_seconds = _int_env("IPRESENTERPLUX_TTS_LEASE_SECONDS", 45, 15, 120)
     provider_timeout = _float_env("IPRESENTERPLUX_TTS_PROVIDER_TIMEOUT_SECONDS", 15.0, 1.0, 110.0)
@@ -106,4 +181,12 @@ def load_settings() -> Settings:
         provider_timeout_seconds=provider_timeout,
         storage_dir=_storage_dir(),
         google_voice_name=google_voice_name,
+        google_voice_en=google_voice_en,
+        google_voice_fr=google_voice_fr,
+        ghananlp_url=ghananlp_url,
+        ghananlp_token=ghananlp_token,
+        ghananlp_voice_id=ghananlp_voice_id,
+        khaya_url=khaya_url,
+        khaya_token=khaya_token,
+        khaya_speaker=khaya_speaker,
     )

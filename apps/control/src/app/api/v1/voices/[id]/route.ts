@@ -24,7 +24,7 @@ const revokeSchema = z.object({
 const bindProviderSchema = z.object({
   action: z.literal("bind_provider"),
   organizationId: z.string().uuid(),
-  provider: z.literal("google"),
+  provider: z.enum(["google", "ghananlp"]),
   providerVoiceId: z.string().trim().min(3).max(128).regex(/^[A-Za-z0-9._:-]+$/)
 });
 

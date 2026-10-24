@@ -19,7 +19,12 @@ def main() -> None:
 
     settings = load_settings()
     control = ControlPlaneClient(settings)
-    provider = create_provider(settings.provider)
+    provider = create_provider(
+        settings.provider,
+        khaya_base_url=settings.khaya_base_url,
+        khaya_token=settings.khaya_token,
+        provider_timeout_seconds=settings.provider_timeout_seconds,
+    )
     status_path = Path(os.getenv("IPRESENTERPLUX_TRANSLATION_STATUS_PATH", "runtime/status.json"))
     runner = TranslationRunner(settings, control, provider, status_path)
 

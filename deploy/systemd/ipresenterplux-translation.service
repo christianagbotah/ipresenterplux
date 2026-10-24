@@ -1,0 +1,43 @@
+[Unit]
+Description=iPresenterPlux Translation Worker
+After=network-online.target ipresenterplux.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lightworld
+Group=lightworld
+WorkingDirectory=/home/lightworld/webapps/ipresenterplux/apps/translation-worker
+Environment=PYTHONUNBUFFERED=1
+Environment=IPRESENTERPLUX_TRANSLATION_CONTROL_URL=http://127.0.0.1:3011
+Environment=IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.secrets/translation-worker-token.txt
+Environment=IPRESENTERPLUX_TRANSLATION_WORKER_ID=translation-worker-vps-1
+Environment=IPRESENTERPLUX_TRANSLATION_PROVIDER=disabled
+EnvironmentFile=-/home/lightworld/webapps/ipresenterplux/.secrets/translation-provider.env
+Environment=IPRESENTERPLUX_TRANSLATION_POLL_SECONDS=1
+Environment=IPRESENTERPLUX_TRANSLATION_LEASE_SECONDS=45
+Environment=IPRESENTERPLUX_TRANSLATION_HTTP_TIMEOUT_SECONDS=10
+Environment=IPRESENTERPLUX_TRANSLATION_PROVIDER_TIMEOUT_SECONDS=15
+Environment=IPRESENTERPLUX_TRANSLATION_STATUS_PATH=/home/lightworld/webapps/ipresenterplux/apps/translation-worker/runtime/status.json
+ExecStart=/home/lightworld/webapps/ipresenterplux/apps/translation-worker/.venv/bin/ipresenterplux-translation
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/lightworld/webapps/ipresenterplux/apps/translation-worker/runtime
+ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target
