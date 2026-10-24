@@ -20,13 +20,14 @@ from ipresenter_translation.providers.google import GoogleCloudProvider, _target
         ("Akan", "ak"),
         ("ee", "ee"),
         ("Ewe", "ee"),
+        ("gaa", "gaa"),
     ],
 )
 def test_interpretation_language_aliases_are_canonical(raw: str, expected: str) -> None:
     assert _target_language(raw) == expected
 
 
-@pytest.mark.parametrize("raw", ["", "gaa", "de", "twi-gh", "unknown"])
+@pytest.mark.parametrize("raw", ["", "de", "twi-gh", "unknown"])
 def test_unsupported_target_language_fails_closed(raw: str) -> None:
     with pytest.raises(TranslationProviderError) as error:
         _target_language(raw)
@@ -69,3 +70,11 @@ def test_ewe_name_reaches_google_as_ewe_code() -> None:
     provider._get_client = lambda: client  # type: ignore[method-assign]
     provider.translate(job("ewe"))
     assert client.calls[0]["target_language"] == "ee"
+
+
+def test_seeded_ga_text_channel_remains_compatible() -> None:
+    client = FakeClient()
+    provider = GoogleCloudProvider()
+    provider._get_client = lambda: client  # type: ignore[method-assign]
+    provider.translate(job("gaa"))
+    assert client.calls[0]["target_language"] == "gaa"
