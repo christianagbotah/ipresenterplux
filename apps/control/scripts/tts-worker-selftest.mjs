@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
+import { grantAudioEntitlement } from "./ai-selftest-entitlement.mjs";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 
 process.loadEnvFile?.(".env.local");
@@ -32,6 +33,7 @@ try {
   );
   assert.ok(base.rows[0]?.channel_id, "Expected an enabled translation_audio channel");
   const b = base.rows[0];
+  await grantAudioEntitlement(client, b.organization_id, "tts-worker-selftest");
 
   const service = await client.query(
     `insert into services(organization_id,campus_id,title,status,active_bible_version)

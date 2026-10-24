@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import pg from "pg";
+import { grantAudioEntitlement } from "./ai-selftest-entitlement.mjs";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
 
 process.loadEnvFile?.(".env.local");
@@ -31,6 +32,7 @@ try {
   const organizationId = base.rows[0].organization_id;
   const campusId = base.rows[0].campus_id;
   const userId = actor.rows[0].id;
+  await grantAudioEntitlement(client, organizationId, "voice-binding-selftest");
 
   const channel = await client.query(
     `select id::text,language_code from language_channels
