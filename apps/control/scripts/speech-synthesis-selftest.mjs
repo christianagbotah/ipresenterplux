@@ -1,20 +1,15 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import process from "node:process";
 import pg from "pg";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
-import ts from "typescript";
 
 process.loadEnvFile?.(".env.local");
 assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
-const source = await readFile(new URL("../src/lib/speech-synthesis-jobs.ts", import.meta.url), "utf8");
-const javascript = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-}).outputText;
-const moduleUrl = `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
-const { enqueueSpeechSynthesisJob } = await import(moduleUrl);
+const { enqueueSpeechSynthesisJob } = await import(
+  new URL("../src/lib/speech-synthesis-jobs.ts", import.meta.url)
+);
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
