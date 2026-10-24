@@ -13,6 +13,7 @@ Environment=IPRESENTERPLUX_TRANSLATION_CONTROL_URL=http://127.0.0.1:3011
 Environment=IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.secrets/translation-worker-token.txt
 Environment=IPRESENTERPLUX_TRANSLATION_WORKER_ID=translation-worker-vps-1
 Environment=IPRESENTERPLUX_TRANSLATION_PROVIDER=disabled
+EnvironmentFile=-/home/lightworld/webapps/ipresenterplux/.secrets/translation-provider.env
 Environment=IPRESENTERPLUX_TRANSLATION_POLL_SECONDS=1
 Environment=IPRESENTERPLUX_TRANSLATION_LEASE_SECONDS=45
 Environment=IPRESENTERPLUX_TRANSLATION_HTTP_TIMEOUT_SECONDS=10
@@ -28,7 +29,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/lightworld/webapps/ipresenterplux/apps/translation-worker/runtime
-ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets/translation-worker-token.txt
+ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true

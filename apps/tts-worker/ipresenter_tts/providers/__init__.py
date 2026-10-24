@@ -2,6 +2,7 @@ from .base import TtsProvider, TtsProviderError
 from .disabled import DisabledProvider
 from .ghananlp import GhanaNlpTtsProvider
 from .google import GoogleCloudTtsProvider
+from .khaya import KhayaTtsProvider
 from .multilingual import MultilingualTtsProvider
 
 
@@ -14,10 +15,22 @@ def create_provider(
     ghananlp_url: str | None = None,
     ghananlp_token: str | None = None,
     ghananlp_voice_id: str | None = None,
+    khaya_url: str | None = None,
+    khaya_token: str | None = None,
+    khaya_speaker: str | None = None,
     provider_timeout_seconds: float = 15.0,
 ) -> TtsProvider:
     if name == "google":
         return GoogleCloudTtsProvider(google_voice_name)
+    if name == "khaya":
+        if not khaya_url or not khaya_token:
+            raise ValueError("Khaya TTS provider configuration is incomplete")
+        return KhayaTtsProvider(
+            khaya_url,
+            khaya_token,
+            khaya_speaker,
+            timeout_seconds=provider_timeout_seconds,
+        )
     if name in {"ghananlp", "multilingual"}:
         if not ghananlp_url or not ghananlp_token:
             raise ValueError("GhanaNLP TTS provider configuration is incomplete")
@@ -45,6 +58,7 @@ __all__ = [
     "DisabledProvider",
     "GoogleCloudTtsProvider",
     "GhanaNlpTtsProvider",
+    "KhayaTtsProvider",
     "MultilingualTtsProvider",
     "create_provider",
 ]

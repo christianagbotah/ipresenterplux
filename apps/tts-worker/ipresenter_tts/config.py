@@ -105,6 +105,9 @@ class Settings:
     ghananlp_url: str | None = None
     ghananlp_token: str | None = None
     ghananlp_voice_id: str | None = None
+    khaya_url: str | None = None
+    khaya_token: str | None = None
+    khaya_speaker: str | None = None
 
     @property
     def enabled(self) -> bool:
@@ -117,8 +120,8 @@ def load_settings() -> Settings:
         raise ValueError("IPRESENTERPLUX_TTS_WORKER_ID is invalid")
 
     provider = os.getenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled").strip().lower()
-    if provider not in {"disabled", "google", "ghananlp", "multilingual"}:
-        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled, google, ghananlp or multilingual")
+    if provider not in {"disabled", "google", "ghananlp", "khaya", "multilingual"}:
+        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled, google, ghananlp, khaya or multilingual")
 
     google_voice_name = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE")
     google_voice_en = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE_EN")
@@ -143,6 +146,25 @@ def load_settings() -> Settings:
     if provider == "multilingual" and ghananlp_voice_id is None:
         raise ValueError("IPRESENTERPLUX_TTS_GHANANLP_VOICE is required when multilingual TTS is enabled")
 
+    khaya_url: str | None = None
+    khaya_token: str | None = None
+    khaya_speaker: str | None = None
+    if provider == "khaya":
+        raw_khaya_url = os.getenv(
+            "IPRESENTERPLUX_TTS_KHAYA_URL",
+            "https://translation-api.ghananlp.org",
+        ).strip()
+        khaya_url = _safe_remote_url(raw_khaya_url, "KHAYA_URL")
+        khaya_token = _read_secret(
+            "IPRESENTERPLUX_TTS_KHAYA_TOKEN",
+            "IPRESENTERPLUX_TTS_KHAYA_TOKEN_FILE",
+            "Khaya subscription key",
+            required=True,
+        )
+        khaya_speaker = os.getenv("IPRESENTERPLUX_TTS_KHAYA_SPEAKER", "").strip() or None
+        if khaya_speaker is not None and khaya_speaker not in {"female", "male_low", "male_high"}:
+            raise ValueError("IPRESENTERPLUX_TTS_KHAYA_SPEAKER is invalid")
+
     lease_seconds = _int_env("IPRESENTERPLUX_TTS_LEASE_SECONDS", 45, 15, 120)
     provider_timeout = _float_env("IPRESENTERPLUX_TTS_PROVIDER_TIMEOUT_SECONDS", 15.0, 1.0, 110.0)
     if provider_timeout >= lease_seconds - 2:
@@ -164,4 +186,7 @@ def load_settings() -> Settings:
         ghananlp_url=ghananlp_url,
         ghananlp_token=ghananlp_token,
         ghananlp_voice_id=ghananlp_voice_id,
+        khaya_url=khaya_url,
+        khaya_token=khaya_token,
+        khaya_speaker=khaya_speaker,
     )

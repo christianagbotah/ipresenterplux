@@ -46,3 +46,35 @@ def test_insecure_token_file_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_pa
     monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", str(token_file))
     with pytest.raises(ValueError, match="group/world"):
         load_settings()
+
+
+def test_khaya_provider_reads_secure_subscription_key_file(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    worker = tmp_path / "worker.token"
+    worker.write_text("w" * 48)
+    worker.chmod(0o600)
+    khaya = tmp_path / "khaya.token"
+    khaya.write_text("k" * 32)
+    khaya.chmod(0o600)
+    monkeypatch.delenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", raising=False)
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", str(worker))
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_PROVIDER", "khaya")
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_KHAYA_TOKEN_FILE", str(khaya))
+    settings = load_settings()
+    assert settings.provider == "khaya"
+    assert settings.khaya_token == "k" * 32
+    assert settings.khaya_base_url == "https://translation-api.ghananlp.org"
+
+
+def test_khaya_provider_rejects_insecure_subscription_key_file(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    worker = tmp_path / "worker.token"
+    worker.write_text("w" * 48)
+    worker.chmod(0o600)
+    khaya = tmp_path / "khaya.token"
+    khaya.write_text("k" * 32)
+    khaya.chmod(0o644)
+    monkeypatch.delenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN", raising=False)
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE", str(worker))
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_PROVIDER", "khaya")
+    monkeypatch.setenv("IPRESENTERPLUX_TRANSLATION_KHAYA_TOKEN_FILE", str(khaya))
+    with pytest.raises(ValueError, match="group/world"):
+        load_settings()

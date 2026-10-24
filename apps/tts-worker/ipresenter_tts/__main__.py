@@ -28,6 +28,9 @@ def main() -> None:
         ghananlp_url=settings.ghananlp_url,
         ghananlp_token=settings.ghananlp_token,
         ghananlp_voice_id=settings.ghananlp_voice_id,
+        khaya_url=settings.khaya_url,
+        khaya_token=settings.khaya_token,
+        khaya_speaker=settings.khaya_speaker,
         provider_timeout_seconds=settings.provider_timeout_seconds,
     )
     store = AudioStore(settings.storage_dir)

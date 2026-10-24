@@ -14,6 +14,10 @@ def base_env(monkeypatch: pytest.MonkeyPatch, token_file: Path) -> None:
     monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN", raising=False)
     monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE", raising=False)
     monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_VOICE", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_KHAYA_URL", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_KHAYA_TOKEN", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_KHAYA_TOKEN_FILE", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_KHAYA_SPEAKER", raising=False)
     monkeypatch.setenv("IPRESENTERPLUX_TTS_WORKER_TOKEN_FILE", str(token_file))
     monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled")
     monkeypatch.setenv("IPRESENTERPLUX_TTS_CONTROL_URL", "http://127.0.0.1:3011")
@@ -126,3 +130,29 @@ def test_ghananlp_provider_accepts_secure_token_file_and_generic_voice(monkeypat
     assert settings.ghananlp_token == "x" * 48
     assert settings.ghananlp_voice_id == "ghana-generic-1"
     assert settings.enabled
+
+
+def test_khaya_provider_accepts_secure_subscription_key_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    worker = secure_token(tmp_path)
+    khaya = secure_token(tmp_path, "khaya-token")
+    base_env(monkeypatch, worker)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "khaya")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_KHAYA_TOKEN_FILE", str(khaya))
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_KHAYA_SPEAKER", "female")
+    settings = load_settings()
+    assert settings.provider == "khaya"
+    assert settings.khaya_url == "https://translation-api.ghananlp.org"
+    assert settings.khaya_token == "x" * 48
+    assert settings.khaya_speaker == "female"
+    assert settings.enabled
+
+
+def test_khaya_provider_rejects_invalid_speaker(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    worker = secure_token(tmp_path)
+    khaya = secure_token(tmp_path, "khaya-token")
+    base_env(monkeypatch, worker)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "khaya")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_KHAYA_TOKEN_FILE", str(khaya))
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_KHAYA_SPEAKER", "robot")
+    with pytest.raises(ValueError, match="KHAYA_SPEAKER"):
+        load_settings()

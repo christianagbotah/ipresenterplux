@@ -10,10 +10,11 @@ def test_translation_worker_has_hardened_systemd_service():
     assert "IPRESENTERPLUX_TRANSLATION_CONTROL_URL=http://127.0.0.1:3011" in text
     assert "IPRESENTERPLUX_TRANSLATION_WORKER_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.secrets/translation-worker-token.txt" in text
     assert "IPRESENTERPLUX_TRANSLATION_PROVIDER=disabled" in text
+    assert "EnvironmentFile=-/home/lightworld/webapps/ipresenterplux/.secrets/translation-provider.env" in text
     assert "ExecStart=/home/lightworld/webapps/ipresenterplux/apps/translation-worker/.venv/bin/ipresenterplux-translation" in text
     assert "NoNewPrivileges=true" in text
     assert "ProtectSystem=strict" in text
-    assert "ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets/translation-worker-token.txt" in text
+    assert "ReadOnlyPaths=/home/lightworld/webapps/ipresenterplux/.secrets" in text
 
 
 def test_translation_worker_has_dedicated_ci():

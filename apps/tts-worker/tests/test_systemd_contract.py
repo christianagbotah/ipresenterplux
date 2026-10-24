@@ -22,4 +22,5 @@ def test_service_supports_private_provider_environment_file() -> None:
 def test_service_never_embeds_provider_credentials() -> None:
     unit = _unit()
     assert "IPRESENTERPLUX_TTS_GHANANLP_TOKEN=" not in unit
+    assert "IPRESENTERPLUX_TTS_KHAYA_TOKEN=" not in unit
     assert "GOOGLE_APPLICATION_CREDENTIALS=" not in unit
