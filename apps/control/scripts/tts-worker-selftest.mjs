@@ -1,29 +1,24 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import pg from "pg";
+import { grantAudioEntitlement } from "./ai-selftest-entitlement.mjs";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
-import ts from "typescript";
 
 process.loadEnvFile?.(".env.local");
 assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
-async function transpiledDataUrl(relative) {
-  const source = await readFile(new URL(relative, import.meta.url), "utf8");
-  const javascript = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  return `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
-}
-
-const workerUrl = await transpiledDataUrl("../src/lib/tts-worker.ts");
-const synthUrl = await transpiledDataUrl("../src/lib/speech-synthesis-jobs.ts");
-const storageUrl = await transpiledDataUrl("../src/lib/tts-audio-storage.ts");
-const { claimTtsJobs, completeTtsJob, failTtsJob } = await import(workerUrl);
-const { enqueueSpeechSynthesisJob } = await import(synthUrl);
-const { verifyStoredTtsAsset } = await import(storageUrl);
+const { claimTtsJobs, completeTtsJob, failTtsJob } = await import(
+  new URL("../src/lib/tts-worker.ts", import.meta.url)
+);
+const { enqueueSpeechSynthesisJob } = await import(
+  new URL("../src/lib/speech-synthesis-jobs.ts", import.meta.url)
+);
+const { verifyStoredTtsAsset } = await import(
+  new URL("../src/lib/tts-audio-storage.ts", import.meta.url)
+);
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
@@ -38,6 +33,7 @@ try {
   );
   assert.ok(base.rows[0]?.channel_id, "Expected an enabled translation_audio channel");
   const b = base.rows[0];
+  await grantAudioEntitlement(client, b.organization_id, "tts-worker-selftest");
 
   const service = await client.query(
     `insert into services(organization_id,campus_id,title,status,active_bible_version)

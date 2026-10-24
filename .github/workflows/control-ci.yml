@@ -166,6 +166,16 @@ jobs:
         run: pnpm test:edge-asr-gateway
       - name: Transcript and translation integration self-test
         run: pnpm test:transcript-window
+      - name: Translation worker job-governance self-test
+        run: pnpm test:translation-worker
+      - name: Speech synthesis job self-test
+        run: pnpm test:speech-synthesis
+      - name: TTS worker control contract self-test
+        run: pnpm test:tts-worker
+      - name: Voice consent governance self-test
+        run: pnpm test:voice-consent
+      - name: Voice provider binding self-test
+        run: pnpm test:voice-binding
       - name: Stream contribution security self-test
         run: pnpm test:stream-contribution
       - name: Stream session authority lifecycle self-test
@@ -178,6 +188,10 @@ jobs:
         run: pnpm test:audience-live-state
       - name: Public audience Program video-state self-test
         run: pnpm test:audience-program-video-state
+      - name: Audience language session self-test
+        run: pnpm test:audience-session
+      - name: Audience language readiness self-test
+        run: pnpm test:audience-readiness
       - name: Streaming Studio recovery self-test
         run: pnpm test:streaming-studio-recovery
       - name: Destination fan-out lifecycle self-test
@@ -252,10 +266,20 @@ jobs:
         run: pnpm test:ai-director
       - name: Service Archive workspace self-test
         run: pnpm test:archive
+      - name: Archive intelligence and reuse self-test
+        run: pnpm test:archive-intelligence
       - name: Studio route gating self-test
         run: pnpm test:studio-route-gating
       - name: Studio workspace acceptance self-test
         run: pnpm test:studio-workspaces-ci
+      - name: Service intelligence schema self-test
+        run: pnpm test:service-intelligence-schema
+      - name: Service preparation intelligence self-test
+        run: pnpm test:service-preparation
+      - name: Service preparation workspace self-test
+        run: pnpm test:service-preparation-ui
+      - name: Service memory self-test
+        run: pnpm test:service-memory
       - name: Service Planner contract self-test
         run: pnpm test:service-planner-contract
       - name: Service Planner service API self-test

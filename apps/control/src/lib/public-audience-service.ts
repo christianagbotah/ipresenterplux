@@ -32,6 +32,7 @@ export type PublicAudienceTranscript = {
   text: string;
   source_language: string | null;
   translations: Record<string, string>;
+  translation_status: Record<string, "pending" | "processing" | "succeeded" | "failed">;
   speech_synthesis: Record<string, "pending" | "processing" | "succeeded" | "failed">;
 };
 
@@ -69,16 +70,19 @@ export async function loadPublicAudienceService(
   if (row.status !== "live") return { service };
 
   const languages = await client.query<PublicAudienceLanguage>(
-      `select id::text,language_code as code,language_name as name,channel_mode as mode,listener_count as listeners
-       from language_channels
-       where organization_id=$1::uuid and enabled=true
-       order by case channel_mode
+      `select lc.id::text,lc.language_code as code,lc.language_name as name,lc.channel_mode as mode,
+              (select count(*)::int from audience_sessions aus
+               where aus.service_id=$2::uuid and aus.language_channel_id=lc.id
+                 and aus.last_seen_at >= clock_timestamp()-interval '45 seconds') as listeners
+       from language_channels lc
+       where lc.organization_id=$1::uuid and lc.enabled=true
+       order by case lc.channel_mode
          when 'original' then 0
          when 'captions' then 1
          when 'translation_audio' then 2
          else 3
        end,language_name`,
-      [row.organization_id]
+      [row.organization_id,serviceId]
     );
 
   const scripture = await client.query<PublicAudienceScripture>(
@@ -119,6 +123,14 @@ export async function loadPublicAudienceService(
                   and lc.enabled=true
                   and lc.organization_id=$2::uuid
               ),'{}'::jsonb) as translations,
+              coalesce((
+                select jsonb_object_agg(j.language_channel_id::text,j.status)
+                from transcript_translation_jobs j
+                join language_channels lc on lc.id=j.language_channel_id
+                where j.transcript_segment_id=ts.id
+                  and lc.enabled=true
+                  and lc.organization_id=$2::uuid
+              ),'{}'::jsonb) as translation_status,
               coalesce((
                 select jsonb_object_agg(sj.language_channel_id::text,sj.status)
                 from speech_synthesis_jobs sj
