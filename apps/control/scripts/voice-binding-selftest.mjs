@@ -80,6 +80,26 @@ try {
   );
   const profileId = profile.rows[0].id;
 
+  const ghanaProfile = await client.query(
+    `insert into voice_profiles
+      (organization_id,display_name,source_speaker_id,consent_status,consented_at,
+       consent_method,consent_reference,consent_recorded_by,provider,provider_voice_id,created_by)
+     values ($1,'Consented Ghana voice',null,'consented',clock_timestamp(),
+             'written','SELFTEST-GHANA-BIND',$2,'ghananlp','consented-ghana-voice',$2)
+     returning id::text,provider,provider_voice_id`,
+    [organizationId, userId]
+  );
+  assert.equal(ghanaProfile.rows[0]?.provider, 'ghananlp',
+    'Consent-governed voice profiles must support the GhanaNLP provider');
+  assert.equal(ghanaProfile.rows[0]?.provider_voice_id, 'consented-ghana-voice');
+
+  const voiceRouteSource = await readFile(new URL('../src/app/api/v1/voices/[id]/route.ts', import.meta.url), 'utf8');
+  const voiceManagerSource = await readFile(new URL('../src/components/voices/VoiceConsentManager.tsx', import.meta.url), 'utf8');
+  assert.match(voiceRouteSource, /z\.enum\(\[\"google\",\s*\"ghananlp\"\]\)/,
+    'Voice provider API must accept only governed Google or GhanaNLP bindings');
+  assert.match(voiceManagerSource, /value=\"ghananlp\"/,
+    'Voice consent UI must let an operator bind a consented GhanaNLP voice');
+
   const genericA = await enqueueSpeechSynthesisJob(client, translationA);
   assert.equal(genericA?.voice_profile_id, null,
     "An ASR label must not select an organization-wide voice without a service binding");
