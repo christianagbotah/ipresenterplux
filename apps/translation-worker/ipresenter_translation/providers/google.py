@@ -18,6 +18,7 @@ _TARGET_LANGUAGES = {
     "akan": "ak",
     "ee": "ee",
     "ewe": "ee",
+    "gaa": "gaa",
 }
 
 
