@@ -23,6 +23,8 @@ def main() -> None:
     provider = create_provider(
         settings.provider,
         settings.google_voice_name,
+        google_voice_en=settings.google_voice_en,
+        google_voice_fr=settings.google_voice_fr,
         ghananlp_url=settings.ghananlp_url,
         ghananlp_token=settings.ghananlp_token,
         ghananlp_voice_id=settings.ghananlp_voice_id,
