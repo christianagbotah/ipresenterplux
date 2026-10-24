@@ -7,6 +7,28 @@ from ..models import TranslationJob, TranslationResult
 from .base import TranslationProviderError
 
 
+_TARGET_LANGUAGES = {
+    "en": "en",
+    "english": "en",
+    "fr": "fr",
+    "french": "fr",
+    "ak": "ak",
+    "tw": "ak",
+    "twi": "ak",
+    "akan": "ak",
+    "ee": "ee",
+    "ewe": "ee",
+}
+
+
+def _target_language(code: str) -> str:
+    normalized = (code or "").strip().lower()
+    target = _TARGET_LANGUAGES.get(normalized)
+    if target is None:
+        raise TranslationProviderError("unsupported_language")
+    return target
+
+
 class GoogleCloudProvider:
     name = "google"
 
@@ -38,7 +60,7 @@ class GoogleCloudProvider:
         try:
             response = self._get_client().translate(
                 job.source_text,
-                target_language=job.target_language_code,
+                target_language=_target_language(job.target_language_code),
                 source_language=job.source_language or None,
                 format_="text",
             )
