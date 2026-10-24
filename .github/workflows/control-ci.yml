@@ -166,6 +166,16 @@ jobs:
         run: pnpm test:edge-asr-gateway
       - name: Transcript and translation integration self-test
         run: pnpm test:transcript-window
+      - name: Translation worker job-governance self-test
+        run: pnpm test:translation-worker
+      - name: Speech synthesis job self-test
+        run: pnpm test:speech-synthesis
+      - name: TTS worker control contract self-test
+        run: pnpm test:tts-worker
+      - name: Voice consent governance self-test
+        run: pnpm test:voice-consent
+      - name: Voice provider binding self-test
+        run: pnpm test:voice-binding
       - name: Stream contribution security self-test
         run: pnpm test:stream-contribution
       - name: Stream session authority lifecycle self-test

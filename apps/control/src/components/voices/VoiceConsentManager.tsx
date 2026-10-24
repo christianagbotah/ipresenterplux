@@ -47,6 +47,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
   const [consentReference, setConsentReference] = useState<Record<string, string>>({});
   const [revokeReason, setRevokeReason] = useState<Record<string, string>>({});
   const [providerVoiceId, setProviderVoiceId] = useState<Record<string, string>>({});
+  const [providerChoice, setProviderChoice] = useState<Record<string, "google" | "ghananlp">>({});
   const [busy, setBusy] = useState<BusyState>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,7 +127,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
         body: JSON.stringify({
           action: "bind_provider",
           organizationId,
-          provider: "google",
+          provider: providerChoice[profile.id] ?? "google",
           providerVoiceId: voiceId
         })
       });
@@ -296,9 +297,13 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                         </>
                       ) : (
                         <>
-                          <div className="mt-2 text-[11px] leading-5 text-white/55">Bind only a voice ID already enrolled with Google under this person&apos;s explicit consent. Detected ASR speaker labels are assigned separately per live service in the Control Room.</div>
-                          <div className="mt-3 flex gap-2">
-                            <input value={providerVoiceId[profile.id] ?? ""} onChange={(event) => setProviderVoiceId((current) => ({ ...current, [profile.id]: event.target.value }))} maxLength={128} className="min-w-0 flex-1 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition placeholder:text-white/40 ip-focus-gold" placeholder="Google provider voice ID" />
+                          <div className="mt-2 text-[11px] leading-5 text-white/55">Bind only a provider voice ID enrolled outside iPresenterPlux under this person&apos;s explicit consent. Detected ASR speaker labels are assigned separately per live service in the Control Room.</div>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]">
+                            <select value={providerChoice[profile.id] ?? "google"} onChange={(event) => setProviderChoice((current) => ({ ...current, [profile.id]: event.target.value as "google" | "ghananlp" }))} className="rounded-xl border border-white/[.08] bg-[#080b10] px-3 py-2.5 text-xs text-white outline-none transition ip-focus-gold">
+                              <option value="google">Google</option>
+                              <option value="ghananlp">GhanaNLP</option>
+                            </select>
+                            <input value={providerVoiceId[profile.id] ?? ""} onChange={(event) => setProviderVoiceId((current) => ({ ...current, [profile.id]: event.target.value }))} maxLength={128} className="min-w-0 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition placeholder:text-white/40 ip-focus-gold" placeholder="Provider voice ID" />
                             <button type="button" disabled={waiting} onClick={() => void bindProviderVoice(profile)} className="rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-3 text-[11px] font-bold text-[#efc76e] transition hover:bg-[#d7a94a]/[.16] ip-focus-gold disabled:opacity-45">Bind</button>
                           </div>
                         </>
