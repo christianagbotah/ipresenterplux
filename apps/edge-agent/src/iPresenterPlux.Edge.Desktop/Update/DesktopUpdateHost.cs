@@ -26,66 +26,42 @@ internal static class DesktopUpdateHost
             Path.Combine(updateDirectory, "staging"));
         var coordinator = new IpresenterUpdateCoordinator(workflow, stateStore);
         var localClient = new LocalOperatorClient(paths.EdgeDataDirectory, TimeSpan.FromSeconds(2));
-        var status = new TextBlock
+        var status = new MenuItem
         {
-            Text = "Updates · waiting",
-            FontSize = 12,
-            FontWeight = FontWeight.SemiBold,
-            Foreground = Brushes.White
-        };
-        var detail = new TextBlock
-        {
-            Text = "iPresenterPlux checks the Lightworld Update Hub without blocking startup.",
-            FontSize = 11,
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new SolidColorBrush(Color.Parse("#8B95A5"))
-        };
-        var check = new Button
-        {
-            Content = "Check for updates",
-            MinHeight = 34,
-            Padding = new Thickness(12, 6)
-        };
-        var install = new Button
-        {
-            Content = "Restart & install",
-            MinHeight = 34,
-            Padding = new Thickness(12, 6),
+            Header = "Updates · waiting",
             IsEnabled = false
         };
-        var actions = new StackPanel
+        var detail = new MenuItem
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { check, install }
+            Header = $"Version {CurrentVersion()}",
+            IsEnabled = false
         };
-        var text = new StackPanel
+        var check = new MenuItem
         {
-            Spacing = 2,
-            VerticalAlignment = VerticalAlignment.Center,
-            Children = { status, detail }
+            Header = "Check for updates"
         };
-        var barGrid = new Grid
+        var install = new MenuItem
         {
-            ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            ColumnSpacing = 16,
-            Children = { text, actions }
+            Header = "Restart & install",
+            IsEnabled = false
         };
-        Grid.SetColumn(actions, 1);
-        var bar = new Border
+        var about = new MenuItem
         {
-            Background = new SolidColorBrush(Color.Parse("#0D121A")),
-            BorderBrush = new SolidColorBrush(Color.Parse("#222B39")),
-            BorderThickness = new Thickness(0, 1, 0, 0),
-            Padding = new Thickness(18, 10),
-            Child = barGrid
+            Header = "About"
         };
-        DockPanel.SetDock(bar, Dock.Bottom);
-        var root = new DockPanel { LastChildFill = true };
-        root.Children.Add(bar);
+        about.ItemsSource = new object[] { status, detail, new Separator(), check, install };
+        var menu = new Menu
+        {
+            ItemsSource = new object[] { about },
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 0, 10, 0),
+            Background = new SolidColorBrush(Color.Parse("#070A0F"))
+        };
+        var root = new Grid();
         window.Content = null;
         root.Children.Add(existingContent);
+        root.Children.Add(menu);
         window.Content = root;
 
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -94,7 +70,7 @@ internal static class DesktopUpdateHost
 
         void Render()
         {
-            status.Text = coordinator.State switch
+            status.Header = coordinator.State switch
             {
                 DesktopUpdateState.Checking => "Updates · checking",
                 DesktopUpdateState.Downloading => "Updates · downloading & verifying",
@@ -105,13 +81,13 @@ internal static class DesktopUpdateHost
                 DesktopUpdateState.FailedRolledBack => "Update · previous version restored",
                 _ => "Updates · up to date"
             };
-            detail.Text = coordinator.LastError ?? coordinator.State switch
+            detail.Header = coordinator.LastError ?? coordinator.State switch
             {
-                DesktopUpdateState.WaitingForSafeRestart => "Finish Program output/recording first. iPresenterPlux will not interrupt a live service.",
-                DesktopUpdateState.Ready when installRoot is null => "Update is verified, but this unpacked build is not installed in the managed current/previous layout.",
-                DesktopUpdateState.Ready => coordinator.StagedUpdate?.ReleaseNotes is { Length: > 0 } notes ? notes : "Verified update is ready to install.",
-                DesktopUpdateState.Downloading => "The package is resumable and will be SHA-256 verified before it can be installed.",
-                _ => "Checks use https://updates.lightworldtech.com and never block presentation startup."
+                DesktopUpdateState.WaitingForSafeRestart => "Finish Program/recording before install.",
+                DesktopUpdateState.Ready when installRoot is null => "Verified update; managed install unavailable.",
+                DesktopUpdateState.Ready => "Verified update ready to install.",
+                DesktopUpdateState.Downloading => "Downloading and verifying package.",
+                _ => $"Version {CurrentVersion()}"
             };
             check.IsEnabled = OperatingSystem.IsWindows() &&
                               coordinator.State is not DesktopUpdateState.Checking and

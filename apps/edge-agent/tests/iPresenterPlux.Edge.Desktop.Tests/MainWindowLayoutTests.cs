@@ -5,49 +5,43 @@ namespace iPresenterPlux.Edge.Desktop.Tests;
 public sealed class MainWindowLayoutTests
 {
     [Fact]
-    public void OperatorWorkspaceUsesSixteenByNineStagesAndScrollSafeViewport()
+    public void OperatorWorkspaceUsesCompactSixteenByNineStages()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("Width = 640", source, StringComparison.Ordinal);
         Assert.Contains("Height = 360", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 340", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 191", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 320", source, StringComparison.Ordinal);
+        Assert.Contains("MaxHeight = 180", source, StringComparison.Ordinal);
         Assert.Contains("Stretch = Stretch.Uniform", source, StringComparison.Ordinal);
-        Assert.Contains("var root = new Grid { Margin = new Thickness(6), MinHeight = 420 }", source, StringComparison.Ordinal);
-        Assert.Contains("VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Width = 1600", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Height = 900", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("MinWidth = 1080", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("MinHeight = 330", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxWidth = 340", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxHeight = 191", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void OperatorKeepsOuterViewportFixedAndScrollsSidePanelsInternally()
+    public void OperatorKeepsResourceTabsAndActionsFixedOutsideScrollSurfaces()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var root = new Grid { Margin = new Thickness(6), MinHeight = 420 }", source, StringComparison.Ordinal);
-        Assert.Contains("_rundown.MinHeight = 130", source, StringComparison.Ordinal);
-        Assert.Contains("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
-        Assert.Contains("var detailsScroll = new ScrollViewer", source, StringComparison.Ordinal);
-        Assert.Contains("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled", source, StringComparison.Ordinal);
-        Assert.Contains("return root;", source, StringComparison.Ordinal);
+        Assert.Contains("var categoryToolbar = new Grid", source, StringComparison.Ordinal);
+        Assert.Contains("categoryToolbar.Children.Add(categoryBar)", source, StringComparison.Ordinal);
+        Assert.Contains("categoryToolbar.Children.Add(_addSelectedToSchedule)", source, StringComparison.Ordinal);
+        Assert.Contains("Child = libraryPanel", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var detailsScroll = new ScrollViewer", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void OperatorFitsViewportWithoutOuterHorizontalScrolling()
+    public void OperatorGivesScheduleMoreWidthThanPreviewAndProgram()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(270)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(6)", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 340", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 191", source, StringComparison.Ordinal);
-        Assert.Contains("var production = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
-        Assert.Contains("return root;", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,\n            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,\n            Content = root", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(1.8, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(1, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 400", source, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment = HorizontalAlignment.Center", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)))", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -63,15 +57,16 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void PreviewAndProgramHugTheCenterWhileSidePanesGainUsableWidth()
+    public void PreviewAndProgramCardsHugTheirStagesInsteadOfStretchingWide()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(230)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(270)", source, StringComparison.Ordinal);
         Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
         Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
-        Assert.Contains("var production = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
+        Assert.Contains("MaxWidth = 400", source, StringComparison.Ordinal);
+        Assert.Contains("Padding = new Thickness(8)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Safe staging — selecting content never changes the congregation screen.", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Exactly what the TV/projector is showing now.", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -82,6 +77,18 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("previewActions.Children.Add(_take)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(_clear)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorHeaderUsesOneCompactRowWithoutDescriptiveCopy()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions(\"Auto,*,Auto\"), ColumnSpacing = 12 }", source, StringComparison.Ordinal);
+        Assert.Contains("Label(\"LIVE PRODUCTION\", 16, FontWeight.Bold)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("IPRESENTERPLUX · OPERATOR", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Schedule · Preview · Program stay visible while you search and browse resources", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("HeaderHint()", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -192,18 +199,19 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorSeparatesLibraryDetailsAndServiceSchedule()
+    public void OperatorRemovesSelectedContentPanelButKeepsScheduleActions()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("LIBRARY", source, StringComparison.Ordinal);
-        Assert.Contains("SELECTED CONTENT", source, StringComparison.Ordinal);
+        Assert.Contains("RESOURCE DECK", source, StringComparison.Ordinal);
         Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
         Assert.Contains("_libraryResults", source, StringComparison.Ordinal);
         Assert.Contains("_schedule", source, StringComparison.Ordinal);
         Assert.Contains("Add Selected", source, StringComparison.Ordinal);
         Assert.Contains("Move Up", source, StringComparison.Ordinal);
         Assert.Contains("Move Down", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("SELECTED CONTENT", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Selected content details will appear here", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -220,18 +228,16 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void AiScriptureAutomationIsDiscoverableFromOperator()
+    public void AiScriptureRemainsDiscoverableWithoutVerboseSelectedContentCopy()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("AI Scripture", source, StringComparison.Ordinal);
-        Assert.Contains("Manual · Auto Preview · guarded Auto Live", source, StringComparison.Ordinal);
-        Assert.Contains("CloudUri(\"/scripture\")", source, StringComparison.Ordinal);
+        Assert.Contains("LinkButton(\"AI Scripture\", () => CloudUri(\"/scripture\"))", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AI Scripture · Manual · Auto Preview · guarded Auto Live", source, StringComparison.Ordinal);
     }
 
-
     [Fact]
-    public void OperatorKeepsSchedulePreviewProgramVisibleAboveScrollableResourceDeck()
+    public void OperatorKeepsSchedulePreviewProgramAboveFixedResourceDeckControls()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
@@ -239,10 +245,9 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
         Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
         Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
-        Assert.Contains("var resourceDeck = new Grid", source, StringComparison.Ordinal);
         Assert.Contains("RESOURCE DECK", source, StringComparison.Ordinal);
-        Assert.Contains("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetColumnSpan(resourceDeckCard, 5)", source, StringComparison.Ordinal);
+        Assert.Contains("var categoryToolbar = new Grid", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
     }
 
     [Fact]
