@@ -100,6 +100,8 @@ class Settings:
     provider_timeout_seconds: float
     storage_dir: Path
     google_voice_name: str | None = None
+    google_voice_en: str | None = None
+    google_voice_fr: str | None = None
     ghananlp_url: str | None = None
     ghananlp_token: str | None = None
     ghananlp_voice_id: str | None = None
@@ -115,24 +117,31 @@ def load_settings() -> Settings:
         raise ValueError("IPRESENTERPLUX_TTS_WORKER_ID is invalid")
 
     provider = os.getenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled").strip().lower()
-    if provider not in {"disabled", "google", "ghananlp"}:
-        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled, google or ghananlp")
+    if provider not in {"disabled", "google", "ghananlp", "multilingual"}:
+        raise ValueError("IPRESENTERPLUX_TTS_PROVIDER must be disabled, google, ghananlp or multilingual")
 
     google_voice_name = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE")
+    google_voice_en = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE_EN")
+    google_voice_fr = _voice_id("IPRESENTERPLUX_TTS_GOOGLE_VOICE_FR")
     if provider == "google" and google_voice_name is None:
         raise ValueError("IPRESENTERPLUX_TTS_GOOGLE_VOICE is required when Google TTS is enabled")
+    if provider == "multilingual" and (google_voice_en is None or google_voice_fr is None):
+        raise ValueError("GOOGLE_VOICE_EN and GOOGLE_VOICE_FR are required when multilingual TTS is enabled")
 
     raw_ghananlp_url = os.getenv("IPRESENTERPLUX_TTS_GHANANLP_URL", "").strip()
     ghananlp_url = _safe_remote_url(raw_ghananlp_url, "GHANANLP_URL") if raw_ghananlp_url else None
+    needs_ghana = provider in {"ghananlp", "multilingual"}
     ghananlp_token = _read_secret(
         "IPRESENTERPLUX_TTS_GHANANLP_TOKEN",
         "IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE",
         "GHANANLP token",
-        required=provider == "ghananlp",
+        required=needs_ghana,
     )
     ghananlp_voice_id = _voice_id("IPRESENTERPLUX_TTS_GHANANLP_VOICE")
-    if provider == "ghananlp" and ghananlp_url is None:
+    if needs_ghana and ghananlp_url is None:
         raise ValueError("IPRESENTERPLUX_TTS_GHANANLP_URL is required when GhanaNLP TTS is enabled")
+    if provider == "multilingual" and ghananlp_voice_id is None:
+        raise ValueError("IPRESENTERPLUX_TTS_GHANANLP_VOICE is required when multilingual TTS is enabled")
 
     lease_seconds = _int_env("IPRESENTERPLUX_TTS_LEASE_SECONDS", 45, 15, 120)
     provider_timeout = _float_env("IPRESENTERPLUX_TTS_PROVIDER_TIMEOUT_SECONDS", 15.0, 1.0, 110.0)
@@ -150,6 +159,8 @@ def load_settings() -> Settings:
         provider_timeout_seconds=provider_timeout,
         storage_dir=_storage_dir(),
         google_voice_name=google_voice_name,
+        google_voice_en=google_voice_en,
+        google_voice_fr=google_voice_fr,
         ghananlp_url=ghananlp_url,
         ghananlp_token=ghananlp_token,
         ghananlp_voice_id=ghananlp_voice_id,
