@@ -10,13 +10,17 @@ from ipresenter_tts.config import load_settings
 def base_env(monkeypatch: pytest.MonkeyPatch, token_file: Path) -> None:
     monkeypatch.delenv("IPRESENTERPLUX_TTS_WORKER_TOKEN", raising=False)
     monkeypatch.delenv("IPRESENTERPLUX_TTS_GOOGLE_VOICE", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_URL", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE", raising=False)
+    monkeypatch.delenv("IPRESENTERPLUX_TTS_GHANANLP_VOICE", raising=False)
     monkeypatch.setenv("IPRESENTERPLUX_TTS_WORKER_TOKEN_FILE", str(token_file))
     monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "disabled")
     monkeypatch.setenv("IPRESENTERPLUX_TTS_CONTROL_URL", "http://127.0.0.1:3011")
 
 
-def secure_token(tmp_path: Path) -> Path:
-    token = tmp_path / "token"
+def secure_token(tmp_path: Path, name: str = "token") -> Path:
+    token = tmp_path / name
     token.write_text("x" * 48, encoding="utf-8")
     token.chmod(0o600)
     return token
@@ -29,6 +33,9 @@ def test_secure_token_file_loads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     assert settings.worker_token == "x" * 48
     assert settings.provider == "disabled"
     assert settings.google_voice_name is None
+    assert settings.ghananlp_url is None
+    assert settings.ghananlp_token is None
+    assert settings.ghananlp_voice_id is None
     assert not settings.enabled
 
 
@@ -75,3 +82,47 @@ def test_invalid_google_voice_name_is_rejected(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setenv("IPRESENTERPLUX_TTS_GOOGLE_VOICE", "fr-FR voice with spaces")
     with pytest.raises(ValueError, match="GOOGLE_VOICE is invalid"):
         load_settings()
+
+
+def test_ghananlp_provider_requires_endpoint(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    token = secure_token(tmp_path)
+    base_env(monkeypatch, token)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "ghananlp")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN", "g" * 48)
+    with pytest.raises(ValueError, match="GHANANLP_URL is required"):
+        load_settings()
+
+
+def test_ghananlp_provider_requires_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    token = secure_token(tmp_path)
+    base_env(monkeypatch, token)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "ghananlp")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_URL", "https://voice.example.test")
+    with pytest.raises(ValueError, match="GHANANLP token"):
+        load_settings()
+
+
+def test_ghananlp_remote_plain_http_is_rejected(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    token = secure_token(tmp_path)
+    base_env(monkeypatch, token)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "ghananlp")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_URL", "http://voice.example.test")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN", "g" * 48)
+    with pytest.raises(ValueError, match="must use HTTPS"):
+        load_settings()
+
+
+def test_ghananlp_provider_accepts_secure_token_file_and_generic_voice(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    token = secure_token(tmp_path)
+    provider_token = secure_token(tmp_path, "ghananlp-token")
+    base_env(monkeypatch, token)
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_PROVIDER", "ghananlp")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_URL", "https://voice.example.test/")
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE", str(provider_token))
+    monkeypatch.setenv("IPRESENTERPLUX_TTS_GHANANLP_VOICE", "ghana-generic-1")
+    settings = load_settings()
+    assert settings.provider == "ghananlp"
+    assert settings.ghananlp_url == "https://voice.example.test"
+    assert settings.ghananlp_token == "x" * 48
+    assert settings.ghananlp_voice_id == "ghana-generic-1"
+    assert settings.enabled
