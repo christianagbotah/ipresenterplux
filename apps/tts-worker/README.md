@@ -31,9 +31,26 @@ Unsupported or ambiguous values fail closed with `unsupported_language`; the wor
 
 ## Provider strategy
 
+### Recommended multilingual production mode
+
+A live service can expose English, French, Twi/Akan and Ewe interpreted audio at the same time. Use the `multilingual` router so generic English/French speech uses separate Google voices while generic Twi/Ewe uses the Ghana provider. A personalized consent-bound profile is routed by its stored provider rather than by a global provider switch.
+
+Configure only in `/home/lightworld/webapps/ipresenterplux/.secrets/tts-provider.env`:
+
+```text
+IPRESENTERPLUX_TTS_PROVIDER=multilingual
+IPRESENTERPLUX_TTS_GOOGLE_VOICE_EN=en-US-Neural2-D
+IPRESENTERPLUX_TTS_GOOGLE_VOICE_FR=fr-FR-Neural2-G
+IPRESENTERPLUX_TTS_GHANANLP_URL=https://trusted-voice-provider.example
+IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.secrets/ghananlp-token.txt
+IPRESENTERPLUX_TTS_GHANANLP_VOICE=generic-ghana-voice
+```
+
+The Google EN/FR and Ghana generic voice IDs are explicit configuration. Personalized Google or Ghana voice IDs come only from consented Control Plane voice profiles. One language provider being unavailable does not make the other language routes unavailable.
+
 ### Google Cloud TTS
 
-Google Cloud Text-to-Speech remains the generic English/French provider. It is an optional dependency (`.[google]`) and is never enabled automatically. Configure:
+Google Cloud Text-to-Speech remains the generic English/French provider. It is an optional dependency (`.[google]`) and is never enabled automatically. A restricted single-provider deployment can configure:
 
 ```text
 IPRESENTERPLUX_TTS_PROVIDER=google
@@ -53,7 +70,7 @@ The expected provider contract is:
 - JSON body: `{ "text": "...", "language": "ak|ee|en|fr", "voiceId": "..." }`.
 - Successful response: bounded valid WAV audio.
 
-Configure provider secrets in `/home/lightworld/webapps/ipresenterplux/.secrets/tts-provider.env`, not in Git:
+A restricted Ghana-only deployment can configure:
 
 ```text
 IPRESENTERPLUX_TTS_PROVIDER=ghananlp
@@ -62,7 +79,7 @@ IPRESENTERPLUX_TTS_GHANANLP_TOKEN_FILE=/home/lightworld/webapps/ipresenterplux/.
 IPRESENTERPLUX_TTS_GHANANLP_VOICE=generic-ghana-voice
 ```
 
-The generic voice ID is optional when every job uses a consented personalized voice profile. A personalized job is accepted only when its stored voice provider is `ghananlp` and a provider voice ID is present. Revoked/expired consent is rejected by the Control Plane completion path.
+The generic voice ID is optional in Ghana-only mode when every job uses a consented personalized voice profile. A personalized job is accepted only when its stored voice provider is `ghananlp` and a provider voice ID is present. Revoked/expired consent is rejected by the Control Plane completion path.
 
 `tts-provider.env`, the Ghana provider token file, and all other files under `.secrets` must remain server-only and non-world-readable. The systemd unit keeps the provider `disabled` by default and reads the optional private provider environment file at runtime.
 
