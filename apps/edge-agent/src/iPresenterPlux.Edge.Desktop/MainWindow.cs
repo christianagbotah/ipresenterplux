@@ -327,17 +327,10 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(6), MinHeight = 420 };
+        var root = new Grid { Margin = new Thickness(4), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        root.RowDefinitions.Add(new RowDefinition(new GridLength(6)));
-        root.RowDefinitions.Add(new RowDefinition(new GridLength(250)));
-        root.RowDefinitions.Add(new RowDefinition(new GridLength(6)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(4)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(6)));
-        root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
         var operatorStatus = new StackPanel {
             Orientation = Orientation.Horizontal,
@@ -383,13 +376,21 @@ public sealed class MainWindow : Window
             Padding = new Thickness(12, 6),
             Child = headerGrid
         };
-        Grid.SetColumnSpan(header, 5);
         root.Children.Add(header);
 
-        var production = new Grid { ColumnSpacing = 6 };
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.8, GridUnitType.Star)));
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        var workspace = new Grid();
+        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(1.38, GridUnitType.Star)) { MinHeight = 230 });
+        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(5)));
+        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)) { MinHeight = 180 });
+        Grid.SetRow(workspace, 2);
+        root.Children.Add(workspace);
+
+        var production = new Grid();
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(0.72, GridUnitType.Star)) { MinWidth = 180 });
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.14, GridUnitType.Star)) { MinWidth = 240 });
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
+        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.14, GridUnitType.Star)) { MinWidth = 240 });
 
         _schedule.Background = SurfaceRaised;
         _schedule.MinHeight = 140;
@@ -430,11 +431,15 @@ public sealed class MainWindow : Window
         scheduleLayout.Children.Add(scheduleActions);
         var scheduleCard = new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(10),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8),
             Child = scheduleLayout
         };
         production.Children.Add(scheduleCard);
+
+        var schedulePreviewSplitter = ProductionSplitter(GridResizeDirection.Columns);
+        Grid.SetColumn(schedulePreviewSplitter, 1);
+        production.Children.Add(schedulePreviewSplitter);
 
         var previewActions = new WrapPanel { Orientation = Orientation.Horizontal };
         _prepare.MinHeight = 34;
@@ -449,8 +454,12 @@ public sealed class MainWindow : Window
             BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold),
             previewActions,
             Gold);
-        Grid.SetColumn(previewPane, 1);
+        Grid.SetColumn(previewPane, 2);
         production.Children.Add(previewPane);
+
+        var previewProgramSplitter = ProductionSplitter(GridResizeDirection.Columns);
+        Grid.SetColumn(previewProgramSplitter, 3);
+        production.Children.Add(previewProgramSplitter);
 
         var programActions = new WrapPanel { Orientation = Orientation.Horizontal };
         _clear.MinHeight = 34;
@@ -477,12 +486,10 @@ public sealed class MainWindow : Window
             BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Good),
             programActionStack,
             Good);
-        Grid.SetColumn(programPane, 2);
+        Grid.SetColumn(programPane, 4);
         production.Children.Add(programPane);
 
-        Grid.SetRow(production, 2);
-        Grid.SetColumnSpan(production, 5);
-        root.Children.Add(production);
+        workspace.Children.Add(production);
 
         _operatorSearch.MinHeight = 36;
         _scriptureReference.MinHeight = 36;
@@ -566,13 +573,15 @@ public sealed class MainWindow : Window
 
         var resourceDeckCard = new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(10),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8),
             Child = libraryPanel
         };
-        Grid.SetRow(resourceDeckCard, 4);
-        Grid.SetColumnSpan(resourceDeckCard, 5);
-        root.Children.Add(resourceDeckCard);
+        var productionResourceSplitter = ProductionSplitter(GridResizeDirection.Rows);
+        Grid.SetRow(productionResourceSplitter, 1);
+        workspace.Children.Add(productionResourceSplitter);
+        Grid.SetRow(resourceDeckCard, 2);
+        workspace.Children.Add(resourceDeckCard);
 
         RefreshRundown();
         return root;
@@ -595,13 +604,23 @@ public sealed class MainWindow : Window
         grid.Children.Add(actions);
         return new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(16),
-            Padding = new Thickness(8),
-            MaxWidth = 400,
-            HorizontalAlignment = HorizontalAlignment.Center,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(6),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
             Child = grid
         };
     }
+
+    private static GridSplitter ProductionSplitter(GridResizeDirection direction) => new()
+    {
+        ResizeDirection = direction,
+        ResizeBehavior = GridResizeBehavior.PreviousAndNext,
+        ShowsPreview = false,
+        Background = Brush("#263142"),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch
+    };
 
     private async void OnLibraryPointerPressed(object? sender, PointerPressedEventArgs args)
     {
@@ -692,18 +711,17 @@ public sealed class MainWindow : Window
             Height = 360,
             Background = Brush("#06090E"),
             BorderBrush = accent,
-            BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(18),
-            Padding = new Thickness(18),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(12),
             Child = grid
         };
 
         return new Viewbox {
-            MaxWidth = 320,
-            MaxHeight = 180,
             Stretch = Stretch.Uniform,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Margin = new Thickness(2),
             Child = frame
         };
     }

@@ -5,18 +5,33 @@ namespace iPresenterPlux.Edge.Desktop.Tests;
 public sealed class MainWindowLayoutTests
 {
     [Fact]
-    public void OperatorWorkspaceUsesCompactSixteenByNineStages()
+    public void OperatorWorkspaceUsesResizableProductionConsoleAndScalableSixteenByNineStages()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("Width = 640", source, StringComparison.Ordinal);
         Assert.Contains("Height = 360", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 320", source, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight = 180", source, StringComparison.Ordinal);
         Assert.Contains("Stretch = Stretch.Uniform", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(250)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("MaxWidth = 340", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("MaxHeight = 191", source, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment = HorizontalAlignment.Stretch", source, StringComparison.Ordinal);
+        Assert.Contains("VerticalAlignment = VerticalAlignment.Stretch", source, StringComparison.Ordinal);
+        Assert.Contains("GridResizeDirection.Columns", source, StringComparison.Ordinal);
+        Assert.Contains("GridResizeDirection.Rows", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxWidth = 320", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxHeight = 180", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxWidth = 400", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorUsesTwoVerticalSplittersAndOneHorizontalSplitter()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var schedulePreviewSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
+        Assert.Contains("var previewProgramSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
+        Assert.Contains("var productionResourceSplitter = ProductionSplitter(GridResizeDirection.Rows)", source, StringComparison.Ordinal);
+        Assert.Contains("GridResizeBehavior.PreviousAndNext", source, StringComparison.Ordinal);
+        Assert.Contains("MinWidth = 180", source, StringComparison.Ordinal);
+        Assert.Contains("MinWidth = 240", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -33,15 +48,15 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorGivesScheduleMoreWidthThanPreviewAndProgram()
+    public void OperatorDefaultsToNarrowScheduleAndBalancedPreviewProgram()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(1.8, GridUnitType.Star)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(1, GridUnitType.Star)", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 400", source, StringComparison.Ordinal);
-        Assert.Contains("HorizontalAlignment = HorizontalAlignment.Center", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(230)))", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(0.72, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(1.14, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(5)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new GridLength(1.8, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("HorizontalAlignment = HorizontalAlignment.Center,\n            Child = grid", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -57,14 +72,15 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void PreviewAndProgramCardsHugTheirStagesInsteadOfStretchingWide()
+    public void PreviewAndProgramUseFlatStretchingToolPanes()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
         Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = 400", source, StringComparison.Ordinal);
-        Assert.Contains("Padding = new Thickness(8)", source, StringComparison.Ordinal);
+        Assert.Contains("CornerRadius = new CornerRadius(8)", source, StringComparison.Ordinal);
+        Assert.Contains("HorizontalAlignment = HorizontalAlignment.Stretch", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("MaxWidth = 400", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Safe staging — selecting content never changes the congregation screen.", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Exactly what the TV/projector is showing now.", source, StringComparison.Ordinal);
     }
