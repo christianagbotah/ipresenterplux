@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BookOpen, Captions, Check, Copy, ExternalLink, Headphones, Languages, RadioTower, Users } from "lucide-react";
-import type { AudienceChannelReadiness } from "@/lib/audience-readiness";
+import type { AudienceChannelReadiness, AudienceDeliveryFacet } from "@/lib/audience-readiness";
 
 type AudienceService = { id: string; title: string; status: string };
 type AudienceLanguage = { name: string; mode: string; listeners: number; readiness: AudienceChannelReadiness };
@@ -33,7 +33,7 @@ function streamReadiness(status: string) {
   return "Program transport idle";
 }
 
-function readinessTone(readiness: AudienceChannelReadiness) {
+function readinessTone(readiness: AudienceDeliveryFacet) {
   if (readiness.tone === "healthy") return "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200";
   if (readiness.tone === "warning") return "border-amber-400/20 bg-amber-400/[.07] text-amber-100";
   if (readiness.tone === "working") return "border-[#d7a94a]/20 bg-[#d7a94a]/[.07] text-[#efc86f]";
@@ -127,6 +127,12 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
                 <div className="shrink-0 text-right"><div className="text-xl font-black tabular-nums text-white/90">{language.listeners}</div><div className="text-xs text-white/45">listening</div></div>
               </div>
               <div className={`mt-3 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${readinessTone(language.readiness)}`}>{language.readiness.label}</div>
+              {language.readiness.text || language.readiness.voice ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {language.readiness.text ? <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${readinessTone(language.readiness.text)}`}>Text · {language.readiness.text.label}</span> : null}
+                  {language.readiness.voice ? <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${readinessTone(language.readiness.voice)}`}>Voice · {language.readiness.voice.label}</span> : null}
+                </div>
+              ) : null}
             </div>
           )) : <div className="sm:col-span-2 xl:col-span-3 rounded-2xl border border-dashed border-white/[.1] p-5 text-sm text-white/55">No audience language channels are enabled yet.</div>}
         </div>

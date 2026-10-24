@@ -58,6 +58,22 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  async function retry(job: TranslationJob, target: "translation" | "audio") {
+    setSaving(job.id);
+    setError(null);
+    try {
+      const suffix = target === "audio" ? "/audio/retry" : "/retry";
+      const response = await fetch(`/api/v1/translations/jobs/${job.id}${suffix}`, { method: "POST" });
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(payload?.error ?? (target === "audio" ? "Audio could not be retried" : "Translation could not be retried"));
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "AI recovery could not be requested");
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function complete(job: TranslationJob) {
     const translatedText = (drafts[job.id] ?? job.translated_text ?? "").trim();
     if (!translatedText) {
@@ -159,14 +175,36 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
                     <div className="text-[11px] text-white/50">
                       {processing ? "Machine lease active · saving here safely takes over this job." : job.status === "succeeded" ? "Edit and save to correct the published translation." : "Completing publishes this caption to the matching audience channel."}
                     </div>
-                    <button
-                      type="button"
-                      disabled={saving === job.id || !value.trim()}
-                      onClick={() => void complete(job)}
-                      className="ip-focus-gold min-h-11 rounded-xl bg-[#d7a94a] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
-                    >
-                      {saving === job.id ? "Saving…" : job.status === "succeeded" ? "Save correction" : "Publish translation"}
-                    </button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {job.status === "failed" ? (
+                        <button
+                          type="button"
+                          disabled={saving === job.id}
+                          onClick={() => void retry(job, "translation")}
+                          className="ip-focus-gold min-h-11 rounded-xl border border-amber-300/25 bg-amber-300/[.08] px-4 py-2 text-xs font-extrabold text-amber-100 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          {saving === job.id ? "Retrying…" : "Retry translation"}
+                        </button>
+                      ) : null}
+                      {job.channel_mode === "translation_audio" && job.status === "succeeded" && job.synthesis_status === "failed" ? (
+                        <button
+                          type="button"
+                          disabled={saving === job.id}
+                          onClick={() => void retry(job, "audio")}
+                          className="ip-focus-gold min-h-11 rounded-xl border border-amber-300/25 bg-amber-300/[.08] px-4 py-2 text-xs font-extrabold text-amber-100 disabled:cursor-not-allowed disabled:opacity-35"
+                        >
+                          {saving === job.id ? "Retrying…" : "Retry audio"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={saving === job.id || !value.trim()}
+                        onClick={() => void complete(job)}
+                        className="ip-focus-gold min-h-11 rounded-xl bg-[#d7a94a] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        {saving === job.id ? "Saving…" : job.status === "succeeded" ? "Save correction" : "Publish translation"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </article>

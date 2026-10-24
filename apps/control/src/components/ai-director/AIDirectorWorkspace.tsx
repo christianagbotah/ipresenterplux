@@ -170,6 +170,8 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
                     <span className="text-lg font-black">{language.listeners}</span>
                   </div>
                   <div className={`mt-3 text-[11px] font-bold ${language.readiness.tone === "healthy" ? "text-emerald-300" : language.readiness.tone === "warning" ? "text-amber-200" : "text-white/50"}`}>{language.readiness.label}</div>
+                  {language.readiness.text ? <div className="mt-1 text-xs text-white/55">Text · {language.readiness.text.label}</div> : null}
+                  {language.readiness.voice ? <div className="mt-1 text-xs text-white/55">Voice · {language.readiness.voice.label}</div> : null}
                 </div>
               )) : <div className="col-span-full rounded-2xl border border-dashed border-white/[.09] p-6 text-center text-xs text-white/45">No enabled audience language channels.</div>}
             </div>

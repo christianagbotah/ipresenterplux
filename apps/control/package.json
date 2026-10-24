@@ -115,7 +115,9 @@
     "test:service-preparation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-preparation-selftest.mjs",
     "test:service-preparation-ui": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-preparation-ui-selftest.mjs",
     "test:service-memory": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/service-memory-selftest.mjs",
-    "test:navigation-route-resilience": "node scripts/navigation-route-resilience-selftest.mjs"
+    "test:navigation-route-resilience": "node scripts/navigation-route-resilience-selftest.mjs",
+    "test:ai-recovery": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-recovery-selftest.mjs",
+    "test:ai-feature-completion": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/ai-feature-completion-selftest.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

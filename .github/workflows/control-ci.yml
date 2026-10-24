@@ -266,6 +266,10 @@ jobs:
         run: pnpm test:pg-client-serialization
       - name: AI Director workspace self-test
         run: pnpm test:ai-director
+      - name: AI recovery self-test
+        run: pnpm test:ai-recovery
+      - name: AI feature completion self-test
+        run: pnpm test:ai-feature-completion
       - name: Service Archive workspace self-test
         run: pnpm test:archive
       - name: Archive intelligence and reuse self-test

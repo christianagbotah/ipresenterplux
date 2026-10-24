@@ -27,34 +27,47 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
   const seenRef = useRef(new Set<string>());
   const lastObservedAtRef = useRef<number | null>(null);
   const fetchingRef = useRef(false);
+  const currentItemRef = useRef<QueueItem | null>(null);
+  const playbackRetryRef = useRef(0);
+  const retryTimerRef = useRef<number | null>(null);
   const [enabled, setEnabled] = useState(false);
-  const [status, setStatus] = useState<"waiting" | "ready" | "playing" | "paused" | "error">("waiting");
+  const [status, setStatus] = useState<"waiting" | "ready" | "playing" | "paused" | "retrying" | "error">("waiting");
 
   const assetUrl = useCallback((id: string) => {
     const params = new URLSearchParams({ serviceId, channelId });
     return `/api/v1/audience/audio/${encodeURIComponent(id)}?${params.toString()}`;
   }, [channelId, serviceId]);
 
-  const playNext = useCallback(async () => {
+  const startItem = useCallback(async (item: QueueItem, retry = false) => {
     const audio = audioRef.current;
-    if (!audio || !audio.paused && !audio.ended) return;
-    const next = queueRef.current.shift();
-    if (!next) {
-      setStatus("waiting");
-      return;
+    if (!audio) return;
+    currentItemRef.current = item;
+    if (!retry) {
+      playbackRetryRef.current = 0;
+      cursorRef.current = item.id;
+      const observedAt = Date.parse(item.observedAt);
+      if (Number.isFinite(observedAt)) lastObservedAtRef.current = observedAt;
     }
-    cursorRef.current = next.id;
-    const observedAt = Date.parse(next.observedAt);
-    if (Number.isFinite(observedAt)) lastObservedAtRef.current = observedAt;
-    audio.src = assetUrl(next.id);
+    audio.src = assetUrl(item.id);
     audio.load();
     try {
       await audio.play();
       setStatus("playing");
     } catch {
-      setStatus("ready");
+      setStatus(retry ? "retrying" : "ready");
     }
   }, [assetUrl]);
+
+  const playNext = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || (!audio.paused && !audio.ended) || currentItemRef.current) return;
+    const next = queueRef.current.shift();
+    if (!next) {
+      setStatus("waiting");
+      return;
+    }
+    await startItem(next);
+  }, [startItem]);
 
   const refreshQueue = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -91,6 +104,35 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
     }
   }, [channelId, enabled, playNext, serviceId, status]);
 
+  const handlePlaybackError = useCallback(() => {
+    const current = currentItemRef.current;
+    if (!enabled || !current || retryTimerRef.current) {
+      setStatus("error");
+      return;
+    }
+    if (playbackRetryRef.current >= 2) {
+      currentItemRef.current = null;
+      playbackRetryRef.current = 0;
+      const audio = audioRef.current;
+      if (audio) {
+        audio.removeAttribute("src");
+        audio.load();
+      }
+      setStatus("error");
+      retryTimerRef.current = window.setTimeout(() => {
+        retryTimerRef.current = null;
+        void refreshQueue().then(() => playNext());
+      }, 750);
+      return;
+    }
+    playbackRetryRef.current += 1;
+    setStatus("retrying");
+    retryTimerRef.current = window.setTimeout(() => {
+      retryTimerRef.current = null;
+      void startItem(current, true);
+    }, playbackRetryRef.current * 750);
+  }, [enabled, playNext, refreshQueue, startItem]);
+
   useEffect(() => {
     const initial = window.setTimeout(() => void refreshQueue(), 0);
     const timer = window.setInterval(() => void refreshQueue(), enabled ? 1500 : 4000);
@@ -99,6 +141,10 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
       window.clearInterval(timer);
     };
   }, [enabled, refreshQueue]);
+
+  useEffect(() => () => {
+    if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+  }, []);
 
   function start() {
     setEnabled(true);
@@ -112,6 +158,10 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
 
   function stop() {
     setEnabled(false);
+    if (retryTimerRef.current) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
     audioRef.current?.pause();
     setStatus("paused");
   }
@@ -126,9 +176,10 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
           <div className="mt-1 text-xs leading-4 text-white/55">
             {status === "playing" ? "Playing translated sermon audio"
               : status === "ready" ? "Audio is ready"
-                : status === "error" ? "Audio connection is retrying"
-                  : status === "paused" ? "Audio paused on this device"
-                    : "Waiting for the next translated audio segment"}
+                : status === "retrying" ? "Audio segment is retrying"
+                  : status === "error" ? "Audio segment failed; continuing with the next segment"
+                    : status === "paused" ? "Audio paused on this device"
+                      : "Waiting for the next translated audio segment"}
           </div>
         </div>
         <button
@@ -148,10 +199,12 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
         onPlay={() => setStatus("playing")}
         onPause={() => setStatus((current) => current === "waiting" ? current : "paused")}
         onEnded={() => {
+          currentItemRef.current = null;
+          playbackRetryRef.current = 0;
           setStatus("waiting");
-          void refreshQueue();
+          void refreshQueue().then(() => playNext());
         }}
-        onError={() => setStatus("error")}
+        onError={handlePlaybackError}
       />
     </div>
   );

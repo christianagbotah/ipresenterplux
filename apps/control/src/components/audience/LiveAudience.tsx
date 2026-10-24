@@ -191,6 +191,8 @@ export function LiveAudience({
                     <div className={`mt-1 text-xs ${readiness.tone === "healthy" ? "text-emerald-300" : readiness.tone === "warning" ? "text-amber-200" : readiness.tone === "working" ? "text-[#efc86f]" : "text-white/50"}`}>
                       {readiness.label}
                     </div>
+                    {readiness.text ? <div className="mt-1 text-xs text-white/60">Text · {readiness.text.label}</div> : null}
+                    {readiness.voice ? <div className="mt-1 text-xs text-white/60">Voice · {readiness.voice.label}</div> : null}
                   </div>
                 </button>
               );

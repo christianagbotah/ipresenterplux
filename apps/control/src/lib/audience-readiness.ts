@@ -10,10 +10,15 @@ export type AudienceChannelReadinessInput = {
   synthesisStatus: AudienceJobStatus | null;
 };
 
-export type AudienceChannelReadiness = {
+export type AudienceDeliveryFacet = {
   state: AudienceDeliveryState;
   label: string;
   tone: AudienceDeliveryTone;
+};
+
+export type AudienceChannelReadiness = AudienceDeliveryFacet & {
+  text?: AudienceDeliveryFacet;
+  voice?: AudienceDeliveryFacet;
 };
 
 const waiting = (label: string): AudienceChannelReadiness => ({ state: "waiting", label, tone: "muted" });
@@ -38,11 +43,50 @@ export function resolveAudienceChannelReadiness(input: AudienceChannelReadinessI
   }
 
   if (input.channelMode === "translation_audio") {
-    if (!input.transcriptAvailable || input.translationStatus === null) return waiting("Waiting for speech");
-    if (input.translationStatus === "failed" || input.synthesisStatus === "failed") return attention("Audio interpretation needs attention");
-    if (input.translationStatus !== "succeeded") return preparing(input.translationStatus === "processing" ? "Translating speech" : "Translation queued");
-    if (input.synthesisStatus === "succeeded") return ready("Translated audio ready");
-    return preparing(input.synthesisStatus === "processing" ? "Synthesizing audio" : "Audio queued");
+    if (!input.transcriptAvailable || input.translationStatus === null) {
+      return {
+        ...waiting("Waiting for speech"),
+        text: waiting("Waiting for translated text"),
+        voice: waiting("Waiting for translated text")
+      };
+    }
+    if (input.translationStatus === "failed") {
+      return {
+        ...attention("Translation needs attention"),
+        text: attention("Translation needs attention"),
+        voice: waiting("Waiting for translated text")
+      };
+    }
+    if (input.translationStatus !== "succeeded") {
+      const text = preparing(input.translationStatus === "processing" ? "Translating text" : "Translation queued");
+      return {
+        ...preparing(input.translationStatus === "processing" ? "Translating speech" : "Translation queued"),
+        text,
+        voice: waiting("Waiting for translated text")
+      };
+    }
+
+    const text = ready("Translated text ready");
+    if (input.synthesisStatus === "failed") {
+      return {
+        ...attention("Text ready · audio needs attention"),
+        text,
+        voice: attention("Audio needs attention")
+      };
+    }
+    if (input.synthesisStatus === "succeeded") {
+      return {
+        ...ready("Text + audio ready"),
+        text,
+        voice: ready("Translated audio ready")
+      };
+    }
+    const voice = preparing(input.synthesisStatus === "processing" ? "Synthesizing audio" : "Audio queued");
+    return {
+      ...preparing(input.synthesisStatus === "processing" ? "Text ready · synthesizing audio" : "Text ready · audio queued"),
+      text,
+      voice
+    };
   }
 
   return attention("Unsupported language mode");

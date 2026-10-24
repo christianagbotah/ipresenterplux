@@ -26,6 +26,8 @@ for (const copy of ["AI Director", "Advisory only", "Auto-preview threshold", "R
 for (const copy of ["Live Sermon", "Smart Next", "Language Demand", "Service Memory"]) {
   assert.ok(workspaceSource.includes(copy), `AI Director V2 must surface '${copy}'`);
 }
+assert.match(workspaceSource,/readiness\.text/,"AI Director must expose text readiness separately for interpreted-audio channels");
+assert.match(workspaceSource,/readiness\.voice/,"AI Director must expose voice readiness separately for interpreted-audio channels");
 assert.doesNotMatch(workspaceSource, /TAKE.{0,12}PROGRAM|take.?live/i, "AI Director must not expose direct Program authority");
 const settingsRoute = await readFile(new URL("../src/app/api/v1/ai/director/settings/route.ts", import.meta.url), "utf8");
 assert.doesNotMatch(settingsRoute, /scriptures\/.+state|presentation.+live|state\s*=\s*['\"]live/i, "settings route must not mutate Program state");
