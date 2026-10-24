@@ -4,26 +4,20 @@ import path from "node:path";
 import process from "node:process";
 import pg from "pg";
 import { assertWritableSelfTestDatabase } from "./selftest-db-safety.mjs";
-import ts from "typescript";
 
 process.loadEnvFile?.(".env.local");
 assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not configured");
 
-async function transpiledDataUrl(relative) {
-  const source = await readFile(new URL(relative, import.meta.url), "utf8");
-  const javascript = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 }
-  }).outputText;
-  return `data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`;
-}
-
-const workerUrl = await transpiledDataUrl("../src/lib/tts-worker.ts");
-const synthUrl = await transpiledDataUrl("../src/lib/speech-synthesis-jobs.ts");
-const storageUrl = await transpiledDataUrl("../src/lib/tts-audio-storage.ts");
-const { claimTtsJobs, completeTtsJob, failTtsJob } = await import(workerUrl);
-const { enqueueSpeechSynthesisJob } = await import(synthUrl);
-const { verifyStoredTtsAsset } = await import(storageUrl);
+const { claimTtsJobs, completeTtsJob, failTtsJob } = await import(
+  new URL("../src/lib/tts-worker.ts", import.meta.url)
+);
+const { enqueueSpeechSynthesisJob } = await import(
+  new URL("../src/lib/speech-synthesis-jobs.ts", import.meta.url)
+);
+const { verifyStoredTtsAsset } = await import(
+  new URL("../src/lib/tts-audio-storage.ts", import.meta.url)
+);
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();

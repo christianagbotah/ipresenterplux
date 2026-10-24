@@ -16,14 +16,20 @@ await client.connect();
 await client.query("begin");
 try {
   const base = await client.query(
-    `select o.id::text as organization_id,c.id::text as campus_id,uor.user_id::text as user_id
+    `select o.id::text as organization_id,c.id::text as campus_id
      from organizations o
      join campuses c on c.organization_id=o.id
-     join user_organization_roles uor on uor.organization_id=o.id and uor.role_id in ('owner','admin')
      order by o.created_at,c.created_at limit 1`
   );
-  assert.ok(base.rows[0]?.organization_id, "Expected an organization/campus/admin");
-  const { organization_id: organizationId, campus_id: campusId, user_id: userId } = base.rows[0];
+  assert.ok(base.rows[0]?.organization_id && base.rows[0]?.campus_id, "Expected an organization/campus fixture");
+  const actor = await client.query(
+    `insert into users(email,display_name,status)
+     values ('speech-synthesis-selftest@example.invalid','Speech synthesis self-test','active')
+     returning id::text`
+  );
+  const organizationId = base.rows[0].organization_id;
+  const campusId = base.rows[0].campus_id;
+  const userId = actor.rows[0].id;
 
   const audioChannel = await client.query(
     `select id::text,language_code from language_channels
