@@ -20,7 +20,14 @@ def main() -> None:
 
     settings = load_settings()
     control = ControlPlaneClient(settings)
-    provider = create_provider(settings.provider, settings.google_voice_name)
+    provider = create_provider(
+        settings.provider,
+        settings.google_voice_name,
+        ghananlp_url=settings.ghananlp_url,
+        ghananlp_token=settings.ghananlp_token,
+        ghananlp_voice_id=settings.ghananlp_voice_id,
+        provider_timeout_seconds=settings.provider_timeout_seconds,
+    )
     store = AudioStore(settings.storage_dir)
     status_path = Path(os.getenv("IPRESENTERPLUX_TTS_STATUS_PATH", "runtime/status.json"))
     runner = TtsRunner(settings, control, provider, store, status_path)
