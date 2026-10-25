@@ -1,6 +1,8 @@
+import { Camera } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { VisualSourcesWorkspace } from "@/components/cameras/VisualSourcesWorkspace";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { db } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 import { listVisualSources } from "@/lib/camera-sources";
@@ -17,17 +19,26 @@ export default async function CamerasPage() {
     const context = await getCurrentServiceForUser(session.user.id, { client });
     if (!context) redirect("/");
     const state = await listVisualSources(client, session.user.id, context.organizationId);
-    return <VisualSourcesWorkspace
-      organizationId={context.organizationId}
-      organizationName={context.organizationName}
-      initialSources={state.sources}
-      edgeDevices={state.edgeDevices}
-      hasPairedEdge={state.hasPairedEdge}
-      staleAfterSeconds={state.staleAfterSeconds}
-      canManage={context.roleCapabilities.canSettings}
-      canLiveControl={context.roleCapabilities.canLiveControl}
-      serviceId={context.service?.id ?? null}
-    />;
+    return (
+      <WorkspaceShell
+        capabilities={context.navigationCapabilities}
+        icon={Camera}
+        title="Cameras & Visual Sources"
+        subtitle={context.organizationName}
+      >
+        <VisualSourcesWorkspace
+          organizationId={context.organizationId}
+          organizationName={context.organizationName}
+          initialSources={state.sources}
+          edgeDevices={state.edgeDevices}
+          hasPairedEdge={state.hasPairedEdge}
+          staleAfterSeconds={state.staleAfterSeconds}
+          canManage={context.roleCapabilities.canSettings}
+          canLiveControl={context.roleCapabilities.canLiveControl}
+          serviceId={context.service?.id ?? null}
+        />
+      </WorkspaceShell>
+    );
   } finally {
     client.release();
   }

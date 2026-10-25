@@ -56,7 +56,7 @@ async function scripturePageData(userId: string) {
     return {
       service: null,
       capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false },
-      navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
+      navigationCapabilities: { canMedia:false, canViewPlanner:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
       versions: [], books: [], detections: [], hasActiveEdge: false,
       libraryError: "No church organization is assigned to this account."
     };

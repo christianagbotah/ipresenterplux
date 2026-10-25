@@ -1,6 +1,8 @@
+import { Music2 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { MediaWorkspace } from "@/components/media/MediaWorkspace";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { db } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 import { listMediaLibrary } from "@/lib/media-library";
@@ -27,9 +29,18 @@ export default async function MediaPage() {
       const detail = await loadPlannerServiceDetail(client, session.user.id, context.service.id);
       currentService = { id: detail.service.id, title: detail.service.title, status: detail.service.status, revision: detail.revision, editable: detail.canEdit };
     }
-    return <MediaWorkspace organizationId={context.organizationId} organizationName={context.organizationName}
-      initialItems={library.items} currentService={currentService}
-      mediaSources={sources.rows.map(source=>({id:source.id,name:source.name,type:source.source_type,status:source.status,mediaKind:source.media_kind}))}
-      canEdit={context.roleCapabilities.canPlanServices}/>;
+    return (
+      <WorkspaceShell
+        capabilities={context.navigationCapabilities}
+        icon={Music2}
+        title="Songs & Media"
+        subtitle={context.organizationName}
+      >
+        <MediaWorkspace organizationId={context.organizationId} organizationName={context.organizationName}
+          initialItems={library.items} currentService={currentService}
+          mediaSources={sources.rows.map(source=>({id:source.id,name:source.name,type:source.source_type,status:source.status,mediaKind:source.media_kind}))}
+          canEdit={context.roleCapabilities.canPlanServices}/>
+      </WorkspaceShell>
+    );
   } finally { client.release(); }
 }

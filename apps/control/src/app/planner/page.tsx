@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarRange, Layers3, ShieldCheck, Sparkles } from "lucide-react";
+import { CalendarRange, Layers3, ShieldCheck, Sparkles } from "lucide-react";
 import { auth } from "@auth";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { CreateServiceDialog } from "@/components/planner/CreateServiceDialog";
 import { ServicePlannerList } from "@/components/planner/ServicePlannerList";
 import { db, query } from "@/lib/db";
@@ -39,12 +40,12 @@ export default async function PlannerPage() {
 
   if (!organization) {
     return (
-      <main className="min-h-screen bg-[#080b10] px-4 py-12 text-white sm:px-6">
-        <div className="mx-auto max-w-2xl rounded-3xl border border-white/[.08] bg-white/[.025] p-8 text-center">
+      <main className="min-h-screen bg-console px-4 py-12 text-white sm:px-6">
+        <div className="mx-auto max-w-2xl rounded-xl border border-white/[.08] bg-white/[.025] p-8 text-center">
           <CalendarRange size={32} className="mx-auto text-white/20" />
           <h1 className="mt-4 text-xl font-black">No church workspace assigned</h1>
           <p className="mt-2 text-sm leading-6 text-white/40">Your account is signed in but is not currently linked to an organization that can show service plans.</p>
-          <Link href="/" className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 hover:bg-white/[.04] hover:text-white"><ArrowLeft size={15} />Back to Control Room</Link>
+          <Link href="/" className="ip-focus-gold mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 hover:bg-white/[.04] hover:text-white">Back to Control Room</Link>
         </div>
       </main>
     );
@@ -89,26 +90,32 @@ export default async function PlannerPage() {
   const readyCount = services.services.filter((service) => service.status === "ready").length;
   const liveCount = services.services.filter((service) => service.status === "live").length;
 
+  const navigationCapabilities = {
+    canMedia: capabilities.canPlanServices,
+    canViewPlanner: capabilities.canViewPlanner,
+    canCameras: capabilities.canSettings,
+    canAIDirector: capabilities.canSettings,
+    canTranslations: capabilities.canTranslations,
+    canStreaming: capabilities.canStreaming,
+    canArchive: capabilities.canViewPlanner,
+    canSettings: capabilities.canSettings
+  };
+
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link href="/" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.025] text-white/50 transition hover:bg-white/[.05] hover:text-white" aria-label="Back to Control Room"><ArrowLeft size={18} /></Link>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><CalendarRange size={14} />Service Planner</div>
-              <h1 className="mt-1 truncate text-xl font-black tracking-tight sm:text-2xl">{organization.organization_name}</h1>
-              <div className="mt-1 truncate text-xs text-white/35">Rundowns, readiness and Edge handoff · {organization.timezone}</div>
-            </div>
-          </div>
-          <CreateServiceDialog
-            organizationId={organization.organization_id}
-            campuses={campuses.rows}
-            bibleVersions={bibleVersions.rows}
-            canPlanServices={capabilities.canPlanServices}
-          />
-        </div>
-      </header>
+    <WorkspaceShell
+      capabilities={navigationCapabilities}
+      icon={CalendarRange}
+      title="Service Planner"
+      subtitle={`${organization.organization_name} · rundowns, readiness and Edge handoff · ${organization.timezone}`}
+      actions={
+        <CreateServiceDialog
+          organizationId={organization.organization_id}
+          campuses={campuses.rows}
+          bibleVersions={bibleVersions.rows}
+          canPlanServices={capabilities.canPlanServices}
+        />
+      }
+    >
 
       <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
         <section className="grid gap-3 sm:grid-cols-3">
@@ -144,6 +151,6 @@ export default async function PlannerPage() {
           />
         </section>
       </div>
-    </main>
+    </WorkspaceShell>
   );
 }

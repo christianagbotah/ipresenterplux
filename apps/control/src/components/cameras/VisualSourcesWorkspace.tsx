@@ -109,7 +109,6 @@ function formatSignal(source: VisualSource) {
 
 export function VisualSourcesWorkspace({
   organizationId,
-  organizationName,
   initialSources,
   edgeDevices,
   hasPairedEdge,
@@ -245,22 +244,12 @@ export function VisualSourcesWorkspace({
   }
 
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
-      <a href="#visual-sources-content" className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl">
-        Skip to Visual Sources content
-      </a>
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-[#d7a94a]"><Monitor size={14} />Visual Sources</div>
-            <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{organizationName}</h1>
-            <p className="mt-1 text-xs text-white/45">Edge-owned camera, screen and window truth. Physical capture stays on the church production computer.</p>
-          </div>
-          <Link href="/settings/devices" className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
+    <div className="min-h-screen text-white">
+      <div id="visual-sources-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-white/45">Edge-owned camera, screen and window truth · capture stays on the church production computer</p>
+          <Link href="/settings/devices" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
         </div>
-      </header>
-
-      <div id="visual-sources-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-7">
         <section className="rounded-2xl border border-white/[.07] bg-white/[.02] p-2" aria-label="Visual source categories">
           <div className="grid gap-2 sm:grid-cols-3">
             {categories.map(({ kind, label: categoryLabel, icon: Icon }) => (
@@ -279,7 +268,7 @@ export function VisualSourcesWorkspace({
 
         <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/80 p-4 sm:p-5 lg:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#d7a94a]">Edge-confirmed source truth</div><h2 className="mt-1 text-xl font-black tracking-tight">{categories.find((item) => item.kind === activeKind)?.label}</h2><p className="mt-1 text-sm text-white/45">Confirmed route badges disappear when source telemetry is stale. Sources become disconnected after {staleAfterSeconds}s without a fresh report.</p></div>
+            <div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#d7a94a]">Visual Sources · Edge-confirmed truth</div><h2 className="mt-1 text-xl font-black tracking-tight">{categories.find((item) => item.kind === activeKind)?.label}</h2><p className="mt-1 text-sm text-white/45">Confirmed route badges disappear when source telemetry is stale. Sources become disconnected after {staleAfterSeconds}s without a fresh report.</p></div>
             <div className="text-xs text-white/40">{edgeDevices.length} paired/non-revoked Edge device{edgeDevices.length === 1 ? "" : "s"}</div>
           </div>
 
@@ -356,6 +345,6 @@ export function VisualSourcesWorkspace({
           ) : null}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

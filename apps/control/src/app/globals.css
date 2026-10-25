@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/*
+ * iPresenterPlux Console design tokens.
+ * One shared vocabulary for the web control plane, aligned with the
+ * desktop OperatorTheme: dark-first production surfaces, gold brand,
+ * gold = Preview, red = LIVE, semantic states.
+ */
+@theme {
+  --color-console: #07090d;
+  --color-console-2: #080b10;
+  --color-panel: #0b0f16;
+  --color-panel-2: #0c1017;
+  --color-raised: #10151e;
+  --color-ink: #f5f7fb;
+  --color-gold: #d7a94a;
+  --color-gold-strong: #efc86f;
+  --color-gold-soft: #f2c765;
+  --color-gold-ink: #171109;
+  --color-live: #ff5d5d;
+  --color-good: #49d17d;
+  --color-warn: #f4bb58;
+  --color-danger: #ff6b6b;
+}
+
 :root {
   color-scheme: dark;
   --background: #07090d;

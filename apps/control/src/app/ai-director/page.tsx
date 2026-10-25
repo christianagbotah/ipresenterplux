@@ -1,6 +1,8 @@
+import { Bot } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { AIDirectorWorkspace } from "@/components/ai-director/AIDirectorWorkspace";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { db } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 import { getAIDirectorState } from "@/lib/ai-director";
@@ -11,6 +13,15 @@ export default async function AIDirectorPage(){
   try {
     const context=await getCurrentServiceForUser(session.user.id,{client}); if(!context) redirect('/');
     const state=await getAIDirectorState(client,session.user.id,{organizationId:context.organizationId,serviceId:context.service?.id});
-    return <AIDirectorWorkspace organizationName={context.organizationName} state={state}/>;
+    return (
+      <WorkspaceShell
+        capabilities={context.navigationCapabilities}
+        icon={Bot}
+        title="AI Director"
+        subtitle={context.organizationName}
+      >
+        <AIDirectorWorkspace organizationName={context.organizationName} state={state}/>
+      </WorkspaceShell>
+    );
   } finally { client.release(); }
 }

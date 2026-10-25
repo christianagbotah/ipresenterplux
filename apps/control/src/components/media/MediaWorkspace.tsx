@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CirclePlus, Film, ListPlus, Music2, Search, SquarePlay, Type, Video } from "lucide-react";
+import { CirclePlus, Film, ListPlus, Music2, Search, Type, Video } from "lucide-react";
 
 type PreviewEligibility = "eligible" | "native_only" | "unsupported" | "missing_source";
 
@@ -81,7 +81,6 @@ function itemSummary(item: LibraryItem) {
 
 export function MediaWorkspace({
   organizationId,
-  organizationName,
   initialItems,
   currentService,
   mediaSources,
@@ -177,29 +176,16 @@ export function MediaWorkspace({
   }
 
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
-      <a
-        href="#media-content"
-        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
-      >
-        Skip to Songs & Media content
-      </a>
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><Music2 size={14} />Songs & Media</div>
-            <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{organizationName}</h1>
-            <p className="mt-1 text-xs text-white/50">Reusable worship content · Planner-safe rundown insertion · truthful Edge availability</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/media/import" className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.07] px-4 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold">Import existing content</Link>
-            <Link href="/planner" className="inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white ip-focus-gold">Service Planner</Link>
-            <Link href="/operator" className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold"><SquarePlay size={16} />Open Operator</Link>
-          </div>
+    <div className="min-h-screen text-white">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6 lg:px-8">
+        <p className="text-xs text-white/45">Reusable worship content · Planner-safe rundown insertion</p>
+        <div className="flex flex-wrap gap-2">
+            <Link href="/media/import" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.07] px-4 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.12]">Import existing content</Link>
+            <Link href="/planner" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white">Service Planner</Link>
         </div>
-      </header>
+      </div>
 
-      <div id="media-content" tabIndex={-1} className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 focus:outline-none sm:px-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-8 lg:py-7">
+      <div id="media-content" tabIndex={-1} className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 focus:outline-none sm:px-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-8 lg:py-6">
         <aside className="space-y-4">
           <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/85 p-5">
             <div className="text-[11px] font-bold uppercase tracking-[.16em] text-white/50">Current service</div>
@@ -300,6 +286,6 @@ export function MediaWorkspace({
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

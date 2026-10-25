@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   Bot,
+  CalendarRange,
   Camera,
   Languages,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const icons: Record<StudioIconKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   scripture: BookOpen,
   media: Music2,
+  planner: CalendarRange,
   theme: Palette,
   camera: Camera,
   ai: Bot,

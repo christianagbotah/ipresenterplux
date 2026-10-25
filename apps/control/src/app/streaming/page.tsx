@@ -1,22 +1,19 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  ArrowLeft,
   CheckCircle2,
   CircleDot,
   Cloud,
-  MonitorPlay,
   RadioTower,
-  Settings2,
   ShieldCheck,
   ShieldAlert,
   Signal,
   WifiOff
 } from "lucide-react";
 import { auth } from "@auth";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 import { StreamingBroadcastControl } from "@/components/StreamingBroadcastControl";
 import { StreamingDestinationControl } from "@/components/StreamingDestinationControl";
 import { StreamingDestinationCredentials } from "@/components/StreamingDestinationCredentials";
@@ -222,6 +219,7 @@ export default async function StreamingPage() {
 
   const data = await streamingData(session.user.id);
   if (!data.service) redirect("/");
+  const navigationContext = await getCurrentServiceForUser(session.user.id);
   const youtubeProviderLinkingAvailable = youtubeOAuthConfigured() && providerSecretKeyConfigured();
 
   const master = data.streamSession;
@@ -237,36 +235,16 @@ export default async function StreamingPage() {
   ).length;
 
   return (
-    <main className="min-h-screen bg-[#070a0f] text-white">
+    <WorkspaceShell
+      capabilities={navigationContext?.navigationCapabilities ?? {
+        canMedia: false, canViewPlanner: false, canCameras: false, canAIDirector: false,
+        canTranslations: false, canStreaming: false, canArchive: false, canSettings: false
+      }}
+      icon={RadioTower}
+      title="Streaming Studio"
+      subtitle={`${data.service.title} · authoritative master & destination transport`}
+    >
       <RealtimeRefresh serviceId={data.service.id} />
-
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#080b10]/92 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-16 max-w-[1800px] items-center justify-between gap-3 px-3 sm:px-5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link href="/" aria-label="Back to Control Room" className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/55 transition hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e5b95e]">
-              <ArrowLeft size={18} />
-            </Link>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]">
-              <RadioTower size={19} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-black sm:text-base">Streaming Studio</h1>
-              <div className="mt-0.5 truncate text-[11px] text-white/34">{data.service.title} · authoritative master & destination transport</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/operator" className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white md:flex">
-              <MonitorPlay size={15} /> Operator
-            </Link>
-            <Link href="/settings" className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white lg:flex">
-              <Settings2 size={15} /> Settings
-            </Link>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-[1800px] space-y-4 p-3 sm:p-4 lg:p-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
@@ -434,6 +412,6 @@ export default async function StreamingPage() {
           </aside>
         </section>
       </div>
-    </main>
+    </WorkspaceShell>
   );
 }

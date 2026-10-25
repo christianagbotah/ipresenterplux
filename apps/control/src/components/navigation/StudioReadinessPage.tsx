@@ -38,7 +38,7 @@ export async function StudioReadinessPage({
   if (session.user.forcePasswordChange) redirect("/change-password");
 
   const context = await readinessContext(session.user.id);
-  const capabilities = context?.navigationCapabilities ?? { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false };
+  const capabilities = context?.navigationCapabilities ?? { canMedia:false, canViewPlanner:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false };
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">

@@ -32,7 +32,7 @@ function HealthCard({ icon, health }: { icon: React.ReactNode; health: AIDirecto
   );
 }
 
-export function AIDirectorWorkspace({ organizationName, state }: Props) {
+export function AIDirectorWorkspace({ state }: Props) {
   const service = state.service;
   const [aiEnabled, setAiEnabled] = useState(service?.aiEnabled ?? false);
   const [threshold, setThreshold] = useState(service?.autoPreviewThreshold ?? 90);
@@ -71,24 +71,21 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
-      <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        <section className="rounded-3xl border border-white/[.07] bg-[radial-gradient(circle_at_top_right,rgba(215,169,74,.13),transparent_34%),#0c1017] p-5 sm:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-[#d7a94a]"><BrainCircuit size={15} />AI Director</div>
-              <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{organizationName}</h1>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">Advisory only. AI can recommend content and promote sufficiently confident Scripture detections into Preview when enabled. Program authority remains operator-only.</p>
+    <div className="min-h-screen text-white">
+      <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+        <section className="flex flex-col gap-3 rounded-xl border border-white/[.07] bg-panel p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-white/55">
+            <BrainCircuit size={15} className="shrink-0 text-gold" aria-hidden="true" />
+            <span className="truncate">Advisory only · AI recommends and can promote confident Scripture into Preview · Program authority stays operator-only</span>
+          </div>
+          <div className="grid min-w-[240px] grid-cols-2 gap-2">
+            <div className="rounded-lg border border-white/[.07] bg-black/20 px-3 py-2">
+              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-white/45">Recommendations</div>
+              <div className="mt-0.5 text-lg font-extrabold tabular-nums">{recommendationCount}</div>
             </div>
-            <div className="grid min-w-[280px] grid-cols-2 gap-2">
-              <div className="rounded-2xl border border-white/[.07] bg-black/20 p-3">
-                <div className="text-[11px] font-bold uppercase tracking-[.14em] text-white/45">Recommendations</div>
-                <div className="mt-1 text-2xl font-black">{recommendationCount}</div>
-              </div>
-              <div className="rounded-2xl border border-white/[.07] bg-black/20 p-3">
-                <div className="text-[11px] font-bold uppercase tracking-[.14em] text-white/45">In Preview</div>
-                <div className="mt-1 text-2xl font-black">{previewCount}</div>
-              </div>
+            <div className="rounded-lg border border-white/[.07] bg-black/20 px-3 py-2">
+              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-white/45">In Preview</div>
+              <div className="mt-0.5 text-lg font-extrabold tabular-nums">{previewCount}</div>
             </div>
           </div>
         </section>
@@ -133,7 +130,7 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
                 <div className="flex items-center gap-2 text-sm font-black"><ListChecks size={17} className="text-[#d7a94a]" />Smart Next</div>
                 <p className="mt-1 text-xs leading-5 text-white/50">Pinned, predicted and planned cues ranked from current service truth.</p>
               </div>
-              <Link href="/cockpit" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Open Cockpit</Link>
+              <Link href="/operator" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Open Operator</Link>
             </div>
             <div className="mt-4 space-y-2">
               {state.smartNext.length ? state.smartNext.slice(0, 6).map((item, index) => (
@@ -277,6 +274,6 @@ export function AIDirectorWorkspace({ organizationName, state }: Props) {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

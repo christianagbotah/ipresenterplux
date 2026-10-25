@@ -4,8 +4,27 @@ import { ArrowLeft } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 
 const HIDDEN_PATHS = new Set(["/", "/login", "/live"]);
-const LOCAL_BACK_PATHS = new Set(["/admin/licensing", "/media/import", "/planner", "/settings", "/streaming"]);
-const LOCAL_BACK_PREFIXES = ["/planner/", "/settings/"];
+// Routes that already render the StudioSidebar/WorkspaceShell navigation or
+// carry their own local parent-back button. The floating pill is a safety net
+// for future detached routes, not a second navigation system.
+const LOCAL_BACK_PATHS = new Set([
+  "/admin/licensing",
+  "/media/import",
+  "/planner",
+  "/settings",
+  "/streaming",
+  "/operator",
+  "/scripture",
+  "/media",
+  "/themes",
+  "/cameras",
+  "/ai-director",
+  "/translations",
+  "/audience",
+  "/archive",
+  "/change-password"
+]);
+const LOCAL_BACK_PREFIXES = ["/planner/", "/settings/", "/archive/", "/media/"];
 
 export function WorkspaceBackButton() {
   const pathname = usePathname();

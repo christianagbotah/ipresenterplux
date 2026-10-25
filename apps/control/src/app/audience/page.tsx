@@ -33,7 +33,7 @@ async function audienceOrigin() {
 
 async function audiencePageData(userId: string) {
   const context = await getCurrentServiceForUser(userId);
-  if (!context) return { service: null, capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false }, navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false }, languages: [], scripture: null, caption: null, streamStatus: "idle" };
+  if (!context) return { service: null, capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false }, navigationCapabilities: { canMedia:false, canViewPlanner:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false }, languages: [], scripture: null, caption: null, streamStatus: "idle" };
   const service: ServiceRow | null = context.service ? { id: context.service.id, organization_id: context.service.organizationId, title: context.service.title, status: context.service.status } : null;
   const organizationId = context.organizationId;
   const capabilities = context.roleCapabilities;

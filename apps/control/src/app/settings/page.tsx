@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, AudioLines, ChevronRight, CreditCard, MonitorCog, Palette, Settings2, ShieldCheck } from "lucide-react";
+import { AudioLines, ChevronRight, CreditCard, MonitorCog, Palette, Settings2, ShieldCheck } from "lucide-react";
 import { auth } from "@auth";
 import { query } from "@/lib/db";
 import { DEVICE_ADMIN_ROLES, THEME_ADMIN_ROLES, VOICE_ADMIN_ROLES } from "@/lib/rbac";
 import { MotionPreferences } from "@/components/settings/MotionPreferences";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,16 @@ export default async function SettingsPage() {
   const canSubscription = canDevices;
   const canThemes = roles.some((role) => THEME_ADMIN_ROLES.includes(role as never));
   const canScriptureAutomation = roles.some((role) => role === "owner" || role === "admin");
+  const navigationCapabilities = {
+    canMedia: canThemes,
+    canViewPlanner: canDevices || canScriptureAutomation,
+    canCameras: canDevices,
+    canAIDirector: canScriptureAutomation,
+    canTranslations: canScriptureAutomation,
+    canStreaming: canDevices,
+    canArchive: canDevices,
+    canSettings: canDevices || canVoices || canThemes || canScriptureAutomation
+  };
 
   const cards = [
     canThemes ? { href: "/themes", title: "Theme Studio", description: "Design reusable Scripture, lyrics, announcement and lower-third presentation themes.", icon: Palette } : null,
@@ -66,18 +77,13 @@ export default async function SettingsPage() {
   ].filter(Boolean) as Array<{ href: string; title: string; description: string; icon: typeof MonitorCog }>;
 
   return (
-    <main className="min-h-screen px-4 py-6 lg:px-8 lg:py-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-7 flex items-center gap-4">
-          <Link href="/" className="ip-focus-gold flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/70 transition hover:bg-white/[.06] hover:text-white" aria-label="Back to Control Room">
-            <ArrowLeft size={17} />
-          </Link>
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><Settings2 size={13} /> Settings</div>
-            <h1 className="mt-1 text-2xl font-black tracking-tight">Platform settings</h1>
-            <p className="mt-1 text-sm text-white/55">{organization?.name ?? "No organization assigned"}</p>
-          </div>
-        </header>
+    <WorkspaceShell
+      capabilities={navigationCapabilities}
+      icon={Settings2}
+      title="Platform Settings"
+      subtitle={organization?.name ?? "No organization assigned"}
+    >
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">
 
         <div className="mb-5 flex items-start gap-3 rounded-2xl border border-white/[.07] bg-white/[.025] p-4 text-xs leading-5 text-white/55">
           <ShieldCheck size={16} className="mt-0.5 shrink-0 text-emerald-300" />
@@ -108,6 +114,6 @@ export default async function SettingsPage() {
           <MotionPreferences />
         </div>
       </div>
-    </main>
+    </WorkspaceShell>
   );
 }
