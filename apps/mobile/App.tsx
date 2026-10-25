@@ -218,9 +218,12 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.entry} keyboardShouldPersistTaps="handled">
         <StatusBar style="light" />
+        <View style={styles.entryMark} accessibilityLabel="iPresenterPlux">
+          <Text style={styles.entryMarkText}>iP</Text>
+        </View>
         <Text style={styles.brand}>iPresenterPlux</Text>
         <Text style={styles.title}>Join your live church service</Text>
-        <Text style={styles.muted}>Scan the church QR code or open its live link. Valid links join automatically.</Text>
+        <Text style={styles.muted}>Scan the church QR code or open its live link — valid links join automatically. You can also paste the service ID below.</Text>
         <TextInput
           value={serviceId}
           onChangeText={setServiceId}
@@ -230,9 +233,11 @@ export default function App() {
           placeholderTextColor="#667080"
           style={styles.input}
           accessibilityLabel="Live service ID"
+          accessibilityHint="The service ID from the church QR code or live link."
         />
         <Pressable
           accessibilityRole="button"
+          accessibilityHint="Connect to the live service and start listening."
           style={[styles.button, busy && styles.buttonDisabled]}
           onPress={() => void join()}
           disabled={busy}
@@ -248,6 +253,11 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
+      {connection === "reconnecting" ? (
+        <View style={styles.reconnectBanner} accessibilityRole="alert">
+          <Text style={styles.reconnectText}>Connection interrupted — keeping the current service on screen while we reconnect.</Text>
+        </View>
+      ) : null}
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.liveHeader}>
           <View style={styles.headerCopy}>
@@ -278,13 +288,14 @@ export default function App() {
 
         <View style={styles.card}>
           <Text style={styles.label}>Listen in your language</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.langRow}>
             {data.languages.map((item) => (
               <Pressable
                 key={item.id}
                 accessibilityRole="button"
                 accessibilityState={{ selected: item.id === channel?.id }}
                 accessibilityLabel={`${item.name}, ${item.mode.replaceAll("_", " ")}`}
+                accessibilityHint="Switches captions and translated audio to this language."
                 onPress={() => selectLanguage(item.id)}
                 style={[styles.lang, item.id === channel?.id && styles.langActive]}
               >
@@ -317,9 +328,6 @@ export default function App() {
           <Text style={styles.label}>Live Captions</Text>
           <Text style={styles.caption}>{caption ?? "Waiting for the next spoken segment…"}</Text>
           {source?.source_language ? <Text style={styles.langMode}>Source · {source.source_language}</Text> : null}
-          {connection === "reconnecting" ? (
-            <Text style={styles.reconnectingCopy}>Keeping the current service on screen while live updates reconnect.</Text>
-          ) : null}
         </View>
 
         <Pressable accessibilityRole="button" style={styles.secondary} onPress={leave}>
@@ -334,36 +342,48 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#07090d" },
   entry: { flexGrow: 1, justifyContent: "center", padding: 28 },
   content: { padding: 20, gap: 16 },
+  entryMark: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#d7a94a",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14
+  },
+  entryMarkText: { color: "#191307", fontSize: 22, fontWeight: "900" },
   brand: { color: "#e5b85c", fontSize: 12, fontWeight: "900", letterSpacing: 2 },
   title: { color: "#fff", fontSize: 28, fontWeight: "900", marginTop: 8 },
   muted: { color: "#87909f", fontSize: 14, lineHeight: 22, marginTop: 12 },
-  input: { marginTop: 24, borderWidth: 1, borderColor: "#29303c", backgroundColor: "#0d121a", borderRadius: 14, padding: 15, color: "#fff", fontSize: 14 },
-  button: { marginTop: 12, minHeight: 50, justifyContent: "center", backgroundColor: "#d7a94a", borderRadius: 14, padding: 15, alignItems: "center" },
+  input: { marginTop: 24, borderWidth: 1, borderColor: "#29303c", backgroundColor: "#0b0f16", borderRadius: 14, minHeight: 52, padding: 15, color: "#fff", fontSize: 15 },
+  button: { marginTop: 14, minHeight: 52, justifyContent: "center", backgroundColor: "#d7a94a", borderRadius: 14, padding: 15, alignItems: "center" },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#111", fontWeight: "900" },
+  buttonText: { color: "#111", fontWeight: "900", fontSize: 15 },
   error: { color: "#fca5a5", marginTop: 12, fontSize: 13, lineHeight: 19 },
   ended: { color: "#fbbf24", marginTop: 14, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.2 },
+  reconnectBanner: { backgroundColor: "#f4bb5818", borderBottomWidth: 1, borderBottomColor: "#f4bb5840", paddingHorizontal: 16, paddingVertical: 8 },
+  reconnectText: { color: "#fbbf24", fontSize: 11, lineHeight: 16, textAlign: "center" },
   liveHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   headerCopy: { flex: 1 },
-  connectionBadge: { borderWidth: 1, borderColor: "#7f1d1d", backgroundColor: "#ef444412", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  connectionBadgeWarning: { borderColor: "#713f12", backgroundColor: "#f59e0b12" },
-  connectionText: { color: "#f87171", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+  connectionBadge: { borderWidth: 1, borderColor: "#7f1d1d", backgroundColor: "#ff5d5d18", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  connectionBadgeWarning: { borderColor: "#713f12", backgroundColor: "#f4bb5818" },
+  connectionText: { color: "#ff8f8f", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
   connectionTextWarning: { color: "#fbbf24" },
-  videoCard: { backgroundColor: "#000", borderWidth: 1, borderColor: "#1d2530", borderRadius: 20, overflow: "hidden" },
+  videoCard: { backgroundColor: "#000", borderWidth: 1, borderColor: "#1d2530", borderRadius: 16, overflow: "hidden" },
   video: { width: "100%", height: 210 },
   videoAudioNotice: { borderTopWidth: 1, borderTopColor: "#302610", backgroundColor: "#d7a94a10", paddingHorizontal: 12, paddingVertical: 8 },
-  videoAudioNoticeText: { color: "#c9a85f", fontSize: 9, fontWeight: "800", textAlign: "center" },
-  card: { backgroundColor: "#0d121a", borderWidth: 1, borderColor: "#1d2530", borderRadius: 20, padding: 16 },
+  videoAudioNoticeText: { color: "#c9a85f", fontSize: 10, fontWeight: "800", textAlign: "center" },
+  card: { backgroundColor: "#0b0f16", borderWidth: 1, borderColor: "#1d2530", borderRadius: 16, padding: 16 },
   label: { color: "#8d96a5", fontSize: 11, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 },
-  lang: { borderWidth: 1, borderColor: "#252d38", borderRadius: 12, padding: 12, marginRight: 8, minWidth: 130 },
+  langRow: { paddingRight: 4 },
+  lang: { borderWidth: 1, borderColor: "#252d38", borderRadius: 12, padding: 14, marginRight: 10, minWidth: 140, minHeight: 56 },
   langActive: { borderColor: "#d7a94a", backgroundColor: "#d7a94a18" },
-  langText: { color: "#fff", fontWeight: "800", fontSize: 12 },
+  langText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   langMode: { color: "#667080", fontSize: 9, textTransform: "uppercase", marginTop: 5 },
-  audioPipelineState: { color: "#667080", fontSize: 9, textTransform: "uppercase", marginTop: 8 },
-  scripture: { color: "#fff", fontSize: 23, fontWeight: "900" },
+  audioPipelineState: { color: "#667080", fontSize: 10, textTransform: "uppercase", marginTop: 8 },
+  scripture: { color: "#fff", fontSize: 24, fontWeight: "900" },
   body: { color: "#b6bfcc", fontSize: 14, lineHeight: 22, marginTop: 8 },
   caption: { color: "#fff", fontSize: 18, lineHeight: 28 },
-  reconnectingCopy: { marginTop: 10, color: "#fbbf24", fontSize: 10, lineHeight: 16 },
-  secondary: { alignItems: "center", padding: 14 },
+  secondary: { alignItems: "center", padding: 16, minHeight: 52 },
   secondaryText: { color: "#87909f", fontWeight: "700" }
 });

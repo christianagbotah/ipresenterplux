@@ -223,15 +223,16 @@ const styles = StyleSheet.create({
   },
   copy: { flex: 1 },
   title: { color: "#efc76e", fontSize: 12, fontWeight: "900" },
-  status: { color: "#8c94a1", fontSize: 10, lineHeight: 15, marginTop: 4 },
+  status: { color: "#8c94a1", fontSize: 11, lineHeight: 16, marginTop: 4 },
   button: {
     borderWidth: 1,
     borderColor: "#5f4a25",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 46,
     backgroundColor: "#d7a94a12"
   },
   buttonActive: { backgroundColor: "#d7a94a20" },
-  buttonText: { color: "#efc76e", fontSize: 10, fontWeight: "900" }
+  buttonText: { color: "#efc76e", fontSize: 12, fontWeight: "900" }
 });
