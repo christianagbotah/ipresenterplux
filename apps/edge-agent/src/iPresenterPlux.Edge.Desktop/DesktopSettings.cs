@@ -12,12 +12,12 @@ public sealed record DesktopSettings(
     int? ProgramDisplayY = null,
     int? ProgramDisplayWidth = null,
     int? ProgramDisplayHeight = null,
-    double? OperatorScheduleColumn = null,
+    double? OperatorSidebarColumn = null,
     double? OperatorPreviewColumn = null,
     double? OperatorProgramColumn = null,
-    double? OperatorProductionRow = null,
-    double? OperatorResourceRow = null,
-    bool OperatorScheduleCollapsed = false,
+    double? OperatorStageRow = null,
+    double? OperatorDeckRow = null,
+    bool OperatorSidebarCollapsed = false,
     bool OperatorResourceDeckCollapsed = false,
     string OperatorLayoutPreset = "production")
 {
@@ -91,12 +91,12 @@ public sealed record DesktopSettings(
             ProgramDisplayY = programDisplayId is null ? null : ProgramDisplayY,
             ProgramDisplayWidth = programDisplayId is null ? null : ProgramDisplayWidth,
             ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight,
-            OperatorScheduleColumn = ClampStar(OperatorScheduleColumn),
+            OperatorSidebarColumn = ClampStar(OperatorSidebarColumn),
             OperatorPreviewColumn = ClampStar(OperatorPreviewColumn),
             OperatorProgramColumn = ClampStar(OperatorProgramColumn),
-            OperatorProductionRow = ClampStar(OperatorProductionRow),
-            OperatorResourceRow = ClampStar(OperatorResourceRow),
-            OperatorScheduleCollapsed = OperatorScheduleCollapsed,
+            OperatorStageRow = ClampStar(OperatorStageRow),
+            OperatorDeckRow = ClampStar(OperatorDeckRow),
+            OperatorSidebarCollapsed = OperatorSidebarCollapsed,
             OperatorResourceDeckCollapsed = OperatorResourceDeckCollapsed,
             OperatorLayoutPreset = operatorLayoutPreset
         };

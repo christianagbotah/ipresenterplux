@@ -22,15 +22,15 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorUsesTwoVerticalSplittersAndOneHorizontalSplitter()
+    public void OperatorUsesSidebarSplitterTakeSeamAndDeckSplitter()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var schedulePreviewSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
-        Assert.Contains("var previewProgramSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
-        Assert.Contains("var productionResourceSplitter = ProductionSplitter(GridResizeDirection.Rows)", source, StringComparison.Ordinal);
+        Assert.Contains("var sidebarPreviewSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
+        Assert.Contains("var seamSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
+        Assert.Contains("var deckSplitter = ProductionSplitter(GridResizeDirection.Rows)", source, StringComparison.Ordinal);
         Assert.Contains("GridResizeBehavior.PreviousAndNext", source, StringComparison.Ordinal);
-        Assert.Contains("MinWidth = 180", source, StringComparison.Ordinal);
+        Assert.Contains("MinWidth = 220", source, StringComparison.Ordinal);
         Assert.Contains("MinWidth = 240", source, StringComparison.Ordinal);
     }
 
@@ -48,13 +48,18 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorDefaultsToNarrowScheduleAndBalancedPreviewProgram()
+    public void OperatorDefaultsToLibrarySidebarSixtyFortyStageAndTallerDeck()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("new GridLength(0.72, GridUnitType.Star)", source, StringComparison.Ordinal);
-        Assert.Contains("new GridLength(1.14, GridUnitType.Star)", source, StringComparison.Ordinal);
+        // 52px rail, 60/40 stage monitors, deck slightly taller than the stage.
+        Assert.Contains("new ColumnDefinition(new GridLength(52))", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(2.15, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(1.45, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("new GridLength(1.32, GridUnitType.Star)", source, StringComparison.Ordinal);
         Assert.Contains("new GridLength(5)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new GridLength(0.72, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("new GridLength(1.14, GridUnitType.Star)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("new GridLength(1.8, GridUnitType.Star)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HorizontalAlignment = HorizontalAlignment.Center,\n            Child = grid", source, StringComparison.Ordinal);
     }
@@ -67,7 +72,6 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("_bibleVersion.MinHeight = 36", source, StringComparison.Ordinal);
         Assert.Contains("Grid.SetColumn(_resolveScripture, 2)", source, StringComparison.Ordinal);
         Assert.Contains("var scriptureLookup = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetColumn(_resolveScripture, 2)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions(\"*,Auto\"), ColumnSpacing = 8 }", source, StringComparison.Ordinal);
     }
 
@@ -96,14 +100,16 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorHeaderUsesOneCompactRowWithoutDescriptiveCopy()
+    public void OperatorCommandBarCarriesBrandServiceTruthAndLiveControls()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions(\"Auto,*,Auto\"), ColumnSpacing = 12 }", source, StringComparison.Ordinal);
-        Assert.Contains("Label(\"LIVE PRODUCTION\", 16, FontWeight.Bold)", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("IPRESENTERPLUX · OPERATOR", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Schedule · Preview · Program stay visible while you search and browse resources", source, StringComparison.Ordinal);
+        Assert.Contains("Label(\"iPresenterPlux\", 14, FontWeight.Bold)", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorTheme.Chip(\"STUDIO\", Gold", source, StringComparison.Ordinal);
+        Assert.Contains("_goLive.Content = snapshot.OutputRunning ? \"END LIVE\" : \"GO LIVE\";", source, StringComparison.Ordinal);
+        Assert.Contains("_studioClock.Text = DateTime.Now.ToString(\"HH:mm:ss\", CultureInfo.InvariantCulture);", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("LIVE PRODUCTION", source, StringComparison.Ordinal);
         Assert.DoesNotContain("HeaderHint()", source, StringComparison.Ordinal);
     }
 
@@ -173,6 +179,8 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("_rundown.PointerPressed += OnLibraryPointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("_schedule.PointerPressed += OnSchedulePointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("_upNext.PointerPressed += OnUpNextPointerPressed", source, StringComparison.Ordinal);
         Assert.Contains("FindPointerRundownRow", source, StringComparison.Ordinal);
         Assert.Contains("args.ClickCount >= 2", source, StringComparison.Ordinal);
         Assert.Contains("PreviewItemAndTakeAsync(row.Item)", source, StringComparison.Ordinal);
@@ -253,11 +261,11 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OperatorKeepsSchedulePreviewProgramAboveFixedResourceDeckControls()
+    public void OperatorKeepsSidebarStageAndPlayoutDeckInOneBodyGrid()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var production = new Grid", source, StringComparison.Ordinal);
+        Assert.Contains("var body = new Grid", source, StringComparison.Ordinal);
         Assert.Contains("SERVICE SCHEDULE", source, StringComparison.Ordinal);
         Assert.Contains("var previewPane = BuildProductionPane", source, StringComparison.Ordinal);
         Assert.Contains("var programPane = BuildProductionPane", source, StringComparison.Ordinal);
@@ -345,11 +353,11 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void OfflineBibleBrowserIsReachableFromTheResourceDeck()
+    public void OfflineBibleBrowserLivesInTheScriptureSidebarCard()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("Grid.SetRow(_scriptureBrowserPanel, 4)", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetRow(_scriptureBrowserPanel, 1)", source, StringComparison.Ordinal);
         Assert.Contains("BuildScriptureBrowserPanel()", source, StringComparison.Ordinal);
         Assert.Contains("_scriptureBrowserPanel.IsVisible = !_scriptureBrowserPanel.IsVisible", source, StringComparison.Ordinal);
         Assert.Contains("Preview Verse Range", source, StringComparison.Ordinal);
@@ -360,7 +368,7 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("SetSchedulePaneCollapsed", source, StringComparison.Ordinal);
+        Assert.Contains("SetSidebarPaneCollapsed", source, StringComparison.Ordinal);
         Assert.Contains("SetResourceDeckCollapsed", source, StringComparison.Ordinal);
         Assert.Contains("ApplyWorkspacePreset", source, StringComparison.Ordinal);
         Assert.Contains("ResetWorkspaceLayout", source, StringComparison.Ordinal);
@@ -391,6 +399,76 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("_scheduleEmptyHint.IsVisible = scheduleState.Rows.Count == 0", source, StringComparison.Ordinal);
         Assert.Contains("_catalogStatus.Text = _workspace.StatusLabel", source, StringComparison.Ordinal);
         Assert.Contains("_catalogService.Text = _workspace.ServiceTitle", source, StringComparison.Ordinal);
+    }
+
+    // --- Studio Shell v2.1: stage row, TAKE seam, playout deck ---
+
+    [Fact]
+    public void PlayoutDeckCarriesUpNextTitlesAndAiDirectorBelowTheStage()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Grid.SetRow(playoutDeck, 2)", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(playoutDeck, 3)", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumnSpan(playoutDeck, 3)", source, StringComparison.Ordinal);
+        Assert.Contains("Label(\"UP NEXT\", 9, FontWeight.Bold, Gold)", source, StringComparison.Ordinal);
+        Assert.Contains("Label(\"TITLES & SCRIPTURE\", 9, FontWeight.Bold, Gold)", source, StringComparison.Ordinal);
+        Assert.Contains("Label(\"AI DIRECTOR\", 9, FontWeight.Bold, OperatorTheme.TypeSlide)", source, StringComparison.Ordinal);
+        Assert.Contains("\"AUTO-FOLLOW\"", source, StringComparison.Ordinal);
+        Assert.Contains("SUGGESTS ONLY — YOU CONFIRM", source, StringComparison.Ordinal);
+        Assert.Contains("AI Director never touches Program — every suggestion passes through Preview first.", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TakeSitsOnTheResizableSeamBetweenPreviewAndProgram()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var seam = new Grid { MinWidth = 56, Children = { seamSplitter, takeStack } }", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumn(seam, 4)", source, StringComparison.Ordinal);
+        Assert.Contains("_take.Content = \"TAKE\"", source, StringComparison.Ordinal);
+        Assert.Contains("Children = { _take, takeHint }", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RailSwitchesSidebarModesAndKeepsAiWorkspacesAndSetupReachable()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_sidebarModeButtons = railButtons", source, StringComparison.Ordinal);
+        Assert.Contains("railButton.Click += (_, _) => ShowSidebarMode(mode);", source, StringComparison.Ordinal);
+        Assert.Contains("_scheduleCard.IsVisible = _sidebarMode == \"schedule\";", source, StringComparison.Ordinal);
+        Assert.Contains("_libraryCard.IsVisible = _sidebarMode is \"library\" or \"media\";", source, StringComparison.Ordinal);
+        Assert.Contains("_scriptureCard.IsVisible = _sidebarMode == \"scripture\";", source, StringComparison.Ordinal);
+        Assert.Contains("setupButton.Click += (_, _) => _tabs.SelectedIndex = SetupTabIndex;", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LowerThirdComposerStagesIntoPreviewNeverProgram()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("private readonly Button _sendLowerThird = ActionButton(\"SEND TO PREVIEW\", true);", source, StringComparison.Ordinal);
+        Assert.Contains("_sendLowerThird.Click += async (_, _) => await SendLowerThirdToPreviewAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("await PreviewItemAsync(item);", source, StringComparison.Ordinal);
+        Assert.Contains("\"LOWER THIRD\"", source, StringComparison.Ordinal);
+        // The composer must not take anything live by itself.
+        var composer = source[source.IndexOf("private async Task SendLowerThirdToPreviewAsync()")..];
+        composer = composer[..composer.IndexOf("private void ShowSidebarMode")];
+        Assert.DoesNotContain("ProgramTake", composer, StringComparison.Ordinal);
+        Assert.DoesNotContain("PreviewItemAndTakeAsync", composer, StringComparison.Ordinal);
+        Assert.DoesNotContain("OutputStart", composer, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SuggestionsStayDeterministicSuggestOnlyAndPreviewFirst()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("OperatorSuggestions.Evaluate(", source, StringComparison.Ordinal);
+        Assert.Contains("_dismissedSuggestionIds.Add(suggestion.Id);", source, StringComparison.Ordinal);
+        Assert.Contains("RefreshSuggestions();", source, StringComparison.Ordinal);
+        Assert.Contains("case OperatorSuggestion.ActionPreview:", source, StringComparison.Ordinal);
     }
 
     private static string FindSourceFile(params string[] pathParts)
