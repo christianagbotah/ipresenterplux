@@ -335,7 +335,44 @@ public sealed class MainWindow : Window
         _entitlementDetail.TextWrapping = TextWrapping.Wrap;
         _entitlementDevice.TextWrapping = TextWrapping.Wrap;
         _entitlementFeedback.TextWrapping = TextWrapping.Wrap;
+        _entitlementStatus.FontSize = 22;
 
+        // Product identity strip — commercial, quiet, no marketing paragraphs.
+        var identityMark = new Border
+        {
+            Width = 40,
+            Height = 40,
+            CornerRadius = new CornerRadius(9),
+            Background = Gold,
+            Child = new TextBlock
+            {
+                Text = "iP",
+                FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                Foreground = OperatorTheme.GoldInk,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        var identity = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 14 };
+        var identityText = new StackPanel
+        {
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = {
+                Label("iPresenterPlux · Church Edge", 20, FontWeight.Bold),
+                Label("Lightworld Technologies · online product activation", 11, FontWeight.Normal, Muted)
+            }
+        };
+        identity.Children.Add(identityMark);
+        Grid.SetColumn(identityText, 1);
+        identity.Children.Add(identityText);
+        var licenseBadge = OperatorTheme.Chip("PRODUCT LICENSING", Muted, SurfaceRaised);
+        licenseBadge.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(licenseBadge, 2);
+        identity.Children.Add(licenseBadge);
+
+        // Activation form.
         var form = new Grid { ColumnSpacing = 12, RowSpacing = 12 };
         form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -344,6 +381,8 @@ public sealed class MainWindow : Window
         form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         form.Children.Add(Field("Control Plane URL", _activationControlUrl, 0, 0, 2));
         form.Children.Add(Field("Product key", _productKey, 1, 0, 2));
+        ToolTip.SetTip(_activationControlUrl, "The church Control Plane URL supplied with your subscription.");
+        ToolTip.SetTip(_productKey, "Product keys are validated online and never saved by the desktop app.");
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _activate, _renewEntitlement })
@@ -358,33 +397,36 @@ public sealed class MainWindow : Window
         Grid.SetColumnSpan(actions, 2);
         form.Children.Add(actions);
 
+        // Subscription truth: state, plan, expiry, device identity.
         var status = new StackPanel {
             Spacing = 8,
             Children = {
                 Label("SUBSCRIPTION STATUS", 10, FontWeight.Bold, Gold),
                 _entitlementStatus,
                 _entitlementDetail,
-                _entitlementDevice,
                 Separator(),
+                _entitlementDevice,
                 Label("Settings remain available even when a subscription needs attention. Existing local work is not force-stopped solely because online validation is temporarily unavailable.", 11, FontWeight.Normal, Muted)
             }
         };
 
+        var columns = new Grid { ColumnSpacing = 16, RowSpacing = 16 };
+        columns.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.05, GridUnitType.Star)));
+        columns.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        var activationCard = Card("Activate this computer", form);
+        Grid.SetColumn(activationCard, 0);
+        columns.Children.Add(activationCard);
+        var subscriptionCard = Card("Subscription", status);
+        Grid.SetColumn(subscriptionCard, 1);
+        columns.Children.Add(subscriptionCard);
+
         var panel = new StackPanel {
-            Spacing = 18,
-            MaxWidth = 780,
+            Spacing = 16,
+            MaxWidth = 1060,
             HorizontalAlignment = HorizontalAlignment.Center,
             Children = {
-                new StackPanel {
-                    Spacing = 5,
-                    Children = {
-                        Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
-                        Label("Activate this production computer", 30, FontWeight.Bold),
-                        Label("Use the online subscription key issued for this church. Product keys are never saved by the desktop app.", 13, FontWeight.Normal, Muted)
-                    }
-                },
-                Card("Activation", form),
-                Card("Subscription", status),
+                identity,
+                columns,
                 _entitlementFeedback
             }
         };
@@ -1176,17 +1218,6 @@ public sealed class MainWindow : Window
         return container?.Content as OperatorRundownRow ?? container?.DataContext as OperatorRundownRow;
     }
 
-    private static Control StatusLine(string label, string value)
-    {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 8 };
-        grid.Children.Add(Label(label.ToUpperInvariant(), 9, FontWeight.Bold, Muted));
-        var v = Label(value, 11, FontWeight.SemiBold);
-        v.HorizontalAlignment = HorizontalAlignment.Right;
-        Grid.SetColumn(v, 1);
-        grid.Children.Add(v);
-        return grid;
-    }
-
     private static Control BuildStage(
         string label,
         TextBlock title,
@@ -1266,24 +1297,28 @@ public sealed class MainWindow : Window
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(18)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
-        var sidebar = new StackPanel { Spacing = 16 };
+        // Sidebar: identity, live runtime truth, outputs.
+        var sidebar = new StackPanel { Spacing = 14 };
         sidebar.Children.Add(new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(22),
-            Padding = new Thickness(20),
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(16),
             Child = new StackPanel {
-                Spacing = 6,
+                Spacing = 4,
                 Children = {
-                    Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
-                    Label("Church Edge", 26, FontWeight.Bold),
-                    Label("Local presentation, audio, recording and resilient broadcast runtime.", 12, FontWeight.Normal, Muted)
+                    Label("IPRESENTERPLUX · CHURCH EDGE", 9, FontWeight.Bold, Gold),
+                    Label("Setup & Runtime", 22, FontWeight.Bold),
+                    Label("Configure once. Pairing is write-only and never saved by the shell.", 11, FontWeight.Normal, Muted)
                 }
             }
         });
 
         _statusDetail.TextWrapping = TextWrapping.Wrap;
+        _statusTitle.FontSize = 18;
         sidebar.Children.Add(Card("Runtime status", new StackPanel {
-            Spacing = 12,
+            Spacing = 10,
             Children = {
                 new StackPanel {
                     Orientation = Orientation.Horizontal,
@@ -1298,7 +1333,7 @@ public sealed class MainWindow : Window
             }
         }));
 
-        var quickLinks = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = 138, ItemHeight = 44 };
+        var quickLinks = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = 150, ItemHeight = 40 };
         quickLinks.Children.Add(LocalOutputButton("Preview", "preview"));
         quickLinks.Children.Add(LocalOutputButton("Program", "program"));
         quickLinks.Children.Add(LinkButton("Control Room", () => CloudUri("/")));
@@ -1313,15 +1348,16 @@ public sealed class MainWindow : Window
         Grid.SetColumn(sidebarScroll, 0);
         root.Children.Add(sidebarScroll);
 
-        var main = new StackPanel { Spacing = 18 };
+        var main = new StackPanel { Spacing = 14 };
         main.Children.Add(new StackPanel {
-            Spacing = 4,
+            Spacing = 3,
             Children = {
-                Label("Edge setup", 30, FontWeight.Bold),
-                Label("Configure this production computer once. Pairing is write-only and never saved by the desktop shell.", 13, FontWeight.Normal, Muted)
+                Label("Edge setup", 26, FontWeight.Bold),
+                Label("Connection, displays and runtime control for this production computer.", 12, FontWeight.Normal, Muted)
             }
         });
 
+        // Connection & enrollment (pinned field grid).
         var setupGrid = new Grid { ColumnSpacing = 14, RowSpacing = 12 };
         setupGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         setupGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -1337,21 +1373,36 @@ public sealed class MainWindow : Window
             Children = { _programDisplay, _programDisplayHint }
         };
         setupGrid.Children.Add(Field("Program output display", displayPicker, 1, 1));
+        var saveActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _save.Margin = new Thickness(0, 0, 10, 0);
+        saveActions.Children.Add(_save);
+        ToolTip.SetTip(_save, "Persist the Control Plane URL, device name and Program display. The pairing code is never stored.");
+        Grid.SetRow(saveActions, 2);
+        Grid.SetColumnSpan(saveActions, 2);
+        setupGrid.Children.Add(saveActions);
+        main.Children.Add(Card("Connection & enrollment", setupGrid));
 
-        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var button in new[] { _save, _start, _restart, _stop })
+        // Runtime control — the operator's start/stop surface.
+        var runtimeActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var button in new[] { _start, _restart, _stop })
         {
             button.Margin = new Thickness(0, 0, 10, 0);
-            actions.Children.Add(button);
+            runtimeActions.Children.Add(button);
         }
-        Grid.SetRow(actions, 2);
-        Grid.SetColumnSpan(actions, 2);
-        setupGrid.Children.Add(actions);
-        main.Children.Add(Card("Connection & enrollment", setupGrid));
+        ToolTip.SetTip(_start, "Start the supervised Edge runtime. Requires a valid subscription and pairing when enrollment is needed.");
+        ToolTip.SetTip(_restart, "Restart Edge (F5). Reuses the saved settings; a fresh pairing code is used only if enrollment is required.");
+        ToolTip.SetTip(_stop, "Request a graceful runtime shutdown. Force termination is only a timeout fallback.");
+        main.Children.Add(Card("Runtime control", new StackPanel {
+            Spacing = 8,
+            Children = {
+                runtimeActions,
+                Label("F5 restarts Edge at any time. Program output and local recording keep running when the Control Plane is unreachable.", 11, FontWeight.Normal, Muted)
+            }
+        }));
 
         main.Children.Add(Card("Platform capabilities", BuildCapabilities()));
         main.Children.Add(Card("Safety & offline behavior", new StackPanel {
-            Spacing = 9,
+            Spacing = 8,
             Children = {
                 Bullet("Projector/Program output and local recording continue when the Control Plane or Internet is unavailable."),
                 Bullet("The shell never receives RTMPS keys, provider OAuth tokens, device bearer credentials or recording contents."),
@@ -2745,11 +2796,13 @@ public sealed class MainWindow : Window
 
     private static Border Card(string title, Control content) => new() {
         Background = Surface,
-        CornerRadius = new CornerRadius(18),
-        Padding = new Thickness(18),
+        BorderBrush = OperatorTheme.LineSoft,
+        BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(8),
+        Padding = new Thickness(14),
         Child = new StackPanel {
-            Spacing = 12,
-            Children = { Label(title, 14, FontWeight.Bold), content }
+            Spacing = 10,
+            Children = { Label(title, 13, FontWeight.Bold), content }
         }
     };
 
