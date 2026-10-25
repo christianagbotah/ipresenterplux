@@ -760,10 +760,10 @@ public sealed class MainWindow : Window
         openProgram.Content = "Open Program";
         programActions.Children.Add(_clear);
         programActions.Children.Add(openProgram);
-        _record.Content = "Start Recording";
-        _record.MinHeight = 30;
-        _record.Padding = new Thickness(10, 4);
-        programActions.Children.Add(_record);
+        // NOTE: _record lives ONLY in the command bar (headerActions, next to
+        // GO LIVE). Adding it here as well double-parents the button and crashes
+        // MainWindow construction at startup — same defect class as the TAKE
+        // seam bug guarded by MainWindowVisualTreeTests.
         var mediaActions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var control in new Control[] { _mediaPause, _mediaResume, _mediaSeek, _mediaSeekApply })
         {

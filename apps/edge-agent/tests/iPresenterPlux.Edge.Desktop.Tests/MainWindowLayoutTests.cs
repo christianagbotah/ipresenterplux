@@ -101,6 +101,10 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("previewActions.Children.Add(_prepare)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(_clear)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
+        // Start Recording lives ONLY in the command bar (next to GO LIVE) — the
+        // program action row must not double-parent the same button instance.
+        Assert.Contains("headerActions.Children.Add(_record)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("programActions.Children.Add(_record)", source, StringComparison.Ordinal);
     }
 
     [Fact]
