@@ -89,20 +89,12 @@ public sealed class MainWindow : Window
     private readonly TextBlock _studioClock = Label("--:--:--", 12, FontWeight.Bold);
     private readonly ListBox _upNext = new();
     private readonly TextBlock _upNextEmptyHint = Label("Nothing is queued after the current cue.", 12, FontWeight.Normal, OperatorTheme.Faint);
-    private readonly StackPanel _suggestionsHost = new() { Spacing = 6 };
-    private readonly TextBox _speakerName = Input("Speaker name", false);
-    private readonly TextBox _speakerRole = Input("Role · e.g. Lead Pastor", false);
-    private readonly Button _sendLowerThird = ActionButton("SEND TO PREVIEW", true);
-    private readonly Button _clearLowerThird = ActionButton("Clear", false);
-    private string _lowerThirdTemplate = "Bar Left";
-    private readonly HashSet<string> _dismissedSuggestionIds = new(StringComparer.Ordinal);
     private string _sidebarMode = "schedule";
     private Grid? _bodyGrid;
     private Grid? _sidebarHostField;
     private Border? _libraryCard;
     private Border? _scriptureCard;
     private StackPanel? _sidebarModeButtons;
-    private StackPanel? _lowerThirdTemplateChips;
     private Border? _scheduleCard;
     private Grid? _playoutDeck;
     private GridSplitter? _schedulePreviewSplitterField;
@@ -237,19 +229,11 @@ public sealed class MainWindow : Window
         _clear.Click += async (_, _) => await ClearProgramAsync();
         _record.Click += async (_, _) => await ToggleRecordingAsync();
         _goLive.Click += async (_, _) => await ToggleOutputAsync();
-        _sendLowerThird.Click += async (_, _) => await SendLowerThirdToPreviewAsync();
-        _clearLowerThird.Click += (_, _) =>
-        {
-            _speakerName.Text = "";
-            _speakerRole.Text = "";
-            SetOperatorFeedback("Lower third composer cleared.", false);
-        };
         ToolTip.SetTip(_prepare, "Load the selected cue into Preview (F6). Single-click any cue to preview it.");
-        ToolTip.SetTip(_take, "Preview is safe · Take is explicit · Clear never stops Edge (F8).");
+        ToolTip.SetTip(_take, "Preview is safe · Take is explicit (F8) · Clear never stops Edge (F7).");
         ToolTip.SetTip(_clear, "Clear Program output. The Edge runtime keeps running (F7).");
         ToolTip.SetTip(_record, "Start or stop local recording. Requires an active service.");
         ToolTip.SetTip(_goLive, "Start or stop the program output — screens and stream. Output never changes what is staged.");
-        ToolTip.SetTip(_sendLowerThird, "Stage the lower third in Preview. TAKE (F8) is what puts it live.");
         ToolTip.SetTip(_scriptureReference, "Type a reference and press Enter to preview it locally.");
         _mediaPause.Click += async (_, _) => await PauseProgramMediaAsync();
         _mediaResume.Click += async (_, _) => await ResumeProgramMediaAsync();
@@ -734,8 +718,11 @@ public sealed class MainWindow : Window
         _take.Content = "TAKE";
         _take.MinHeight = 34;
         _take.Padding = new Thickness(14, 4);
+        // NOTE: the physical TAKE button lives ONLY on the central seam below.
+        // Never add _take to previewActions as well — an Avalonia control can
+        // only have one visual parent, and double-parenting crashes MainWindow
+        // construction at startup (see MainWindowVisualTreeTests).
         previewActions.Children.Add(_prepare);
-        previewActions.Children.Add(_take);
         var previewPane = BuildProductionPane(
             "PREVIEW",
             BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold),
@@ -792,7 +779,7 @@ public sealed class MainWindow : Window
         Grid.SetColumn(programPane, 5);
         body.Children.Add(programPane);
 
-        // --- Playout deck below the stage: UP NEXT | TITLES & SCRIPTURE | AI DIRECTOR ---
+        // --- Playout deck below the stage: UP NEXT | TITLES & SCRIPTURE ---
         _operatorSearch.MinHeight = 34;
         _operatorSearch.FontSize = 12;
         _scriptureReference.MinHeight = 36;
@@ -805,8 +792,6 @@ public sealed class MainWindow : Window
         _resolveScripture.Padding = new Thickness(10, 5);
         _manageBibleVersions.MinHeight = 36;
         _manageBibleVersions.Padding = new Thickness(10, 5);
-        _speakerName.MinHeight = 32;
-        _speakerRole.MinHeight = 32;
 
         var categoryBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         foreach (var category in OperatorWorkspaceCatalog.Categories)
@@ -836,37 +821,6 @@ public sealed class MainWindow : Window
         Grid.SetColumn(_manageBibleVersions, 3);
         scriptureLookup.Children.Add(_manageBibleVersions);
 
-        // Lower-third composer: speaker, role, template — staging is explicit and Preview-first.
-        var templateChips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        _lowerThirdTemplateChips = templateChips;
-        foreach (var template in new[] { "Bar Left", "Center", "Minimal" })
-        {
-            var chip = OperatorTheme.ToolButton(template, false, $"{template} lower-third template.");
-            chip.MinWidth = 0;
-            chip.MinHeight = 26;
-            chip.Padding = new Thickness(8, 2);
-            chip.FontSize = 10;
-            chip.Tag = template;
-            chip.Click += (_, _) => { _lowerThirdTemplate = template; HighlightLowerThirdTemplate(); };
-            templateChips.Children.Add(chip);
-        }
-        var lowerThirdRow = new Grid { ColumnSpacing = 6 };
-        lowerThirdRow.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        lowerThirdRow.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        lowerThirdRow.Children.Add(_speakerName);
-        Grid.SetColumn(_speakerRole, 1);
-        lowerThirdRow.Children.Add(_speakerRole);
-        _sendLowerThird.MinHeight = 32;
-        _sendLowerThird.Padding = new Thickness(12, 4);
-        _sendLowerThird.FontSize = 11;
-        _clearLowerThird.MinHeight = 32;
-        _clearLowerThird.Padding = new Thickness(10, 4);
-        _clearLowerThird.FontSize = 11;
-        var sendRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 6 };
-        sendRow.Children.Add(_sendLowerThird);
-        Grid.SetColumn(_clearLowerThird, 1);
-        sendRow.Children.Add(_clearLowerThird);
-
         var titlesHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
         titlesHeader.Children.Add(Label("TITLES & SCRIPTURE", 9, FontWeight.Bold, Gold));
         var titlesHint = Label("stages into Preview · never straight to Program", 9, FontWeight.SemiBold, OperatorTheme.Faint);
@@ -876,20 +830,10 @@ public sealed class MainWindow : Window
         var titlesGrid = new Grid { RowSpacing = 6 };
         titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         titlesGrid.Children.Add(titlesHeader);
-        Grid.SetRow(lowerThirdRow, 1);
-        titlesGrid.Children.Add(lowerThirdRow);
-        Grid.SetRow(templateChips, 2);
-        titlesGrid.Children.Add(templateChips);
-        Grid.SetRow(sendRow, 3);
-        titlesGrid.Children.Add(sendRow);
-        Grid.SetRow(scriptureLookup, 4);
+        Grid.SetRow(scriptureLookup, 1);
         titlesGrid.Children.Add(scriptureLookup);
         var titlesCard = OperatorTheme.ConsolePanel(titlesGrid);
-        HighlightLowerThirdTemplate();
 
         // UP NEXT queue: the rundown after the current cue, kept aligned by the navigator.
         _upNext.Background = OperatorTheme.Brush("#0A0F17");
@@ -920,36 +864,12 @@ public sealed class MainWindow : Window
         upNextGrid.Children.Add(upNextFooter);
         var upNextCard = OperatorTheme.ConsolePanel(upNextGrid);
 
-        // AI DIRECTOR card: heuristic, suggest-only, Preview-first by contract.
-        var aiHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
-        aiHeader.Children.Add(Label("AI DIRECTOR", 9, FontWeight.Bold, OperatorTheme.TypeSlide));
-        var aiTag = OperatorTheme.Chip("SUGGESTS ONLY — YOU CONFIRM", OperatorTheme.TypeSlide, ColorFade(OperatorTheme.TypeSlide, 0.10), "Heuristic suggestions. Nothing is applied without you.");
-        aiTag.VerticalAlignment = VerticalAlignment.Center;
-        Grid.SetColumn(aiTag, 2);
-        aiHeader.Children.Add(aiTag);
-        var aiScroll = new ScrollViewer { Content = _suggestionsHost, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        var aiGrid = new Grid { RowSpacing = 6 };
-        aiGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        aiGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        aiGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        aiGrid.Children.Add(aiHeader);
-        Grid.SetRow(aiScroll, 1);
-        aiGrid.Children.Add(aiScroll);
-        var aiFooter = Label("AI Director never touches Program — every suggestion passes through Preview first.", 9, FontWeight.SemiBold, OperatorTheme.Faint);
-        aiFooter.TextWrapping = TextWrapping.Wrap;
-        Grid.SetRow(aiFooter, 2);
-        aiGrid.Children.Add(aiFooter);
-        var aiCard = OperatorTheme.ConsolePanel(aiGrid);
-
         var playoutDeck = new Grid { ColumnSpacing = 6 };
         playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.02, GridUnitType.Star)));
-        playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(0.98, GridUnitType.Star)));
         playoutDeck.Children.Add(upNextCard);
         Grid.SetColumn(titlesCard, 1);
         playoutDeck.Children.Add(titlesCard);
-        Grid.SetColumn(aiCard, 2);
-        playoutDeck.Children.Add(aiCard);
         Grid.SetRow(playoutDeck, 2);
         Grid.SetColumn(playoutDeck, 3);
         Grid.SetColumnSpan(playoutDeck, 3);
@@ -1478,28 +1398,6 @@ public sealed class MainWindow : Window
             : "Program output stopped. The Edge runtime keeps running.");
     }
 
-    /// <summary>Stages the lower-third composer output into Preview. TAKE stays explicit.</summary>
-    private async Task SendLowerThirdToPreviewAsync()
-    {
-        var name = _speakerName.Text?.Trim();
-        var role = _speakerRole.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            SetOperatorFeedback("Type a speaker name before sending the lower third to Preview.", true);
-            return;
-        }
-        var title = string.IsNullOrWhiteSpace(role) ? name : $"{name} — {role}";
-        var item = new OperatorWorkspaceItem(
-            $"lower-third-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}",
-            "Slides",
-            title,
-            $"Lower third · {_lowerThirdTemplate} template",
-            "LOWER THIRD",
-            "#D7A94A");
-        await PreviewItemAsync(item);
-        SetOperatorFeedback($"Lower third “{title}” staged in Preview. TAKE (F8) is what puts it live.", false);
-    }
-
     private void ShowSidebarMode(string mode)
     {
         _sidebarMode = mode;
@@ -1530,115 +1428,6 @@ public sealed class MainWindow : Window
             button.Foreground = isActive ? OperatorTheme.GoldInk : OperatorTheme.Ink;
             button.Background = isActive ? Gold : SurfaceRaised;
             button.FontWeight = isActive ? FontWeight.Bold : FontWeight.SemiBold;
-        }
-    }
-
-    private void HighlightLowerThirdTemplate()
-    {
-        if (_lowerThirdTemplateChips is null) return;
-        foreach (var child in _lowerThirdTemplateChips.Children)
-        {
-            if (child is not Button chip || chip.Tag is not string template) continue;
-            var isActive = string.Equals(template, _lowerThirdTemplate, StringComparison.Ordinal);
-            chip.Foreground = isActive ? OperatorTheme.GoldInk : OperatorTheme.Ink;
-            chip.Background = isActive ? Gold : SurfaceRaised;
-        }
-    }
-
-    /// <summary>Rebuilds the AI Director cards. Deterministic, offline, suggest-only.</summary>
-    private void RefreshSuggestions()
-    {
-        var scheduleState = ScheduleNavigator().BuildState(_operatorSnapshot);
-        var suggestions = OperatorSuggestions.Evaluate(
-            _operatorSnapshot.OutputRunning,
-            _operatorSnapshot.IsRecording,
-            _operatorSnapshot.Program is not null,
-            string.Equals(_operatorSnapshot.MediaPlayback?.State, "paused", StringComparison.OrdinalIgnoreCase),
-            scheduleState.Rows,
-            _dismissedSuggestionIds);
-        _suggestionsHost.Children.Clear();
-        if (suggestions.Count == 0)
-        {
-            _suggestionsHost.Children.Add(Label("No suggestions right now — the rundown looks clean.", 11, FontWeight.Normal, OperatorTheme.Faint));
-            return;
-        }
-        foreach (var suggestion in suggestions)
-            _suggestionsHost.Children.Add(BuildSuggestionCard(suggestion));
-    }
-
-    private Control BuildSuggestionCard(OperatorSuggestion suggestion)
-    {
-        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        if (!string.IsNullOrWhiteSpace(suggestion.ActionLabel))
-        {
-            var apply = ActionButton(suggestion.ActionLabel, true);
-            apply.MinHeight = 26;
-            apply.MinWidth = 0;
-            apply.Padding = new Thickness(9, 3);
-            apply.FontSize = 10;
-            apply.Click += async (_, _) => await ApplySuggestionAsync(suggestion);
-            actions.Children.Add(apply);
-        }
-        var dismiss = ActionButton("Dismiss", false);
-        dismiss.MinHeight = 26;
-        dismiss.MinWidth = 0;
-        dismiss.Padding = new Thickness(9, 3);
-        dismiss.FontSize = 10;
-        dismiss.Click += (_, _) =>
-        {
-            _dismissedSuggestionIds.Add(suggestion.Id);
-            RefreshSuggestions();
-        };
-        actions.Children.Add(dismiss);
-        var detail = Label(suggestion.Detail, 10.5, FontWeight.Normal, Muted);
-        detail.TextWrapping = TextWrapping.Wrap;
-        return new Border
-        {
-            Background = ColorFade(OperatorTheme.TypeSlide, 0.08),
-            BorderBrush = ColorFade(OperatorTheme.TypeSlide, 0.35),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(9, 7),
-            Child = new StackPanel
-            {
-                Spacing = 5,
-                Children =
-                {
-                    Label(suggestion.Title, 11, FontWeight.Bold, OperatorTheme.TypeSlide),
-                    detail,
-                    actions
-                }
-            }
-        };
-    }
-
-    private async Task ApplySuggestionAsync(OperatorSuggestion suggestion)
-    {
-        switch (suggestion.ActionKind)
-        {
-            case OperatorSuggestion.ActionPreview:
-                if (suggestion.RelatedItemId is { } relatedId)
-                {
-                    var item = ScheduleNavigator().Items.FirstOrDefault(candidate => candidate.Id.Equals(relatedId, StringComparison.Ordinal)) ??
-                               LibraryNavigator().Items.FirstOrDefault(candidate => candidate.Id.Equals(relatedId, StringComparison.Ordinal));
-                    if (item is not null)
-                    {
-                        await PreviewItemAsync(item);
-                        _dismissedSuggestionIds.Add(suggestion.Id);
-                        RefreshSuggestions();
-                    }
-                }
-                break;
-            case OperatorSuggestion.ActionRecord:
-                await ToggleRecordingAsync();
-                _dismissedSuggestionIds.Add(suggestion.Id);
-                RefreshSuggestions();
-                break;
-            case OperatorSuggestion.ActionResumeMedia:
-                await ResumeProgramMediaAsync();
-                _dismissedSuggestionIds.Add(suggestion.Id);
-                RefreshSuggestions();
-                break;
         }
     }
 
@@ -1950,7 +1739,6 @@ public sealed class MainWindow : Window
             _scheduleCountLabel.Text = scheduleState.Rows.Count == 0 ? string.Empty : $"{scheduleState.Rows.Count} cues";
         HighlightActiveCategory();
         RefreshScheduleActionState();
-        RefreshSuggestions();
     }
 
     /// <summary>Marks the active Resource Deck category with the accent treatment.</summary>
@@ -2646,7 +2434,6 @@ public sealed class MainWindow : Window
             _mediaSeek.Text = playback.EffectivePositionSeconds.ToString("0.###", CultureInfo.InvariantCulture);
         if (OperatorPresentationChanged(previousSnapshot, snapshot))
             RefreshRundown();
-        RefreshSuggestions();
     }
 
     private void RefreshOperatorFeedback(LocalOperatorSnapshot snapshot)

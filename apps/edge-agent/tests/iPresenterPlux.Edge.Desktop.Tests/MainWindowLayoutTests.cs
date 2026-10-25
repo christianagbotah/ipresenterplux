@@ -94,7 +94,11 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("previewActions.Children.Add(_take)", source, StringComparison.Ordinal);
+        // TAKE lives on the central seam, NOT in the preview action row — adding it
+        // to both double-parents the button and crashes startup (see
+        // MainWindowVisualTreeTests).
+        Assert.DoesNotContain("previewActions.Children.Add(_take)", source, StringComparison.Ordinal);
+        Assert.Contains("previewActions.Children.Add(_prepare)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(_clear)", source, StringComparison.Ordinal);
         Assert.Contains("programActions.Children.Add(openProgram)", source, StringComparison.Ordinal);
     }
@@ -387,7 +391,7 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("x.OfType<ListBoxItem>().Class(\":selected\")", source, StringComparison.Ordinal);
         Assert.Contains("x.OfType<TabStripItem>()", source, StringComparison.Ordinal);
         // Safety copy stays available where Take happens.
-        Assert.Contains("ToolTip.SetTip(_take, \"Preview is safe · Take is explicit · Clear never stops Edge (F8).\")", source, StringComparison.Ordinal);
+        Assert.Contains("ToolTip.SetTip(_take, \"Preview is safe · Take is explicit (F8) · Clear never stops Edge (F7).\")", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -404,7 +408,7 @@ public sealed class MainWindowLayoutTests
     // --- Studio Shell v2.1: stage row, TAKE seam, playout deck ---
 
     [Fact]
-    public void PlayoutDeckCarriesUpNextTitlesAndAiDirectorBelowTheStage()
+    public void PlayoutDeckCarriesUpNextAndTitlesScriptureBelowTheStage()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
@@ -413,10 +417,15 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("Grid.SetColumnSpan(playoutDeck, 3)", source, StringComparison.Ordinal);
         Assert.Contains("Label(\"UP NEXT\", 9, FontWeight.Bold, Gold)", source, StringComparison.Ordinal);
         Assert.Contains("Label(\"TITLES & SCRIPTURE\", 9, FontWeight.Bold, Gold)", source, StringComparison.Ordinal);
-        Assert.Contains("Label(\"AI DIRECTOR\", 9, FontWeight.Bold, OperatorTheme.TypeSlide)", source, StringComparison.Ordinal);
         Assert.Contains("\"AUTO-FOLLOW\"", source, StringComparison.Ordinal);
-        Assert.Contains("SUGGESTS ONLY — YOU CONFIRM", source, StringComparison.Ordinal);
-        Assert.Contains("AI Director never touches Program — every suggestion passes through Preview first.", source, StringComparison.Ordinal);
+
+        // The local heuristic "AI Director" engine was removed: AI recommendations
+        // belong to the existing Control/AI system and must not be re-invented as a
+        // second architecture inside the Edge desktop frontend.
+        Assert.DoesNotContain("OperatorSuggestions", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("AI DIRECTOR", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_suggestionsHost", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("RefreshSuggestions", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -428,6 +437,9 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("Grid.SetColumn(seam, 4)", source, StringComparison.Ordinal);
         Assert.Contains("_take.Content = \"TAKE\"", source, StringComparison.Ordinal);
         Assert.Contains("Children = { _take, takeHint }", source, StringComparison.Ordinal);
+        // TAKE must live ONLY on the central seam. Adding it to previewActions as
+        // well double-parents the button and crashes MainWindow at startup.
+        Assert.DoesNotContain("previewActions.Children.Add(_take)", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -444,31 +456,30 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
-    public void LowerThirdComposerStagesIntoPreviewNeverProgram()
+    public void LowerThirdComposerIsNotRecreatedInTheDesktopFrontend()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("private readonly Button _sendLowerThird = ActionButton(\"SEND TO PREVIEW\", true);", source, StringComparison.Ordinal);
-        Assert.Contains("_sendLowerThird.Click += async (_, _) => await SendLowerThirdToPreviewAsync();", source, StringComparison.Ordinal);
-        Assert.Contains("await PreviewItemAsync(item);", source, StringComparison.Ordinal);
-        Assert.Contains("\"LOWER THIRD\"", source, StringComparison.Ordinal);
-        // The composer must not take anything live by itself.
-        var composer = source[source.IndexOf("private async Task SendLowerThirdToPreviewAsync()")..];
-        composer = composer[..composer.IndexOf("private void ShowSidebarMode")];
-        Assert.DoesNotContain("ProgramTake", composer, StringComparison.Ordinal);
-        Assert.DoesNotContain("PreviewItemAndTakeAsync", composer, StringComparison.Ordinal);
-        Assert.DoesNotContain("OutputStart", composer, StringComparison.Ordinal);
+        // The lower-third composer was new authoring business logic, not a visual
+        // redesign — it was removed from this PR's scope (BLOCKER 2 review).
+        Assert.DoesNotContain("SendLowerThirdToPreviewAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_sendLowerThird", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_lowerThirdTemplate", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("LOWER THIRD", source, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void SuggestionsStayDeterministicSuggestOnlyAndPreviewFirst()
+    public void ExistingOperatorActionsRemainWiredToTheirExistingCommands()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("OperatorSuggestions.Evaluate(", source, StringComparison.Ordinal);
-        Assert.Contains("_dismissedSuggestionIds.Add(suggestion.Id);", source, StringComparison.Ordinal);
-        Assert.Contains("RefreshSuggestions();", source, StringComparison.Ordinal);
-        Assert.Contains("case OperatorSuggestion.ActionPreview:", source, StringComparison.Ordinal);
+        // GO LIVE / END LIVE and Start Recording are UI surfaces for backend
+        // commands that already exist on main (output.start/stop, recording.start/stop)
+        // — they stay. They must remain ordinary operator commands.
+        Assert.Contains("LocalOperatorCommands.OutputStart", source, StringComparison.Ordinal);
+        Assert.Contains("LocalOperatorCommands.OutputStop", source, StringComparison.Ordinal);
+        Assert.Contains("_goLive.Click += async (_, _) => await ToggleOutputAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("_record.Click += async (_, _) => await ToggleRecordingAsync();", source, StringComparison.Ordinal);
     }
 
     private static string FindSourceFile(params string[] pathParts)
