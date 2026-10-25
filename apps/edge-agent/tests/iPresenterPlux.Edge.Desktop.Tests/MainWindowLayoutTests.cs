@@ -306,6 +306,93 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("LocalOperatorCommands.ProgramTake", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void OperatorRendersRichScheduleAndLibraryRowsWithStateChips()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+        var rows = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "OperatorRowTemplates.cs"));
+
+        Assert.Contains("ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate()", source, StringComparison.Ordinal);
+        Assert.Contains("ItemTemplate = OperatorRowTemplates.LibraryRowTemplate()", source, StringComparison.Ordinal);
+        Assert.Contains("\"LIVE\"", rows, StringComparison.Ordinal);
+        Assert.Contains("\"PREVIEW\"", rows, StringComparison.Ordinal);
+        Assert.Contains("\"NEXT\"", rows, StringComparison.Ordinal);
+        // The preview/take semantics stay owned by the hosting list boxes.
+        Assert.Contains("_rundown.PointerPressed += OnLibraryPointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("_schedule.PointerPressed += OnSchedulePointerPressed", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProgramStageCarriesLiveBadgeAndRedLiveAccentWhilePreviewStaysGold()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("BuildStage(\"PROGRAM\", _programTitle, _programBody, _programFooter, Live, _programLiveBadge)", source, StringComparison.Ordinal);
+        Assert.Contains("BuildStage(\"PREVIEW\", _previewTitle, _previewBody, _previewFooter, Gold)", source, StringComparison.Ordinal);
+        Assert.Contains("_programLiveBadge.IsVisible = snapshot.Program is not null", source, StringComparison.Ordinal);
+        Assert.Contains("_programLiveBadge.IsVisible = false", source, StringComparison.Ordinal);
+        Assert.Contains("● LIVE", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorWiresStatusStripAndVoiceScriptureChip()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_operatorRuntime, _operatorRecording, _microphoneStatus, _asrStatus, _voiceScriptureStatus", source, StringComparison.Ordinal);
+        Assert.Contains("statusStrip.Children.Add(_operatorFeedback)", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetRow(statusBar, 4)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OfflineBibleBrowserIsReachableFromTheResourceDeck()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("Grid.SetRow(_scriptureBrowserPanel, 4)", source, StringComparison.Ordinal);
+        Assert.Contains("BuildScriptureBrowserPanel()", source, StringComparison.Ordinal);
+        Assert.Contains("_scriptureBrowserPanel.IsVisible = !_scriptureBrowserPanel.IsVisible", source, StringComparison.Ordinal);
+        Assert.Contains("Preview Verse Range", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OperatorWorkspaceSupportsCollapsePresetsAndPersistedSplitters()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("SetSchedulePaneCollapsed", source, StringComparison.Ordinal);
+        Assert.Contains("SetResourceDeckCollapsed", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyWorkspacePreset", source, StringComparison.Ordinal);
+        Assert.Contains("ResetWorkspaceLayout", source, StringComparison.Ordinal);
+        Assert.Contains("ApplySavedWorkspaceLayout", source, StringComparison.Ordinal);
+        Assert.Contains("PersistWorkspaceLayout", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorWorkspaceLayouts.FromActualBounds", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConsoleChromeKeepsCompactMetricsWithoutChangingBehavior()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("ApplyConsoleChrome()", source, StringComparison.Ordinal);
+        Assert.Contains("Resources[\"SystemAccentColor\"] = Color.Parse(\"#D7A94A\")", source, StringComparison.Ordinal);
+        Assert.Contains("x.OfType<ListBoxItem>().Class(\":selected\")", source, StringComparison.Ordinal);
+        Assert.Contains("x.OfType<TabStripItem>()", source, StringComparison.Ordinal);
+        // Safety copy stays available where Take happens.
+        Assert.Contains("ToolTip.SetTip(_take, \"Preview is safe · Take is explicit · Clear never stops Edge (F8).\")", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmptyStatesAndCatalogStatusAreSurfaced()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_libraryEmptyHint.IsVisible = libraryState.Rows.Count == 0", source, StringComparison.Ordinal);
+        Assert.Contains("_scheduleEmptyHint.IsVisible = scheduleState.Rows.Count == 0", source, StringComparison.Ordinal);
+        Assert.Contains("_catalogStatus.Text = _workspace.StatusLabel", source, StringComparison.Ordinal);
+        Assert.Contains("_catalogService.Text = _workspace.ServiceTitle", source, StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

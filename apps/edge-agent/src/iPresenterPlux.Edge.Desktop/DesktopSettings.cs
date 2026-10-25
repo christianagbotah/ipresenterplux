@@ -11,7 +11,15 @@ public sealed record DesktopSettings(
     int? ProgramDisplayX = null,
     int? ProgramDisplayY = null,
     int? ProgramDisplayWidth = null,
-    int? ProgramDisplayHeight = null)
+    int? ProgramDisplayHeight = null,
+    double? OperatorScheduleColumn = null,
+    double? OperatorPreviewColumn = null,
+    double? OperatorProgramColumn = null,
+    double? OperatorProductionRow = null,
+    double? OperatorResourceRow = null,
+    bool OperatorScheduleCollapsed = false,
+    bool OperatorResourceDeckCollapsed = false,
+    string OperatorLayoutPreset = "production")
 {
     public static DesktopSettings CreateDefault() => new(
         "",
@@ -68,6 +76,10 @@ public sealed record DesktopSettings(
              ProgramDisplayWidth <= 0 || ProgramDisplayHeight <= 0))
             throw new InvalidOperationException("Program display placement requires a valid position and positive dimensions.");
 
+        var operatorLayoutPreset = OperatorWorkspaceLayouts.IsValidPreset(OperatorLayoutPreset)
+            ? OperatorLayoutPreset!
+            : OperatorWorkspaceLayouts.Production;
+
         return this with {
             ControlPlaneUrl = ControlPlaneUrl.Trim().TrimEnd('/'),
             DeviceName = deviceName,
@@ -78,9 +90,20 @@ public sealed record DesktopSettings(
             ProgramDisplayX = programDisplayId is null ? null : ProgramDisplayX,
             ProgramDisplayY = programDisplayId is null ? null : ProgramDisplayY,
             ProgramDisplayWidth = programDisplayId is null ? null : ProgramDisplayWidth,
-            ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight
+            ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight,
+            OperatorScheduleColumn = ClampStar(OperatorScheduleColumn),
+            OperatorPreviewColumn = ClampStar(OperatorPreviewColumn),
+            OperatorProgramColumn = ClampStar(OperatorProgramColumn),
+            OperatorProductionRow = ClampStar(OperatorProductionRow),
+            OperatorResourceRow = ClampStar(OperatorResourceRow),
+            OperatorScheduleCollapsed = OperatorScheduleCollapsed,
+            OperatorResourceDeckCollapsed = OperatorResourceDeckCollapsed,
+            OperatorLayoutPreset = operatorLayoutPreset
         };
     }
+
+    private static double? ClampStar(double? value) =>
+        value is null ? null : Math.Clamp(value.Value, 0.2, 4.0);
 
     public DesktopSettings NormalizeUpdateSettings()
     {
