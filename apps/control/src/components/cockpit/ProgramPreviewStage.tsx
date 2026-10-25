@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, MonitorPlay, Radio, Square, ShieldAlert } from "lucide-react";
+import { ArrowRight, Eye, ListVideo, MonitorPlay, Radio, Sparkles, Square, ShieldAlert } from "lucide-react";
 import type { CockpitStageState, CockpitViewModel } from "@/lib/cockpit/contracts";
 import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
+
+const STAGE_SPLIT_STORAGE_KEY = "ipresenterplux:cockpit-stage-split";
+const DEFAULT_PREVIEW_SHARE = 60;
 
 function StageFittedContent({ item, label }: { item: CockpitStageState; label: string }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -78,15 +81,124 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
   </section>;
 }
 
+function PlayoutDeck({ model }: { model: CockpitViewModel }) {
+  const queue = model.next.slice(0, 3);
+  const suggestions = model.next.filter((item) => item.source === "recommendation").slice(0, 2);
+  const planHref = model.service ? `/planner/${model.service.id}` : "/planner";
+  const quickLinks = [
+    { href: "/scripture", label: "Scripture" },
+    { href: "/media", label: "Media" },
+    { href: "/cameras", label: "Cameras" },
+    { href: "/ai-director", label: "AI Director" },
+  ];
+  return <div className="grid gap-4 lg:grid-cols-3">
+    <section aria-label="Up next queue" className="min-w-0 rounded-2xl border border-white/[.08] bg-panel p-4">
+      <header className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-[#efc86f]"><ListVideo size={14} aria-hidden="true" />Up next</span>
+        <a href={planHref} className="rounded-md border border-white/10 px-2 py-1 text-xs font-semibold text-white/60 transition hover:border-[#d7a94a]/40 hover:text-[#efc86f] ip-focus-gold">Open plan</a>
+      </header>
+      {queue.length === 0 ? <p className="mt-3 text-xs text-white/50">Queue is clear. Plan the next cue.</p> : (
+        <ol className="mt-3 space-y-2">
+          {queue.map((item, index) => (
+            <li key={item.id} className={`rounded-xl border px-3 py-2 ${index === 0 ? "border-[#d7a94a]/25 bg-[#d7a94a]/[.045]" : "border-white/[.07] bg-white/[.02]"}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-xs font-semibold text-white/85">{item.title}</span>
+                <span className="shrink-0 text-xs tabular-nums text-white/40">{item.source === "recommendation" && item.confidence !== null ? `${Math.round(item.confidence * 100)}%` : item.source}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+    <section aria-label="Quick stage shortcuts" className="min-w-0 rounded-2xl border border-white/[.08] bg-panel p-4">
+      <header className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold uppercase tracking-[.14em] text-[#efc86f]">Quick stage</span>
+      </header>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {quickLinks.map((link) => (
+          <a key={link.href} href={link.href} className="min-h-10 rounded-lg border border-white/10 bg-white/[.025] px-3 py-2 text-xs font-semibold text-white/75 transition hover:border-[#d7a94a]/40 hover:text-[#efc86f] ip-focus-gold">{link.label}</a>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-white/50">Everything stages into Preview first.</p>
+    </section>
+    <section aria-label="AI director suggestions" className="min-w-0 rounded-2xl border border-[#c9b7ff]/25 bg-[#c9b7ff]/[.04] p-4">
+      <header className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.14em] text-[#c9b7ff]"><Sparkles size={14} aria-hidden="true" />AI Director</span>
+        <span className="rounded-md border border-[#c9b7ff]/30 px-2 py-1 text-xs font-bold text-[#c9b7ff]">Suggests only</span>
+      </header>
+      {!model.service?.aiEnabled ? (
+        <p className="mt-3 text-xs text-white/55">AI Director is off for this service.</p>
+      ) : suggestions.length === 0 ? (
+        <p className="mt-3 text-xs text-white/55">No open suggestions. The rundown looks clean.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {suggestions.map((item) => (
+            <li key={item.id} className="rounded-xl border border-[#c9b7ff]/20 bg-[#c9b7ff]/[.05] px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-xs font-semibold text-white/85">{item.title}</span>
+                <span className="shrink-0 text-xs tabular-nums text-[#c9b7ff]/80">{item.confidence !== null ? `${Math.round(item.confidence * 100)}%` : "suggested"}</span>
+              </div>
+              {item.reason ? <p className="mt-1 text-xs text-white/50">{item.reason}</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-white/45">Never touches Program — suggestions pass through Preview.</p>
+    </section>
+  </div>;
+}
+
 export function ProgramPreviewStage({ model, showControls = true }: { model: CockpitViewModel; showControls?: boolean }) {
   const router = useRouter();
   const guidanceId = useId();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [previewShare, setPreviewShare] = useState(DEFAULT_PREVIEW_SHARE);
+  const stageRef = useRef<HTMLDivElement>(null);
   const preview = model.preview;
   const program = model.program;
   const canTake = Boolean(showControls && model.capabilities.canLiveControl && preview?.source === "scripture_detection");
   const canClear = Boolean(showControls && model.capabilities.canLiveControl && program?.source === "scripture_detection");
+
+  useEffect(() => {
+    // Restore the saved split after paint so the first client render stays
+    // consistent with the server markup (no hydration mismatch).
+    const frame = window.requestAnimationFrame(() => {
+      const stored = window.localStorage.getItem(STAGE_SPLIT_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = Number.parseFloat(stored);
+      if (Number.isFinite(parsed)) setPreviewShare(Math.min(80, Math.max(20, parsed)));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const applyPreviewShare = useCallback((share: number) => {
+    const clamped = Math.min(80, Math.max(20, share));
+    setPreviewShare(clamped);
+    window.localStorage.setItem(STAGE_SPLIT_STORAGE_KEY, clamped.toFixed(1));
+  }, []);
+
+  const onDividerPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    event.preventDefault();
+    const divider = event.currentTarget;
+    divider.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent) => {
+      const bounds = stage.getBoundingClientRect();
+      if (bounds.width < 2) return;
+      const ratio = ((moveEvent.clientX - bounds.left) / bounds.width) * 100;
+      applyPreviewShare(ratio);
+    };
+    const finish = () => {
+      divider.removeEventListener("pointermove", move);
+      divider.removeEventListener("pointerup", finish);
+      divider.removeEventListener("pointercancel", finish);
+    };
+    divider.addEventListener("pointermove", move);
+    divider.addEventListener("pointerup", finish);
+    divider.addEventListener("pointercancel", finish);
+  }, [applyPreviewShare]);
 
   const mutateScripture = useCallback((id: string, state: "live" | "detected", label: string) => {
     setFeedback(null);
@@ -119,10 +231,26 @@ export function ProgramPreviewStage({ model, showControls = true }: { model: Coc
     : "Preview is safe. Nothing reaches the audience until you take it live.";
 
   return <div className="min-w-0 space-y-4" aria-busy={pending}>
-    <div className="grid gap-4 md:grid-cols-2">
+    <div
+      ref={stageRef}
+      className="ip-stage-split"
+      style={{ "--ip-stage-columns": `minmax(0, ${previewShare}fr) 14px minmax(0, ${100 - previewShare}fr)` } as React.CSSProperties}
+    >
       <StageSurface item={preview} kind="preview" />
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize preview and program monitors"
+        title="Drag to resize · double-click to reset 60/40"
+        onPointerDown={onDividerPointerDown}
+        onDoubleClick={() => applyPreviewShare(DEFAULT_PREVIEW_SHARE)}
+        className="ip-stage-divider hidden cursor-col-resize md:flex"
+      >
+        <span className="ip-stage-divider-grip" aria-hidden="true" />
+      </div>
       <StageSurface item={program} kind="program" />
     </div>
+    <PlayoutDeck model={model} />
     {showControls ? <>
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[.08] bg-[#101620] p-3 sm:p-4">
         <div className="min-w-0 flex-1 basis-48">

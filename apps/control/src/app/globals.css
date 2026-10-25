@@ -229,6 +229,42 @@ a[aria-disabled="true"] {
 .ip-stage-title { font-size: clamp(1rem, 5cqw, 2rem); line-height: 1.2; text-wrap: balance; }
 .ip-stage-body { font-size: clamp(.875rem, 3.6cqw, 1.5rem); }
 
+/* Studio Shell v2.1: Preview | Program sit side-by-side in ONE resizable row.
+   The split is operator-owned: drag the divider, double-click to reset 60/40,
+   and the ratio persists per device via localStorage (--ip-stage-columns). */
+.ip-stage-split {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+}
+@media (min-width: 768px) {
+  .ip-stage-split {
+    grid-template-columns: var(--ip-stage-columns, minmax(0, 3fr) 14px minmax(0, 2fr));
+  }
+}
+.ip-stage-divider {
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .08);
+  touch-action: none;
+  min-height: 48px;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.ip-stage-divider:hover,
+.ip-stage-divider:focus-visible {
+  border-color: rgba(215, 169, 74, .45);
+  background: rgba(215, 169, 74, .06);
+}
+.ip-stage-divider-grip {
+  width: 3px;
+  height: 44px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.35) 0 4px, transparent 4px 9px);
+}
+
 .ip-studio-tool {
   display: flex;
   min-height: 3.25rem;
