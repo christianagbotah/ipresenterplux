@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { TranslatedAudioPlayer } from "./TranslatedAudioPlayer";
+import { theme } from "./theme";
 
 const API = process.env.EXPO_PUBLIC_CONTROL_URL ?? "https://ipresenterplux.lightworldtech.com";
 const SERVICE_POLL_MS = 2000;
@@ -230,7 +231,7 @@ export default function App() {
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="Service ID"
-          placeholderTextColor="#667080"
+          placeholderTextColor={theme.faint}
           style={styles.input}
           accessibilityLabel="Live service ID"
           accessibilityHint="The service ID from the church QR code or live link."
@@ -242,7 +243,7 @@ export default function App() {
           onPress={() => void join()}
           disabled={busy}
         >
-          {busy ? <ActivityIndicator color="#080b10" /> : <Text style={styles.buttonText}>Join Live Service</Text>}
+          {busy ? <ActivityIndicator color={theme.surface} /> : <Text style={styles.buttonText}>Join Live Service</Text>}
         </Pressable>
         {connection === "ended" ? <Text style={styles.ended}>Service ended</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -339,51 +340,51 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#07090d" },
+  safe: { flex: 1, backgroundColor: theme.background },
   entry: { flexGrow: 1, justifyContent: "center", padding: 28 },
   content: { padding: 20, gap: 16 },
   entryMark: {
     width: 56,
     height: 56,
     borderRadius: 14,
-    backgroundColor: "#d7a94a",
+    backgroundColor: theme.gold,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14
   },
-  entryMarkText: { color: "#191307", fontSize: 22, fontWeight: "900" },
-  brand: { color: "#e5b85c", fontSize: 12, fontWeight: "900", letterSpacing: 2 },
-  title: { color: "#fff", fontSize: 28, fontWeight: "900", marginTop: 8 },
-  muted: { color: "#87909f", fontSize: 14, lineHeight: 22, marginTop: 12 },
-  input: { marginTop: 24, borderWidth: 1, borderColor: "#29303c", backgroundColor: "#0b0f16", borderRadius: 14, minHeight: 52, padding: 15, color: "#fff", fontSize: 15 },
-  button: { marginTop: 14, minHeight: 52, justifyContent: "center", backgroundColor: "#d7a94a", borderRadius: 14, padding: 15, alignItems: "center" },
+  entryMarkText: { color: theme.onGold, fontSize: 22, fontWeight: "900" },
+  brand: { color: theme.goldBrand, fontSize: 12, fontWeight: "900", letterSpacing: 2 },
+  title: { color: theme.ink, fontSize: 28, fontWeight: "900", marginTop: 8 },
+  muted: { color: theme.muted, fontSize: 14, lineHeight: 22, marginTop: 12 },
+  input: { marginTop: 24, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface, borderRadius: 14, minHeight: 52, padding: 15, color: theme.ink, fontSize: 15 },
+  button: { marginTop: 14, minHeight: 52, justifyContent: "center", backgroundColor: theme.gold, borderRadius: 14, padding: 15, alignItems: "center" },
   buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: "#111", fontWeight: "900", fontSize: 15 },
-  error: { color: "#fca5a5", marginTop: 12, fontSize: 13, lineHeight: 19 },
-  ended: { color: "#fbbf24", marginTop: 14, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.2 },
-  reconnectBanner: { backgroundColor: "#f4bb5818", borderBottomWidth: 1, borderBottomColor: "#f4bb5840", paddingHorizontal: 16, paddingVertical: 8 },
-  reconnectText: { color: "#fbbf24", fontSize: 11, lineHeight: 16, textAlign: "center" },
+  buttonText: { color: theme.onGoldButton, fontWeight: "900", fontSize: 15 },
+  error: { color: theme.error, marginTop: 12, fontSize: 13, lineHeight: 19 },
+  ended: { color: theme.warn, marginTop: 14, fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 1.2 },
+  reconnectBanner: { backgroundColor: theme.warnTint, borderBottomWidth: 1, borderBottomColor: theme.warnBorder, paddingHorizontal: 16, paddingVertical: 8 },
+  reconnectText: { color: theme.warn, fontSize: 11, lineHeight: 16, textAlign: "center" },
   liveHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   headerCopy: { flex: 1 },
-  connectionBadge: { borderWidth: 1, borderColor: "#7f1d1d", backgroundColor: "#ff5d5d18", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  connectionBadgeWarning: { borderColor: "#713f12", backgroundColor: "#f4bb5818" },
-  connectionText: { color: "#ff8f8f", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
-  connectionTextWarning: { color: "#fbbf24" },
-  videoCard: { backgroundColor: "#000", borderWidth: 1, borderColor: "#1d2530", borderRadius: 16, overflow: "hidden" },
+  connectionBadge: { borderWidth: 1, borderColor: theme.liveBorder, backgroundColor: theme.liveTint, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  connectionBadgeWarning: { borderColor: theme.warnBorderStrong, backgroundColor: theme.warnTint },
+  connectionText: { color: theme.liveSoft, fontSize: 9, fontWeight: "900", letterSpacing: 1 },
+  connectionTextWarning: { color: theme.warn },
+  videoCard: { backgroundColor: theme.video, borderWidth: 1, borderColor: theme.borderSoft, borderRadius: 16, overflow: "hidden" },
   video: { width: "100%", height: 210 },
-  videoAudioNotice: { borderTopWidth: 1, borderTopColor: "#302610", backgroundColor: "#d7a94a10", paddingHorizontal: 12, paddingVertical: 8 },
-  videoAudioNoticeText: { color: "#c9a85f", fontSize: 10, fontWeight: "800", textAlign: "center" },
-  card: { backgroundColor: "#0b0f16", borderWidth: 1, borderColor: "#1d2530", borderRadius: 16, padding: 16 },
-  label: { color: "#8d96a5", fontSize: 11, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 },
+  videoAudioNotice: { borderTopWidth: 1, borderTopColor: theme.borderNotice, backgroundColor: theme.goldTint, paddingHorizontal: 12, paddingVertical: 8 },
+  videoAudioNoticeText: { color: theme.goldMuted, fontSize: 10, fontWeight: "800", textAlign: "center" },
+  card: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.borderSoft, borderRadius: 16, padding: 16 },
+  label: { color: theme.mutedAlt, fontSize: 11, fontWeight: "900", letterSpacing: 1.2, textTransform: "uppercase", marginBottom: 12 },
   langRow: { paddingRight: 4 },
-  lang: { borderWidth: 1, borderColor: "#252d38", borderRadius: 12, padding: 14, marginRight: 10, minWidth: 140, minHeight: 56 },
-  langActive: { borderColor: "#d7a94a", backgroundColor: "#d7a94a18" },
-  langText: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  langMode: { color: "#667080", fontSize: 9, textTransform: "uppercase", marginTop: 5 },
-  audioPipelineState: { color: "#667080", fontSize: 10, textTransform: "uppercase", marginTop: 8 },
-  scripture: { color: "#fff", fontSize: 24, fontWeight: "900" },
-  body: { color: "#b6bfcc", fontSize: 14, lineHeight: 22, marginTop: 8 },
-  caption: { color: "#fff", fontSize: 18, lineHeight: 28 },
+  lang: { borderWidth: 1, borderColor: theme.borderLang, borderRadius: 12, padding: 14, marginRight: 10, minWidth: 140, minHeight: 56 },
+  langActive: { borderColor: theme.gold, backgroundColor: theme.goldTintStrong },
+  langText: { color: theme.ink, fontWeight: "800", fontSize: 13 },
+  langMode: { color: theme.faint, fontSize: 9, textTransform: "uppercase", marginTop: 5 },
+  audioPipelineState: { color: theme.faint, fontSize: 10, textTransform: "uppercase", marginTop: 8 },
+  scripture: { color: theme.ink, fontSize: 24, fontWeight: "900" },
+  body: { color: theme.body, fontSize: 14, lineHeight: 22, marginTop: 8 },
+  caption: { color: theme.ink, fontSize: 18, lineHeight: 28 },
   secondary: { alignItems: "center", padding: 16, minHeight: 52 },
-  secondaryText: { color: "#87909f", fontWeight: "700" }
+  secondaryText: { color: theme.muted, fontWeight: "700" }
 });

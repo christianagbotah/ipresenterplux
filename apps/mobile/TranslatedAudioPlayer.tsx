@@ -1,6 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { theme } from "./theme";
 
 const API = process.env.EXPO_PUBLIC_CONTROL_URL ?? "https://ipresenterplux.lightworldtech.com";
 
@@ -212,8 +213,8 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 12,
     borderWidth: 1,
-    borderColor: "#5f4a25",
-    backgroundColor: "#d7a94a10",
+    borderColor: theme.borderGoldDeck,
+    backgroundColor: theme.goldTint,
     borderRadius: 14,
     padding: 12,
     flexDirection: "row",
@@ -222,17 +223,17 @@ const styles = StyleSheet.create({
     gap: 12
   },
   copy: { flex: 1 },
-  title: { color: "#efc76e", fontSize: 12, fontWeight: "900" },
-  status: { color: "#8c94a1", fontSize: 11, lineHeight: 16, marginTop: 4 },
+  title: { color: theme.goldSoft, fontSize: 12, fontWeight: "900" },
+  status: { color: theme.mutedAlt, fontSize: 11, lineHeight: 16, marginTop: 4 },
   button: {
     borderWidth: 1,
-    borderColor: "#5f4a25",
+    borderColor: theme.borderGoldDeck,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     minHeight: 46,
-    backgroundColor: "#d7a94a12"
+    backgroundColor: theme.goldTintPlayer
   },
-  buttonActive: { backgroundColor: "#d7a94a20" },
-  buttonText: { color: "#efc76e", fontSize: 12, fontWeight: "900" }
+  buttonActive: { backgroundColor: theme.goldTintActive },
+  buttonText: { color: theme.goldSoft, fontSize: 12, fontWeight: "900" }
 });
