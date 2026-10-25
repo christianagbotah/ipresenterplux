@@ -74,7 +74,7 @@ export function WhatsNewToast() {
       </div>
       <div className="space-y-2 px-4 py-3">
         <p className="text-xs leading-5 text-white/60">
-          The cockpit now has a full keyboard shortcut suite. Press <kbd className="rounded border border-white/10 bg-white/[.04] px-1 font-mono text-[10px] text-white/70">?</kbd> anytime to see them all:
+          The cockpit now has a full keyboard shortcut suite. Press <kbd className="rounded border border-white/10 bg-white/[.04] px-1 font-mono text-[11px] text-white/70">?</kbd> anytime to see them all:
         </p>
         <dl className="space-y-1 text-[11px]">
           <div className="flex items-center justify-between gap-2">

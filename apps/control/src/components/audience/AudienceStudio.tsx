@@ -140,7 +140,7 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
 
       <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#0b0f16]">
         <div className="border-b border-white/[.06] px-5 py-4"><h2 className="text-sm font-black">Audience preview</h2><p className="mt-1 text-xs text-white/55">This is the same public service URL guests receive.</p></div>
-        <iframe title="Audience preview" src={audienceUrl} className="h-[620px] w-full border-0 bg-[#07090d]" />
+        <iframe title="Audience preview" src={audienceUrl} className="h-[min(620px,72vh)] w-full border-0 bg-[#07090d]" />
       </section>
     </div>
   );

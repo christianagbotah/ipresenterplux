@@ -54,7 +54,7 @@ export function StudioMobileNav({ capabilities }: { capabilities: StudioNavigati
             <Menu size={17} className="text-[#e5b95e]" />
             <span className="truncate">{active?.label ?? "Studio"}</span>
           </span>
-          <span className="flex items-center gap-2 text-[10px] uppercase tracking-[.14em] text-white/35">
+          <span className="flex items-center gap-2 text-[11px] uppercase tracking-[.14em] text-white/35">
             Menu <ChevronUp size={14} className="transition group-open:rotate-180" />
           </span>
         </summary>

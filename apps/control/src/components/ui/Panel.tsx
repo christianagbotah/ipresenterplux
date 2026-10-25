@@ -66,7 +66,7 @@ export function StatTile({
             : "text-white";
   return (
     <div className="rounded-xl border border-white/[.07] bg-panel px-4 py-3">
-      <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/40">{label}</div>
+      <div className="text-[11px] font-black uppercase tracking-[.14em] text-white/40">{label}</div>
       <div className={"mt-1 truncate text-lg font-extrabold tabular-nums " + valueTone}>{value}</div>
       {hint ? <div className="mt-0.5 truncate text-[11px] text-white/40">{hint}</div> : null}
     </div>

@@ -227,7 +227,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
             <button key={item.value} type="button" onClick={() => changeKind(item.value)} className={`min-h-20 cursor-pointer rounded-2xl border p-4 text-left transition ip-focus-gold ${kind === item.value ? "border-[#d7a94a]/35 bg-[#d7a94a]/[.09]" : "border-white/[.07] bg-white/[.02] hover:bg-white/[.04]"}`}>
               <div className="text-sm font-black text-white/80">{item.label}</div>
               <div className="mt-1 text-xs leading-5 text-white/55">{item.detail}</div>
-              <div className="mt-2 font-mono text-[10px] text-white/40">{item.value}</div>
+              <div className="mt-2 font-mono text-[11px] text-white/40">{item.value}</div>
             </button>
           ))}
         </div>
@@ -282,7 +282,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
                 <article key={`${candidate.index}-${candidate.candidateFingerprint}`} className="ip-ai-arrive rounded-2xl border border-white/[.07] bg-black/20 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0"><div className="truncate text-sm font-black text-white/78">{candidate.title}</div><div className="mt-1 text-xs text-white/50">{candidate.targetType}</div></div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] ${statusClass[candidate.status]}`}>{candidate.status}</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.12em] ${statusClass[candidate.status]}`}>{candidate.status}</span>
                   </div>
                   {candidate.errors.length ? <div className="mt-2 text-xs leading-5 text-red-200/80">{candidate.errors.join(" · ")}</div> : null}
                   {candidate.warnings.length ? <div className="mt-2 text-xs leading-5 text-amber-100/70">{candidate.warnings.join(" · ")}</div> : null}

@@ -219,11 +219,11 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
           <label className="block">
-            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/50">Speaker name</span>
+            <span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Speaker name</span>
             <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required minLength={2} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition ip-focus-gold" placeholder="Pastor / interpreter name" />
           </label>
           <label className="block">
-            <span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/50">Manual fallback tag · optional</span>
+            <span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Manual fallback tag · optional</span>
             <input value={sourceSpeakerId} onChange={(event) => setSourceSpeakerId(event.target.value)} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition ip-focus-gold" placeholder="Stable operator tag, e.g. pastor-main" />
           </label>
           <button disabled={busy?.id === "new"} className="rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-black transition hover:brightness-110 ip-focus-gold disabled:opacity-45">
@@ -252,7 +252,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                     <div className="flex items-center gap-2">
                       <Mic2 size={15} className="text-[#d7a94a]" />
                       <h3 className="text-sm font-black text-white/90">{profile.displayName}</h3>
-                      <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${meta.tone}`}>{meta.label}</span>
+                      <span className={`rounded-full border px-2 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${meta.tone}`}>{meta.label}</span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/45">
                       <span>Created {formatDate(profile.createdAt)}</span>

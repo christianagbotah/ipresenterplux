@@ -93,7 +93,7 @@ export default async function SettingsPage() {
         {cards.length ? (
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {cards.map(({ href, title, description, icon: Icon }) => (
-              <Link key={href} href={href} className="ip-focus-gold ip-ai-arrive group cursor-pointer rounded-[22px] border border-white/[.08] bg-[#0d121a] p-5 transition hover:border-[#d7a94a]/25 hover:bg-[#111721]">
+              <Link key={href} href={href} className="ip-focus-gold ip-ai-arrive group cursor-pointer rounded-xl border border-white/[.07] bg-panel p-5 transition hover:border-gold/25 hover:bg-panel-2">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.07] text-[#efc76e]"><Icon size={19} /></div>
                   <ChevronRight size={16} className="mt-3 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-[#d7a94a]" />
@@ -104,7 +104,7 @@ export default async function SettingsPage() {
             ))}
           </section>
         ) : (
-          <div className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-8 text-center text-sm text-white/55">
+          <div className="rounded-xl border border-white/[.07] bg-panel p-8 text-center text-sm text-white/55">
             Your current role has no organization-wide settings to manage.
           </div>
         )}

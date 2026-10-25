@@ -98,7 +98,7 @@ function ServiceAutomationControl(props: ServiceProps) {
   return <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5" data-scripture-automation-control>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <div className="flex items-center gap-2 text-[#e5b95e]"><ShieldCheck size={15} /><span className="text-[10px] font-black uppercase tracking-[.14em]">Scripture automation</span></div>
+        <div className="flex items-center gap-2 text-[#e5b95e]"><ShieldCheck size={15} /><span className="text-[11px] font-black uppercase tracking-[.14em]">Scripture automation</span></div>
         <h2 className="mt-2 text-base font-black">Choose how detected Scripture is prepared</h2>
         <p className="mt-1 max-w-2xl text-xs leading-5 text-white/50">Manual is the safe default. Selecting Auto Scripture Live never arms it by itself.</p>
       </div>
@@ -112,8 +112,8 @@ function ServiceAutomationControl(props: ServiceProps) {
     </div>
 
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]">
-      <label className="space-y-1.5"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/45">Reference confidence</span><input type="number" min={98} max={100} step="0.01" value={referenceThreshold} onChange={(event) => setReferenceThreshold(Math.max(98, Number(event.target.value) || 98))} disabled={armed || !props.canControl} className="min-h-10 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm text-white disabled:opacity-40" /></label>
-      <label className="space-y-1.5"><span className="text-[10px] font-bold uppercase tracking-[.12em] text-white/45">Quote confidence</span><input type="number" min={96} max={100} step="0.01" value={quoteThreshold} onChange={(event) => setQuoteThreshold(Math.max(96, Number(event.target.value) || 96))} disabled={armed || !props.canControl} className="min-h-10 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm text-white disabled:opacity-40" /></label>
+      <label className="space-y-1.5"><span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/45">Reference confidence</span><input type="number" min={98} max={100} step="0.01" value={referenceThreshold} onChange={(event) => setReferenceThreshold(Math.max(98, Number(event.target.value) || 98))} disabled={armed || !props.canControl} className="min-h-10 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm text-white disabled:opacity-40" /></label>
+      <label className="space-y-1.5"><span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/45">Quote confidence</span><input type="number" min={96} max={100} step="0.01" value={quoteThreshold} onChange={(event) => setQuoteThreshold(Math.max(96, Number(event.target.value) || 96))} disabled={armed || !props.canControl} className="min-h-10 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-sm text-white disabled:opacity-40" /></label>
       <button type="button" onClick={() => void update(mode, false)} disabled={armed || !props.canControl || busy} className="ip-focus-gold min-h-10 self-end rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-xs font-black text-white/65 hover:bg-white/[.06] disabled:opacity-40">Save thresholds</button>
     </div>
 
@@ -156,7 +156,7 @@ function OrganizationAutomationControl(props: OrganizationProps) {
   }
 
   return <section className="rounded-2xl border border-white/[.08] bg-[#0d121a] p-5">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><div className="text-[10px] font-black uppercase tracking-[.14em] text-[#d7a94a]">Organization permission</div><h2 className="mt-2 text-lg font-black">Auto Scripture Live</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">This permission only makes the feature available. It does not arm any service. A live operator must arm each live service deliberately.</p></div><span className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[.12em] ${enabled ? "border-emerald-400/25 bg-emerald-400/[.08] text-emerald-200" : "border-white/[.08] bg-white/[.03] text-white/50"}`}>{enabled ? "Permitted" : "Off"}</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#d7a94a]">Organization permission</div><h2 className="mt-2 text-lg font-black">Auto Scripture Live</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">This permission only makes the feature available. It does not arm any service. A live operator must arm each live service deliberately.</p></div><span className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[.12em] ${enabled ? "border-emerald-400/25 bg-emerald-400/[.08] text-emerald-200" : "border-white/[.08] bg-white/[.03] text-white/50"}`}>{enabled ? "Permitted" : "Off"}</span></div>
     <button type="button" onClick={() => void setPermission(!enabled)} disabled={!props.canManage || busy} className="ip-focus-gold mt-5 min-h-10 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-4 text-xs font-black text-[#efc86f] disabled:opacity-40">{busy ? "Updating…" : enabled ? "Disable Auto Scripture Live" : "Enable Auto Scripture Live"}</button>
     {message ? <p className="mt-3 text-xs text-white/60" aria-live="polite">{message}</p> : null}
   </section>;

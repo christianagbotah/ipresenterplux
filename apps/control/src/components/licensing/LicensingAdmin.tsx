@@ -231,9 +231,9 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-start justify-between gap-3"><div><div className="font-black">{plan.name}</div><div className="mt-1 font-mono text-[11px] text-white/40">{plan.code}</div></div><span className={"rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider " + (plan.enabled ? "bg-emerald-300/[.08] text-emerald-200" : "bg-white/[.04] text-white/40")}>{plan.enabled ? "Enabled" : "Disabled"}</span></div>
+                    <div className="flex items-start justify-between gap-3"><div><div className="font-black">{plan.name}</div><div className="mt-1 font-mono text-[11px] text-white/40">{plan.code}</div></div><span className={"rounded-full px-2 py-1 text-[11px] font-bold uppercase tracking-wider " + (plan.enabled ? "bg-emerald-300/[.08] text-emerald-200" : "bg-white/[.04] text-white/40")}>{plan.enabled ? "Enabled" : "Disabled"}</span></div>
                     <div className="mt-3 text-xs text-white/50">Default seats: <span className="font-bold text-white/75">{plan.defaultDeviceSeatLimit}</span></div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">{Object.entries(plan.features).filter(([,enabled])=>enabled).map(([feature])=><span key={feature} className="rounded-lg border border-white/[.06] px-2 py-1 text-[10px] text-white/45">{feature}</span>)}</div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">{Object.entries(plan.features).filter(([,enabled])=>enabled).map(([feature])=><span key={feature} className="rounded-lg border border-white/[.06] px-2 py-1 text-[11px] text-white/45">{feature}</span>)}</div>
                     <div className="mt-4 flex gap-2"><button type="button" onClick={()=>beginEditPlan(plan)} className="min-h-9 rounded-lg border border-white/[.08] px-3 text-[11px] font-bold">Edit</button><button type="button" disabled={busy} onClick={()=>void configurePlan(plan,{ enabled: !plan.enabled })} className="min-h-9 rounded-lg border border-white/[.08] px-3 text-[11px] font-bold">{plan.enabled ? "Disable" : "Enable"}</button></div>
                   </>
                 )}
@@ -303,7 +303,7 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
           <div className="mt-5 space-y-2">
             {keys.map((key) => (
               <div key={key.id} className="ip-ai-arrive rounded-2xl border border-white/[.06] bg-white/[.02] p-3">
-                <div className="flex items-center justify-between gap-3"><code className="text-xs font-bold text-white/80">{key.prefix}••••</code><span className="text-[10px] font-bold uppercase tracking-wider text-white/55">{key.status}</span></div>
+                <div className="flex items-center justify-between gap-3"><code className="text-xs font-bold text-white/80">{key.prefix}••••</code><span className="text-[11px] font-bold uppercase tracking-wider text-white/55">{key.status}</span></div>
                 <div className="mt-3 flex gap-2">
                   <button type="button" disabled={busy || key.status !== "active"} onClick={() => void mutate("/api/v1/admin/licensing/keys", { action: "reset", productKeyId: key.id }, true)} className="ip-focus-gold min-h-9 cursor-pointer rounded-lg border border-white/[.08] px-2.5 py-1.5 text-[11px] font-bold disabled:opacity-35">Reset</button>
                   <button type="button" disabled={busy || key.status === "revoked"} onClick={() => void mutate("/api/v1/admin/licensing/keys", { action: "revoke", productKeyId: key.id, reason: "Revoked from Lightworld licensing console" })} className="ip-focus-gold min-h-9 flex cursor-pointer items-center gap-1 rounded-lg border border-rose-300/15 px-2.5 py-1.5 text-[11px] font-bold text-rose-200 disabled:opacity-35"><ShieldBan size={12} /> Revoke</button>

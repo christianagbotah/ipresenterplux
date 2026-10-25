@@ -247,22 +247,22 @@ export default async function StreamingPage() {
       <RealtimeRefresh serviceId={data.service.id} />
       <div className="mx-auto max-w-[1800px] space-y-4 p-3 sm:p-4 lg:p-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Master stream</span><Signal size={16} className={masterLive ? "text-red-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black capitalize">{masterStatus}</div>
             <div className="mt-1 text-xs text-white/35">{master?.video_profile ?? "1080p30 target"}</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Enabled outputs</span><CheckCircle2 size={16} className="text-emerald-300" /></div>
             <div className="mt-3 text-2xl font-black">{enabledCount}</div>
             <div className="mt-1 text-xs text-white/35">{eligibleOutputCount} eligible for broadcast</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Live outputs</span><RadioTower size={16} className={liveCount ? "text-red-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black">{liveCount}</div>
             <div className="mt-1 text-xs text-white/35">Session transport evidence only</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Warnings</span><ShieldAlert size={16} className={errorCount ? "text-amber-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black">{errorCount}</div>
             <div className="mt-1 text-xs text-white/35">Transport or provider evidence</div>
@@ -270,7 +270,7 @@ export default async function StreamingPage() {
         </section>
 
         <section className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0a0e15]">
+          <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-panel">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-4 sm:px-5">
               <div>
                 <h2 className="text-base font-black">Broadcast Destinations</h2>
@@ -295,13 +295,13 @@ export default async function StreamingPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="truncate text-sm font-black text-white/80">{output.name}</h3>
-                          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(status)}`}>{status}</span>
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${statusClasses(status)}`}>{status}</span>
                           {social ? (
                             <>
-                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
                                 {output.credential_configured ? "credentials set" : "credentials needed"}
                               </span>
-                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(output.provider_health_state ?? "unverified")}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${statusClasses(output.provider_health_state ?? "unverified")}`}>
                                 {providerEvidenceLabel(output)}
                               </span>
                             </>
@@ -364,7 +364,7 @@ export default async function StreamingPage() {
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-3">
+            <section className="rounded-2xl border border-white/[.08] bg-panel p-3">
               <div className="mb-3 px-2 pt-1">
                 <div className="text-xs font-black uppercase tracking-[.14em] text-white/35">Program preview</div>
                 <p className="mt-1 text-xs leading-5 text-white/35">This is the authoritative service Program transport used by the public audience experience.</p>
@@ -392,15 +392,11 @@ export default async function StreamingPage() {
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-5">
+            <section className="rounded-2xl border border-white/[.08] bg-panel p-5">
               <div className="flex items-center gap-2"><WifiOff size={16} className="text-white/35" /><span className="text-sm font-black">Failure isolation</span></div>
               <ul className="mt-3 space-y-2 text-xs leading-5 text-white/38">
-                <li>• Local projector and recording continue if Internet streaming fails.</li>
-                <li>• One destination failure does not stop the master or healthy destinations.</li>
-                <li>• Stream keys stay encrypted/server-side and never enter this page.</li>
-                <li>• Destination topology and credentials are locked while a broadcast is starting, live or stopping.</li>
-                <li>• Transport live does not by itself claim provider viewer health or audience analytics.</li>
-                <li>• Provider API failures degrade provider evidence only; they do not stop RTMPS fan-out.</li>
+                <li>• Local projector and recording continue if Internet streaming fails; one destination failure does not stop the master or healthy destinations.</li>
+                <li>• Stream keys stay server-side · credentials lock while a broadcast is starting, live or stopping · transport live does not imply provider viewer health.</li>
               </ul>
             </section>
 

@@ -64,7 +64,7 @@ export async function StudioReadinessPage({
               <div className="border-b border-white/[.06] p-6 sm:p-8">
                 <div className="flex items-center gap-2 text-[#e5b95e]">
                   <CheckCircle2 size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-[.16em]">Route connected · readiness workspace</span>
+                  <span className="text-[11px] font-black uppercase tracking-[.16em]">Route connected · readiness workspace</span>
                 </div>
                 <h2 className="mt-4 text-2xl font-black tracking-tight sm:text-3xl">{description}</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-white/48">{detail}</p>
@@ -72,12 +72,12 @@ export async function StudioReadinessPage({
 
               <div className="grid gap-3 p-6 sm:grid-cols-2 sm:p-8">
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Current service</div>
+                  <div className="text-[11px] font-black uppercase tracking-[.14em] text-white/30">Current service</div>
                   <div className="mt-2 text-base font-black text-white/75">{context?.service?.title ?? "No service selected"}</div>
                   <div className="mt-1 text-xs capitalize text-white/35">{context?.service?.status ?? "Create or prepare a service to continue"}</div>
                 </div>
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Production truth</div>
+                  <div className="text-[11px] font-black uppercase tracking-[.14em] text-white/30">Production truth</div>
                   <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white/65"><MonitorPlay size={15} /> Existing live controls remain authoritative</div>
                   <div className="mt-1 text-xs leading-5 text-white/35">This screen does not claim hardware, AI, archive, or media capabilities that are not connected yet.</div>
                 </div>

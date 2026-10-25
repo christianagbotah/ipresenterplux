@@ -54,7 +54,7 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-white/75">{selectedDemo.label}</span>
                 {selectedDemo.futureModule ? (
-                  <span className="rounded-full border border-amber-300/20 bg-amber-300/[.08] px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-amber-200">
+                  <span className="rounded-full border border-amber-300/20 bg-amber-300/[.08] px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] text-amber-200">
                     Module in progress
                   </span>
                 ) : null}
@@ -63,7 +63,7 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
               <div className="mt-1 truncate text-[11px] font-semibold text-[#d7a94a]">{selectedDemo.email}</div>
             </div>
           ) : (
-            <div className="mt-2 text-[10px] leading-4 text-white/35">
+            <div className="mt-2 text-[11px] leading-4 text-white/35">
               Choose a role to fill its demo credentials automatically. You can still enter another account manually.
             </div>
           )}

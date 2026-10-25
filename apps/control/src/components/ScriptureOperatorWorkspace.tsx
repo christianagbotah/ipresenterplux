@@ -110,7 +110,7 @@ function MonitorCard({
         <div className={`flex h-full items-center justify-center rounded-xl border p-5 text-center ${isProgram ? "border-red-400/10 bg-black/65" : "border-amber-400/10 bg-black/40"}`}>
           {detection ? (
             <div className="mx-auto max-w-2xl">
-              <div className={`text-[10px] font-bold uppercase tracking-[.28em] ${isProgram ? "text-red-300" : "text-amber-300"}`}>
+              <div className={`text-[11px] font-bold uppercase tracking-[.28em] ${isProgram ? "text-red-300" : "text-amber-300"}`}>
                 {isProgram ? "Program" : "Preview"}
               </div>
               <h3 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{detection.scriptureReference}</h3>
@@ -310,7 +310,7 @@ export function ScriptureOperatorWorkspace({
             <div className="flex items-center gap-2.5">
               <Sparkles size={17} className="text-[#e8bd62]" />
               <h2 className="text-base font-black tracking-tight sm:text-lg">Scripture Operator</h2>
-              <span className="rounded-full border border-white/10 bg-white/[.04] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-white/45">{serviceStatus}</span>
+              <span className="rounded-full border border-white/10 bg-white/[.04] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-white/45">{serviceStatus}</span>
             </div>
             <p className="mt-1.5 text-xs text-white/38">{serviceTitle} · Human-approved Preview → Program workflow</p>
           </div>
@@ -331,7 +331,7 @@ export function ScriptureOperatorWorkspace({
                   <button
                     type="button"
                     onClick={() => detections[0] && select(detections[0].id)}
-                    className="rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-[10px] font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b]"
+                    className="rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-[11px] font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b]"
                   >
                     {newerDetectionCount} newer · Jump to newest
                   </button>
@@ -364,9 +364,9 @@ export function ScriptureOperatorWorkspace({
                         </div>
                         <div className="mt-1 truncate text-[11px] text-white/34">{item.bibleVersion} · {methodLabel(item.detectionMethod)}</div>
                         <div className="mt-2 flex items-center gap-2">
-                          <span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${item.state === "live" ? "bg-red-400/10 text-red-200" : item.state === "preview" ? "bg-amber-400/10 text-amber-200" : "bg-white/[.05] text-white/35"}`}>{item.state}</span>
-                          {isNewer ? <span className="rounded-full bg-[#d7a94a]/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-[.1em] text-[#efc86f]">Newer</span> : null}
-                          {active ? <span className="text-[10px] font-bold text-[#e8bd62]">Selected</span> : null}
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${item.state === "live" ? "bg-red-400/10 text-red-200" : item.state === "preview" ? "bg-amber-400/10 text-amber-200" : "bg-white/[.05] text-white/35"}`}>{item.state}</span>
+                          {isNewer ? <span className="rounded-full bg-[#d7a94a]/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[.1em] text-[#efc86f]">Newer</span> : null}
+                          {active ? <span className="text-[11px] font-bold text-[#e8bd62]">Selected</span> : null}
                         </div>
                       </div>
                     </div>
@@ -393,7 +393,7 @@ export function ScriptureOperatorWorkspace({
                 <section className="rounded-2xl border border-white/[.08] bg-white/[.018] p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-[10px] font-black uppercase tracking-[.2em] text-[#d7a94a]">Selected item</div>
+                      <div className="text-[11px] font-black uppercase tracking-[.2em] text-[#d7a94a]">Selected item</div>
                       <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{selected?.scriptureReference ?? "Select scripture"}</h3>
                       {selected ? <div className="mt-1 text-xs text-white/38">{selected.bibleVersion} · {methodLabel(selected.detectionMethod)} · {Math.round(selected.confidence)}% confidence</div> : null}
                     </div>

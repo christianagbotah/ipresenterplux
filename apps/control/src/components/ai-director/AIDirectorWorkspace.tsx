@@ -25,7 +25,7 @@ function HealthCard({ icon, health }: { icon: React.ReactNode; health: AIDirecto
       </div>
       <div className="mt-4 text-sm font-black text-white">{health.label}</div>
       <div className="mt-1 text-xs leading-5 opacity-80">{health.detail}</div>
-      <div className="mt-3 text-[10px] uppercase tracking-[.12em] opacity-55">
+      <div className="mt-3 text-[11px] uppercase tracking-[.12em] opacity-55">
         {health.observedAt ? `Observed ${new Date(health.observedAt).toLocaleTimeString()}` : "No recent heartbeat"}
       </div>
     </div>
@@ -80,11 +80,11 @@ export function AIDirectorWorkspace({ state }: Props) {
           </div>
           <div className="grid min-w-[240px] grid-cols-2 gap-2">
             <div className="rounded-lg border border-white/[.07] bg-black/20 px-3 py-2">
-              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-white/45">Recommendations</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.14em] text-white/45">Recommendations</div>
               <div className="mt-0.5 text-lg font-extrabold tabular-nums">{recommendationCount}</div>
             </div>
             <div className="rounded-lg border border-white/[.07] bg-black/20 px-3 py-2">
-              <div className="text-[10px] font-bold uppercase tracking-[.14em] text-white/45">In Preview</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.14em] text-white/45">In Preview</div>
               <div className="mt-0.5 text-lg font-extrabold tabular-nums">{previewCount}</div>
             </div>
           </div>
@@ -103,12 +103,12 @@ export function AIDirectorWorkspace({ state }: Props) {
                 <div className="flex items-center gap-2 text-sm font-black"><Radio size={17} className="text-emerald-300" />Live Sermon</div>
                 <p className="mt-1 text-xs leading-5 text-white/50">Fresh ASR speech from this service only. Stale speech is never presented as current.</p>
               </div>
-              <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-emerald-200">{freshTranscript.length ? `${freshTranscript.length} fresh` : "Waiting"}</span>
+              <span className="rounded-full border border-emerald-400/15 bg-emerald-400/[.06] px-3 py-1.5 text-[11px] font-black uppercase tracking-[.12em] text-emerald-200">{freshTranscript.length ? `${freshTranscript.length} fresh` : "Waiting"}</span>
             </div>
             <div className="mt-4 space-y-2">
               {freshTranscript.length ? freshTranscript.slice(0, 6).map((segment, index) => (
                 <article key={segment.id} className={`rounded-2xl border p-3 ${index === 0 ? "border-emerald-400/18 bg-emerald-400/[.045]" : "border-white/[.06] bg-black/15"}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-[.1em] text-white/45">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold uppercase tracking-[.1em] text-white/45">
                     <span>{segment.speakerId ?? "Speaker"}{segment.sourceLanguage ? ` · ${segment.sourceLanguage.toUpperCase()}` : ""}</span>
                     <span>{segment.asrConfidence === null ? "confidence —" : `${Math.round(segment.asrConfidence * 100)}% confidence`} · {new Date(segment.observedAt).toLocaleTimeString()}</span>
                   </div>
@@ -137,7 +137,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                 <div key={`${item.source}:${item.id}`} className="rounded-2xl border border-white/[.06] bg-black/15 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[10px] font-black uppercase tracking-[.11em] text-[#d7a94a]">{index + 1}. {item.source}</div>
+                      <div className="text-[11px] font-black uppercase tracking-[.11em] text-[#d7a94a]">{index + 1}. {item.source}</div>
                       <div className="mt-1 truncate text-sm font-black">{item.title}</div>
                     </div>
                     {item.confidence !== null ? <span className="shrink-0 rounded-lg border border-[#d7a94a]/15 px-2 py-1 text-xs font-black text-[#e7c477]">{Math.round(item.confidence)}%</span> : null}
@@ -155,7 +155,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                 <p className="mt-1 text-xs leading-5 text-white/50">Anonymous active audience sessions show which language channels need attention now.</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-sky-400/15 bg-sky-400/[.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[.12em] text-sky-200">{activeListeners} active</span>
+                <span className="rounded-full border border-sky-400/15 bg-sky-400/[.06] px-3 py-1.5 text-[11px] font-black uppercase tracking-[.12em] text-sky-200">{activeListeners} active</span>
                 <Link href="/translations" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Translations</Link>
               </div>
             </div>
@@ -163,7 +163,7 @@ export function AIDirectorWorkspace({ state }: Props) {
               {state.languageDemand.length ? state.languageDemand.map((language) => (
                 <div key={language.id} className="rounded-2xl border border-white/[.06] bg-black/15 p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div><div className="text-sm font-black">{language.languageName}</div><div className="mt-1 text-[10px] font-bold uppercase tracking-[.1em] text-white/40">{language.channelMode.replaceAll("_", " ")}</div></div>
+                    <div><div className="text-sm font-black">{language.languageName}</div><div className="mt-1 text-[11px] font-bold uppercase tracking-[.1em] text-white/40">{language.channelMode.replaceAll("_", " ")}</div></div>
                     <span className="text-lg font-black">{language.listeners}</span>
                   </div>
                   <div className={`mt-3 text-[11px] font-bold ${language.readiness.tone === "healthy" ? "text-emerald-300" : language.readiness.tone === "warning" ? "text-amber-200" : "text-white/50"}`}>{language.readiness.label}</div>
@@ -199,7 +199,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                 <div className="flex items-center gap-2 text-sm font-black"><Bot size={17} className="text-[#d7a94a]" />Service automation</div>
                 <p className="mt-1 text-xs leading-5 text-white/50">Controls recommendation automation for the current ready/live service only.</p>
               </div>
-              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] ${state.entitled ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200" : "border-white/[.08] text-white/45"}`}>
+              <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.12em] ${state.entitled ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200" : "border-white/[.08] text-white/45"}`}>
                 {state.entitled ? "Entitled" : "Plan locked"}
               </span>
             </div>
@@ -265,7 +265,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                     <div className="rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 py-2 text-sm font-black text-[#e7c477]">{item.confidence.toFixed(0)}%</div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-white/62">{item.evidence || "No transcript evidence retained."}</p>
-                  <div className="mt-3 flex items-center gap-2 text-[10px] text-white/45"><ShieldCheck size={12} />Human operator remains final authority · {new Date(item.observedAt).toLocaleTimeString()}</div>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-white/45"><ShieldCheck size={12} />Human operator remains final authority · {new Date(item.observedAt).toLocaleTimeString()}</div>
                 </article>
               )) : (
                 <div className="rounded-2xl border border-dashed border-white/[.09] p-8 text-center text-sm text-white/50">No recent Scripture recommendations for this service.</div>

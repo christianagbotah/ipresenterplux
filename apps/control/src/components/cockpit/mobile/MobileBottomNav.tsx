@@ -19,7 +19,7 @@ export function MobileBottomNav({ projection, active }: { projection: CockpitRol
     {destinations.map((item) => {
       const Icon = item.icon;
       const selected = item.id === active;
-      return <Link key={item.id} href={item.href} aria-current={selected ? "page" : undefined} className={`ip-focus-gold flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold transition ${selected ? "bg-[#d7a94a]/12 text-[#f2c765]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}>
+      return <Link key={item.id} href={item.href} aria-current={selected ? "page" : undefined} className={`ip-focus-gold flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-bold transition ${selected ? "bg-[#d7a94a]/12 text-[#f2c765]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}>
         <Icon size={16} aria-hidden="true" /><span className="truncate">{item.label}</span>
       </Link>;
     })}

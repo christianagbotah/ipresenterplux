@@ -105,7 +105,7 @@ export default async function PlannerServicePage({ params }: PageProps) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-xl font-black tracking-tight sm:text-2xl">{detail.service.title}</h1>
-                <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${statusClass(detail.service.status)}`}>{detail.service.status}</span>
+                <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${statusClass(detail.service.status)}`}>{detail.service.status}</span>
               </div>
               <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/55">
                 <span className="inline-flex items-center gap-1.5"><CalendarClock size={13} />{schedule(detail.service.scheduledStart, detail.service.timezone)}</span>

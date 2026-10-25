@@ -18,7 +18,7 @@ export default function LoginPage() {
             </div>
             <div>
               <div className="text-xl font-black tracking-tight">iPresenterPlux</div>
-              <div className="text-[10px] uppercase tracking-[.25em] text-white/35">AI Church Studio</div>
+              <div className="text-[11px] uppercase tracking-[.25em] text-white/35">AI Church Studio</div>
             </div>
           </div>
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <div className="font-black">iPresenterPlux</div>
-                  <div className="text-[10px] uppercase tracking-[.2em] text-white/35">AI Church Studio</div>
+                  <div className="text-[11px] uppercase tracking-[.2em] text-white/35">AI Church Studio</div>
                 </div>
               </div>
             </div>

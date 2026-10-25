@@ -237,7 +237,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                   </div>
 
                   <div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${state.className}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${state.className}`}>
                       {state.online ? <Wifi size={11} /> : <WifiOff size={11} />}{state.label}
                     </span>
                     <div className="mt-2 text-[11px] text-white/50">Last seen {timeLabel(device.lastSeenAt)}</div>
@@ -283,7 +283,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[.05] pt-2 text-[11px]">
                         <span className="text-white/50">Last command</span>
                         <code className="font-semibold text-white/80">{device.recentCommand.type}</code>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
                         {device.recentCommand.resultingState ? <span className="text-white/55">{device.recentCommand.resultingState}</span> : null}
                         {device.recentCommand.errorCode ? <span className="text-red-200/80">{device.recentCommand.errorCode}</span> : null}
                         <span className="ml-auto text-white/50">{timeLabel(device.recentCommand.completedAt ?? device.recentCommand.issuedAt)}</span>

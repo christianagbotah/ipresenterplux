@@ -264,7 +264,7 @@ export function MediaWorkspace({
                 <article key={item.id} className="ip-ai-arrive flex min-h-56 flex-col rounded-2xl border border-white/[.07] bg-white/[.025] p-4 transition hover:border-white/[.12] hover:bg-white/[.035]">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-black/20 text-[#d7a94a]"><Icon size={18} /></div>
-                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-[.1em] ${eligibilityClass(item.previewEligibility)}`}>{eligibilityLabel(item.previewEligibility)}</span>
+                    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.1em] ${eligibilityClass(item.previewEligibility)}`}>{eligibilityLabel(item.previewEligibility)}</span>
                   </div>
                   <div className="mt-4 text-base font-black leading-tight">{item.title}</div>
                   <p className="mt-2 line-clamp-3 text-xs leading-5 text-white/55">{itemSummary(item)}</p>
