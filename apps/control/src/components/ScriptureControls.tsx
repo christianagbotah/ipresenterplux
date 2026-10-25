@@ -84,7 +84,7 @@ export function ScriptureControls({
               type="button"
               disabled={isPending || currentState === "live"}
               onClick={() => changeState("live", "Program updated")}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-3 text-sm font-black text-[#161109] shadow-[0_10px_35px_rgba(215,169,74,.16)] transition hover:bg-[#e7bd63] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 py-3 text-sm font-black text-[#161109] shadow-[0_10px_35px_rgba(215,169,74,.16)] transition hover:bg-[#e7bd63] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Radio size={16} aria-hidden="true" />
               Take Live

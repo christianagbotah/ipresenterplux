@@ -32,10 +32,10 @@ export function ReadinessPanel({
   const issues = readiness.issues ?? [];
 
   return (
-    <section className="mb-3 overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017]">
+    <section className="mb-3 overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c121b]">
       <div className="flex flex-col gap-3 border-b border-white/[.07] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + (isReady ? "border-emerald-400/22 bg-emerald-400/[.08] text-emerald-300" : "border-[#d7a94a]/25 bg-[#d7a94a]/[.08] text-[#f2c765]")}>{isReady ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}</span>
+          <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border " + (isReady ? "border-emerald-400/22 bg-emerald-400/[.08] text-emerald-300" : "border-[#e3b75c]/25 bg-[#e3b75c]/[.08] text-[#f4cf85]")}>{isReady ? <CheckCircle2 size={18} /> : <ShieldCheck size={18} />}</span>
           <div className="min-w-0">
             <div className="text-sm font-black text-white/90">Service readiness</div>
             <div className="mt-0.5 text-xs leading-5 text-white/55">
@@ -82,7 +82,7 @@ export function ReadinessPanel({
                 <span className="min-w-0">
                   <span className="block text-[11px] font-black uppercase tracking-[.12em] text-amber-200/75">{issue.code.replaceAll("_", " ")}</span>
                   <span className="mt-1 block text-xs leading-5 text-white/70">{issue.label}</span>
-                  {issue.itemId ? <span className="mt-1 block text-[11px] font-bold text-[#f2c765]">Open affected cue →</span> : null}
+                  {issue.itemId ? <span className="mt-1 block text-[11px] font-bold text-[#f4cf85]">Open affected cue →</span> : null}
                 </span>
               </>
             );

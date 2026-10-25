@@ -187,7 +187,7 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         <div className="flex flex-wrap items-end gap-3">
           <label className="min-w-[250px] flex-1 text-xs font-bold text-white/65">
             Church organization
-            <select value={organizationId} onChange={(event) => { setOrganizationId(event.target.value); setOneTimeKey(""); }} className="ip-focus-gold mt-2 min-h-11 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/40">
+            <select value={organizationId} onChange={(event) => { setOrganizationId(event.target.value); setOneTimeKey(""); }} className="ip-focus-gold mt-2 min-h-11 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-sm text-white outline-none focus:border-[#e3b75c]/40">
               {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
             </select>
           </label>
@@ -209,14 +209,14 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
       ) : null}
 
       <section className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
-        <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Plan catalog</div><h2 className="mt-1 text-lg font-black">Create plan</h2><p className="mt-1 text-xs text-white/55">Create the commercial capability set before assigning subscriptions.</p></div><Sparkles size={18} className="text-[#d7a94a]" /></div>
+        <div className="flex items-start justify-between gap-3"><div><div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]">Plan catalog</div><h2 className="mt-1 text-lg font-black">Create plan</h2><p className="mt-1 text-xs text-white/55">Create the commercial capability set before assigning subscriptions.</p></div><Sparkles size={18} className="text-[#e3b75c]" /></div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[.8fr_1.2fr_120px]">
           <label className="text-xs font-bold text-white/60">Code<input value={newPlanCode} onChange={(e)=>setNewPlanCode(e.target.value)} placeholder="church-pro" className="ip-focus-gold mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white placeholder:text-white/40" /></label>
           <label className="text-xs font-bold text-white/60">Name<input value={newPlanName} onChange={(e)=>setNewPlanName(e.target.value)} placeholder="Church Pro" className="ip-focus-gold mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white placeholder:text-white/40" /></label>
           <label className="text-xs font-bold text-white/60">Default seats<input type="number" min={1} value={newPlanSeats} onChange={(e)=>setNewPlanSeats(Math.max(1,Number(e.target.value)||1))} className="ip-focus-gold mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{PLAN_FEATURES.map((feature)=><label key={feature} className="ip-focus-gold flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/[.07] bg-white/[.02] px-3 text-xs font-bold text-white/70"><input type="checkbox" checked={newPlanFeatures[feature]===true} onChange={(e)=>setNewPlanFeatures((current)=>({...current,[feature]:e.target.checked}))} className="cursor-pointer"/><span>{feature}</span></label>)}</div>
-        <button type="button" disabled={busy || !newPlanCode.trim() || !newPlanName.trim()} onClick={()=>void createPlan()} className="ip-focus-gold mt-4 min-h-11 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:cursor-not-allowed disabled:opacity-40">Create plan</button>
+        <button type="button" disabled={busy || !newPlanCode.trim() || !newPlanName.trim()} onClick={()=>void createPlan()} className="ip-focus-gold mt-4 min-h-11 cursor-pointer rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#171109] disabled:cursor-not-allowed disabled:opacity-40">Create plan</button>
 
         <div className="mt-6 border-t border-white/[.07] pt-5">
           <div className="text-[11px] font-bold uppercase tracking-[.18em] text-white/45">Available plans</div>
@@ -227,7 +227,7 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
                   <div className="grid gap-3 sm:grid-cols-[1fr_110px_auto] sm:items-end">
                     <label className="text-xs font-bold text-white/60">Name<input value={planEditName} onChange={(e)=>setPlanEditName(e.target.value)} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
                     <label className="text-xs font-bold text-white/60">Seats<input type="number" min={1} value={planEditSeats} onChange={(e)=>setPlanEditSeats(Math.max(1,Number(e.target.value)||1))} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
-                    <div className="flex gap-2"><button type="button" disabled={busy} onClick={()=>void savePlanEdit(plan)} className="min-h-10 rounded-xl bg-[#d7a94a] px-3 text-xs font-black text-[#171109]">Save</button><button type="button" onClick={()=>setEditingPlanId("")} className="min-h-10 rounded-xl border border-white/[.08] px-3 text-xs font-bold">Cancel</button></div>
+                    <div className="flex gap-2"><button type="button" disabled={busy} onClick={()=>void savePlanEdit(plan)} className="min-h-10 rounded-xl bg-[#e3b75c] px-3 text-xs font-black text-[#171109]">Save</button><button type="button" onClick={()=>setEditingPlanId("")} className="min-h-10 rounded-xl border border-white/[.08] px-3 text-xs font-bold">Cancel</button></div>
                   </div>
                 ) : (
                   <>
@@ -247,10 +247,10 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
         <div className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Commercial authority</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]">Commercial authority</div>
               <h2 className="mt-1 text-xl font-black">{selectedOrganization?.name ?? "Organization"}</h2>
             </div>
-            <Sparkles size={18} className="text-[#d7a94a]" />
+            <Sparkles size={18} className="text-[#e3b75c]" />
           </div>
           {overview?.subscription ? (
             <div className="mt-5 space-y-4">
@@ -263,17 +263,17 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
                 {(["active", "suspended", "past_due"] as const).map((status) => (
                   <button key={status} type="button" disabled={busy || overview.subscription?.status === status} onClick={() => void mutate("/api/v1/admin/licensing/subscriptions", { action: "set_status", subscriptionId: overview.subscription?.id, status, reason: "Changed from Lightworld licensing console" })} className="ip-focus-gold min-h-9 cursor-pointer rounded-xl border border-white/[.08] px-3 py-2 text-xs font-bold capitalize transition hover:bg-white/[.05] disabled:cursor-not-allowed disabled:opacity-35">{status.replaceAll("_", " ")}</button>
                 ))}
-                <button type="button" disabled={busy} onClick={() => void mutate("/api/v1/admin/licensing/subscriptions", { action: "extend", subscriptionId: overview.subscription?.id, days: 30, reason: "30-day extension from Lightworld licensing console" })} className="ip-focus-gold min-h-9 cursor-pointer rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.06] px-3 py-2 text-xs font-bold text-[#efc76e]">Extend 30 days</button>
+                <button type="button" disabled={busy} onClick={() => void mutate("/api/v1/admin/licensing/subscriptions", { action: "extend", subscriptionId: overview.subscription?.id, days: 30, reason: "30-day extension from Lightworld licensing console" })} className="ip-focus-gold min-h-9 cursor-pointer rounded-xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.06] px-3 py-2 text-xs font-bold text-[#f0ca80]">Extend 30 days</button>
               </div>
               <div className="flex flex-wrap items-end gap-2">
                 <label className="text-xs font-bold text-white/60">Seat limit<input type="number" min={1} value={seatLimit} onChange={(event) => setSeatLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-28 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
                 <button type="button" disabled={busy} onClick={() => void mutate("/api/v1/admin/licensing/subscriptions", { action: "set_seats", subscriptionId: overview.subscription?.id, seatLimit })} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl border border-white/[.08] px-3 text-xs font-bold">Save seats</button>
               </div>
-              <div className="rounded-2xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.04] p-4">
-                <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#efc76e]">Change plan</div>
+              <div className="rounded-2xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.04] p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#f0ca80]">Change plan</div>
                 <div className="mt-3 flex flex-wrap items-end gap-2">
                   <label className="min-w-[220px] flex-1 text-xs font-bold text-white/60">Subscription plan<select value={planId || overview.subscription.plan.id} onChange={(event)=>setPlanId(event.target.value)} className="mt-2 min-h-10 w-full rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{enabledPlans.map((plan)=><option key={plan.id} value={plan.id}>{plan.name} · {plan.code}</option>)}</select></label>
-                  <button type="button" disabled={busy || !planId || planId === overview.subscription.plan.id} onClick={()=>void changePlan()} className="min-h-10 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:opacity-35">Change plan</button>
+                  <button type="button" disabled={busy || !planId || planId === overview.subscription.plan.id} onClick={()=>void changePlan()} className="min-h-10 rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#171109] disabled:opacity-35">Change plan</button>
                 </div>
               </div>
             </div>
@@ -283,20 +283,20 @@ export function LicensingAdmin({ organizations, plans }: { organizations: Organi
               <div className="mt-4 flex flex-wrap items-end gap-3">
                 <label className="min-w-[220px] flex-1 text-xs font-bold text-white/60">Plan<select value={planId} onChange={(event) => setPlanId(event.target.value)} className="ip-focus-gold mt-2 min-h-10 w-full cursor-pointer rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white">{enabledPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select></label>
                 <label className="text-xs font-bold text-white/60">Seats<input type="number" min={1} value={seatLimit} onChange={(event) => setSeatLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-24 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
-                <button type="button" onClick={() => void createSubscription()} disabled={busy || !planId} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109] disabled:opacity-40">Create subscription</button>
+                <button type="button" onClick={() => void createSubscription()} disabled={busy || !planId} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#171109] disabled:opacity-40">Create subscription</button>
               </div>
             </div>
           )}
         </div>
 
         <div className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><KeyRound size={14} /> Product keys</div>
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]"><KeyRound size={14} /> Product keys</div>
           {overview?.subscription ? (
             <>
             <p className="mt-3 text-xs text-white/50">Keys issued now activate <span className="font-bold text-white/75">{overview.subscription.plan.name}</span> ({overview.subscription.plan.code}).</p>
             <div className="mt-4 flex items-end gap-2">
               <label className="text-xs font-bold text-white/60">Activation limit<input type="number" min={1} value={activationLimit} onChange={(event) => setActivationLimit(Number(event.target.value))} className="ip-focus-gold mt-2 min-h-10 w-28 rounded-xl border border-white/[.08] bg-[#090d13] px-3 text-white" /></label>
-              <button type="button" onClick={() => void issueKey()} disabled={busy} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171109]">Issue key</button>
+              <button type="button" onClick={() => void issueKey()} disabled={busy} className="ip-focus-gold min-h-10 cursor-pointer rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#171109]">Issue key</button>
             </div>
             </>
           ) : null}

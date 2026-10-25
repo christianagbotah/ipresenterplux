@@ -120,7 +120,7 @@ export default async function PlannerPage() {
       <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
         <section className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-            <div className="flex items-center justify-between gap-3"><span className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Visible plans</span><Layers3 size={17} className="text-[#d7a94a]/65" /></div>
+            <div className="flex items-center justify-between gap-3"><span className="text-xs font-bold uppercase tracking-[.13em] text-white/35">Visible plans</span><Layers3 size={17} className="text-[#e3b75c]/65" /></div>
             <div className="mt-2 text-3xl font-black tracking-tight">{serviceCount}</div>
             <div className="mt-1 text-xs text-white/30">Most recent 50 service records</div>
           </div>
@@ -136,7 +136,7 @@ export default async function PlannerPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/80 p-4 shadow-[0_24px_80px_rgba(0,0,0,.18)] sm:p-5 lg:p-6">
+        <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/80 p-4 shadow-[0_24px_80px_rgba(0,0,0,.18)] sm:p-5 lg:p-6">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-lg font-black tracking-tight">Service plans</h2>

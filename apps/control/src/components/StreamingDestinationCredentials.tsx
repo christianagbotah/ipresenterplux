@@ -152,7 +152,7 @@ export function StreamingDestinationCredentials({
                     onChange={(event) => setIngestUrl(event.target.value)}
                     placeholder="rtmps://provider.example/live"
                     autoComplete="off"
-                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
+                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#e3b75c]/50 focus:ring-2 focus:ring-[#e3b75c]/15"
                   />
                 </label>
                 <label className="block">
@@ -164,7 +164,7 @@ export function StreamingDestinationCredentials({
                     onChange={(event) => setStreamKey(event.target.value)}
                     placeholder={configured ? "Stored key is hidden — enter replacement" : "Paste provider stream key"}
                     autoComplete="new-password"
-                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/50 focus:ring-2 focus:ring-[#d7a94a]/15"
+                    className="ip-focus-gold mt-1.5 min-h-11 w-full rounded-xl border border-white/[.1] bg-black/25 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#e3b75c]/50 focus:ring-2 focus:ring-[#e3b75c]/15"
                   />
                 </label>
 
@@ -182,7 +182,7 @@ export function StreamingDestinationCredentials({
                   <button
                     type="submit"
                     disabled={isPending || !ingestUrl.trim() || !streamKey.trim()}
-                    className="flex min-h-10 items-center gap-2 rounded-xl border border-[#d7a94a]/30 bg-[#d7a94a]/15 px-4 text-xs font-black text-[#f3ce7b] transition hover:bg-[#d7a94a]/20 disabled:opacity-40"
+                    className="flex min-h-10 items-center gap-2 rounded-xl border border-[#e3b75c]/30 bg-[#e3b75c]/15 px-4 text-xs font-black text-[#f3ce7b] transition hover:bg-[#e3b75c]/20 disabled:opacity-40"
                   >
                     {isPending ? <LoaderCircle size={14} className="animate-spin" /> : <KeyRound size={14} />}
                     {configured ? "Rotate credentials" : "Save credentials"}

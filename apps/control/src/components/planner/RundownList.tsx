@@ -82,7 +82,7 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
               <select value={newType} onChange={(event) => setNewType(event.target.value as PlannerCueType)} disabled={busy} className="min-h-10 min-w-0 rounded-lg border border-white/[.08] bg-[#0a0d12] px-2.5 text-xs text-white outline-none transition ip-focus-gold disabled:opacity-40">
                 {plannerCueTypes.map((type) => <option key={type} value={type}>{labels[type]}</option>)}
               </select>
-              <button type="button" onClick={() => onAdd(newType)} disabled={busy} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#d7a94a] px-3 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:opacity-40"><Plus size={14} /> Add</button>
+              <button type="button" onClick={() => onAdd(newType)} disabled={busy} className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg bg-[#e3b75c] px-3 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:opacity-40"><Plus size={14} /> Add</button>
             </div>
           ) : null}
         </div>
@@ -108,7 +108,7 @@ export function RundownList({ items, selectedId, canEdit, busy = false, onSelect
               className={
                 "group ip-ai-arrive flex w-full min-w-0 items-stretch gap-1 rounded-xl border p-1.5 transition " +
                 (selected
-                  ? "border-[#d7a94a]/35 bg-[#d7a94a]/10"
+                  ? "border-[#e3b75c]/35 bg-[#e3b75c]/10"
                   : draggedId === item.id
                     ? "border-white/[.12] bg-white/[.05] opacity-55"
                     : "border-white/[.06] bg-white/[.02] hover:border-white/[.12] hover:bg-white/[.04]")

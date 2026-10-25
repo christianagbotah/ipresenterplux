@@ -13,7 +13,7 @@ export function NowRail({ model }: { model: CockpitViewModel }) {
   const visualProgramProblem = ["disconnected", "error"].includes(model.systems.visualProgram.captureStatus ?? "");
   const audio = freshnessMeta(model.systems.audio.freshness);
   return (
-    <aside className="space-y-4 rounded-2xl border border-white/[.08] bg-[#10151e] p-4">
+    <aside className="space-y-4 rounded-2xl border border-white/[.08] bg-[#121a26] p-4">
       <div>
         <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-bold text-white/85">Now</h2><span className="rounded-md bg-white/[.05] px-2 py-1 text-xs text-white/50">Live context</span></div>
         <div className="mt-3 break-words text-lg font-bold leading-snug text-white/95">{model.now.currentContent?.title ?? "Program is clear"}</div>

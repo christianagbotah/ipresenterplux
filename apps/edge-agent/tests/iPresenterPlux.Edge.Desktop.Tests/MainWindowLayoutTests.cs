@@ -391,7 +391,7 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("ApplyConsoleChrome()", source, StringComparison.Ordinal);
-        Assert.Contains("Resources[\"SystemAccentColor\"] = Color.Parse(\"#D7A94A\")", source, StringComparison.Ordinal);
+        Assert.Contains("Resources[\"SystemAccentColor\"] = Color.Parse(\"#E3B75C\")", source, StringComparison.Ordinal);
         Assert.Contains("x.OfType<ListBoxItem>().Class(\":selected\")", source, StringComparison.Ordinal);
         Assert.Contains("x.OfType<TabStripItem>()", source, StringComparison.Ordinal);
         // Safety copy stays available where Take happens.

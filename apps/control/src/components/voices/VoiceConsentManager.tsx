@@ -200,9 +200,9 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
         ))}
       </section>
 
-      <section className="rounded-[22px] border border-[#d7a94a]/16 bg-[#d7a94a]/[.045] p-5">
+      <section className="rounded-[22px] border border-[#e3b75c]/16 bg-[#e3b75c]/[.045] p-5">
         <div className="flex gap-3">
-          <ShieldAlert className="mt-0.5 shrink-0 text-[#efc76e]" size={18} />
+          <ShieldAlert className="mt-0.5 shrink-0 text-[#f0ca80]" size={18} />
           <div>
             <h2 className="text-sm font-black">Explicit consent is mandatory</h2>
             <p className="mt-1 max-w-4xl text-xs leading-5 text-white/60">
@@ -214,7 +214,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
 
       <form onSubmit={createProfile} className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-5">
         <div className="flex items-center gap-2">
-          <Plus size={16} className="text-[#d7a94a]" />
+          <Plus size={16} className="text-[#e3b75c]" />
           <h2 className="text-sm font-black">Create pending speaker profile</h2>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
@@ -226,7 +226,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
             <span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Manual fallback tag · optional</span>
             <input value={sourceSpeakerId} onChange={(event) => setSourceSpeakerId(event.target.value)} maxLength={120} className="mt-2 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition ip-focus-gold" placeholder="Stable operator tag, e.g. pastor-main" />
           </label>
-          <button disabled={busy?.id === "new"} className="rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-black transition hover:brightness-110 ip-focus-gold disabled:opacity-45">
+          <button disabled={busy?.id === "new"} className="rounded-xl bg-[#e3b75c] px-4 py-2.5 text-xs font-black text-black transition hover:brightness-110 ip-focus-gold disabled:opacity-45">
             {busy?.id === "new" ? "Creating…" : "Create pending profile"}
           </button>
         </div>
@@ -250,7 +250,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Mic2 size={15} className="text-[#d7a94a]" />
+                      <Mic2 size={15} className="text-[#e3b75c]" />
                       <h3 className="text-sm font-black text-white/90">{profile.displayName}</h3>
                       <span className={`rounded-full border px-2 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${meta.tone}`}>{meta.label}</span>
                     </div>
@@ -266,7 +266,7 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                   <div className="mt-4 grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto] lg:items-end">
                     <label>
                       <span className="text-[11px] uppercase tracking-[.12em] text-white/50">Consent method</span>
-                      <select value={consentMethod[profile.id] ?? "written"} onChange={(event) => setConsentMethod((current) => ({ ...current, [profile.id]: event.target.value as "written" | "recorded_verbal" }))} className="mt-2 w-full rounded-xl border border-white/[.08] bg-[#080b10] px-3 py-2.5 text-sm outline-none transition ip-focus-gold">
+                      <select value={consentMethod[profile.id] ?? "written"} onChange={(event) => setConsentMethod((current) => ({ ...current, [profile.id]: event.target.value as "written" | "recorded_verbal" }))} className="mt-2 w-full rounded-xl border border-white/[.08] bg-[#05080d] px-3 py-2.5 text-sm outline-none transition ip-focus-gold">
                         <option value="written">Written consent</option>
                         <option value="recorded_verbal">Recorded verbal consent</option>
                       </select>
@@ -288,8 +288,8 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                       <div>Recorded: {formatDate(profile.consentedAt)}</div>
                       <div className="mt-2 text-white/45">Manual fallback tag: {profile.sourceSpeakerId ?? "not configured"}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7a94a]/14 bg-[#d7a94a]/[.035] p-4">
-                      <div className="text-xs font-bold text-[#efc76e]">Personalized provider voice</div>
+                    <div className="rounded-xl border border-[#e3b75c]/14 bg-[#e3b75c]/[.035] p-4">
+                      <div className="text-xs font-bold text-[#f0ca80]">Personalized provider voice</div>
                       {profile.providerVoiceId ? (
                         <>
                           <div className="mt-2 break-all text-[11px] leading-5 text-white/65">{profile.provider ?? "provider"} · {profile.providerVoiceId}</div>
@@ -299,12 +299,12 @@ export function VoiceConsentManager({ organizationId, organizationName, profiles
                         <>
                           <div className="mt-2 text-[11px] leading-5 text-white/55">Bind only a provider voice ID enrolled outside iPresenterPlux under this person&apos;s explicit consent. Detected ASR speaker labels are assigned separately per live service in the Control Room.</div>
                           <div className="mt-3 grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]">
-                            <select value={providerChoice[profile.id] ?? "google"} onChange={(event) => setProviderChoice((current) => ({ ...current, [profile.id]: event.target.value as "google" | "ghananlp" }))} className="rounded-xl border border-white/[.08] bg-[#080b10] px-3 py-2.5 text-xs text-white outline-none transition ip-focus-gold">
+                            <select value={providerChoice[profile.id] ?? "google"} onChange={(event) => setProviderChoice((current) => ({ ...current, [profile.id]: event.target.value as "google" | "ghananlp" }))} className="rounded-xl border border-white/[.08] bg-[#05080d] px-3 py-2.5 text-xs text-white outline-none transition ip-focus-gold">
                               <option value="google">Google</option>
                               <option value="ghananlp">GhanaNLP</option>
                             </select>
                             <input value={providerVoiceId[profile.id] ?? ""} onChange={(event) => setProviderVoiceId((current) => ({ ...current, [profile.id]: event.target.value }))} maxLength={128} className="min-w-0 rounded-xl border border-white/[.08] bg-black/20 px-3 py-2.5 text-sm outline-none transition placeholder:text-white/40 ip-focus-gold" placeholder="Provider voice ID" />
-                            <button type="button" disabled={waiting} onClick={() => void bindProviderVoice(profile)} className="rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-3 text-[11px] font-bold text-[#efc76e] transition hover:bg-[#d7a94a]/[.16] ip-focus-gold disabled:opacity-45">Bind</button>
+                            <button type="button" disabled={waiting} onClick={() => void bindProviderVoice(profile)} className="rounded-xl border border-[#e3b75c]/20 bg-[#e3b75c]/10 px-3 text-[11px] font-bold text-[#f0ca80] transition hover:bg-[#e3b75c]/[.16] ip-focus-gold disabled:opacity-45">Bind</button>
                           </div>
                         </>
                       )}

@@ -95,7 +95,7 @@ function ServiceAutomationControl(props: ServiceProps) {
     { id: "auto_live", label: "Auto Scripture Live", detail: "Eligible Scripture may reach Program only after a separate arm action." }
   ];
 
-  return <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5" data-scripture-automation-control>
+  return <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5" data-scripture-automation-control>
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <div className="flex items-center gap-2 text-[#e5b95e]"><ShieldCheck size={15} /><span className="text-[11px] font-black uppercase tracking-[.14em]">Scripture automation</span></div>
@@ -106,7 +106,7 @@ function ServiceAutomationControl(props: ServiceProps) {
     </div>
 
     <div className="mt-4 grid gap-2 lg:grid-cols-3">
-      {modes.map((item) => <button key={item.id} type="button" onClick={() => selectMode(item.id)} disabled={!props.canControl || busy} className={`ip-focus-gold min-h-20 rounded-xl border p-3 text-left transition disabled:opacity-40 ${mode === item.id ? "border-[#d7a94a]/45 bg-[#d7a94a]/[.09]" : "border-white/[.07] bg-white/[.02] hover:bg-white/[.045]"}`}>
+      {modes.map((item) => <button key={item.id} type="button" onClick={() => selectMode(item.id)} disabled={!props.canControl || busy} className={`ip-focus-gold min-h-20 rounded-xl border p-3 text-left transition disabled:opacity-40 ${mode === item.id ? "border-[#e3b75c]/45 bg-[#e3b75c]/[.09]" : "border-white/[.07] bg-white/[.02] hover:bg-white/[.045]"}`}>
         <span className="block text-sm font-black text-white/85">{item.label}</span><span className="mt-1 block text-[11px] leading-4 text-white/50">{item.detail}</span>
       </button>)}
     </div>
@@ -119,7 +119,7 @@ function ServiceAutomationControl(props: ServiceProps) {
 
     {mode === "auto_live" && !armed ? <div className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/[.06] p-3">
       <div className="flex items-start gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0 text-amber-300"/><div><p className="text-xs font-black text-amber-100">Arming is a separate live-service action</p><p className="mt-1 text-[11px] leading-5 text-white/55">{armBlockReason ?? "Eligible high-confidence Scripture can go directly to Program while armed. You can disarm with one action at any time."}</p></div></div>
-      <button type="button" onClick={() => void update("auto_live", true)} disabled={Boolean(armBlockReason) || busy} className="ip-focus-gold mt-3 min-h-10 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#17120a] disabled:opacity-35">{busy ? <span className="inline-flex items-center gap-2"><Loader2 size={13} className="animate-spin"/> Working…</span> : "Arm Auto Scripture Live"}</button>
+      <button type="button" onClick={() => void update("auto_live", true)} disabled={Boolean(armBlockReason) || busy} className="ip-focus-gold mt-3 min-h-10 rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#17120a] disabled:opacity-35">{busy ? <span className="inline-flex items-center gap-2"><Loader2 size={13} className="animate-spin"/> Working…</span> : "Arm Auto Scripture Live"}</button>
     </div> : null}
 
     {props.suspendedReason && !armed ? <p className="mt-3 text-[11px] text-amber-200/75">Last suspension: {props.suspendedReason.replaceAll("_", " ")}</p> : null}
@@ -156,8 +156,8 @@ function OrganizationAutomationControl(props: OrganizationProps) {
   }
 
   return <section className="rounded-2xl border border-white/[.08] bg-[#0d121a] p-5">
-    <div className="flex flex-wrap items-center justify-between gap-4"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#d7a94a]">Organization permission</div><h2 className="mt-2 text-lg font-black">Auto Scripture Live</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">This permission only makes the feature available. It does not arm any service. A live operator must arm each live service deliberately.</p></div><span className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[.12em] ${enabled ? "border-emerald-400/25 bg-emerald-400/[.08] text-emerald-200" : "border-white/[.08] bg-white/[.03] text-white/50"}`}>{enabled ? "Permitted" : "Off"}</span></div>
-    <button type="button" onClick={() => void setPermission(!enabled)} disabled={!props.canManage || busy} className="ip-focus-gold mt-5 min-h-10 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-4 text-xs font-black text-[#efc86f] disabled:opacity-40">{busy ? "Updating…" : enabled ? "Disable Auto Scripture Live" : "Enable Auto Scripture Live"}</button>
+    <div className="flex flex-wrap items-center justify-between gap-4"><div><div className="text-[11px] font-black uppercase tracking-[.14em] text-[#e3b75c]">Organization permission</div><h2 className="mt-2 text-lg font-black">Auto Scripture Live</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">This permission only makes the feature available. It does not arm any service. A live operator must arm each live service deliberately.</p></div><span className={`rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[.12em] ${enabled ? "border-emerald-400/25 bg-emerald-400/[.08] text-emerald-200" : "border-white/[.08] bg-white/[.03] text-white/50"}`}>{enabled ? "Permitted" : "Off"}</span></div>
+    <button type="button" onClick={() => void setPermission(!enabled)} disabled={!props.canManage || busy} className="ip-focus-gold mt-5 min-h-10 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-4 text-xs font-black text-[#f0ca80] disabled:opacity-40">{busy ? "Updating…" : enabled ? "Disable Auto Scripture Live" : "Enable Auto Scripture Live"}</button>
     {message ? <p className="mt-3 text-xs text-white/60" aria-live="polite">{message}</p> : null}
   </section>;
 }

@@ -36,7 +36,7 @@ function streamReadiness(status: string) {
 function readinessTone(readiness: AudienceDeliveryFacet) {
   if (readiness.tone === "healthy") return "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200";
   if (readiness.tone === "warning") return "border-amber-400/20 bg-amber-400/[.07] text-amber-100";
-  if (readiness.tone === "working") return "border-[#d7a94a]/20 bg-[#d7a94a]/[.07] text-[#efc86f]";
+  if (readiness.tone === "working") return "border-[#e3b75c]/20 bg-[#e3b75c]/[.07] text-[#f0ca80]";
   return "border-white/[.08] bg-white/[.03] text-white/50";
 }
 
@@ -60,7 +60,7 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
   if (!service || !audienceUrl || !qrSvg) {
     return (
       <div className="mx-auto max-w-5xl p-4 lg:p-8">
-        <section className="rounded-3xl border border-white/[.08] bg-[#0b0f16] p-8 text-center">
+        <section className="rounded-3xl border border-white/[.08] bg-[#090e15] p-8 text-center">
           <Users className="mx-auto text-white/35" size={34} />
           <h2 className="mt-4 text-2xl font-black">No service selected</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-white/55">Create or prepare a service first. Audience links are scoped to one service so guests never land in another church session by accident.</p>
@@ -72,7 +72,7 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
   return (
     <div className="mx-auto max-w-[1500px] space-y-4 p-4 lg:p-6">
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_330px]">
-        <div className="rounded-3xl border border-white/[.08] bg-[#0b0f16] p-5 sm:p-6">
+        <div className="rounded-3xl border border-white/[.08] bg-[#090e15] p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-xs font-black uppercase tracking-[.16em] text-[#e5b95e]">Audience access</div>
@@ -86,7 +86,7 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
             <div className="text-xs font-black uppercase tracking-[.14em] text-white/45">Canonical service link</div>
             <div className="mt-2 break-all text-sm text-white/80">{audienceUrl}</div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" onClick={copyAudienceLink} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
+              <button type="button" onClick={copyAudienceLink} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
                 {copied ? <Check size={15} /> : <Copy size={15} />}{copied ? "Copied" : "Copy audience link"}
               </button>
               <a href={audienceUrl} target="_blank" rel="noreferrer" className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-sm font-bold text-white/75 transition hover:bg-white/[.06] hover:text-white">
@@ -96,7 +96,7 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/[.08] bg-[#0b0f16] p-5 text-center">
+        <div className="rounded-3xl border border-white/[.08] bg-[#090e15] p-5 text-center">
           <div className="text-xs font-black uppercase tracking-[.14em] text-white/45">Scan to join</div>
           <div className="mx-auto mt-4 w-full max-w-[250px] overflow-hidden rounded-2xl bg-white p-3 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
           <p className="mt-3 text-xs leading-5 text-white/55">Guests can scan this on iPhone, iPad, Android or any camera app that opens web links.</p>
@@ -104,13 +104,13 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><RadioTower size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Stream readiness</div><div className="mt-1 text-sm font-bold text-white/80">{streamReadiness(streamStatus)}</div></div>
-        <div className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><Languages size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Languages</div><div className="mt-1 text-sm font-bold text-white/80">{languages.length ? `${languages.length} available` : "Original only"}</div><div className="mt-1 text-xs text-white/55">{activeDevices ? `${activeDevices} active devices` : "No active audience devices yet"}</div></div>
-        <div className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><BookOpen size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Scripture</div><div className="mt-1 text-sm font-bold text-white/80">{scripture?.reference ?? "No Scripture on Program"}</div><div className="mt-1 line-clamp-2 text-xs leading-5 text-white/55">{scripture?.text ?? "Program Scripture will appear here when live."}</div></div>
-        <div className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><Captions size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Caption</div><div className="mt-1 line-clamp-3 text-sm leading-5 text-white/75">{caption ?? "Waiting for live transcript"}</div></div>
+        <div className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4"><RadioTower size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Stream readiness</div><div className="mt-1 text-sm font-bold text-white/80">{streamReadiness(streamStatus)}</div></div>
+        <div className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4"><Languages size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Languages</div><div className="mt-1 text-sm font-bold text-white/80">{languages.length ? `${languages.length} available` : "Original only"}</div><div className="mt-1 text-xs text-white/55">{activeDevices ? `${activeDevices} active devices` : "No active audience devices yet"}</div></div>
+        <div className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4"><BookOpen size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Scripture</div><div className="mt-1 text-sm font-bold text-white/80">{scripture?.reference ?? "No Scripture on Program"}</div><div className="mt-1 line-clamp-2 text-xs leading-5 text-white/55">{scripture?.text ?? "Program Scripture will appear here when live."}</div></div>
+        <div className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4"><Captions size={17} className="text-[#e5b95e]" /><div className="mt-3 text-xs font-black uppercase tracking-[.12em] text-white/45">Caption</div><div className="mt-1 line-clamp-3 text-sm leading-5 text-white/75">{caption ?? "Waiting for live transcript"}</div></div>
       </section>
 
-      <section className="rounded-3xl border border-white/[.08] bg-[#0b0f16] p-5 sm:p-6">
+      <section className="rounded-3xl border border-white/[.08] bg-[#090e15] p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-sm font-black">Audience language demand</h2><p className="mt-1 text-xs leading-5 text-white/55">Live anonymous device sessions from the last 45 seconds. No IP address or device fingerprint is stored.</p></div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -138,9 +138,9 @@ export function AudienceStudio({ service, audienceUrl, qrSvg, languages, scriptu
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#0b0f16]">
+      <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#090e15]">
         <div className="border-b border-white/[.06] px-5 py-4"><h2 className="text-sm font-black">Audience preview</h2><p className="mt-1 text-xs text-white/55">This is the same public service URL guests receive.</p></div>
-        <iframe title="Audience preview" src={audienceUrl} className="h-[min(620px,72vh)] w-full border-0 bg-[#07090d]" />
+        <iframe title="Audience preview" src={audienceUrl} className="h-[min(620px,72vh)] w-full border-0 bg-[#04070c]" />
       </section>
     </div>
   );

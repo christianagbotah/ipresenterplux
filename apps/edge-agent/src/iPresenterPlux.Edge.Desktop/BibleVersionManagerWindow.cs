@@ -7,11 +7,11 @@ namespace iPresenterPlux.Edge.Desktop;
 
 public sealed class BibleVersionManagerWindow : Window
 {
-    private static readonly SolidColorBrush Surface = new(Color.Parse("#0D121A"));
-    private static readonly SolidColorBrush Raised = new(Color.Parse("#121925"));
-    private static readonly SolidColorBrush Muted = new(Color.Parse("#8B95A5"));
-    private static readonly SolidColorBrush Gold = new(Color.Parse("#D7A94A"));
-    private static readonly SolidColorBrush Good = new(Color.Parse("#55D38A"));
+    private static readonly SolidColorBrush Surface = new(Color.Parse("#0C121B"));
+    private static readonly SolidColorBrush Raised = new(Color.Parse("#121A26"));
+    private static readonly SolidColorBrush Muted = new(Color.Parse("#93A0B4"));
+    private static readonly SolidColorBrush Gold = new(Color.Parse("#E3B75C"));
+    private static readonly SolidColorBrush Good = new(Color.Parse("#43E0A0"));
     private static readonly SolidColorBrush Danger = new(Color.Parse("#F47B7B"));
 
     private readonly DesktopBibleLibrary _library;
@@ -28,7 +28,7 @@ public sealed class BibleVersionManagerWindow : Window
         MinWidth = 520;
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        Background = new SolidColorBrush(Color.Parse("#070A0F"));
+        Background = new SolidColorBrush(Color.Parse("#04070C"));
 
         var heading = new StackPanel
         {

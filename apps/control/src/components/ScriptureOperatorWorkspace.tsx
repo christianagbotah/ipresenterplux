@@ -94,7 +94,7 @@ function MonitorCard({
   const isProgram = mode === "program";
 
   return (
-    <section className={`overflow-hidden rounded-2xl border bg-[#080b10] ${isProgram && detection ? "border-red-400/25 shadow-[0_0_55px_rgba(239,68,68,.07)]" : "border-white/[.08]"}`}>
+    <section className={`overflow-hidden rounded-2xl border bg-[#05080d] ${isProgram && detection ? "border-red-400/25 shadow-[0_0_55px_rgba(239,68,68,.07)]" : "border-white/[.08]"}`}>
       <header className="flex min-h-14 items-center justify-between gap-3 border-b border-white/[.07] px-4 py-3">
         <div className="flex items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${isProgram ? detection ? "bg-red-400 shadow-[0_0_14px_rgba(248,113,113,.8)]" : "bg-white/15" : "bg-amber-400"}`} />
@@ -331,7 +331,7 @@ export function ScriptureOperatorWorkspace({
                   <button
                     type="button"
                     onClick={() => detections[0] && select(detections[0].id)}
-                    className="rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-[11px] font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b]"
+                    className="rounded-lg border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-2.5 py-1 text-[11px] font-black text-[#f0ca80] transition hover:bg-[#e3b75c]/[.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b]"
                   >
                     {newerDetectionCount} newer · Jump to newest
                   </button>
@@ -351,10 +351,10 @@ export function ScriptureOperatorWorkspace({
                     type="button"
                     aria-pressed={active}
                     onClick={() => select(item.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b] ${active ? "border-[#d7a94a]/35 bg-[#d7a94a]/[.09] shadow-[inset_3px_0_0_#d7a94a]" : "border-white/[.06] bg-white/[.018] hover:border-white/15 hover:bg-white/[.04]"}`}
+                    className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e6b85b] ${active ? "border-[#e3b75c]/35 bg-[#e3b75c]/[.09] shadow-[inset_3px_0_0_#e3b75c]" : "border-white/[.06] bg-white/[.018] hover:border-white/15 hover:bg-white/[.04]"}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-[#d7a94a]/15 text-[#efc86f]" : "bg-white/[.04] text-white/40"}`}>
+                      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${active ? "bg-[#e3b75c]/15 text-[#f0ca80]" : "bg-white/[.04] text-white/40"}`}>
                         <BookOpen size={16} />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -365,7 +365,7 @@ export function ScriptureOperatorWorkspace({
                         <div className="mt-1 truncate text-[11px] text-white/34">{item.bibleVersion} · {methodLabel(item.detectionMethod)}</div>
                         <div className="mt-2 flex items-center gap-2">
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${item.state === "live" ? "bg-red-400/10 text-red-200" : item.state === "preview" ? "bg-amber-400/10 text-amber-200" : "bg-white/[.05] text-white/35"}`}>{item.state}</span>
-                          {isNewer ? <span className="rounded-full bg-[#d7a94a]/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[.1em] text-[#efc86f]">Newer</span> : null}
+                          {isNewer ? <span className="rounded-full bg-[#e3b75c]/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[.1em] text-[#f0ca80]">Newer</span> : null}
                           {active ? <span className="text-[11px] font-bold text-[#e8bd62]">Selected</span> : null}
                         </div>
                       </div>
@@ -393,7 +393,7 @@ export function ScriptureOperatorWorkspace({
                 <section className="rounded-2xl border border-white/[.08] bg-white/[.018] p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-black uppercase tracking-[.2em] text-[#d7a94a]">Selected item</div>
+                      <div className="text-[11px] font-black uppercase tracking-[.2em] text-[#e3b75c]">Selected item</div>
                       <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{selected?.scriptureReference ?? "Select scripture"}</h3>
                       {selected ? <div className="mt-1 text-xs text-white/38">{selected.bibleVersion} · {methodLabel(selected.detectionMethod)} · {Math.round(selected.confidence)}% confidence</div> : null}
                     </div>
@@ -417,7 +417,7 @@ export function ScriptureOperatorWorkspace({
                       disabled={!selected || !canControl || isPending || selected.state !== "preview"}
                       title={selected && selected.state !== "preview" ? "Preview the selected scripture before taking it live" : "Take the prepared Preview to Program"}
                       onClick={() => selected && changeState(selected.id, "live", "Program updated")}
-                      className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-3 text-sm font-black text-[#171107] shadow-[0_12px_34px_rgba(215,169,74,.18)] transition hover:bg-[#e9c469] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d58f] disabled:cursor-not-allowed disabled:opacity-35"
+                      className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 py-3 text-sm font-black text-[#171107] shadow-[0_12px_34px_rgba(215,169,74,.18)] transition hover:bg-[#e9c469] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f5d58f] disabled:cursor-not-allowed disabled:opacity-35"
                     >
                       <Radio size={17} /> Take Live
                     </button>
@@ -443,7 +443,7 @@ export function ScriptureOperatorWorkspace({
                     <span className="font-bold uppercase tracking-[.12em] text-white/45">Keyboard</span>
                     <span>Queue navigation <kbd className="rounded border border-white/10 bg-black/25 px-1.5 py-0.5 font-mono text-white/55">↑ / ↓</kbd></span>
                     <span>Preview <kbd className="rounded border border-white/10 bg-black/25 px-1.5 py-0.5 font-mono text-white/55">P</kbd></span>
-                    <span>Take Live <kbd className="rounded border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-1.5 py-0.5 font-mono text-[#efc86f]">Ctrl/⌘ + Enter</kbd></span>
+                    <span>Take Live <kbd className="rounded border border-[#e3b75c]/20 bg-[#e3b75c]/[.07] px-1.5 py-0.5 font-mono text-[#f0ca80]">Ctrl/⌘ + Enter</kbd></span>
                     <span>Clear Program <kbd className="rounded border border-red-400/15 bg-red-400/[.05] px-1.5 py-0.5 font-mono text-red-200/80">Ctrl/⌘ + Backspace</kbd></span>
                   </div>
 

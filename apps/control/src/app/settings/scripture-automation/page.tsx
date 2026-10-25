@@ -40,7 +40,7 @@ export default async function ScriptureAutomationSettingsPage() {
     <div className="mx-auto max-w-4xl">
       <header className="mb-7 flex items-center gap-4">
         <Link href="/settings" className="ip-focus-gold flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/70" aria-label="Back to Settings"><ArrowLeft size={17}/></Link>
-        <div><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]"><ShieldCheck size={13}/> Scripture automation</div><h1 className="mt-1 text-2xl font-black">Auto Scripture Live permission</h1><p className="mt-1 text-sm text-white/55">{organization.name}</p></div>
+        <div><div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]"><ShieldCheck size={13}/> Scripture automation</div><h1 className="mt-1 text-2xl font-black">Auto Scripture Live permission</h1><p className="mt-1 text-sm text-white/55">{organization.name}</p></div>
       </header>
 
       <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/[.06] p-4 text-sm leading-6 text-amber-100">

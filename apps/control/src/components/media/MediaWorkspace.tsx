@@ -45,7 +45,7 @@ type Props = {
   canEdit: boolean;
 };
 
-const inputClass = "min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-[#d7a94a]/55 focus:bg-white/[.05]";
+const inputClass = "min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm text-white outline-none transition placeholder:text-white/40 focus:border-[#e3b75c]/55 focus:bg-white/[.05]";
 
 function eligibilityLabel(state: PreviewEligibility) {
   if (state === "eligible") return "Preview eligible";
@@ -180,14 +180,14 @@ export function MediaWorkspace({
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 pt-5 sm:px-6 lg:px-8">
         <p className="text-xs text-white/45">Reusable worship content · Planner-safe rundown insertion</p>
         <div className="flex flex-wrap gap-2">
-            <Link href="/media/import" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.07] px-4 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.12]">Import existing content</Link>
+            <Link href="/media/import" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.07] px-4 text-sm font-bold text-[#f0ca80] transition hover:bg-[#e3b75c]/[.12]">Import existing content</Link>
             <Link href="/planner" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/[.05] hover:text-white">Service Planner</Link>
         </div>
       </div>
 
       <div id="media-content" tabIndex={-1} className="mx-auto grid max-w-[1600px] gap-5 px-4 py-5 focus:outline-none sm:px-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-8 lg:py-6">
         <aside className="space-y-4">
-          <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/85 p-5">
+          <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/85 p-5">
             <div className="text-[11px] font-bold uppercase tracking-[.16em] text-white/50">Current service</div>
             {currentService ? (
               <div className="mt-3">
@@ -199,18 +199,18 @@ export function MediaWorkspace({
               <div className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-300/[.05] p-4">
                 <div className="text-sm font-bold text-amber-100">No ready/live service</div>
                 <p className="mt-1 text-xs leading-5 text-white/55">The Reusable library remains available. Open Service Planner when you are ready to build a rundown.</p>
-                <Link href="/planner" className="mt-3 inline-flex cursor-pointer text-xs font-bold text-[#d7a94a] hover:underline">Open Planner →</Link>
+                <Link href="/planner" className="mt-3 inline-flex cursor-pointer text-xs font-bold text-[#e3b75c] hover:underline">Open Planner →</Link>
               </div>
             )}
           </section>
 
-          <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/85 p-5">
+          <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/85 p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#d7a94a]">Create reusable item</div>
+                <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#e3b75c]">Create reusable item</div>
                 <div className="mt-1 text-sm text-white/55">Songs, text slides and approved media sources.</div>
               </div>
-              <CirclePlus size={20} className="text-[#d7a94a]/70" />
+              <CirclePlus size={20} className="text-[#e3b75c]/70" />
             </div>
             <div className="mt-4 space-y-3">
               <select className={`${inputClass} cursor-pointer`} value={kind} onChange={(event) => setKind(event.target.value as typeof kind)} disabled={!canEdit}>
@@ -235,16 +235,16 @@ export function MediaWorkspace({
                   </select>
                 </>
               )}
-              <button type="button" onClick={createItem} disabled={!canEdit || busy === "create"} className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"><CirclePlus size={16} />{busy === "create" ? "Saving…" : "Save to library"}</button>
+              <button type="button" onClick={createItem} disabled={!canEdit || busy === "create"} className="inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"><CirclePlus size={16} />{busy === "create" ? "Saving…" : "Save to library"}</button>
               {!canEdit && <p className="text-xs leading-5 text-white/50">Your role can view this library but cannot modify service content.</p>}
             </div>
           </section>
         </aside>
 
-        <section className="min-w-0 rounded-3xl border border-white/[.07] bg-[#0c1017]/80 p-4 sm:p-5 lg:p-6">
+        <section className="min-w-0 rounded-3xl border border-white/[.07] bg-[#0c121b]/80 p-4 sm:p-5 lg:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#d7a94a]">Reusable library</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.16em] text-[#e3b75c]">Reusable library</div>
               <h2 className="mt-1 text-xl font-black tracking-tight">Service-ready content</h2>
               <p className="mt-1 text-sm text-white/55">{items.length} items · {eligibleCount} Preview eligible · {nativeCount} Native only</p>
             </div>
@@ -254,7 +254,7 @@ export function MediaWorkspace({
             </label>
           </div>
 
-          {message && <div className="mt-4 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-4 py-3 text-sm text-[#f2dca9]">{message}</div>}
+          {message && <div className="mt-4 rounded-xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.06] px-4 py-3 text-sm text-[#f2dca9]">{message}</div>}
 
           <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
             {visibleItems.map((item) => {
@@ -263,7 +263,7 @@ export function MediaWorkspace({
               return (
                 <article key={item.id} className="ip-ai-arrive flex min-h-56 flex-col rounded-2xl border border-white/[.07] bg-white/[.025] p-4 transition hover:border-white/[.12] hover:bg-white/[.035]">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-black/20 text-[#d7a94a]"><Icon size={18} /></div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-black/20 text-[#e3b75c]"><Icon size={18} /></div>
                     <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.1em] ${eligibilityClass(item.previewEligibility)}`}>{eligibilityLabel(item.previewEligibility)}</span>
                   </div>
                   <div className="mt-4 text-base font-black leading-tight">{item.title}</div>

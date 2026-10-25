@@ -19,7 +19,7 @@ function AudienceStateCard({ state, title }: { state: AudienceState; title?: str
         : { heading: `${title ?? "This service"} is not live yet`, detail: "Keep this page open. iPresenterPlux will connect automatically when the service goes live." };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#07090d] px-4 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#04070c] px-4 text-white">
       <div className="w-full max-w-lg rounded-[24px] border border-white/[.08] bg-[#0d121a] p-8 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[.07] bg-white/[.035] text-white/30"><Radio size={22} /></div>
         <h1 className="mt-5 text-2xl font-black tracking-tight">{content.heading}</h1>

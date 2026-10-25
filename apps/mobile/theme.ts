@@ -8,8 +8,8 @@
  */
 export const theme = {
   // Surfaces
-  background: "#07090d",
-  surface: "#0b0f16",
+  background: "#04070c",
+  surface: "#090e15",
   video: "#000000",
   border: "#29303c",
   borderSoft: "#1d2530",
@@ -27,19 +27,19 @@ export const theme = {
   onGoldButton: "#111111",
 
   // Accents — gold is the brand + "in Preview / next up" cue color.
-  gold: "#d7a94a",
-  goldSoft: "#efc76e",
+  gold: "#e3b75c",
+  goldSoft: "#f0ca80",
   goldBrand: "#e5b85c",
   goldMuted: "#c9a85f",
-  goldTint: "#d7a94a10",
-  goldTintStrong: "#d7a94a18",
-  goldTintPlayer: "#d7a94a12",
-  goldTintActive: "#d7a94a20",
+  goldTint: "#e3b75c10",
+  goldTintStrong: "#e3b75c18",
+  goldTintPlayer: "#e3b75c12",
+  goldTintActive: "#e3b75c20",
 
   // Live / connection states — red means on air or disconnected.
-  live: "#ff5d5d",
+  live: "#ff5c5c",
   liveSoft: "#ff8f8f",
-  liveTint: "#ff5d5d18",
+  liveTint: "#ff5c5c18",
   liveBorder: "#7f1d1d",
   error: "#fca5a5",
 

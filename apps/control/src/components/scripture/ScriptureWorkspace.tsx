@@ -344,7 +344,7 @@ export function ScriptureWorkspace({
 
       <section className="grid gap-4 2xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,.65fr)]">
         <div className="space-y-4">
-          <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-[#e5b95e]"><Search size={16} /><span className="text-[11px] font-black uppercase tracking-[.15em]">Fast lookup</span></div>
@@ -354,15 +354,15 @@ export function ScriptureWorkspace({
               <span className="rounded-full border border-white/[.08] bg-white/[.03] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.12em] text-white/50">{versions.length} local version{versions.length === 1 ? "" : "s"}</span>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-[170px_minmax(0,1fr)_auto]">
-              <select value={version} onChange={(event) => void onVersionChange(event.target.value)} className="min-h-11 rounded-xl border border-white/[.09] bg-[#080b10] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/60">
+              <select value={version} onChange={(event) => void onVersionChange(event.target.value)} className="min-h-11 rounded-xl border border-white/[.09] bg-[#05080d] px-3 text-sm text-white outline-none focus:border-[#e3b75c]/60">
                 {versions.map((item) => <option key={item.id} value={item.id}>{item.abbreviation} · {item.name}</option>)}
               </select>
-              <input value={reference} onChange={(event) => setReference(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void findReference(); }} placeholder="John 3:16" className="min-h-11 rounded-xl border border-white/[.09] bg-black/20 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/60" />
-              <button type="button" onClick={() => void findReference()} disabled={busy !== null} className="min-h-11 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:opacity-40">{busy === "reference" ? "Finding…" : "Find Passage"}</button>
+              <input value={reference} onChange={(event) => setReference(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void findReference(); }} placeholder="John 3:16" className="min-h-11 rounded-xl border border-white/[.09] bg-black/20 px-3 text-sm text-white outline-none placeholder:text-white/40 focus:border-[#e3b75c]/60" />
+              <button type="button" onClick={() => void findReference()} disabled={busy !== null} className="min-h-11 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:opacity-40">{busy === "reference" ? "Finding…" : "Find Passage"}</button>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
             <div className="flex items-center gap-2 text-white/60"><BookOpen size={16} /><h2 className="text-sm font-black">Browse Bible</h2></div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <label className="space-y-1.5"><span className="text-[11px] font-bold uppercase tracking-[.12em] text-white/50">Version</span><select value={version} onChange={(event) => void onVersionChange(event.target.value)} className="min-h-10 w-full rounded-xl border border-white/[.08] bg-black/20 px-3 text-xs text-white">{versions.map((item) => <option key={item.id} value={item.id}>{item.abbreviation}</option>)}</select></label>
@@ -373,12 +373,12 @@ export function ScriptureWorkspace({
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <button type="button" onClick={() => void loadChapter()} disabled={!bookCode || busy !== null} className="min-h-10 rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-xs font-bold text-white/65 transition hover:bg-white/[.06] ip-focus-gold disabled:opacity-35">{busy === "chapter" ? "Loading…" : "Load Chapter"}</button>
-              <button type="button" onClick={useBrowseRange} disabled={!rangeText || busy !== null} className="min-h-10 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.07] px-4 text-xs font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.12] ip-focus-gold disabled:opacity-35">Use Range</button>
+              <button type="button" onClick={useBrowseRange} disabled={!rangeText || busy !== null} className="min-h-10 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.07] px-4 text-xs font-bold text-[#f0ca80] transition hover:bg-[#e3b75c]/[.12] ip-focus-gold disabled:opacity-35">Use Range</button>
             </div>
-            {verses.length ? <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/[.06] bg-black/20 p-3 ip-scrollbar-thin">{verses.map((item) => <p key={item.verse} className="text-xs leading-5 text-white/60"><strong className="mr-2 text-[#d7a94a]">{item.verse}</strong>{item.text}</p>)}</div> : null}
+            {verses.length ? <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/[.06] bg-black/20 p-3 ip-scrollbar-thin">{verses.map((item) => <p key={item.verse} className="text-xs leading-5 text-white/60"><strong className="mr-2 text-[#e3b75c]">{item.verse}</strong>{item.text}</p>)}</div> : null}
           </section>
 
-          <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
+          <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div><div className="text-[11px] font-black uppercase tracking-[.14em] text-white/50">Selected passage</div><h2 className="mt-2 text-xl font-black">{selected?.reference ?? "Nothing selected"}</h2></div>
               {selected?.state ? <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.12em] ${stateTone(selected.state)}`}>{selected.state}</span> : null}
@@ -387,24 +387,24 @@ export function ScriptureWorkspace({
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <button type="button" onClick={() => void addToService()} disabled={!selected || !canOperate || Boolean(selected.detectionId) || busy !== null} className="min-h-11 rounded-xl border border-emerald-400/20 bg-emerald-400/[.08] px-3 text-xs font-black text-emerald-100 transition hover:bg-emerald-400/[.13] ip-focus-gold disabled:opacity-35">{busy === "manual" ? "Adding…" : selected?.detectionId ? "Added to Service" : "Add to Service"}</button>
               <button type="button" onClick={() => selected?.detectionId && void changeState(selected.detectionId, "preview", "Preview prepared")} disabled={!selected?.detectionId || !canOperate || selected.state === "preview" || selected.state === "live" || busy !== null} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[.1] bg-white/[.04] px-3 text-xs font-black text-white/70 transition hover:bg-white/[.07] ip-focus-gold disabled:opacity-35"><Eye size={15} /> Preview</button>
-              <button type="button" onClick={() => selected?.detectionId && void changeState(selected.detectionId, "live", "Program updated")} disabled={!selected?.detectionId || !canOperate || selected.state !== "preview" || busy !== null} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:opacity-35"><Radio size={15} /> Take Live</button>
+              <button type="button" onClick={() => selected?.detectionId && void changeState(selected.detectionId, "live", "Program updated")} disabled={!selected?.detectionId || !canOperate || selected.state !== "preview" || busy !== null} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-3 text-xs font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:opacity-35"><Radio size={15} /> Take Live</button>
             </div>
             <div className="mt-3 min-h-5 text-xs leading-5" aria-live="polite">{error ? <p role="alert" className="text-red-300">{error}</p> : notice ? <p className="text-white/60">{notice}</p> : busy ? <p className="flex items-center gap-2 text-white/50"><Loader2 size={13} className="animate-spin" /> Working…</p> : null}</div>
           </section>
 
           <section className="grid gap-4 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-amber-400/15 bg-[#0b0f16]">
+            <div className="overflow-hidden rounded-2xl border border-amber-400/15 bg-[#090e15]">
               <div className="flex items-center justify-between border-b border-white/[.06] px-4 py-3"><span className="text-xs font-black uppercase tracking-[.13em] text-amber-200">Preview</span><Eye size={15} className="text-amber-200" /></div>
               <div className="min-h-40 p-4">{preview ? <><h3 className="text-lg font-black">{preview.reference}</h3><p className="mt-3 text-sm leading-6 text-white/55">{preview.passageText ?? "Passage text unavailable"}</p><p className="mt-3 text-[11px] uppercase tracking-[.12em] text-white/45">{preview.bibleVersion} · staged only</p></> : <p className="py-12 text-center text-sm text-white/40">Preview is clear</p>}</div>
             </div>
-            <div className="overflow-hidden rounded-2xl border border-red-400/15 bg-[#0b0f16]">
+            <div className="overflow-hidden rounded-2xl border border-red-400/15 bg-[#090e15]">
               <div className="flex items-center justify-between border-b border-white/[.06] px-4 py-3"><span className="text-xs font-black uppercase tracking-[.13em] text-red-200">Program</span><Radio size={15} className={program ? "text-red-300" : "text-white/35"} /></div>
               <div className="min-h-40 p-4">{program ? <><h3 className="text-lg font-black">{program.reference}</h3><p className="mt-3 text-sm leading-6 text-white/60">{program.passageText ?? "Passage text unavailable"}</p><button type="button" onClick={() => void changeState(program.id, "detected", "Program cleared")} disabled={!canOperate || busy !== null} className="mt-4 flex min-h-10 items-center gap-2 rounded-xl border border-red-400/25 bg-red-400/[.07] px-3 text-xs font-black text-red-100 transition hover:bg-red-400/[.12] ip-focus-gold disabled:opacity-35"><Square size={14} /> Clear Program</button></> : <p className="py-12 text-center text-sm text-white/50">Program is clear</p>}</div>
             </div>
           </section>
         </div>
 
-        <aside className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
+        <aside className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2 text-[#e5b95e]"><Sparkles size={15} /><span className="text-[11px] font-black uppercase tracking-[.14em]">Service context</span></div><h2 className="mt-2 text-base font-black">Recent AI & manual detections</h2></div><span className="text-xs font-bold text-white/45">{detections.length}</span></div>
           <div className="mt-4 space-y-2 ip-scrollbar-thin max-h-[34rem] overflow-y-auto">
             {detections.length ? detections.map((item) => (

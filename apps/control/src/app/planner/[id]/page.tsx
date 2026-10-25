@@ -97,7 +97,7 @@ export default async function PlannerServicePage({ params }: PageProps) {
   const { detail, initialDetail, initialPreparation, bibleVersions, mediaSources } = await loadPlannerPageData(session.user.id, id);
 
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
+    <main className="min-h-screen bg-[#05080d] text-white">
       <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div className="flex min-w-0 items-center gap-3">

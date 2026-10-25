@@ -5,34 +5,36 @@
  * One shared vocabulary for the web control plane, aligned with the
  * desktop OperatorTheme: dark-first production surfaces, gold brand,
  * gold = Preview, red = LIVE, semantic states.
+ * "Console Pro" refinement (PR #110): cooler neutrals, deeper contrast,
+ * brighter gold accent — mirrored 1:1 in OperatorTheme.cs and mobile theme.ts.
  */
 @theme {
-  --color-console: #07090d;
-  --color-console-2: #080b10;
-  --color-panel: #0b0f16;
-  --color-panel-2: #0c1017;
-  --color-raised: #10151e;
-  --color-ink: #f5f7fb;
-  --color-gold: #d7a94a;
-  --color-gold-strong: #efc86f;
-  --color-gold-soft: #f2c765;
+  --color-console: #04070c;
+  --color-console-2: #05080d;
+  --color-panel: #090e15;
+  --color-panel-2: #0c121b;
+  --color-raised: #121a26;
+  --color-ink: #eef2f8;
+  --color-gold: #e3b75c;
+  --color-gold-strong: #f0ca80;
+  --color-gold-soft: #f4cf85;
   --color-gold-ink: #171109;
-  --color-live: #ff5d5d;
-  --color-good: #49d17d;
+  --color-live: #ff5c5c;
+  --color-good: #43e0a0;
   --color-warn: #f4bb58;
   --color-danger: #ff6b6b;
 }
 
 :root {
   color-scheme: dark;
-  --background: #07090d;
-  --panel: #0d1118;
-  --panel-2: #111722;
-  --line: rgba(255,255,255,.08);
-  --muted: #8b95a7;
-  --accent: #d7a94a;
-  --accent-2: #f3ce74;
-  --good: #49d17d;
+  --background: #04070c;
+  --panel: #0a0f17;
+  --panel-2: #0e141f;
+  --line: rgba(148,180,220,.10);
+  --muted: #93a0b4;
+  --accent: #e3b75c;
+  --accent-2: #f2cd82;
+  --good: #43e0a0;
   --warn: #f4bb58;
   --danger: #ff6b6b;
 }
@@ -47,7 +49,7 @@ body {
     radial-gradient(circle at 78% -10%, rgba(215,169,74,.12), transparent 28rem),
     radial-gradient(circle at 10% 105%, rgba(61,102,255,.08), transparent 32rem),
     var(--background);
-  color: #f5f7fb;
+  color: #eef2f8;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -284,5 +286,5 @@ a[aria-disabled="true"] {
 .ip-studio-tool:hover {
   border-color: rgba(215,169,74,.3);
   background: rgba(215,169,74,.06);
-  color: #f3ce74;
+  color: #f2cd82;
 }

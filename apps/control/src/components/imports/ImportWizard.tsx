@@ -212,10 +212,10 @@ export function ImportWizard({ organizationId, organizationName, editableService
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/88 p-5 sm:p-6">
+      <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/88 p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-[11px] font-black uppercase tracking-[.18em] text-[#d7a94a]">Migration wizard</div>
+            <div className="text-[11px] font-black uppercase tracking-[.18em] text-[#e3b75c]">Migration wizard</div>
             <h1 className="mt-1 text-2xl font-black tracking-tight">Bring your existing church content</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-white/60">Preview first. Nothing changes until you review the candidates and explicitly commit them to {organizationName}.</p>
           </div>
@@ -224,7 +224,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {kinds.map((item) => (
-            <button key={item.value} type="button" onClick={() => changeKind(item.value)} className={`min-h-20 cursor-pointer rounded-2xl border p-4 text-left transition ip-focus-gold ${kind === item.value ? "border-[#d7a94a]/35 bg-[#d7a94a]/[.09]" : "border-white/[.07] bg-white/[.02] hover:bg-white/[.04]"}`}>
+            <button key={item.value} type="button" onClick={() => changeKind(item.value)} className={`min-h-20 cursor-pointer rounded-2xl border p-4 text-left transition ip-focus-gold ${kind === item.value ? "border-[#e3b75c]/35 bg-[#e3b75c]/[.09]" : "border-white/[.07] bg-white/[.02] hover:bg-white/[.04]"}`}>
               <div className="text-sm font-black text-white/80">{item.label}</div>
               <div className="mt-1 text-xs leading-5 text-white/55">{item.detail}</div>
               <div className="mt-2 font-mono text-[11px] text-white/40">{item.value}</div>
@@ -234,7 +234,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <label className="rounded-2xl border border-dashed border-white/[.12] bg-black/20 p-5">
-            <span className="flex items-center gap-2 text-sm font-black text-white/75"><FileUp size={17} className="text-[#d7a94a]"/>Upload portable file</span>
+            <span className="flex items-center gap-2 text-sm font-black text-white/75"><FileUp size={17} className="text-[#e3b75c]"/>Upload portable file</span>
             <span className="mt-1 block text-xs leading-5 text-white/50">{selectedKind.detail}</span>
             <input type="file" accept={selectedKind.accept} onChange={(event) => void loadFile(event.target.files?.[0] ?? null)} className="mt-4 block w-full cursor-pointer text-xs text-white/60 file:mr-3 file:min-h-11 file:cursor-pointer file:rounded-xl file:border-0 file:bg-white/[.08] file:px-4 file:text-xs file:font-bold file:text-white/70" />
           </label>
@@ -256,7 +256,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
         ) : null}
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button type="button" onClick={previewImport} disabled={!content.trim() || Boolean(busy)} className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl bg-[#d7a94a] px-5 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"><FileSearch size={17}/>{busy === "preview" ? "Checking…" : "Preview import"}</button>
+          <button type="button" onClick={previewImport} disabled={!content.trim() || Boolean(busy)} className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl bg-[#e3b75c] px-5 text-sm font-black text-[#17120a] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40"><FileSearch size={17}/>{busy === "preview" ? "Checking…" : "Preview import"}</button>
           <div className="flex items-center gap-2 text-xs text-white/50"><ShieldCheck size={15} className="text-emerald-300"/>Preview is read-only and tenant-scoped.</div>
         </div>
 
@@ -266,7 +266,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
           <section className="mt-6 border-t border-white/[.07] pt-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-[11px] font-black uppercase tracking-[.18em] text-[#d7a94a]">Preview results</div>
+                <div className="text-[11px] font-black uppercase tracking-[.18em] text-[#e3b75c]">Preview results</div>
                 <div className="mt-1 text-sm text-white/60">{preview.sourceName} · fingerprint {preview.sourceFingerprint.slice(0, 12)}</div>
               </div>
               <div className="flex flex-wrap gap-2 text-[11px] font-bold">
@@ -302,7 +302,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
             ) : null}
 
             <label className={`mt-4 flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 ${preview.summary.errors ? "border-red-300/15 bg-red-300/[.04] opacity-60" : "border-emerald-300/15 bg-emerald-300/[.04]"}`}>
-              <input type="checkbox" checked={previewAccepted} disabled={preview.summary.errors > 0} onChange={(event) => setPreviewAccepted(event.target.checked)} className="h-4 w-4 accent-[#d7a94a]" />
+              <input type="checkbox" checked={previewAccepted} disabled={preview.summary.errors > 0} onChange={(event) => setPreviewAccepted(event.target.checked)} className="h-4 w-4 accent-[#e3b75c]" />
               <span className="text-sm text-white/65">I reviewed this preview and want to commit the valid candidates.</span>
             </label>
             <button type="button" onClick={commitImport} disabled={!canCommit} className="mt-3 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl bg-emerald-300 px-5 text-sm font-black text-emerald-950 transition hover:brightness-105 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"><CheckCircle2 size={17}/>{busy === "commit" ? "Importing…" : "Commit import"}</button>
@@ -325,7 +325,7 @@ export function ImportWizard({ organizationId, organizationName, editableService
           <p className="mt-3 text-xs leading-6 text-white/60">iPresenterPlux does not reverse-engineer proprietary EasyWorship, ProPresenter, vMix or OBS project files. Use a documented portable export from the source application—text, CSV, JSON, or an HTTPS media manifest—then preview it here before committing anything.</p>
         </section>
 
-        <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/88 p-5">
+        <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/88 p-5">
           <div className="text-[11px] font-black uppercase tracking-[.16em] text-white/50">Keep your content portable</div>
           <h2 className="mt-1 text-lg font-black">Export church-owned data anytime</h2>
           <p className="mt-2 text-xs leading-5 text-white/55">Exports contain presentation/library content only—never activation tokens, credentials, private signing material or provider secrets.</p>

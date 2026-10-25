@@ -29,7 +29,7 @@ export default async function ThemesPage() {
     <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
       <StudioSidebar capabilities={context.navigationCapabilities}/>
       <section className="min-w-0 pb-24 md:pb-8">
-        <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080b10]/92 px-4 py-4 backdrop-blur-xl lg:px-6"><div className="text-xs font-black uppercase tracking-[.16em] text-[#d7a94a]">Presentation design</div><h1 className="mt-1 text-xl font-black">Theme Studio</h1><p className="mt-1 text-xs text-white/45">Reusable church-owned looks for Scripture, lyrics, announcements and lower thirds.</p></header>
+        <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#05080d]/92 px-4 py-4 backdrop-blur-xl lg:px-6"><div className="text-xs font-black uppercase tracking-[.16em] text-[#e3b75c]">Presentation design</div><h1 className="mt-1 text-xl font-black">Theme Studio</h1><p className="mt-1 text-xs text-white/45">Reusable church-owned looks for Scripture, lyrics, announcements and lower thirds.</p></header>
         <div className="p-3 sm:p-4 lg:p-6"><ThemeStudio organizationId={context.organizationId} initialThemes={themes} imageAssets={imageAssets} service={context.service?{id:context.service.id,title:context.service.title,activeThemeId:service?.rows[0]?.active_theme_id??null}:null} canEdit={canEdit} canAssign={canAssign}/></div>
       </section>
     </div>

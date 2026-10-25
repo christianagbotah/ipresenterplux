@@ -51,7 +51,7 @@ export default async function VoiceSettingsPage() {
     return (
       <main className="grid min-h-screen place-items-center p-6">
         <div className="max-w-lg rounded-[22px] border border-white/[.08] bg-[#0d121a] p-8 text-center">
-          <AudioLines className="mx-auto text-[#d7a94a]" />
+          <AudioLines className="mx-auto text-[#e3b75c]" />
           <h1 className="mt-4 text-xl font-black">Voice consent access restricted</h1>
           <p className="mt-2 text-sm leading-6 text-white/55">Only organization owners and administrators can view or change voice consent records.</p>
           <Link href="/settings" className="ip-focus-gold mt-5 inline-flex min-h-9 items-center rounded-xl border border-white/[.08] bg-white/[.03] px-4 py-2 text-xs font-bold text-white/75">Back to settings</Link>
@@ -80,7 +80,7 @@ export default async function VoiceSettingsPage() {
               <ArrowLeft size={17} />
             </Link>
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Settings · Voice governance</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]">Settings · Voice governance</div>
               <h1 className="mt-1 text-2xl font-black tracking-tight">Voice Consent</h1>
               <p className="mt-1 text-sm text-white/55">Consent and revocation controls for personalized synthetic voices.</p>
             </div>

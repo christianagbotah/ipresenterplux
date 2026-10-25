@@ -97,7 +97,7 @@ export function AIDirectorWorkspace({ state }: Props) {
         </section>
 
         <section className="grid gap-4 xl:grid-cols-12">
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-7">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5 xl:col-span-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-sm font-black"><Radio size={17} className="text-emerald-300" />Live Sermon</div>
@@ -124,10 +124,10 @@ export function AIDirectorWorkspace({ state }: Props) {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-5">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5 xl:col-span-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2 text-sm font-black"><ListChecks size={17} className="text-[#d7a94a]" />Smart Next</div>
+                <div className="flex items-center gap-2 text-sm font-black"><ListChecks size={17} className="text-[#e3b75c]" />Smart Next</div>
                 <p className="mt-1 text-xs leading-5 text-white/50">Pinned, predicted and planned cues ranked from current service truth.</p>
               </div>
               <Link href="/operator" className="inline-flex min-h-9 items-center rounded-xl border border-white/[.08] px-3 text-[11px] font-bold text-white/65 hover:bg-white/[.04] ip-focus-gold">Open Operator</Link>
@@ -137,10 +137,10 @@ export function AIDirectorWorkspace({ state }: Props) {
                 <div key={`${item.source}:${item.id}`} className="rounded-2xl border border-white/[.06] bg-black/15 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] font-black uppercase tracking-[.11em] text-[#d7a94a]">{index + 1}. {item.source}</div>
+                      <div className="text-[11px] font-black uppercase tracking-[.11em] text-[#e3b75c]">{index + 1}. {item.source}</div>
                       <div className="mt-1 truncate text-sm font-black">{item.title}</div>
                     </div>
-                    {item.confidence !== null ? <span className="shrink-0 rounded-lg border border-[#d7a94a]/15 px-2 py-1 text-xs font-black text-[#e7c477]">{Math.round(item.confidence)}%</span> : null}
+                    {item.confidence !== null ? <span className="shrink-0 rounded-lg border border-[#e3b75c]/15 px-2 py-1 text-xs font-black text-[#e7c477]">{Math.round(item.confidence)}%</span> : null}
                   </div>
                   <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/48">{item.reason ?? "Planned service rundown"}</p>
                 </div>
@@ -148,7 +148,7 @@ export function AIDirectorWorkspace({ state }: Props) {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-7">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5 xl:col-span-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-sm font-black"><Users size={17} className="text-sky-300" />Language Demand</div>
@@ -174,7 +174,7 @@ export function AIDirectorWorkspace({ state }: Props) {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5 xl:col-span-5">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5 xl:col-span-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 text-sm font-black"><Archive size={17} className="text-violet-300" />Service Memory</div>
@@ -193,10 +193,10 @@ export function AIDirectorWorkspace({ state }: Props) {
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[.86fr_1.14fr]">
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="flex items-center gap-2 text-sm font-black"><Bot size={17} className="text-[#d7a94a]" />Service automation</div>
+                <div className="flex items-center gap-2 text-sm font-black"><Bot size={17} className="text-[#e3b75c]" />Service automation</div>
                 <p className="mt-1 text-xs leading-5 text-white/50">Controls recommendation automation for the current ready/live service only.</p>
               </div>
               <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-[.12em] ${state.entitled ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-200" : "border-white/[.08] text-white/45"}`}>
@@ -216,7 +216,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                     <span className="block text-sm font-bold">AI recommendation automation</span>
                     <span className="mt-1 block text-xs leading-5 text-white/50">When off, detections remain available for manual review but are not automatically promoted into Preview.</span>
                   </span>
-                  <input type="checkbox" checked={aiEnabled} disabled={!canEdit} onChange={(event) => setAiEnabled(event.target.checked)} className="h-5 w-5 cursor-pointer accent-[#d7a94a] disabled:cursor-not-allowed" />
+                  <input type="checkbox" checked={aiEnabled} disabled={!canEdit} onChange={(event) => setAiEnabled(event.target.checked)} className="h-5 w-5 cursor-pointer accent-[#e3b75c] disabled:cursor-not-allowed" />
                 </label>
 
                 <label className="block rounded-2xl border border-white/[.07] p-4">
@@ -228,7 +228,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                 {!state.canManageSettings ? <p className="text-xs text-amber-200/85">A live operator role is required to change these settings.</p> : null}
                 {state.canManageSettings && !state.entitled ? <p className="text-xs text-amber-200/85">The current subscription does not include AI Director controls.</p> : null}
                 {message ? <p className="text-xs text-white/65">{message}</p> : null}
-                <button type="button" disabled={!canEdit || saving} onClick={saveSettings} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#171005] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35">
+                <button type="button" disabled={!canEdit || saving} onClick={saveSettings} className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#171005] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35">
                   <Save size={15} />{saving ? "Saving…" : "Save AI settings"}
                 </button>
               </div>
@@ -242,10 +242,10 @@ export function AIDirectorWorkspace({ state }: Props) {
             )}
           </div>
 
-          <div className="rounded-3xl border border-white/[.07] bg-[#0c1017]/90 p-5">
+          <div className="rounded-3xl border border-white/[.07] bg-[#0c121b]/90 p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="flex items-center gap-2 text-sm font-black"><Sparkles size={17} className="text-[#d7a94a]" />Recent recommendations</div>
+                <div className="flex items-center gap-2 text-sm font-black"><Sparkles size={17} className="text-[#e3b75c]" />Recent recommendations</div>
                 <p className="mt-1 text-xs text-white/50">Confidence, evidence and current Preview state from Scripture intelligence.</p>
               </div>
               <div className="flex gap-2">
@@ -262,7 +262,7 @@ export function AIDirectorWorkspace({ state }: Props) {
                       <div className="text-sm font-black">{item.reference}</div>
                       <div className="mt-1 text-[11px] font-bold uppercase tracking-[.12em] text-white/45">{item.method} · {item.state}</div>
                     </div>
-                    <div className="rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] px-3 py-2 text-sm font-black text-[#e7c477]">{item.confidence.toFixed(0)}%</div>
+                    <div className="rounded-xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.07] px-3 py-2 text-sm font-black text-[#e7c477]">{item.confidence.toFixed(0)}%</div>
                   </div>
                   <p className="mt-3 text-xs leading-5 text-white/62">{item.evidence || "No transcript evidence retained."}</p>
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-white/45"><ShieldCheck size={12} />Human operator remains final authority · {new Date(item.observedAt).toLocaleTimeString()}</div>

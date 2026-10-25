@@ -284,12 +284,12 @@ public sealed class MainWindow : Window
     private void ApplyConsoleChrome()
     {
         Resources["ControlCornerRadius"] = new CornerRadius(OperatorTheme.RadiusControl);
-        Resources["SystemAccentColor"] = Color.Parse("#D7A94A");
-        Resources["SystemAccentColorLight1"] = Color.Parse("#E5BC6B");
-        Resources["SystemAccentColorLight2"] = Color.Parse("#F0D08A");
-        Resources["SystemAccentColorLight3"] = Color.Parse("#F7E2AC");
-        Resources["SystemAccentColorDark1"] = Color.Parse("#B78F3B");
-        Resources["SystemAccentColorDark2"] = Color.Parse("#9A762E");
+        Resources["SystemAccentColor"] = Color.Parse("#E3B75C");
+        Resources["SystemAccentColorLight1"] = Color.Parse("#EFC97E");
+        Resources["SystemAccentColorLight2"] = Color.Parse("#F4D89E");
+        Resources["SystemAccentColorLight3"] = Color.Parse("#F9E7C2");
+        Resources["SystemAccentColorDark1"] = Color.Parse("#C09445");
+        Resources["SystemAccentColorDark2"] = Color.Parse("#A17C33");
         Resources["ListBoxItemBackgroundSelected"] = OperatorTheme.Brush("#2A2312");
         Resources["ListBoxItemBackgroundPointerover"] = OperatorTheme.Brush("#1A2230");
 
@@ -328,7 +328,7 @@ public sealed class MainWindow : Window
 
     private Control BuildContent()
     {
-        _tabs.Background = Brush("#070A0F");
+        _tabs.Background = Brush("#060B12");
         _tabs.ItemsSource = new object[]
         {
             new TabItem { Header = "Operator", Content = BuildOperatorContent() },
@@ -647,7 +647,7 @@ public sealed class MainWindow : Window
         body.Children.Add(sidebarPreviewSplitter);
         _schedulePreviewSplitterField = sidebarPreviewSplitter;
 
-        _schedule.Background = OperatorTheme.Brush("#0A0F17");
+        _schedule.Background = OperatorTheme.Brush("#090E15");
         _schedule.MinHeight = 140;
         _schedule.ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate();
         _schedule.SelectionChanged += (_, _) =>
@@ -836,7 +836,7 @@ public sealed class MainWindow : Window
         var titlesCard = OperatorTheme.ConsolePanel(titlesGrid);
 
         // UP NEXT queue: the rundown after the current cue, kept aligned by the navigator.
-        _upNext.Background = OperatorTheme.Brush("#0A0F17");
+        _upNext.Background = OperatorTheme.Brush("#090E15");
         _upNext.MinHeight = 110;
         _upNext.ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate();
         _upNext.PointerPressed += OnUpNextPointerPressed;
@@ -885,7 +885,7 @@ public sealed class MainWindow : Window
 
         BuildScriptureBrowserPanel();
 
-        _rundown.Background = OperatorTheme.Brush("#0A0F17");
+        _rundown.Background = OperatorTheme.Brush("#090E15");
         _rundown.MinHeight = 130;
         _rundown.ItemTemplate = OperatorRowTemplates.LibraryRowTemplate();
         _rundown.SelectionChanged += (_, _) =>
@@ -1053,7 +1053,7 @@ public sealed class MainWindow : Window
         ToolTip.SetTip(_browserFromVerse, "First verse of the range");
         ToolTip.SetTip(_browserToVerse, "Last verse of the range");
 
-        _browserVerses.Background = OperatorTheme.Brush("#0A0F17");
+        _browserVerses.Background = OperatorTheme.Brush("#090E15");
         _browserVerses.MinHeight = 96;
         _browserPreviewRange.MinHeight = 30;
         _browserPreviewRange.Padding = new Thickness(10, 4);
@@ -3081,7 +3081,7 @@ public sealed class MainWindow : Window
         return block;
     }
 
-    private static Border Separator() => new() { Height = 1, Background = Brush("#222B39"), Margin = new Thickness(0, 2) };
+    private static Border Separator() => new() { Height = 1, Background = Brush("#222C39"), Margin = new Thickness(0, 2) };
 
     private static TextBlock Label(string text, double size, FontWeight weight, IBrush? foreground = null) => new() {
         Text = text,

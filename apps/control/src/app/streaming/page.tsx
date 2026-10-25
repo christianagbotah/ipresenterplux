@@ -375,8 +375,8 @@ export default async function StreamingPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.055] p-5">
-              <div className="flex items-center gap-2 text-[#efc86f]"><ShieldCheck size={17} /><span className="text-xs font-black uppercase tracking-[.14em]">Broadcast authority</span></div>
+            <section className="rounded-2xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.055] p-5">
+              <div className="flex items-center gap-2 text-[#f0ca80]"><ShieldCheck size={17} /><span className="text-xs font-black uppercase tracking-[.14em]">Broadcast authority</span></div>
               <h2 className="mt-3 text-xl font-black">Master transport is authoritative</h2>
               <p className="mt-2 text-sm leading-6 text-white/50">Start selects one assigned Edge publisher. The master becomes live only when MediaMTX sees the service path. Social destinations then establish and report their RTMPS transports independently.</p>
               <div className="mt-4">

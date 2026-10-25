@@ -67,7 +67,7 @@ export default async function EdgeDevicesPage() {
     return (
       <main className="grid min-h-screen place-items-center p-6">
         <div className="ip-card max-w-lg p-8 text-center">
-          <MonitorCog className="mx-auto text-[#d7a94a]" />
+          <MonitorCog className="mx-auto text-[#e3b75c]" />
           <h1 className="mt-4 text-xl font-black">No organization assigned</h1>
           <p className="mt-2 text-sm leading-6 text-white/55">Your operator account is not attached to a church organization yet.</p>
         </div>
@@ -137,7 +137,7 @@ export default async function EdgeDevicesPage() {
               <ArrowLeft size={17} />
             </Link>
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#d7a94a]">Settings · Church Edge</div>
+              <div className="text-[11px] font-bold uppercase tracking-[.18em] text-[#e3b75c]">Settings · Church Edge</div>
               <h1 className="mt-1 text-2xl font-black tracking-tight">Edge Devices</h1>
               <p className="mt-1 text-sm text-white/55">Pair church PCs and Macs with {organization.name}.</p>
             </div>

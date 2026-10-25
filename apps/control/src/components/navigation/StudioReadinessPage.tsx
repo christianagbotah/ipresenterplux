@@ -46,9 +46,9 @@ export async function StudioReadinessPage({
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <StudioSidebar capabilities={capabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
-          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#05080d]/92 px-4 backdrop-blur-xl lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#f0ca80]">
                 <Icon size={19} />
               </div>
               <div className="min-w-0">
@@ -60,7 +60,7 @@ export async function StudioReadinessPage({
           </header>
 
           <div className="mx-auto max-w-5xl p-4 lg:p-8">
-            <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#0b0f16]">
+            <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#090e15]">
               <div className="border-b border-white/[.06] p-6 sm:p-8">
                 <div className="flex items-center gap-2 text-[#e5b95e]">
                   <CheckCircle2 size={16} />
@@ -84,7 +84,7 @@ export async function StudioReadinessPage({
               </div>
 
               <div className="flex flex-wrap gap-2 border-t border-white/[.06] p-6 sm:p-8">
-                <Link href={actionHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
+                <Link href={actionHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
                   {actionLabel} <ArrowRight size={15} />
                 </Link>
                 <Link href={secondaryHref} className="inline-flex min-h-11 items-center rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/60 transition hover:bg-white/[.06] hover:text-white">

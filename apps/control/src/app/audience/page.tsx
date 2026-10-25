@@ -122,8 +122,8 @@ export default async function AudiencePage() {
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <StudioSidebar capabilities={data.navigationCapabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
-          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
-            <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]"><Users size={19} /></div><div><h1 className="text-sm font-black sm:text-base">Audience Studio</h1><p className="text-xs text-white/35">QR · canonical links · public experience readiness</p></div></div>
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between border-b border-white/[.07] bg-[#05080d]/92 px-4 backdrop-blur-xl lg:px-6">
+            <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#f0ca80]"><Users size={19} /></div><div><h1 className="text-sm font-black sm:text-base">Audience Studio</h1><p className="text-xs text-white/35">QR · canonical links · public experience readiness</p></div></div>
             <LogoutButton />
           </header>
           <AudienceStudio service={data.service} audienceUrl={audienceUrl} qrSvg={qrSvg} languages={data.languages} scripture={data.scripture} caption={data.caption} streamStatus={data.streamStatus} />

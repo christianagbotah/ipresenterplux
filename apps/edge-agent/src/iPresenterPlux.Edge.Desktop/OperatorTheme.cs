@@ -14,27 +14,27 @@ namespace iPresenterPlux.Edge.Desktop;
 public static class OperatorTheme
 {
     // --- Surfaces ---
-    public static readonly IBrush WindowBackground = Brush("#07090D");
-    public static readonly IBrush Surface = Brush("#0C1119");
+    public static readonly IBrush WindowBackground = Brush("#04070C");
+    public static readonly IBrush Surface = Brush("#090E15");
     public static readonly IBrush SurfaceRaised = Brush("#121A26");
-    public static readonly IBrush SurfaceOverlay = Brush("#161F2C");
-    public static readonly IBrush StageCanvas = Brush("#05080D");
-    public static readonly IBrush Line = Brush("#1E2836");
-    public static readonly IBrush LineSoft = Brush("#141C28");
-    public static readonly IBrush Splitter = Brush("#232E40");
+    public static readonly IBrush SurfaceOverlay = Brush("#17202E");
+    public static readonly IBrush StageCanvas = Brush("#080D15");
+    public static readonly IBrush Line = Brush("#222C39");
+    public static readonly IBrush LineSoft = Brush("#171F29");
+    public static readonly IBrush Splitter = Brush("#2A3648");
 
     // --- Text ---
-    public static readonly IBrush Ink = Brush("#F2F5FA");
-    public static readonly IBrush Muted = Brush("#8B95A5");
-    public static readonly IBrush Faint = Brush("#5D6878");
+    public static readonly IBrush Ink = Brush("#EEF2F8");
+    public static readonly IBrush Muted = Brush("#93A0B4");
+    public static readonly IBrush Faint = Brush("#61708A");
 
     // --- Accents & status ---
-    public static readonly IBrush Gold = Brush("#D7A94A");
+    public static readonly IBrush Gold = Brush("#E3B75C");
     public static readonly IBrush GoldInk = Brush("#191307");
     public static readonly IBrush PreviewAccent = Gold;
-    public static readonly IBrush Live = Brush("#FF5D5D");
+    public static readonly IBrush Live = Brush("#FF5C5C");
     public static readonly IBrush LiveInk = Brush("#FFECEC");
-    public static readonly IBrush Good = Brush("#55D38A");
+    public static readonly IBrush Good = Brush("#43E0A0");
     public static readonly IBrush Warning = Brush("#F0B75E");
     public static readonly IBrush Danger = Brush("#F47B7B");
 

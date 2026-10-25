@@ -95,8 +95,8 @@ export default async function SettingsPage() {
             {cards.map(({ href, title, description, icon: Icon }) => (
               <Link key={href} href={href} className="ip-focus-gold ip-ai-arrive group cursor-pointer rounded-xl border border-white/[.07] bg-panel p-5 transition hover:border-gold/25 hover:bg-panel-2">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.07] text-[#efc76e]"><Icon size={19} /></div>
-                  <ChevronRight size={16} className="mt-3 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-[#d7a94a]" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.07] text-[#f0ca80]"><Icon size={19} /></div>
+                  <ChevronRight size={16} className="mt-3 text-white/35 transition group-hover:translate-x-0.5 group-hover:text-[#e3b75c]" />
                 </div>
                 <h2 className="mt-5 text-base font-black">{title}</h2>
                 <p className="mt-2 text-sm leading-6 text-white/55">{description}</p>

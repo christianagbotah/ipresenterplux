@@ -10,10 +10,10 @@ export default function LoginPage() {
 
   return (
     <main className="grid min-h-screen place-items-center px-4 py-10">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/[.08] bg-[#0b0f16]/95 shadow-[0_35px_120px_rgba(0,0,0,.45)] lg:grid-cols-[1.15fr_.85fr]">
+      <div className="grid w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/[.08] bg-[#090e15]/95 shadow-[0_35px_120px_rgba(0,0,0,.45)] lg:grid-cols-[1.15fr_.85fr]">
         <section className="ip-grid hidden min-h-[620px] border-r border-white/[.07] p-10 lg:flex lg:flex-col">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc464]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#efc464]">
               <MonitorPlay size={24} />
             </div>
             <div>
@@ -23,7 +23,7 @@ export default function LoginPage() {
           </div>
 
           <div className="my-auto max-w-lg">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.18em] text-[#ddb45e]">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#e3b75c]/15 bg-[#e3b75c]/[.06] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.18em] text-[#ddb45e]">
               <Sparkles size={13} />
               Presentation · Broadcast · Interpretation
             </div>
@@ -56,7 +56,7 @@ export default function LoginPage() {
           <div className="mx-auto w-full max-w-sm">
             <div className="mb-8 lg:hidden">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc464]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#efc464]">
                   <MonitorPlay size={21} />
                 </div>
                 <div>
@@ -67,7 +67,7 @@ export default function LoginPage() {
             </div>
 
             <div className="mb-7">
-              <div className="text-xs font-bold uppercase tracking-[.16em] text-[#d7a94a]">Secure access</div>
+              <div className="text-xs font-bold uppercase tracking-[.16em] text-[#e3b75c]">Secure access</div>
               <h2 className="mt-2 text-2xl font-black tracking-tight">Control Room Sign In</h2>
               <p className="mt-2 text-sm leading-6 text-white/40">
                 Use an authorized church operator account.

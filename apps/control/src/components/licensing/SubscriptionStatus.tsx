@@ -83,7 +83,7 @@ export function SubscriptionStatus({
       <section className="rounded-[24px] border border-white/[.08] bg-[#0d121a] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em] text-[#d7a94a]"><KeyRound size={13} /> Activated installations</div>
+            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.16em] text-[#e3b75c]"><KeyRound size={13} /> Activated installations</div>
             <h2 className="mt-1 text-lg font-black">Church desktop seats</h2>
           </div>
           <div className="text-xs text-white/55">Last renewal target: {formatDate(subscription.renewsAt)}</div>

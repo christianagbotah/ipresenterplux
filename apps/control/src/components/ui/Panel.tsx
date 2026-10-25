@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
  * iPresenterPlux Console — shared surface primitives.
  *
  * Compact production panels: tight radius, hairline borders, consistent
- * padding. Use these instead of re-inlining bg-[#0b0f16] rounded-2xl chains.
+ * padding. Use these instead of re-inlining bg-[#090e15] rounded-2xl chains.
  */
 
 export function Panel({

@@ -85,7 +85,7 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
       <button
         type="button"
         onClick={() => { setError(null); setOpen(true); }}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-2.5 text-sm font-extrabold text-[#15110a] shadow-[0_12px_36px_rgba(215,169,74,.16)] transition hover:bg-[#e4b85c] ip-focus-gold"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 py-2.5 text-sm font-extrabold text-[#15110a] shadow-[0_12px_36px_rgba(215,169,74,.16)] transition hover:bg-[#e4b85c] ip-focus-gold"
       >
         <Plus size={17} />
         New service
@@ -93,10 +93,10 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
 
       {open ? createPortal(
         <div className="fixed inset-0 z-[220] flex items-end justify-center overflow-y-auto bg-black/70 p-0 backdrop-blur-sm sm:items-start sm:px-5 sm:pb-6 sm:pt-20" role="dialog" aria-modal="true" aria-labelledby="create-service-title">
-        <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/[.09] bg-[#0c1017] shadow-2xl sm:max-h-[calc(100dvh-7rem)] sm:max-w-2xl sm:rounded-3xl ip-scrollbar-thin">
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/[.07] bg-[#0c1017]/95 px-5 py-5 backdrop-blur-xl sm:px-6">
+        <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-white/[.09] bg-[#0c121b] shadow-2xl sm:max-h-[calc(100dvh-7rem)] sm:max-w-2xl sm:rounded-3xl ip-scrollbar-thin">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/[.07] bg-[#0c121b]/95 px-5 py-5 backdrop-blur-xl sm:px-6">
               <div>
-                <div className="flex items-center gap-2 text-[#f2c765]"><CalendarPlus size={18} /><span className="text-xs font-bold uppercase tracking-[.18em]">Service Planner</span></div>
+                <div className="flex items-center gap-2 text-[#f4cf85]"><CalendarPlus size={18} /><span className="text-xs font-bold uppercase tracking-[.18em]">Service Planner</span></div>
                 <h2 id="create-service-title" className="mt-2 text-xl font-black tracking-tight">Create a service plan</h2>
                 <p className="mt-1 text-sm text-white/55">Start in Draft. Add the rundown, validate readiness, then assign it to an Edge device.</p>
               </div>
@@ -152,7 +152,7 @@ export function CreateServiceDialog({ organizationId, campuses, bibleVersions, c
 
               <div className="flex flex-col-reverse gap-2 border-t border-white/[.07] pt-5 sm:flex-row sm:justify-end">
                 <button type="button" onClick={() => setOpen(false)} className="min-h-11 rounded-xl border border-white/[.09] px-4 text-sm font-semibold text-white/65 transition hover:bg-white/[.04] hover:text-white ip-focus-gold">Cancel</button>
-                <button disabled={!canSubmit} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-5 text-sm font-extrabold text-[#15110a] transition enabled:hover:bg-[#e4b85c] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40">
+                <button disabled={!canSubmit} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-5 text-sm font-extrabold text-[#15110a] transition enabled:hover:bg-[#e4b85c] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-40">
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <CalendarPlus size={16} />}
                   {saving ? "Creating…" : "Create service plan"}
                 </button>

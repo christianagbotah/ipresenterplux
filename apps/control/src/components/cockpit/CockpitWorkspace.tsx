@@ -16,7 +16,7 @@ export function CockpitWorkspace({ model, initialFocusMode = false }: { model: C
   return <main className="min-h-screen bg-[#070a0f] text-white">
     <a
       href="#cockpit-content"
-      className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
+      className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#e3b75c]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#f0ca80] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
     >
       Skip to live cockpit content
     </a>

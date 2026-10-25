@@ -14,7 +14,7 @@
     "android": {
       "package": "com.lightworldtech.ipresenterplux",
       "adaptiveIcon": {
-        "backgroundColor": "#080b10",
+        "backgroundColor": "#05080d",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

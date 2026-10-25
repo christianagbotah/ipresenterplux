@@ -48,7 +48,7 @@ export function SessionClock({ live }: { live: boolean }) {
       title="How long this cockpit session has been open. Not a service-uptime claim — service start time is Edge/backend truth."
       aria-label={`Cockpit session open for ${format(elapsed)}`}
     >
-      <Clock size={12} className="text-[#d7a94a]" />
+      <Clock size={12} className="text-[#e3b75c]" />
       {format(elapsed)}
     </span>
   );

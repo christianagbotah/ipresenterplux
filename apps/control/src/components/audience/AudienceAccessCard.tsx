@@ -44,7 +44,7 @@ export function AudienceAccessCard({ serviceId }: { serviceId: string }) {
             size={146}
             level="M"
             bgColor="#ffffff"
-            fgColor="#080b10"
+            fgColor="#05080d"
             marginSize={0}
             title="iPresenterPlux audience join QR code"
           />
@@ -58,7 +58,7 @@ export function AudienceAccessCard({ serviceId }: { serviceId: string }) {
           <button
             type="button"
             onClick={copyLink}
-            className="ip-focus-gold min-h-10 mt-3 flex items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 px-3 text-xs font-bold text-[#edc568] transition hover:bg-[#d7a94a]/15"
+            className="ip-focus-gold min-h-10 mt-3 flex items-center gap-2 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 px-3 text-xs font-bold text-[#edc568] transition hover:bg-[#e3b75c]/15"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? "Copied" : "Copy audience link"}

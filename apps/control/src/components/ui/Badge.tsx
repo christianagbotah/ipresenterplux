@@ -10,8 +10,8 @@ import type { ReactNode } from "react";
 export type BadgeTone = "gold" | "live" | "good" | "warn" | "danger" | "muted" | "info";
 
 const toneClasses: Record<BadgeTone, string> = {
-  gold: "border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]",
-  live: "border-[#ff5d5d]/35 bg-[#ff5d5d]/12 text-[#ff8f8f]",
+  gold: "border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#f0ca80]",
+  live: "border-[#ff5c5c]/35 bg-[#ff5c5c]/12 text-[#ff8f8f]",
   good: "border-emerald-400/25 bg-emerald-400/10 text-emerald-300",
   warn: "border-amber-400/25 bg-amber-400/10 text-amber-300",
   danger: "border-red-400/30 bg-red-400/10 text-red-300",
