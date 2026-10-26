@@ -10,6 +10,7 @@ const packageJson=JSON.parse(readFileSync(path.join(root,"package.json"),"utf8")
 const requiredSteps=[
   ["Songs and Media workspace self-test","pnpm test:media-workspace"],
   ["Cameras workspace self-test","pnpm test:camera-workspace"],
+  ["Visual Sources workspace self-test","pnpm test:visual-source-workspace"],
   ["AI Director workspace self-test","pnpm test:ai-director"],
   ["Service Archive workspace self-test","pnpm test:archive"],
   ["Studio route gating self-test","pnpm test:studio-route-gating"],
@@ -24,7 +25,7 @@ assert.match(workflow,/Production build[\s\S]*Validate Studio route manifest[\s\
 
 const pageContracts=[
   ["media/page.tsx",["auth()","getCurrentServiceForUser","MediaWorkspace"]],
-  ["cameras/page.tsx",["auth()","getCurrentServiceForUser","CameraWorkspace"]],
+  ["cameras/page.tsx",["auth()","getCurrentServiceForUser","VisualSourcesWorkspace"]],
   ["ai-director/page.tsx",["auth()","getCurrentServiceForUser","AIDirectorWorkspace"]],
   ["archive/page.tsx",["auth()","getCurrentServiceForUser","ArchiveList"]],
   ["archive/[id]/page.tsx",["auth()","getArchivedService","ArchiveServiceDetail"]]
@@ -37,4 +38,4 @@ for(const [relative,tokens] of pageContracts){
   for(const token of tokens) assert.ok(source.includes(token),`${relative} must include ${token}`);
 }
 
-console.log(JSON.stringify({ok:true,workspaceGates:4,sharedGates:2,postBuildManifestRequired:true,authorizedUiContracts:5}));
+console.log(JSON.stringify({ok:true,workspaceGates:5,sharedGates:2,postBuildManifestRequired:true,authorizedUiContracts:5}));
