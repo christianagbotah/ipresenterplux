@@ -199,6 +199,18 @@ public sealed class MainWindowLayoutTests
     }
 
     [Fact]
+    public void BibleVersePointerStagesPreviewAndDoubleClickTakesProgram()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("_browserVerses.PointerPressed += OnBibleVersePointerPressed", source, StringComparison.Ordinal);
+        Assert.Contains("FindPointerBibleVerse", source, StringComparison.Ordinal);
+        Assert.Contains("PreviewBrowserVerseAsync(verse)", source, StringComparison.Ordinal);
+        Assert.Contains("PreviewBrowserVerseAndTakeAsync(verse)", source, StringComparison.Ordinal);
+        Assert.Contains("args.ClickCount >= 2", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ScriptureLookupExposesOfflineBibleManagerAndLocalFirstResolution()
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));

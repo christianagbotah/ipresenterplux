@@ -252,6 +252,7 @@ public sealed class MainWindow : Window
         _browserBook.SelectionChanged += async (_, _) => await LoadBibleBookChaptersAsync();
         _browserChapter.SelectionChanged += async (_, _) => await LoadBibleChapterAsync();
         _browserFromVerse.SelectionChanged += (_, _) => NormalizeBrowserVerseRange();
+        _browserVerses.PointerPressed += OnBibleVersePointerPressed;
         _browserPreviewRange.Click += async (_, _) => await PreviewBrowserVerseRangeAsync();
         _addSelectedToSchedule.Click += async (_, _) => await AddSelectedToScheduleAsync();
         _removeScheduled.Click += async (_, _) => await RemoveScheduledAsync();
@@ -1493,6 +1494,21 @@ public sealed class MainWindow : Window
         else await PreviewItemAsync(row.Item);
     }
 
+    private async void OnBibleVersePointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(_browserVerses).Properties.IsLeftButtonPressed) return;
+        var verse = FindPointerBibleVerse(args);
+        if (verse is null) return;
+
+        _browserVerses.SelectedItem = verse;
+        _browserFromVerse.SelectedItem = verse.Verse;
+        _browserToVerse.SelectedItem = verse.Verse;
+        args.Handled = true;
+
+        if (args.ClickCount >= 2) await PreviewBrowserVerseAndTakeAsync(verse);
+        else await PreviewBrowserVerseAsync(verse);
+    }
+
     /// <summary>GO LIVE / END LIVE — explicit output start and stop from the command bar.</summary>
     private async Task ToggleOutputAsync()
     {
@@ -1546,6 +1562,13 @@ public sealed class MainWindow : Window
         if (args.Source is not Visual visual) return null;
         var container = visual.FindAncestorOfType<ListBoxItem>(includeSelf: true);
         return container?.Content as OperatorRundownRow ?? container?.DataContext as OperatorRundownRow;
+    }
+
+    private static DesktopBibleVerse? FindPointerBibleVerse(PointerPressedEventArgs args)
+    {
+        if (args.Source is not Visual visual) return null;
+        var container = visual.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+        return container?.Content as DesktopBibleVerse ?? container?.DataContext as DesktopBibleVerse;
     }
 
     // --- Compact context menus: secondary actions stay out of the toolbars ---
@@ -2168,30 +2191,58 @@ public sealed class MainWindow : Window
 
     private async Task PreviewBrowserVerseRangeAsync()
     {
-        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
-            _browserChapter.SelectedItem is not int chapter ||
-            _browserFromVerse.SelectedItem is not int from ||
-            _browserToVerse.SelectedItem is not int to)
+        if (_browserFromVerse.SelectedItem is not int from || _browserToVerse.SelectedItem is not int to)
         {
             SetOperatorFeedback("Choose a Bible book, chapter and verse range first.", true);
             return;
+        }
+
+        var item = await ResolveBrowserRangeItemAsync(from, to);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewBrowserVerseAsync(DesktopBibleVerse verse)
+    {
+        var item = await ResolveBrowserRangeItemAsync(verse.Verse, verse.Verse);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewBrowserVerseAndTakeAsync(DesktopBibleVerse verse)
+    {
+        var item = await ResolveBrowserRangeItemAsync(verse.Verse, verse.Verse);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAndTakeAsync(item);
+    }
+
+    private async Task<OperatorWorkspaceItem?> ResolveBrowserRangeItemAsync(int from, int to)
+    {
+        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter)
+        {
+            SetOperatorFeedback("Choose a Bible book and chapter first.", true);
+            return null;
         }
         var version = BrowserBibleVersion();
         if (version is null)
         {
             SetOperatorFeedback("Download the selected Bible version before browsing verses offline.", true);
-            return;
+            return null;
         }
         var passage = await _desktopBibleLibrary.ResolveRangeAsync(version, book.Code, chapter, from, to, CancellationToken.None);
         if (passage is null)
         {
             SetOperatorFeedback("That verse range is not available in the downloaded Bible.", true);
-            return;
+            return null;
         }
-        var item = LocalScriptureItem(passage);
-        _activeSelectionSurface = "library";
-        RememberSelectedItem(item);
-        await PreviewItemAsync(item);
+        return LocalScriptureItem(passage);
     }
 
     private async Task AddSelectedToScheduleAsync()

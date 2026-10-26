@@ -256,6 +256,59 @@ export function ScriptureWorkspace({
     }
   }
 
+  async function previewBrowseVerse(item: BibleVerse) {
+    if (!selectedBook || !service || !canOperate || busy !== null) return;
+    const passage: SelectedPassage = {
+      reference: `${selectedBook.canonicalName} ${chapter}:${item.verse}`,
+      version,
+      passageText: item.text,
+      detectionId: null,
+      state: null
+    };
+    setSelected(passage);
+    setFromVerse(item.verse);
+    setToVerse(item.verse);
+    setBusy(`verse-${item.verse}`);
+    setError(null);
+    setNotice(null);
+    try {
+      const createResponse = await fetch("/api/v1/scriptures/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceId: service.id, reference: passage.reference, version: passage.version })
+      });
+      const created = await createResponse.json().catch(() => null) as MutationPayload | null;
+      if (!createResponse.ok || !created?.scripture?.id) {
+        throw new Error(created?.error ?? "Verse could not be prepared for this service");
+      }
+
+      const stateResponse = await fetch(`/api/v1/scriptures/${created.scripture.id}/state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ state: "preview" })
+      });
+      const statePayload = await stateResponse.json().catch(() => null) as MutationPayload | null;
+      if (!stateResponse.ok) throw new Error(statePayload?.error ?? "Verse could not be sent to Preview");
+
+      setSelected({
+        ...passage,
+        reference: created.scripture.reference ?? created.scripture.scripture_reference ?? passage.reference,
+        passageText: created.scripture.passageText ?? passage.passageText,
+        detectionId: created.scripture.id,
+        state: "preview"
+      });
+      const queued = Number(statePayload?.edgeCommandsQueued ?? 0);
+      setNotice(queued > 0
+        ? `${passage.reference} sent to Preview. ${queued} Edge command${queued === 1 ? "" : "s"} queued.`
+        : `${passage.reference} is Preview in the control plane; no active Edge confirmed physical output yet.`);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Verse could not be sent to Preview");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function changeState(id: string, state: "detected" | "preview" | "live", label: string) {
     if (!canOperate) return;
     if (state === "live" && selected?.state !== "preview") {
@@ -375,7 +428,7 @@ export function ScriptureWorkspace({
               <button type="button" onClick={() => void loadChapter()} disabled={!bookCode || busy !== null} className="min-h-10 rounded-xl border border-white/[.09] bg-white/[.035] px-4 text-xs font-bold text-white/65 transition hover:bg-white/[.06] ip-focus-gold disabled:opacity-35">{busy === "chapter" ? "Loading…" : "Load Chapter"}</button>
               <button type="button" onClick={useBrowseRange} disabled={!rangeText || busy !== null} className="min-h-10 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.07] px-4 text-xs font-bold text-[#f0ca80] transition hover:bg-[#e3b75c]/[.12] ip-focus-gold disabled:opacity-35">Use Range</button>
             </div>
-            {verses.length ? <div className="mt-4 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-white/[.06] bg-black/20 p-3 ip-scrollbar-thin">{verses.map((item) => <p key={item.verse} className="text-xs leading-5 text-white/60"><strong className="mr-2 text-[#e3b75c]">{item.verse}</strong>{item.text}</p>)}</div> : null}
+            {verses.length ? <div className="mt-4 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-white/[.06] bg-black/20 p-2 ip-scrollbar-thin">{verses.map((item) => <button key={item.verse} type="button" onClick={() => void previewBrowseVerse(item)} disabled={!canOperate || busy !== null} title="Click to send this verse to Preview" className="ip-focus-gold block w-full rounded-lg px-2 py-2 text-left text-xs leading-5 text-white/60 transition hover:bg-[#e3b75c]/[.08] hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-45"><strong className="mr-2 text-[#e3b75c]">{item.verse}</strong>{item.text}</button>)}</div> : null}
           </section>
 
           <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
