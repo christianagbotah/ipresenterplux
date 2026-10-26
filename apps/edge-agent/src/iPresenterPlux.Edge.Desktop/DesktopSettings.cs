@@ -19,7 +19,10 @@ public sealed record DesktopSettings(
     double? OperatorDeckRow = null,
     bool OperatorSidebarCollapsed = false,
     bool OperatorResourceDeckCollapsed = false,
-    string OperatorLayoutPreset = "production")
+    string OperatorLayoutPreset = "production",
+    double? OperatorDeckLeftColumn = null,
+    double? OperatorDeckRightColumn = null,
+    string OperatorSidebarMode = "schedule")
 {
     public static DesktopSettings CreateDefault() => new(
         "",
@@ -79,6 +82,9 @@ public sealed record DesktopSettings(
         var operatorLayoutPreset = OperatorWorkspaceLayouts.IsValidPreset(OperatorLayoutPreset)
             ? OperatorLayoutPreset!
             : OperatorWorkspaceLayouts.Production;
+        var operatorSidebarMode = OperatorWorkspaceLayouts.IsValidSidebarMode(OperatorSidebarMode)
+            ? OperatorSidebarMode!
+            : OperatorWorkspaceLayouts.ProductionSidebarMode;
 
         return this with {
             ControlPlaneUrl = ControlPlaneUrl.Trim().TrimEnd('/'),
@@ -98,7 +104,10 @@ public sealed record DesktopSettings(
             OperatorDeckRow = ClampStar(OperatorDeckRow),
             OperatorSidebarCollapsed = OperatorSidebarCollapsed,
             OperatorResourceDeckCollapsed = OperatorResourceDeckCollapsed,
-            OperatorLayoutPreset = operatorLayoutPreset
+            OperatorLayoutPreset = operatorLayoutPreset,
+            OperatorDeckLeftColumn = ClampStar(OperatorDeckLeftColumn),
+            OperatorDeckRightColumn = ClampStar(OperatorDeckRightColumn),
+            OperatorSidebarMode = operatorSidebarMode
         };
     }
 

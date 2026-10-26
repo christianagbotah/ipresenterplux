@@ -108,7 +108,10 @@ public sealed class OperatorWorkspaceLayoutTests
                 OperatorDeckRow = 1.32,
                 OperatorSidebarCollapsed = true,
                 OperatorResourceDeckCollapsed = false,
-                OperatorLayoutPreset = "scripture"
+                OperatorLayoutPreset = "scripture",
+                OperatorDeckLeftColumn = 0.8,
+                OperatorDeckRightColumn = 1.2,
+                OperatorSidebarMode = "scripture"
             };
 
             await store.SaveAsync(settings, CancellationToken.None);
@@ -122,6 +125,9 @@ public sealed class OperatorWorkspaceLayoutTests
             Assert.True(loaded.OperatorSidebarCollapsed);
             Assert.False(loaded.OperatorResourceDeckCollapsed);
             Assert.Equal("scripture", loaded.OperatorLayoutPreset);
+            Assert.Equal(0.8, loaded.OperatorDeckLeftColumn);
+            Assert.Equal(1.2, loaded.OperatorDeckRightColumn);
+            Assert.Equal("scripture", loaded.OperatorSidebarMode);
         }
         finally
         {
@@ -158,6 +164,10 @@ public sealed class OperatorWorkspaceLayoutTests
             Assert.False(loaded.OperatorSidebarCollapsed);
             Assert.False(loaded.OperatorResourceDeckCollapsed);
             Assert.Equal("production", loaded.OperatorLayoutPreset);
+            // v2.2 additions default safely for pre-v2.2 settings files.
+            Assert.Null(loaded.OperatorDeckLeftColumn);
+            Assert.Null(loaded.OperatorDeckRightColumn);
+            Assert.Equal("schedule", loaded.OperatorSidebarMode);
         }
         finally
         {
@@ -178,5 +188,62 @@ public sealed class OperatorWorkspaceLayoutTests
         Assert.Equal("production", normalized.OperatorLayoutPreset);
         Assert.Equal(0.2, normalized.OperatorSidebarColumn);
         Assert.Equal(4.0, normalized.OperatorPreviewColumn);
+    }
+
+    [Fact]
+    public void InvalidSidebarModeAndDeckColumnsNormalizeSafely()
+    {
+        var settings = new DesktopSettings("https://control.example.test", "Sanctuary Edge") with
+        {
+            OperatorSidebarMode = "hologram",
+            OperatorDeckLeftColumn = -3,
+            OperatorDeckRightColumn = 500
+        };
+        var normalized = settings.Normalize();
+
+        Assert.Equal("schedule", normalized.OperatorSidebarMode);
+        Assert.Equal(0.2, normalized.OperatorDeckLeftColumn);
+        Assert.Equal(4.0, normalized.OperatorDeckRightColumn);
+    }
+
+    [Fact]
+    public void EveryPresetShapeCarriesUsableDeckColumnRatios()
+    {
+        foreach (var preset in OperatorWorkspaceLayouts.PresetNames)
+        {
+            var shape = OperatorWorkspaceLayouts.Shape(preset);
+            Assert.InRange(shape.DeckLeftColumn, 0.2, 4.0);
+            Assert.InRange(shape.DeckRightColumn, 0.2, 4.0);
+            Assert.InRange(shape.SidebarColumn, 0.2, 4.0);
+            Assert.InRange(shape.PreviewColumn, 0.2, 4.0);
+            Assert.InRange(shape.ProgramColumn, 0.2, 4.0);
+            Assert.InRange(shape.StageRow, 0.2, 4.0);
+            Assert.InRange(shape.DeckRow, 0.2, 4.0);
+        }
+    }
+
+    [Fact]
+    public void PresetsSelectTheirSidebarModeWithinTheSameWorkspace()
+    {
+        Assert.Equal("schedule", OperatorWorkspaceLayouts.SidebarModeForPreset(OperatorWorkspaceLayouts.Production));
+        Assert.Equal("scripture", OperatorWorkspaceLayouts.SidebarModeForPreset(OperatorWorkspaceLayouts.Scripture));
+        Assert.Equal("media", OperatorWorkspaceLayouts.SidebarModeForPreset(OperatorWorkspaceLayouts.Media));
+        Assert.Equal("schedule", OperatorWorkspaceLayouts.SidebarModeForPreset(OperatorWorkspaceLayouts.Streaming));
+        Assert.True(OperatorWorkspaceLayouts.IsValidSidebarMode("media"));
+        Assert.False(OperatorWorkspaceLayouts.IsValidSidebarMode("tournament"));
+    }
+
+    [Fact]
+    public void DeckColumnRatiosFromActualBoundsStayClamped()
+    {
+        var (left, right) = OperatorWorkspaceLayouts.DeckColumnsFromActualBounds(120, 680);
+        Assert.InRange(left, 0.2, 4.0);
+        Assert.InRange(right, 0.2, 4.0);
+        // The ratios are normalized against the 1.02/0.98 default total (2.0).
+        Assert.True(left < right);
+
+        var (extremeLeft, extremeRight) = OperatorWorkspaceLayouts.DeckColumnsFromActualBounds(1, 10000);
+        Assert.Equal(0.2, extremeLeft);
+        Assert.InRange(extremeRight, 1.9, 4.0);
     }
 }

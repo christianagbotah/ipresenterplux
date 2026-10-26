@@ -15,13 +15,44 @@ namespace iPresenterPlux.Edge.Desktop;
 /// </summary>
 public static class OperatorRowTemplates
 {
-    public static IDataTemplate ScheduleRowTemplate() =>
-        new FuncDataTemplate<OperatorRundownRow>((row, _) => row is null ? new Border() : BuildScheduleRow(row));
+    public static IDataTemplate ScheduleRowTemplate(Func<OperatorRundownRow, ContextMenu?>? menuFactory = null) =>
+        new FuncDataTemplate<OperatorRundownRow>((row, _) => row is null ? new Border() : BuildScheduleRow(row, menuFactory));
 
-    public static IDataTemplate LibraryRowTemplate() =>
-        new FuncDataTemplate<OperatorRundownRow>((row, _) => row is null ? new Border() : BuildLibraryRow(row));
+    public static IDataTemplate LibraryRowTemplate(Func<OperatorRundownRow, ContextMenu?>? menuFactory = null) =>
+        new FuncDataTemplate<OperatorRundownRow>((row, _) => row is null ? new Border() : BuildLibraryRow(row, menuFactory));
 
-    private static Control BuildScheduleRow(OperatorRundownRow row)
+    /// <summary>
+    /// One compact context-menu entry. <see cref="Separator"/> entries render a
+    /// divider; everything else is a labeled action with a short tooltip.
+    /// </summary>
+    public sealed record MenuEntry(string? Header, string? Tooltip, Action? Action)
+    {
+        public static MenuEntry Item(string header, string tooltip, Action action) => new(header, tooltip, action);
+
+        public static MenuEntry Separator() => new(null, null, null);
+    }
+
+    /// <summary>Builds a compact context menu from the given entries.</summary>
+    public static ContextMenu Menu(params MenuEntry[] entries)
+    {
+        var menu = new ContextMenu();
+        foreach (var entry in entries)
+        {
+            if (entry.Header is null)
+            {
+                menu.Items.Add(new Separator());
+                continue;
+            }
+            var captured = entry;
+            var item = new MenuItem { Header = captured.Header };
+            ToolTip.SetTip(item, captured.Tooltip);
+            item.Click += (_, _) => captured.Action?.Invoke();
+            menu.Items.Add(item);
+        }
+        return menu;
+    }
+
+    private static Control BuildScheduleRow(OperatorRundownRow row, Func<OperatorRundownRow, ContextMenu?>? menuFactory)
     {
         var grid = new Grid { ColumnSpacing = 8, MinHeight = 40 };
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));       // grip
@@ -65,13 +96,13 @@ public static class OperatorRowTemplates
         grid.Children.Add(chips);
 
         if (row.IsCurrent)
-            return RowShell(grid, OperatorTheme.RowLiveTint, OperatorTheme.Live);
+            return AttachMenu(RowShell(grid, OperatorTheme.RowLiveTint, OperatorTheme.Live), row, menuFactory);
         if (row.IsPreview)
-            return RowShell(grid, OperatorTheme.RowPreviewTint, OperatorTheme.PreviewAccent);
-        return RowShell(grid, null, null);
+            return AttachMenu(RowShell(grid, OperatorTheme.RowPreviewTint, OperatorTheme.PreviewAccent), row, menuFactory);
+        return AttachMenu(RowShell(grid, null, null), row, menuFactory);
     }
 
-    private static Control BuildLibraryRow(OperatorRundownRow row)
+    private static Control BuildLibraryRow(OperatorRundownRow row, Func<OperatorRundownRow, ContextMenu?>? menuFactory)
     {
         var grid = new Grid { ColumnSpacing = 8, MinHeight = 46 };
         grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));       // type badge
@@ -128,10 +159,17 @@ public static class OperatorRowTemplates
         grid.Children.Add(chips);
 
         if (row.IsCurrent)
-            return RowShell(grid, OperatorTheme.RowLiveTint, OperatorTheme.Live);
+            return AttachMenu(RowShell(grid, OperatorTheme.RowLiveTint, OperatorTheme.Live), row, menuFactory);
         if (row.IsPreview)
-            return RowShell(grid, OperatorTheme.RowPreviewTint, OperatorTheme.PreviewAccent);
-        return RowShell(grid, null, null);
+            return AttachMenu(RowShell(grid, OperatorTheme.RowPreviewTint, OperatorTheme.PreviewAccent), row, menuFactory);
+        return AttachMenu(RowShell(grid, null, null), row, menuFactory);
+    }
+
+    private static Border AttachMenu(Border shell, OperatorRundownRow row, Func<OperatorRundownRow, ContextMenu?>? menuFactory)
+    {
+        if (menuFactory is not null)
+            shell.ContextMenu = menuFactory(row);
+        return shell;
     }
 
     private static Border RowShell(Control content, IBrush? tint, IBrush? edge)

@@ -53,7 +53,7 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         // 52px rail, 60/40 stage monitors, deck slightly taller than the stage.
-        Assert.Contains("new ColumnDefinition(new GridLength(52))", source, StringComparison.Ordinal);
+        Assert.Contains("new ColumnDefinition(new GridLength(64))", source, StringComparison.Ordinal);
         Assert.Contains("new GridLength(2.15, GridUnitType.Star)", source, StringComparison.Ordinal);
         Assert.Contains("new GridLength(1.45, GridUnitType.Star)", source, StringComparison.Ordinal);
         Assert.Contains("new GridLength(1.32, GridUnitType.Star)", source, StringComparison.Ordinal);
@@ -70,8 +70,12 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
         Assert.Contains("_bibleVersion.MinHeight = 36", source, StringComparison.Ordinal);
-        Assert.Contains("Grid.SetColumn(_resolveScripture, 2)", source, StringComparison.Ordinal);
-        Assert.Contains("var scriptureLookup = new Grid { ColumnSpacing = 6 }", source, StringComparison.Ordinal);
+        // v2.2: the lookup is two rows (version + reference, then actions) so a
+        // narrow deck pane can never collide the inputs with the buttons.
+        Assert.Contains("var scriptureLookup = new Grid { RowSpacing = 6, ColumnSpacing = 6 }", source, StringComparison.Ordinal);
+        Assert.Contains("lookupActions.Children.Add(_resolveScripture)", source, StringComparison.Ordinal);
+        Assert.Contains("lookupActions.Children.Add(_manageBibleVersions)", source, StringComparison.Ordinal);
+        Assert.Contains("Grid.SetColumnSpan(lookupActions, 2)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("var scriptureRow = new Grid { ColumnDefinitions = new ColumnDefinitions(\"*,Auto\"), ColumnSpacing = 8 }", source, StringComparison.Ordinal);
     }
 
@@ -314,8 +318,13 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("LinkButton(\"AI Director\", () => CloudUri(\"/ai-director\"))", source, StringComparison.Ordinal);
-        Assert.Contains("LinkButton(\"Translations\", () => CloudUri(\"/translations\"))", source, StringComparison.Ordinal);
+        // v2.2: the AI links live on the icon rail as glyph buttons (the old
+        // 11px word labels clipped mid-word at 52px); launching stays external
+        // and Program authority stays with the operator.
+        Assert.Contains("RailButton(\"✦\", \"AI DIR\", \"AI Director workspace on the Control Plane\")", source, StringComparison.Ordinal);
+        Assert.Contains("RailButton(\"⇄\", \"TRANS\", \"AI translations workspace on the Control Plane\")", source, StringComparison.Ordinal);
+        Assert.Contains("LaunchExternalUri(() => CloudUri(\"/ai-director\"))", source, StringComparison.Ordinal);
+        Assert.Contains("LaunchExternalUri(() => CloudUri(\"/translations\"))", source, StringComparison.Ordinal);
         Assert.Contains("_microphoneStatus", source, StringComparison.Ordinal);
         Assert.Contains("_asrStatus", source, StringComparison.Ordinal);
         Assert.Contains("_voiceScriptureStatus", source, StringComparison.Ordinal);
@@ -328,8 +337,8 @@ public sealed class MainWindowLayoutTests
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
         var rows = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "OperatorRowTemplates.cs"));
 
-        Assert.Contains("ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate()", source, StringComparison.Ordinal);
-        Assert.Contains("ItemTemplate = OperatorRowTemplates.LibraryRowTemplate()", source, StringComparison.Ordinal);
+        Assert.Contains("ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate(BuildScheduleContextMenu)", source, StringComparison.Ordinal);
+        Assert.Contains("ItemTemplate = OperatorRowTemplates.LibraryRowTemplate(BuildLibraryContextMenu)", source, StringComparison.Ordinal);
         Assert.Contains("\"LIVE\"", rows, StringComparison.Ordinal);
         Assert.Contains("\"PREVIEW\"", rows, StringComparison.Ordinal);
         Assert.Contains("\"NEXT\"", rows, StringComparison.Ordinal);
@@ -437,7 +446,7 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var seam = new Grid { MinWidth = 56, Children = { seamSplitter, takeStack } }", source, StringComparison.Ordinal);
+        Assert.Contains("var seam = new Grid { MinWidth = 64, Children = { seamSplitter, takeStack } }", source, StringComparison.Ordinal);
         Assert.Contains("Grid.SetColumn(seam, 4)", source, StringComparison.Ordinal);
         Assert.Contains("_take.Content = \"TAKE\"", source, StringComparison.Ordinal);
         Assert.Contains("Children = { _take, takeHint }", source, StringComparison.Ordinal);
@@ -484,6 +493,121 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("LocalOperatorCommands.OutputStop", source, StringComparison.Ordinal);
         Assert.Contains("_goLive.Click += async (_, _) => await ToggleOutputAsync();", source, StringComparison.Ordinal);
         Assert.Contains("_record.Click += async (_, _) => await ToggleRecordingAsync();", source, StringComparison.Ordinal);
+    }
+
+    // --- v2.2: workspace mechanics, density, adaptability ---
+
+    [Fact]
+    public void ResourceCategoriesScrollInAnOverflowStripInsteadOfOverlapping()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var categoryBar = new OperatorOverflowStrip()", source, StringComparison.Ordinal);
+        Assert.Contains("categoryBar.EnsureVisible(capturedButton)", source, StringComparison.Ordinal);
+        Assert.Contains("_activeCategoryButtons = categoryBar.ItemHost", source, StringComparison.Ordinal);
+        // The old flat StackPanel overlapped the toolbar actions at narrow pane
+        // widths — it must not come back.
+        Assert.DoesNotContain("var categoryBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 }", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CommandRailIsIconFirstSoNothingClipsAtFiftyTwoPixels()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("private static Button RailButton(string glyph, string caption, string tooltip)", source, StringComparison.Ordinal);
+        Assert.Contains("RailButton(glyph, caption, tooltip)", source, StringComparison.Ordinal);
+        Assert.Contains("(\"schedule\", \"☰\", \"SCHEDULE\"", source, StringComparison.Ordinal);
+        Assert.Contains("(\"library\", \"▤\", \"LIBRARY\"", source, StringComparison.Ordinal);
+        Assert.Contains("(\"scripture\", \"✝\", \"BIBLE\"", source, StringComparison.Ordinal);
+        Assert.Contains("(\"media\", \"▶\", \"MEDIA\"", source, StringComparison.Ordinal);
+        Assert.Contains("RailButton(\"⚙\", \"SETUP\", \"Activation and runtime setup tab\")", source, StringComparison.Ordinal);
+        // Word labels at 11px clipped mid-word inside the 52px rail ("Sched",
+        // "Librar", "Trc") — the ToolButton-based rail must not return.
+        Assert.DoesNotContain("OperatorTheme.ToolButton(\"Schedule\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("OperatorTheme.ToolButton(\"Scripture\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("LinkButton(\"AI Director\"", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeckColumnsAreResizableAndPersistedLikeEveryOtherRegion()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("var deckColumnSplitter = ProductionSplitter(GridResizeDirection.Columns)", source, StringComparison.Ordinal);
+        Assert.Contains("_deckColumnSplitterField = deckColumnSplitter", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorWorkspaceLayouts.DeckColumnsFromActualBounds(deckLeft.Width, deckRight.Width)", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorDeckLeftColumn = deckLeftStar", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorDeckRightColumn = deckRightStar", source, StringComparison.Ordinal);
+        Assert.Contains("_playoutDeck.ColumnDefinitions[0].Width = new GridLength(deckLeft, GridUnitType.Star)", source, StringComparison.Ordinal);
+        Assert.Contains("_playoutDeck.ColumnDefinitions[2].Width = new GridLength(deckRight, GridUnitType.Star)", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WorkspacePersistenceCoversSidebarModeAndDeckColumnsWithClamps()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+        var settings = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "DesktopSettings.cs"));
+
+        // Persisted: pane widths/heights, collapsed state, preset, sidebar mode.
+        Assert.Contains("OperatorSidebarMode = mode", source, StringComparison.Ordinal);
+        Assert.Contains("ShowSidebarMode(_settings.OperatorSidebarMode)", source, StringComparison.Ordinal);
+        Assert.Contains("OperatorSidebarMode = operatorSidebarMode", settings, StringComparison.Ordinal);
+        Assert.Contains("OperatorDeckLeftColumn = ClampStar(OperatorDeckLeftColumn)", settings, StringComparison.Ordinal);
+        Assert.Contains("OperatorDeckRightColumn = ClampStar(OperatorDeckRightColumn)", settings, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ResetWorkspaceRestoresStudioLayoutWithoutDeletingSettingsFiles()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("private void ResetWorkspaceLayout()", source, StringComparison.Ordinal);
+        Assert.Contains("ApplyWorkspacePreset(OperatorWorkspaceLayouts.Production)", source, StringComparison.Ordinal);
+        Assert.Contains("_sidebarPaneSavedWidth = null", source, StringComparison.Ordinal);
+        Assert.Contains("_resourceDeckSavedHeight = null", source, StringComparison.Ordinal);
+        Assert.Contains("Workspace reset to the Studio layout.", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PresetsRearrangeOneWorkspaceGeometryAndSidebarMode()
+    {
+        var layouts = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "OperatorWorkspaceLayouts.cs"));
+
+        Assert.Contains("SidebarModeForPreset", layouts, StringComparison.Ordinal);
+        Assert.Contains("Scripture => \"scripture\"", layouts, StringComparison.Ordinal);
+        Assert.Contains("Media => \"media\"", layouts, StringComparison.Ordinal);
+        Assert.Contains("DeckColumnsFromActualBounds", layouts, StringComparison.Ordinal);
+        Assert.Contains("public const string ProductionSidebarMode = \"schedule\";", layouts, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CollapsedPanesAreRestoredByRailButtonsWithoutDeadRectangles()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        // Selecting any sidebar mode expands a collapsed sidebar: the compact
+        // rail is the restore affordance.
+        Assert.Contains("if (_settings.OperatorSidebarCollapsed) SetSidebarPaneCollapsed(false);", source, StringComparison.Ordinal);
+        Assert.Contains("sidebarToggle.Click += (_, _) => SetSidebarPaneCollapsed(!_settings.OperatorSidebarCollapsed);", source, StringComparison.Ordinal);
+        Assert.Contains("deckToggle.Click += (_, _) => SetResourceDeckCollapsed(!_settings.OperatorResourceDeckCollapsed);", source, StringComparison.Ordinal);
+        Assert.Contains("private void RefreshPaneToggleStates()", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RowContextMenusReuseExistingCommandsOnly()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        Assert.Contains("private ContextMenu BuildScheduleContextMenu(OperatorRundownRow row)", source, StringComparison.Ordinal);
+        Assert.Contains("private ContextMenu BuildLibraryContextMenu(OperatorRundownRow row)", source, StringComparison.Ordinal);
+        Assert.Contains("private ContextMenu BuildUpNextContextMenu(OperatorRundownRow row)", source, StringComparison.Ordinal);
+        // The menus route through the SAME selection + command paths as the
+        // toolbar buttons and pointer contracts — no new product logic.
+        Assert.Contains("_ = MoveScheduledAsync(-1);", source, StringComparison.Ordinal);
+        Assert.Contains("_ = RemoveScheduledAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("_ = AddSelectedToScheduleAsync();", source, StringComparison.Ordinal);
+        Assert.Contains("_ = PreviewItemAndTakeAsync(row.Item);", source, StringComparison.Ordinal);
     }
 
     private static string FindSourceFile(params string[] pathParts)
