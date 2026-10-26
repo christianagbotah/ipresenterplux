@@ -3,6 +3,8 @@ import { parseOperatorScriptureReference } from "../edge-operator-catalog.ts";
 import { getCurrentServiceForUser } from "../current-service.ts";
 import { createManualScriptureDetection } from "../manual-scripture.ts";
 import { listMediaLibrary } from "../media-library.ts";
+import { listVisualSources } from "../camera-sources.ts";
+import { requireVisualPreviewSourceForDevice } from "../visual-edge-commands.ts";
 import { resolveLocalScripture } from "../bible-library.ts";
 import { setCockpitRecommendationState, setServicePin } from "./recommendations.ts";
 
@@ -12,6 +14,7 @@ export const COCKPIT_INTENT_IDS = [
   "scripture.preview",
   "media.search",
   "media.open",
+  "visual.preview",
   "recommendation.pin",
   "recommendation.dismiss",
   "status.explain"
@@ -31,6 +34,7 @@ export type CockpitIntent =
   | (IntentBase & { id: "scripture.preview"; reference: string; version: string })
   | (IntentBase & { id: "media.search"; query: string })
   | (IntentBase & { id: "media.open"; itemId: string })
+  | (IntentBase & { id: "visual.preview"; query: string; sourceKind: "camera" | "display" | "window" | null })
   | (IntentBase & { id: "recommendation.pin"; targetType: string; targetId: string; title: string; pinned: boolean })
   | (IntentBase & { id: "recommendation.dismiss"; recommendationId: string })
   | (IntentBase & { id: "status.explain"; capability: "streaming" | "translations" | "edge" });
@@ -58,6 +62,7 @@ export class CockpitCommandError extends Error {
 
 const NAVIGATION_ALIASES: Record<string, string> = {
   archive: "/archive", media: "/media", library: "/media", cameras: "/cameras", camera: "/cameras",
+  "visual sources": "/cameras", screens: "/cameras", screen: "/cameras", windows: "/cameras", window: "/cameras",
   scripture: "/scripture", streaming: "/streaming", audience: "/audience", translations: "/translations",
   translation: "/translations", settings: "/settings", planner: "/planner", plan: "/planner", "ai director": "/ai-director"
 };
@@ -89,6 +94,17 @@ export function resolveCockpitCommand(text: string, context: CockpitCommandConte
       status: "ready",
       intent: { id: "scripture.preview", organizationId: context.organizationId, serviceId: context.serviceId, ...parsed },
       summary: `Prepare ${parsed.reference} (${parsed.version}) for Preview`, consequential: false
+    };
+  }
+  const visualPreviewMatch = command.match(/^preview\s+(camera|screen|display|window|source)\s+(.+)$/i);
+  if (visualPreviewMatch && context.serviceId) {
+    const kindToken = visualPreviewMatch[1].toLowerCase();
+    const sourceKind = kindToken === "camera" ? "camera" : kindToken === "screen" || kindToken === "display" ? "display" : kindToken === "window" ? "window" : null;
+    const query = visualPreviewMatch[2].trim();
+    if (query) return {
+      status: "ready",
+      intent: { id: "visual.preview", organizationId: context.organizationId, serviceId: context.serviceId, query, sourceKind },
+      summary: `Prepare ${query} in visual Preview`, consequential: false
     };
   }
   if (/^(find|search)\s+/i.test(command)) {
@@ -157,6 +173,47 @@ export async function executeCockpitIntent(client: PoolClient, actorUserId: stri
   if (intent.id === "media.open") {
     if (!context.capabilities.canMedia) throw new CockpitCommandError(403, "cockpit_command_forbidden", "Media is not available to this account");
     return { kind: "navigation", href: `/media?item=${encodeURIComponent(intent.itemId)}` };
+  }
+
+  if (intent.id === "visual.preview") {
+    if (!context.capabilities.canLiveControl || !context.capabilities.canCameras || !intent.serviceId) {
+      throw new CockpitCommandError(403, "cockpit_command_forbidden", "Live visual Preview control is not allowed for this account");
+    }
+    const listed = await listVisualSources(client, actorUserId, intent.organizationId, { now });
+    const needle = intent.query.trim().toLocaleLowerCase();
+    const eligible = listed.sources.filter((source) =>
+      Boolean(source.sourceKey && source.reportingDevice?.id)
+      && source.reportingDevice?.activeServiceId === intent.serviceId
+      && source.status === "available"
+      && (!intent.sourceKind || source.kind === intent.sourceKind)
+    );
+    const exact = eligible.filter((source) => [source.displayName, source.name].some((name) => name.toLocaleLowerCase() === needle));
+    const matches = exact.length ? exact : eligible.filter((source) => [source.displayName, source.name].some((name) => name.toLocaleLowerCase().includes(needle)));
+    if (!matches.length) throw new CockpitCommandError(404, "visual_source_not_found", "No available visual source matched that name for the active service");
+    if (matches.length > 1) throw new CockpitCommandError(409, "visual_source_ambiguous", "More than one visual source matched; use a more specific name");
+    const selected = matches[0];
+    const deviceId = selected.reportingDevice!.id;
+    const deviceResult = await client.query<{ status: string; active_service_id: string | null }>(
+      `select status,active_service_id::text from edge_devices where id=$1 and organization_id=$2 for update`,
+      [deviceId, intent.organizationId]
+    );
+    const device = deviceResult.rows[0];
+    if (!device || device.status !== "active") throw new CockpitCommandError(409, "visual_edge_unavailable", "The reporting Edge device is not active");
+    if (device.active_service_id !== intent.serviceId) throw new CockpitCommandError(409, "visual_service_changed", "The reporting Edge device is no longer assigned to the active service");
+    const sourceKey = selected.sourceKey!;
+    await requireVisualPreviewSourceForDevice(client, { organizationId: intent.organizationId, deviceId, sourceId: sourceKey });
+    const inserted = await client.query<{ id: string }>(
+      `insert into edge_control_commands(organization_id,edge_device_id,service_id,command_type,arguments,issued_by,expires_at)
+       values ($1,$2,$3,'visual.preview.select',$4::jsonb,$5,now()+interval '60 seconds')
+       returning id::text`,
+      [intent.organizationId, deviceId, intent.serviceId, JSON.stringify({ sourceId: sourceKey }), actorUserId]
+    );
+    await client.query(
+      `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
+       values ($1,'operator',$2,'edge.command.issued','edge_command',$3,$4::jsonb)`,
+      [intent.organizationId, actorUserId, inserted.rows[0].id, JSON.stringify({ deviceId, serviceId: intent.serviceId, type: "visual.preview.select", sourceId: selected.id, sourceKind: selected.kind })]
+    );
+    return { kind: "updated", message: `${selected.displayName} Preview requested · waiting for Edge confirmation` };
   }
 
   if (intent.id === "recommendation.pin") {

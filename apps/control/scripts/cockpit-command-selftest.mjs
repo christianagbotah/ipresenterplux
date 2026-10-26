@@ -24,6 +24,23 @@ const status = resolveCockpitCommand("What is wrong with streaming?", context);
 assert.equal(status.status, "ready");
 assert.equal(status.intent?.id, "status.explain");
 assert.equal(status.intent?.capability, "streaming");
+const visualNavigation = resolveCockpitCommand("Open visual sources", context);
+assert.equal(visualNavigation.status, "ready");
+assert.equal(visualNavigation.intent?.id, "navigation.open");
+assert.equal(visualNavigation.intent?.href, "/cameras");
+for (const alias of ["Open screens", "Open windows"]) {
+  const resolved = resolveCockpitCommand(alias, context);
+  assert.equal(resolved.status, "ready");
+  assert.equal(resolved.intent?.href, "/cameras");
+}
+const visualPreview = resolveCockpitCommand("Preview camera Pulpit Camera", context);
+assert.equal(visualPreview.status, "ready");
+assert.equal(visualPreview.intent?.id, "visual.preview");
+assert.equal(visualPreview.intent?.sourceKind, "camera");
+assert.equal(visualPreview.intent?.query, "Pulpit Camera");
+const visualLive = resolveCockpitCommand("Go live Pulpit Camera", context);
+assert.equal(visualLive.status, "needs_confirmation");
+assert.equal(visualLive.intent, null);
 const risky = resolveCockpitCommand("start YouTube", context);
 assert.equal(risky.status, "needs_confirmation");
 assert.equal(risky.intent, null, "unsupported live mutation must not be guessed into an executable intent");
@@ -58,7 +75,7 @@ assertWritableSelfTestDatabase(process.env.DATABASE_URL);
 const { Pool } = pg;
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const client = await pool.connect();
-const org=randomUUID(), campus=randomUUID(), operator=randomUUID(), viewer=randomUUID(), service=randomUUID(), plan=randomUUID(), subscription=randomUUID(), mediaItem=randomUUID();
+const org=randomUUID(), campus=randomUUID(), operator=randomUUID(), viewer=randomUUID(), service=randomUUID(), plan=randomUUID(), subscription=randomUUID(), mediaItem=randomUUID(), edge=randomUUID(), visual=randomUUID(), visual2=randomUUID();
 const now=new Date("2099-06-01T10:00:00.000Z");
 try {
   await client.query("begin");
@@ -70,6 +87,9 @@ try {
   await client.query(`insert into subscription_plans(id,code,name,enabled,billing_interval,default_device_seat_limit,features,numeric_limits) values ($1,$2,'Command Plan',true,'custom',3,$3::jsonb,'{}'::jsonb)`,[plan,`command-${plan}`,JSON.stringify({"core.presentation":true,"ai.director":true,"streaming.web":true,"streaming.social":true})]);
   await client.query(`insert into organization_subscriptions(id,organization_id,plan_id,status,starts_at,expires_at,grace_until) values ($1,$2,$3,'active','2098-01-01T00:00:00Z','2100-01-01T00:00:00Z','2100-01-08T00:00:00Z')`,[subscription,org,plan]);
   await client.query(`insert into media_library_items(id,organization_id,item_type,title,planner_input,created_by,updated_at) values ($1,$2,'song','Amazing Grace',$3::jsonb,$4,$5)`,[mediaItem,org,JSON.stringify({title:"Amazing Grace",sections:[{label:"Verse 1",text:"Amazing grace"}]}),operator,now]);
+
+  await client.query(`insert into edge_devices(id,organization_id,name,platform,status,last_seen_at,active_service_id) values ($1,$2,'Sanctuary PC','windows','active',$3,$4)`,[edge,org,now,service]);
+  await client.query(`insert into media_sources(id,organization_id,name,source_type,status,last_seen_at,edge_device_id,source_key,metadata,public_config) values ($1,$2,'Pulpit Camera','camera','ready',$3,$4,'camera:pulpit',$5::jsonb,'{}'::jsonb)`,[visual,org,now,edge,JSON.stringify({captureStatus:"ready",reportedName:"Pulpit Camera"})]);
 
   const runtimeContext={organizationId:org,serviceId:service,defaultBibleVersion:"WEBP"};
   const scriptureResolution=resolveCockpitCommand("Show John 3:16 WEBP",runtimeContext);
@@ -88,6 +108,22 @@ try {
   const searchResult=await executeCockpitIntent(client,operator,searchResolution.intent,{now});
   assert.equal(searchResult.kind,"media_search");
   assert.ok(searchResult.items.some((item)=>item.id===mediaItem));
+
+  const visualResolution=resolveCockpitCommand("Preview camera Pulpit Camera",runtimeContext);
+  assert.equal(visualResolution.status,"ready");
+  const visualResult=await executeCockpitIntent(client,operator,visualResolution.intent,{now});
+  assert.equal(visualResult.kind,"updated");
+  const visualCommand=await client.query(`select command_type,arguments,edge_device_id::text,service_id::text from edge_control_commands where service_id=$1 and command_type='visual.preview.select' order by issued_at desc,id desc limit 1`,[service]);
+  assert.equal(visualCommand.rows[0]?.command_type,"visual.preview.select");
+  assert.equal(visualCommand.rows[0]?.arguments?.sourceId,"camera:pulpit");
+  assert.equal(visualCommand.rows[0]?.edge_device_id,edge);
+  assert.equal(visualCommand.rows[0]?.service_id,service);
+  const visualProgramCommands=await client.query(`select count(*)::int as count from edge_control_commands where service_id=$1 and command_type like 'program.%'`,[service]);
+  assert.equal(visualProgramCommands.rows[0].count,0,"visual command must never enqueue Program mutation");
+
+  await client.query(`insert into media_sources(id,organization_id,name,source_type,status,last_seen_at,edge_device_id,source_key,metadata,public_config) values ($1,$2,'Pulpit Side','camera','ready',$3,$4,'camera:pulpit-side',$5::jsonb,'{}'::jsonb)`,[visual2,org,now,edge,JSON.stringify({captureStatus:"ready",reportedName:"Pulpit Side"})]);
+  const ambiguousVisual=resolveCockpitCommand("Preview camera Pulpit",runtimeContext);
+  await assert.rejects(()=>executeCockpitIntent(client,operator,ambiguousVisual.intent,{now}),(error)=>error instanceof CockpitCommandError && error.code==="visual_source_ambiguous","partial multi-match visual source names must be rejected instead of guessed");
 
   const archiveResolution=resolveCockpitCommand("Open archive",runtimeContext);
   const archiveResult=await executeCockpitIntent(client,operator,archiveResolution.intent,{now});

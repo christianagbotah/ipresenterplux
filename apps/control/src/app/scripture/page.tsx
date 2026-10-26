@@ -19,6 +19,16 @@ type ServiceRow = {
   title: string;
   status: string;
   active_bible_version: string;
+  scriptureAutomation: {
+    mode: "manual" | "auto_preview" | "auto_live";
+    armed: boolean;
+    armedAt: string | null;
+    armedBy: string | null;
+    referenceThreshold: number;
+    quoteThreshold: number;
+    organizationAutoLiveEnabled: boolean;
+    suspendedReason: string | null;
+  };
 };
 
 type DetectionRow = {
@@ -39,14 +49,15 @@ async function scripturePageData(userId: string) {
     organization_id: context.service.organizationId,
     title: context.service.title,
     status: context.service.status,
-    active_bible_version: context.service.activeBibleVersion
+    active_bible_version: context.service.activeBibleVersion,
+    scriptureAutomation: context.service.scriptureAutomation
   } : null;
   if (!context) {
     return {
       service: null,
       capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false },
       navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
-      versions: [], books: [], detections: [],
+      versions: [], books: [], detections: [], hasActiveEdge: false,
       libraryError: "No church organization is assigned to this account."
     };
   }
@@ -64,6 +75,13 @@ async function scripturePageData(userId: string) {
   } catch {
     libraryError = "The local Bible library could not be loaded. Check the Bible import before service use.";
   }
+
+  const activeEdge = service ? await query<{ count: number }>(
+    `select count(*)::int as count
+       from edge_devices
+      where organization_id=$1::uuid and active_service_id=$2::uuid and status='active'`,
+    [service.organization_id, service.id]
+  ) : { rows: [{ count: 0 }] };
 
   const detections = service ? await query<DetectionRow>(
     `select sd.id::text,sd.scripture_reference,sd.confidence::text,sd.state,sd.bible_version,
@@ -93,6 +111,7 @@ async function scripturePageData(userId: string) {
     versions,
     books,
     detections: detections.rows,
+    hasActiveEdge: Number(activeEdge.rows[0]?.count ?? 0) > 0,
     libraryError
   };
 }
@@ -152,7 +171,9 @@ export default async function ScripturePage() {
               id: service.id,
               title: service.title,
               status: service.status,
-              activeBibleVersion: service.active_bible_version
+              activeBibleVersion: service.active_bible_version,
+              scriptureAutomation: service.scriptureAutomation,
+              hasActiveEdge: data.hasActiveEdge
             } : null}
             canControl={capabilities.canLiveControl}
             versions={data.versions}

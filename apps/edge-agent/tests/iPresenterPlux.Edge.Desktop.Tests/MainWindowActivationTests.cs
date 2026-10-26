@@ -27,6 +27,27 @@ public sealed class MainWindowActivationTests
     }
 
     [Fact]
+    public void OfficialDesktopReleaseBundlesEntitlementVerificationKeys()
+    {
+        var catalog = FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "entitlement-public-keys.json");
+        var json = File.ReadAllText(catalog);
+        Assert.Contains("ipresenterplux-prod-", json, StringComparison.Ordinal);
+
+        var project = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "iPresenterPlux.Edge.Desktop.csproj"));
+        Assert.Contains("entitlement-public-keys.json", project, StringComparison.Ordinal);
+        Assert.Contains("CopyToOutputDirectory", project, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MainWindowStartsMaximizedAndKeepsLaptopFriendlyRestoreBounds()
+    {
+        var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+        Assert.Contains("WindowState = WindowState.Maximized", source, StringComparison.Ordinal);
+        Assert.Contains("MinWidth = 760", source, StringComparison.Ordinal);
+        Assert.Contains("MinHeight = 520", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DesktopSettingsNeverPersistProductKeysOrActivationTokens()
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "DesktopSettings.cs"));

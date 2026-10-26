@@ -18,5 +18,6 @@
 
   <ItemGroup>
     <Content Include="Assets/icon.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="entitlement-public-keys.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

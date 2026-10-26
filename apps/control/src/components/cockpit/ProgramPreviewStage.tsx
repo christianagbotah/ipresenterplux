@@ -1,10 +1,56 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, MonitorPlay, Radio, Square, ShieldAlert } from "lucide-react";
 import type { CockpitStageState, CockpitViewModel } from "@/lib/cockpit/contracts";
 import { hasBlockingModal } from "@/lib/cockpit/keyboard-safety";
+
+function StageFittedContent({ item, label }: { item: CockpitStageState; label: string }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const fitContent = useCallback(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    content.style.transform = "scale(1)";
+    const styles = window.getComputedStyle(viewport);
+    const horizontalPadding = Number.parseFloat(styles.paddingLeft) + Number.parseFloat(styles.paddingRight);
+    const verticalPadding = Number.parseFloat(styles.paddingTop) + Number.parseFloat(styles.paddingBottom);
+    const availableWidth = Math.max(1, viewport.clientWidth - horizontalPadding);
+    const availableHeight = Math.max(1, viewport.clientHeight - verticalPadding);
+    const contentWidth = Math.max(1, content.scrollWidth);
+    const contentHeight = Math.max(1, content.scrollHeight);
+    const scale = Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight);
+    content.style.transform = `scale(${scale})`;
+  }, []);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    if (!viewport || !content) return;
+
+    const frame = window.requestAnimationFrame(fitContent);
+    const observer = new ResizeObserver(fitContent);
+    observer.observe(viewport);
+    observer.observe(content);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [fitContent, item.body, item.contentType, item.detail, item.id, item.title]);
+
+  return <div ref={viewportRef} className="ip-stage-copy ip-preview-prep" aria-label={label}>
+    <div ref={contentRef} className="ip-stage-fit-content">
+      <div className="text-xs font-semibold uppercase tracking-[.16em] text-white/45">{item.contentType.replaceAll("_", " ")}</div>
+      <h2 className="ip-stage-title mt-2 font-bold tracking-tight text-white/95">{item.title}</h2>
+      {item.body ? <div className="ip-stage-body mt-3 whitespace-pre-wrap leading-relaxed text-white/85">{item.body}</div> : null}
+      {item.detail ? <div className="mt-3 text-xs text-white/50">{item.detail}</div> : null}
+    </div>
+  </div>;
+}
 
 function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "preview" | "program" }) {
   const program = kind === "program";
@@ -20,13 +66,8 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
         {program ? (live ? "ON AIR" : "Clear") : item ? "Ready to take" : "Not on air"}
       </span>
     </header>
-    <div className="ip-stage-canvas ip-grid flex w-full aspect-video items-center justify-center text-center">
-      {item ? <div className="ip-stage-copy ip-preview-prep ip-scrollbar-thin max-h-full w-full overflow-y-auto p-5" tabIndex={0} aria-label={`${program ? "Program" : "Preview"} content`}>
-        <div className="text-xs font-semibold uppercase tracking-[.16em] text-white/45">{item.contentType.replaceAll("_", " ")}</div>
-        <h2 className="ip-stage-title mt-2 font-bold tracking-tight text-white/95">{item.title}</h2>
-        {item.body ? <div className="ip-stage-body mt-3 whitespace-pre-wrap leading-relaxed text-white/85">{item.body}</div> : null}
-        {item.detail ? <div className="mt-3 text-xs text-white/50">{item.detail}</div> : null}
-      </div> : <div className="px-4">
+    <div className="ip-stage-canvas ip-grid flex w-full aspect-video items-center justify-center overflow-hidden text-center">
+      {item ? <StageFittedContent item={item} label={`${program ? "Program" : "Preview"} content`} /> : <div className="px-4">
         <span className={`mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl border ${program ? "border-white/10 bg-white/[.025] text-white/30" : "border-[#d7a94a]/15 bg-[#d7a94a]/[.04] text-[#efc86f]/60"}`}><Icon size={23} aria-hidden="true" /></span>
         <div className="text-sm font-semibold text-white/65">{program ? "Program clear" : "Preview empty"}</div>
       </div>}
@@ -37,15 +78,15 @@ function StageSurface({ item, kind }: { item: CockpitStageState | null; kind: "p
   </section>;
 }
 
-export function ProgramPreviewStage({ model }: { model: CockpitViewModel }) {
+export function ProgramPreviewStage({ model, showControls = true }: { model: CockpitViewModel; showControls?: boolean }) {
   const router = useRouter();
   const guidanceId = useId();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const preview = model.preview;
   const program = model.program;
-  const canTake = Boolean(model.capabilities.canLiveControl && preview?.source === "scripture_detection");
-  const canClear = Boolean(model.capabilities.canLiveControl && program?.source === "scripture_detection");
+  const canTake = Boolean(showControls && model.capabilities.canLiveControl && preview?.source === "scripture_detection");
+  const canClear = Boolean(showControls && model.capabilities.canLiveControl && program?.source === "scripture_detection");
 
   const mutateScripture = useCallback((id: string, state: "live" | "detected", label: string) => {
     setFeedback(null);
@@ -82,16 +123,18 @@ export function ProgramPreviewStage({ model }: { model: CockpitViewModel }) {
       <StageSurface item={preview} kind="preview" />
       <StageSurface item={program} kind="program" />
     </div>
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[.08] bg-[#101620] p-3 sm:p-4">
-      <div className="min-w-0 flex-1 basis-48">
-        <div className="flex items-center gap-2 text-sm font-semibold text-white/90"><ArrowRight size={15} className="shrink-0 text-[#efc86f]" aria-hidden="true" /><span className="truncate">{preview ? preview.title : "Prepare your next moment"}</span></div>
-        <p id={guidanceId} className="mt-1 text-xs leading-5 text-white/60">{pending ? "Updating Program…" : takeHint}</p>
+    {showControls ? <>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/[.08] bg-[#101620] p-3 sm:p-4">
+        <div className="min-w-0 flex-1 basis-48">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white/90"><ArrowRight size={15} className="shrink-0 text-[#efc86f]" aria-hidden="true" /><span className="truncate">{preview ? preview.title : "Prepare your next moment"}</span></div>
+          <p id={guidanceId} className="mt-1 text-xs leading-5 text-white/60">{pending ? "Updating Program…" : takeHint}</p>
+        </div>
+        <button type="button" disabled={!canTake || pending} aria-describedby={guidanceId} onClick={() => preview && mutateScripture(preview.id, "live", "Program updated")} className="min-h-14 flex-1 rounded-xl bg-[#d7a94a] px-6 py-2 text-[#171107] shadow-[0_6px_24px_rgba(215,169,74,.14)] transition hover:bg-[#ebc76d] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"><span className="flex items-center justify-center gap-2 text-sm font-black tracking-wide"><Radio size={17} aria-hidden="true"/>TAKE PREVIEW LIVE</span></button>
+        <button type="button" disabled={!canClear || pending} onClick={() => program && mutateScripture(program.id, "detected", "Program cleared")} className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[.025] px-4 text-sm font-semibold text-white/75 transition hover:border-red-400/30 hover:bg-red-400/[.08] hover:text-red-100 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"><span className="inline-flex items-center gap-2"><Square size={14} aria-hidden="true"/>CLEAR LIVE</span></button>
       </div>
-      <button type="button" disabled={!canTake || pending} aria-describedby={guidanceId} onClick={() => preview && mutateScripture(preview.id, "live", "Program updated")} className="min-h-14 flex-1 rounded-xl bg-[#d7a94a] px-6 py-2 text-[#171107] shadow-[0_6px_24px_rgba(215,169,74,.14)] transition hover:bg-[#ebc76d] ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"><span className="flex items-center justify-center gap-2 text-sm font-black tracking-wide"><Radio size={17} aria-hidden="true"/>TAKE PREVIEW LIVE</span></button>
-      <button type="button" disabled={!canClear || pending} onClick={() => program && mutateScripture(program.id, "detected", "Program cleared")} className="min-h-12 flex-1 rounded-xl border border-white/10 bg-white/[.025] px-4 text-sm font-semibold text-white/75 transition hover:border-red-400/30 hover:bg-red-400/[.08] hover:text-red-100 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35 sm:flex-none"><span className="inline-flex items-center gap-2"><Square size={14} aria-hidden="true"/>CLEAR LIVE</span></button>
-    </div>
-    <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs leading-5 text-white/45"><span className="flex items-center gap-1.5"><Eye size={13} aria-hidden="true"/> Preview first. You decide what goes live.</span><span>Take: Ctrl/⌘ + Enter · Clear: Ctrl/⌘ + Backspace</span></div>
-    {(!model.capabilities.canLiveControl) ? <div className="flex items-center gap-2 rounded-xl border border-amber-400/15 bg-amber-400/[.06] px-3 py-2 text-xs text-amber-100"><ShieldAlert size={14}/> View only · live controls are available to your service operators.</div> : null}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs leading-5 text-white/45"><span className="flex items-center gap-1.5"><Eye size={13} aria-hidden="true"/> Preview first. You decide what goes live.</span><span>Take: Ctrl/⌘ + Enter · Clear: Ctrl/⌘ + Backspace</span></div>
+      {(!model.capabilities.canLiveControl) ? <div className="flex items-center gap-2 rounded-xl border border-amber-400/15 bg-amber-400/[.06] px-3 py-2 text-xs text-amber-100"><ShieldAlert size={14}/> View only · live controls are available to your service operators.</div> : null}
+    </> : null}
     {feedback ? <div role="status" aria-live="polite" className="rounded-xl border border-white/[.08] bg-white/[.025] px-3 py-2 text-xs text-white/55">{feedback}</div> : null}
   </div>;
 }

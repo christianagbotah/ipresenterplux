@@ -12,6 +12,7 @@ for (const script of [
   "test:service-stream-lifecycle",
   "test:audience-studio",
   "test:audience-live-state",
+  "test:audience-program-video-state",
   "test:streaming-studio-recovery"
 ]) {
   assert.match(workflow, new RegExp(`pnpm ${script.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`, "u"), `Control Portal CI must run ${script}`);

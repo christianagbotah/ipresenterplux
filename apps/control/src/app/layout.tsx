@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WorkspaceBackButton } from "@/components/navigation/WorkspaceBackButton";
 
 export const metadata: Metadata = {
   title: "iPresenterPlux",
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: reduceMotionBootstrap }} />
       </head>
-      <body>{children}</body>
+      <body><WorkspaceBackButton />{children}</body>
     </html>
   );
 }

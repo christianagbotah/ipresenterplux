@@ -13,7 +13,10 @@ export const EDGE_COMMAND_TYPES = [
   "stream.stop",
   "scene.select",
   "language-channel.set",
-  "health.query"
+  "health.query",
+  "visual.rescan",
+  "visual.preview.select",
+  "visual.preview.clear"
 ] as const;
 
 export type EdgeCommandType = (typeof EDGE_COMMAND_TYPES)[number];

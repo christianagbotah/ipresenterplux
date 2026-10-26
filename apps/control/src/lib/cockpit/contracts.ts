@@ -1,4 +1,5 @@
 import type { CurrentServiceCapabilities } from "../current-service.ts";
+import type { VisualCaptureStatus, VisualSourceKind } from "../visual-source-metadata.ts";
 
 export type CockpitFreshness = "current" | "stale" | "unavailable";
 export type CockpitStageSource = "presentation_item" | "scripture_detection";
@@ -71,7 +72,19 @@ export type CockpitViewModel = {
     campusName: string | null;
     activeBibleVersion: string;
     aiEnabled: boolean;
+    activeThemeId: string | null;
+    activeThemeName: string | null;
     autoPreviewThreshold: number;
+    scriptureAutomation: {
+      mode: "manual" | "auto_preview" | "auto_live";
+      armed: boolean;
+      armedAt: string | null;
+      armedBy: string | null;
+      referenceThreshold: number;
+      quoteThreshold: number;
+      organizationAutoLiveEnabled: boolean;
+      suspendedReason: string | null;
+    };
   };
   capabilities: CurrentServiceCapabilities;
   program: CockpitProgramState | null;
@@ -82,6 +95,12 @@ export type CockpitViewModel = {
   systems: {
     edge: CockpitSystemFreshness & { id: string | null; name: string | null; status: string | null };
     camera: CockpitSystemFreshness & { count: number; activeName: string | null };
+    visualProgram: CockpitSystemFreshness & {
+      id: string | null;
+      name: string | null;
+      kind: VisualSourceKind | null;
+      captureStatus: VisualCaptureStatus | null;
+    };
     audio: CockpitSystemFreshness & { count: number; activeName: string | null };
     outputs: { total: number; enabled: number; healthy: number; degraded: number };
     languages: { enabled: number; listeners: number };

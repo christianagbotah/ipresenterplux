@@ -8,6 +8,7 @@ type ServiceEdgeCommand = {
   type: EdgeCommandType;
   arguments?: Record<string, string>;
   issuedBy: string;
+  actorType?: "operator" | "automation";
   source: string;
   ttlSeconds?: number;
 };
@@ -39,11 +40,11 @@ export async function enqueueServiceEdgeCommand(client: PoolClient, command: Ser
   if (ids.length) {
     await client.query(
       `insert into audit_events(organization_id,actor_type,actor_id,action,entity_type,entity_id,details)
-       select c.organization_id,'operator',$2,'edge.command.issued','edge_command',c.id::text,
+       select c.organization_id,$4,$2,'edge.command.issued','edge_command',c.id::text,
               jsonb_build_object('deviceId',c.edge_device_id,'serviceId',c.service_id,'type',c.command_type,'source',$3::text)
        from edge_control_commands c
        where c.id=any($1::uuid[])`,
-      [ids, command.issuedBy, command.source]
+      [ids, command.issuedBy, command.source, command.actorType ?? "operator"]
     );
   }
 

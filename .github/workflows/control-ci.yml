@@ -97,6 +97,20 @@ jobs:
         run: pnpm test:db-selftest-safety
       - name: Subscription entitlement schema self-test
         run: pnpm test:subscription-schema
+      - name: Scripture automation schema self-test
+        run: pnpm test:scripture-automation-schema
+      - name: Presentation theme schema self-test
+        run: pnpm test:presentation-theme
+      - name: Theme Studio UI self-test
+        run: pnpm test:theme-studio-ui
+      - name: Theme Studio acceptance self-test
+        run: pnpm test:theme-studio-acceptance
+      - name: Theme Studio field-UAT release-gate self-test
+        run: pnpm test:theme-studio-field-uat-gate
+      - name: Scripture automation policy self-test
+        run: pnpm test:scripture-automation-policy
+      - name: Scripture automation API self-test
+        run: pnpm test:scripture-automation-api
       - name: Secure product-key self-test
         run: pnpm test:product-key
       - name: Signed entitlement envelope self-test
@@ -107,6 +121,8 @@ jobs:
         run: pnpm test:edge-reprovision
       - name: Licensing administration self-test
         run: pnpm test:licensing-admin
+      - name: Licensing administration UI self-test
+        run: pnpm test:licensing-admin-ui
       - name: Entitlement operation gating self-test
         run: pnpm test:entitlement-gating
       - name: Licensing release-security self-test
@@ -120,12 +136,22 @@ jobs:
         run: pnpm test:scripture
       - name: Studio navigation route self-test
         run: pnpm test:studio-navigation
+      - name: Navigation route resilience self-test
+        run: pnpm test:navigation-route-resilience
       - name: Local Bible library self-test
         run: pnpm test:bible-library
       - name: Manual Scripture selection self-test
         run: pnpm test:manual-scripture
+      - name: Scripture state authority self-test
+        run: pnpm test:scripture-state-authority
       - name: Scripture workspace UI self-test
         run: pnpm test:scripture-workspace-ui
+      - name: Scripture Auto Live UI self-test
+        run: pnpm test:scripture-auto-live-ui
+      - name: Scripture Auto Live acceptance self-test
+        run: pnpm test:scripture-auto-live-acceptance
+      - name: Scripture Auto Live field-UAT release-gate self-test
+        run: pnpm test:scripture-auto-live-field-uat-gate
       - name: Whole-chapter Scripture rendering self-test
         run: pnpm test:scripture-whole-chapter
       - name: Edge operator catalog self-test
@@ -144,6 +170,8 @@ jobs:
         run: pnpm test:audience-studio
       - name: Public audience live-state self-test
         run: pnpm test:audience-live-state
+      - name: Public audience Program video-state self-test
+        run: pnpm test:audience-program-video-state
       - name: Streaming Studio recovery self-test
         run: pnpm test:streaming-studio-recovery
       - name: Destination fan-out lifecycle self-test
@@ -164,6 +192,10 @@ jobs:
         run: pnpm test:cockpit-predictive-next
       - name: Cockpit typed command self-test
         run: pnpm test:cockpit-command
+      - name: Cockpit universal search self-test
+        run: pnpm test:cockpit-universal-search
+      - name: Cockpit universal command surface self-test
+        run: pnpm test:cockpit-command-surface
       - name: Cockpit smart attention self-test
         run: pnpm test:cockpit-attention
       - name: Predictive Next recommendation persistence self-test
@@ -182,6 +214,8 @@ jobs:
         run: pnpm test:cockpit-field-uat
       - name: Cockpit role projection self-test
         run: pnpm test:cockpit-role-projection
+      - name: Live Assist mobile self-test
+        run: pnpm test:live-assist-mobile
       - name: Intelligent Cockpit acceptance self-test
         run: pnpm test:cockpit-acceptance
       - name: Portable import parser and migration self-test
@@ -198,6 +232,14 @@ jobs:
         run: pnpm test:media-workspace
       - name: Cameras workspace self-test
         run: pnpm test:camera-workspace
+      - name: Visual Sources workspace self-test
+        run: pnpm test:visual-source-workspace
+      - name: Visual source stable identity self-test
+        run: pnpm test:visual-source-identity
+      - name: Visual source telemetry sanitization self-test
+        run: pnpm test:visual-source-telemetry
+      - name: Visual Edge command authorization self-test
+        run: pnpm test:visual-edge-command
       - name: PostgreSQL client query serialization self-test
         run: pnpm test:pg-client-serialization
       - name: AI Director workspace self-test

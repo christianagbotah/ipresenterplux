@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { THEME_STUDIO_REQUIRED_UAT_CATEGORIES, evaluateThemeStudioFieldUat } from "../src/lib/theme-studio-field-uat.ts";
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const cliPath = path.join(scriptDir, "theme-studio-field-uat-gate.mjs");
+assert.ok(existsSync(cliPath));
+const hardware = { platform: "windows", edgeVersion: "uat", projector: "Sanctuary HDMI", resolution: "1920x1080" };
+const passCases = THEME_STUDIO_REQUIRED_UAT_CATEGORIES.map((category) => ({ id: category, category, status: "pass", readable: true, programMutationObserved: false, notes: "verified" }));
+const good = evaluateThemeStudioFieldUat({ hardware, cases: passCases });
+assert.equal(good.releaseReady, true);
+assert.equal(good.unsafeProgramMutations, 0);
+assert.deepEqual(good.missingCategories, []);
+const unsafe = evaluateThemeStudioFieldUat({ hardware, cases: passCases.map((row) => row.category === "theme_switch_no_take" ? { ...row, programMutationObserved: true } : row) });
+assert.equal(unsafe.releaseReady, false);
+assert.ok(unsafe.blockers.includes("unsafe_program_mutation"));
+const unreadable = evaluateThemeStudioFieldUat({ hardware, cases: passCases.map((row) => row.category === "scripture_long" ? { ...row, readable: false, status: "fail" } : row) });
+assert.equal(unreadable.releaseReady, false);
+assert.ok(unreadable.blockers.includes("unreadable_output"));
+const temp = mkdtempSync(path.join(tmpdir(), "ipresenterplux-theme-uat-"));
+const templatePath = path.join(temp, "template.json");
+const init = spawnSync(process.execPath, [cliPath, "--init", templatePath], { encoding: "utf8" });
+assert.equal(init.status, 0, init.stderr || init.stdout);
+const template = JSON.parse(await readFile(templatePath, "utf8"));
+assert.equal(template.cases.length, THEME_STUDIO_REQUIRED_UAT_CATEGORIES.length);
+assert.equal(evaluateThemeStudioFieldUat(template).releaseReady, false);
+const goodPath = path.join(temp, "good.json");
+writeFileSync(goodPath, JSON.stringify({ hardware, cases: passCases }));
+const cli = spawnSync(process.execPath, [cliPath, goodPath], { encoding: "utf8" });
+assert.equal(cli.status, 0, cli.stderr || cli.stdout);
+assert.equal(JSON.parse(cli.stdout).releaseReady, true);
+console.log(JSON.stringify({ ok: true, releaseGate: true, platform: "windows", requiredCategories: THEME_STUDIO_REQUIRED_UAT_CATEGORIES }));

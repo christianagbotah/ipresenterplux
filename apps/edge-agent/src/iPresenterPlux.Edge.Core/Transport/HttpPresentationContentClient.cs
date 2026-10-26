@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using iPresenterPlux.Edge.Core.Abstractions;
 using iPresenterPlux.Edge.Core.Contracts;
+using iPresenterPlux.Edge.Core.Runtime;
 
 namespace iPresenterPlux.Edge.Core.Transport;
 
@@ -10,12 +11,14 @@ public sealed class HttpPresentationContentClient(
     HttpClient httpClient,
     AgentIdentity identity,
     IDeviceCredentialStore credentialStore,
-    TimeProvider? clock = null) : IPresentationContentProvider
+    TimeProvider? clock = null,
+    PresentationThemeAssetCache? themeAssetCache = null) : IPresentationContentProvider
 {
     private readonly HttpClient _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
     private readonly AgentIdentity _identity = identity ?? throw new ArgumentNullException(nameof(identity));
     private readonly IDeviceCredentialStore _credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
+    private readonly PresentationThemeAssetCache _themeAssetCache = themeAssetCache ?? new PresentationThemeAssetCache(httpClient);
 
     public async Task<PresentationRenderItem> GetAsync(string itemId, CancellationToken cancellationToken)
     {
@@ -33,6 +36,9 @@ public sealed class HttpPresentationContentClient(
         if (!string.Equals(payload.Item.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("The presentation item identity did not match the request.");
 
+        var metadata = payload.Item.Metadata ?? new Dictionary<string, string>();
+        await _themeAssetCache.HydrateAsync(metadata, cancellationToken).ConfigureAwait(false);
+
         return new PresentationRenderItem(
             payload.Item.ItemId,
             serviceId,
@@ -40,7 +46,7 @@ public sealed class HttpPresentationContentClient(
             payload.Item.Title,
             payload.Item.Body,
             payload.Item.Footer,
-            payload.Item.Metadata ?? new Dictionary<string, string>());
+            metadata);
     }
 
     private async Task<DeviceCredential> ReadUsableCredentialAsync(CancellationToken cancellationToken)

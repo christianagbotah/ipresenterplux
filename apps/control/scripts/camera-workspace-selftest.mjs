@@ -11,10 +11,10 @@ assert.equal(typeof cameras.setCameraPreference, "function");
 assert.equal(typeof cameras.clearCameraPreference, "function");
 
 const pageSource = await readFile(new URL("../src/app/cameras/page.tsx", import.meta.url), "utf8");
-assert.match(pageSource, /CameraWorkspace/);
+assert.match(pageSource, /VisualSourcesWorkspace/);
 assert.doesNotMatch(pageSource, /StudioReadinessPage/);
-const workspaceSource = await readFile(new URL("../src/components/cameras/CameraWorkspace.tsx", import.meta.url), "utf8");
-for (const copy of ["Edge camera sources", "Preferred source", "Permission required", "Manage Edge Devices"]) {
+const workspaceSource = await readFile(new URL("../src/components/cameras/VisualSourcesWorkspace.tsx", import.meta.url), "utf8");
+for (const copy of ["Visual Sources", "Preferred source", "Permission required", "Manage Edge Devices"]) {
   assert.ok(workspaceSource.includes(copy), `Camera workspace must surface '${copy}'`);
 }
 assert.doesNotMatch(workspaceSource, /getUserMedia|mediaDevices/, "browser capture must not be claimed by Camera workspace");
