@@ -132,11 +132,11 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
   if (!selected) return <div className="rounded-2xl border border-amber-400/20 bg-amber-400/[.06] p-6 text-sm text-amber-100">No presentation themes are available for this organization.</div>;
 
   return <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-    <aside className="self-start rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 xl:sticky xl:top-[92px] xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto ip-scrollbar-thin">
+    <aside className="self-start rounded-2xl border border-white/[.08] bg-[#090e15] p-4 xl:sticky xl:top-[92px] xl:max-h-[calc(100dvh-7rem)] xl:overflow-y-auto ip-scrollbar-thin">
       <div className="flex items-center gap-2 text-[#e5b95e]"><Palette size={16}/><span className="text-xs font-black uppercase tracking-[.14em]">Theme library</span></div>
       <p className="mt-2 text-xs leading-5 text-white/45">Built-ins are protected. Edit one locally, then Save as custom to make a church-owned copy.</p>
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1 xl:block xl:space-y-2 xl:overflow-x-visible xl:pb-0 ip-scrollbar-thin" aria-label="Theme library choices">
-        {orderedThemes.map((theme)=><button key={theme.id} type="button" onClick={()=>choose(theme)} className={`ip-focus-gold min-h-11 w-[190px] shrink-0 rounded-xl border px-3 py-2 text-left transition xl:w-full ${theme.id===selectedId?"border-[#d7a94a]/35 bg-[#d7a94a]/[.08]":"border-white/[.06] bg-white/[.02] hover:bg-white/[.045]"}`}>
+        {orderedThemes.map((theme)=><button key={theme.id} type="button" onClick={()=>choose(theme)} className={`ip-focus-gold min-h-11 w-[190px] shrink-0 rounded-xl border px-3 py-2 text-left transition xl:w-full ${theme.id===selectedId?"border-[#e3b75c]/35 bg-[#e3b75c]/[.08]":"border-white/[.06] bg-white/[.02] hover:bg-white/[.045]"}`}>
           <span className="flex items-center justify-between gap-2"><span className="truncate text-xs font-black text-white/80">{theme.name}</span>{theme.id===activeThemeId?<span className="shrink-0 rounded-full bg-emerald-400/10 px-2 py-0.5 text-xs font-black text-emerald-200">ACTIVE</span>:null}</span>
           <span className="mt-1 block text-xs uppercase tracking-[.1em] text-white/35">{theme.isBuiltin?"Built-in":"Church theme"}</span>
         </button>)}
@@ -144,12 +144,12 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
     </aside>
 
     <div className="space-y-4">
-      <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4 sm:p-5">
+      <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><div className="flex items-center gap-2 text-[#e5b95e]"><Sparkles size={15}/><span className="text-xs font-black uppercase tracking-[.14em]">Local preview</span></div><h1 className="mt-2 text-xl font-black">{selected.name}</h1><p className="mt-1 text-xs text-white/45">Draft changes stay here until you explicitly Save. Apply changes only the service theme selection—not Program content/state.</p></div>
           {dirty?<span className="rounded-full border border-amber-400/20 bg-amber-400/[.07] px-3 py-1.5 text-xs font-black uppercase tracking-[.1em] text-amber-100">Unsaved draft</span>:null}
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">{fixtureOptions.map((item)=><button key={item} type="button" onClick={()=>setFixture(item)} className={`ip-focus-gold min-h-11 rounded-xl border px-3 text-xs font-bold ${fixture===item?"border-[#d7a94a]/35 bg-[#d7a94a]/[.08] text-[#efc86f]":"border-white/[.07] bg-white/[.02] text-white/55"}`}>{item}</button>)}</div>
+        <div className="mt-4 flex flex-wrap gap-2">{fixtureOptions.map((item)=><button key={item} type="button" onClick={()=>setFixture(item)} className={`ip-focus-gold min-h-11 rounded-xl border px-3 text-xs font-bold ${fixture===item?"border-[#e3b75c]/35 bg-[#e3b75c]/[.08] text-[#f0ca80]":"border-white/[.07] bg-white/[.02] text-white/55"}`}>{item}</button>)}</div>
         <div className="mt-4"><ThemePreview appearance={previewAppearance} fixture={fixture}/></div>
       </section>
 
@@ -207,14 +207,14 @@ export function ThemeStudio({ organizationId, initialThemes, imageAssets, servic
 
       <section className="sticky bottom-3 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[.09] bg-[#090d14]/95 p-3 shadow-2xl backdrop-blur-xl">
         <button type="button" onClick={resetDraft} disabled={!dirty||busy!==null} className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl border border-white/[.09] px-4 text-xs font-black text-white/60 disabled:opacity-35"><RotateCcw size={14}/>Reset draft</button>
-        {canEdit?<button type="button" onClick={()=>void saveTheme()} disabled={!dirty||busy!==null} className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-4 text-xs font-black text-[#efc86f] disabled:opacity-35">{busy==="save"?<Loader2 size={14} className="animate-spin"/>:selected.isBuiltin?<Copy size={14}/>:<Save size={14}/>} {selected.isBuiltin?"Save as custom":"Save theme"}</button>:null}
-        {service&&canAssign?<button type="button" onClick={()=>void applyTheme()} disabled={dirty||busy!==null||activeThemeId===selected.id} title={dirty?"Save or reset the draft before applying":"Apply persisted theme to the service"} className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#17120a] disabled:opacity-35">{busy==="apply"?<Loader2 size={14} className="animate-spin"/>:<Check size={14}/>} Apply to service</button>:null}
+        {canEdit?<button type="button" onClick={()=>void saveTheme()} disabled={!dirty||busy!==null} className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-4 text-xs font-black text-[#f0ca80] disabled:opacity-35">{busy==="save"?<Loader2 size={14} className="animate-spin"/>:selected.isBuiltin?<Copy size={14}/>:<Save size={14}/>} {selected.isBuiltin?"Save as custom":"Save theme"}</button>:null}
+        {service&&canAssign?<button type="button" onClick={()=>void applyTheme()} disabled={dirty||busy!==null||activeThemeId===selected.id} title={dirty?"Save or reset the draft before applying":"Apply persisted theme to the service"} className="ip-focus-gold flex min-h-11 items-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#17120a] disabled:opacity-35">{busy==="apply"?<Loader2 size={14} className="animate-spin"/>:<Check size={14}/>} Apply to service</button>:null}
         <div className="min-w-0 flex-1 text-xs text-white/50" aria-live="polite">{message ?? (dirty?"Previewing unsaved local changes. Live output is unchanged.":service?`Service: ${service.title}`:"No ready/live service selected.")}</div>
       </section>
     </div>
   </div>;
 }
 
-function EditorSection({ title,children }:{title:string;children:React.ReactNode}) { return <section className="rounded-2xl border border-white/[.08] bg-[#0b0f16] p-4"><h2 className="text-sm font-black">{title}</h2><div className="mt-3 space-y-3">{children}</div></section>; }
+function EditorSection({ title,children }:{title:string;children:React.ReactNode}) { return <section className="rounded-2xl border border-white/[.08] bg-[#090e15] p-4"><h2 className="text-sm font-black">{title}</h2><div className="mt-3 space-y-3">{children}</div></section>; }
 function Field({ label,children }:{label:string;children:React.ReactNode}) { return <label className="block space-y-1.5"><span className="text-xs font-bold uppercase tracking-[.12em] text-white/45">{label}</span>{children}</label>; }
 function Range({ label,value,min,max,step,disabled,onChange }:{label:string;value:number;min:number;max:number;step:number;disabled:boolean;onChange:(value:number)=>void}) { return <label className="block space-y-1.5"><span className="flex justify-between text-xs font-bold uppercase tracking-[.12em] text-white/45"><span>{label}</span><span>{value}</span></span><input type="range" min={min} max={max} step={step} value={value} disabled={disabled} onChange={(e)=>onChange(Number(e.target.value))} className="min-h-11 w-full"/></label>; }

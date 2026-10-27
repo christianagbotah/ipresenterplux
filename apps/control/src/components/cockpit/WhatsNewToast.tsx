@@ -53,10 +53,10 @@ export function WhatsNewToast() {
     <div
       role="status"
       aria-live="polite"
-      className="ip-ai-arrive fixed bottom-3 left-3 z-[60] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-2xl border border-[#d7a94a]/25 bg-[#0c1017]/97 shadow-[0_20px_60px_rgba(0,0,0,.5)] backdrop-blur-xl sm:w-96"
+      className="ip-ai-arrive fixed bottom-3 left-3 z-[60] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-2xl border border-[#e3b75c]/25 bg-[#0c121b]/97 shadow-[0_20px_60px_rgba(0,0,0,.5)] backdrop-blur-xl sm:w-96"
     >
       <div className="flex items-start gap-3 border-b border-white/[.07] px-4 py-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#d7a94a]/10 text-[#efc86f]">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#e3b75c]/10 text-[#f0ca80]">
           <Sparkles size={16} />
         </div>
         <div className="min-w-0 flex-1">
@@ -74,7 +74,7 @@ export function WhatsNewToast() {
       </div>
       <div className="space-y-2 px-4 py-3">
         <p className="text-xs leading-5 text-white/60">
-          The cockpit now has a full keyboard shortcut suite. Press <kbd className="rounded border border-white/10 bg-white/[.04] px-1 font-mono text-[10px] text-white/70">?</kbd> anytime to see them all:
+          The cockpit now has a full keyboard shortcut suite. Press <kbd className="rounded border border-white/10 bg-white/[.04] px-1 font-mono text-[11px] text-white/70">?</kbd> anytime to see them all:
         </p>
         <dl className="space-y-1 text-[11px]">
           <div className="flex items-center justify-between gap-2">
@@ -103,7 +103,7 @@ export function WhatsNewToast() {
         <button
           type="button"
           onClick={dismiss}
-          className="ip-focus-gold w-full rounded-lg bg-[#d7a94a] px-3 py-2 text-xs font-bold text-[#171107] transition hover:brightness-110"
+          className="ip-focus-gold w-full rounded-lg bg-[#e3b75c] px-3 py-2 text-xs font-bold text-[#171107] transition hover:brightness-110"
         >
           Got it
         </button>

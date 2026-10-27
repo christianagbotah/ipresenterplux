@@ -412,16 +412,16 @@ export function ServicePlannerWorkspace({ initialDetail, initialPreparation, bib
 
       <div className="mb-3 grid grid-cols-3 gap-2 lg:hidden">
         {(["Rundown", "Editor", "Preview"] as const).map((pane) => (
-          <button key={pane} type="button" onClick={() => setActivePane(pane)} className={"min-h-11 rounded-xl border px-3 text-sm font-bold transition ip-focus-gold " + (activePane === pane ? "border-[#d7a94a]/35 bg-[#d7a94a]/10 text-[#f2c765]" : "border-white/[.07] bg-white/[.025] text-white/55 hover:bg-white/[.05] hover:text-white/85")}>{pane}</button>
+          <button key={pane} type="button" onClick={() => setActivePane(pane)} className={"min-h-11 rounded-xl border px-3 text-sm font-bold transition ip-focus-gold " + (activePane === pane ? "border-[#e3b75c]/35 bg-[#e3b75c]/10 text-[#f4cf85]" : "border-white/[.07] bg-white/[.025] text-white/55 hover:bg-white/[.05] hover:text-white/85")}>{pane}</button>
         ))}
       </div>
 
       <div className="grid min-w-0 gap-3 lg:min-h-[650px] lg:grid-cols-[minmax(230px,0.8fr)_minmax(360px,1.35fr)_minmax(300px,1fr)]">
-        <section className={(activePane === "Rundown" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017] lg:block lg:min-h-0"}>
+        <section className={(activePane === "Rundown" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c121b] lg:block lg:min-h-0"}>
           <RundownList items={items} selectedId={selectedId} canEdit={canMutate} busy={Boolean(busy)} onSelect={selectItem} onAdd={beginCreate} onReorder={reorderCues} />
         </section>
 
-        <section className={(activePane === "Editor" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017] lg:block lg:min-h-0"}>
+        <section className={(activePane === "Editor" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c121b] lg:block lg:min-h-0"}>
           <div className="flex flex-col gap-3 border-b border-white/[.07] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div className="min-w-0">
               <div className="text-sm font-black text-white/90">{creating ? "New cue" : selectedItem?.title || "Cue editor"}</div>
@@ -429,7 +429,7 @@ export function ServicePlannerWorkspace({ initialDetail, initialPreparation, bib
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={previewCue} disabled={Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/75 transition hover:bg-white/[.05] ip-focus-gold disabled:opacity-35">{busy === "preview" ? <Loader2 size={14} className="animate-spin" /> : <Eye size={14} />}Preview</button>
-              <button type="button" onClick={saveCue} disabled={!canMutate || Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#d7a94a] px-3.5 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35">{busy === "save" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{creating ? "Add cue" : "Save"}</button>
+              <button type="button" onClick={saveCue} disabled={!canMutate || Boolean(busy)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#e3b75c] px-3.5 text-xs font-extrabold text-[#161109] transition hover:brightness-110 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35">{busy === "save" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}{creating ? "Add cue" : "Save"}</button>
               {selectedItem && !creating ? <button type="button" onClick={duplicateCue} disabled={!canMutate || Boolean(busy)} title="Duplicate cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[.09] px-3 text-xs font-bold text-white/65 transition hover:bg-white/[.05] hover:text-white ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"><Copy size={14} />Duplicate</button> : null}
               {selectedItem && !creating ? <button type="button" onClick={deleteCue} disabled={!canMutate || Boolean(busy)} title="Delete cue" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-400/25 px-3 text-xs font-bold text-red-200/80 transition hover:bg-red-400/[.1] hover:text-red-100 ip-focus-gold disabled:cursor-not-allowed disabled:opacity-35"><Trash2 size={14} />Delete</button> : null}
             </div>
@@ -447,7 +447,7 @@ export function ServicePlannerWorkspace({ initialDetail, initialPreparation, bib
           </div>
         </section>
 
-        <section className={(activePane === "Preview" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c1017] lg:block lg:min-h-0"}>
+        <section className={(activePane === "Preview" ? "block" : "hidden") + " min-h-[480px] overflow-hidden rounded-2xl border border-white/[.07] bg-[#0c121b] lg:block lg:min-h-0"}>
           <CuePreview presentation={preview} loading={busy === "preview"} error={previewError} />
         </section>
       </div>

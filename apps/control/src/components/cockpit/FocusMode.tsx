@@ -16,7 +16,7 @@ export function FocusMode({ model, onExit }: { model: CockpitViewModel; onExit: 
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => window.dispatchEvent(new Event("ipresenterplux:attention-open"))} className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/70 transition hover:bg-white/[.05] ip-focus-gold"><HeartPulse size={15}/> Attention{model.attention.length ? ` · ${model.attention.length}` : ""}</button>
           <button type="button" onClick={() => window.dispatchEvent(new Event("ipresenterplux:command-open"))} aria-label="What do you need next?" className="flex min-h-12 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/70 transition hover:bg-white/[.05] ip-focus-gold"><Command size={15}/> Find / Command</button>
-          <button type="button" onClick={onExit} className="flex min-h-12 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-3 text-xs font-black text-[#efc86f] transition hover:bg-[#d7a94a]/[.14] ip-focus-gold"><Minimize2 size={15}/> Exit Focus</button>
+          <button type="button" onClick={onExit} className="flex min-h-12 items-center gap-2 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-3 text-xs font-black text-[#f0ca80] transition hover:bg-[#e3b75c]/[.14] ip-focus-gold"><Minimize2 size={15}/> Exit Focus</button>
         </div>
       </header>
       <main className="mx-auto max-w-[1900px] p-3 sm:p-4 lg:p-5">

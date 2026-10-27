@@ -167,10 +167,10 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.05] p-3">
+    <div className="mt-3 rounded-xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.05] p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-bold text-[#efc76e]">
+          <div className="flex items-center gap-2 text-xs font-bold text-[#f0ca80]">
             <Headphones size={14} /> Live interpreted audio
           </div>
           <div className="mt-1 text-xs leading-4 text-white/55">
@@ -185,7 +185,7 @@ export function LiveTranslatedAudio({ serviceId, channelId }: Props) {
         <button
           type="button"
           onClick={enabled ? stop : start}
-          className="ip-focus-gold min-h-11 flex shrink-0 items-center gap-1.5 rounded-lg border border-[#d7a94a]/25 bg-[#d7a94a]/10 px-3 py-2 text-xs font-bold text-[#efc76e]"
+          className="ip-focus-gold min-h-11 flex shrink-0 items-center gap-1.5 rounded-lg border border-[#e3b75c]/25 bg-[#e3b75c]/10 px-3 py-2 text-xs font-bold text-[#f0ca80]"
         >
           {enabled ? <Pause size={12} /> : <Play size={12} />}
           {enabled ? "Pause" : "Start audio"}

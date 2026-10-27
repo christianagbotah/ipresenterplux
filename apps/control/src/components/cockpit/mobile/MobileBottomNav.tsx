@@ -15,11 +15,11 @@ export function MobileBottomNav({ projection, active }: { projection: CockpitRol
     { id: "audience" as const, label: "Audience", href: "/audience", icon: Users, visible: projection.actions.canOpenAudience }
   ].filter((item) => item.visible);
 
-  return <nav className="fixed inset-x-0 bottom-0 z-50 flex gap-1 border-t border-white/[.09] bg-[#080b10]/96 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(0,0,0,.28)] backdrop-blur-xl md:hidden" aria-label="Live Assist navigation">
+  return <nav className="fixed inset-x-0 bottom-0 z-50 flex gap-1 border-t border-white/[.09] bg-[#05080d]/96 px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(0,0,0,.28)] backdrop-blur-xl md:hidden" aria-label="Live Assist navigation">
     {destinations.map((item) => {
       const Icon = item.icon;
       const selected = item.id === active;
-      return <Link key={item.id} href={item.href} aria-current={selected ? "page" : undefined} className={`ip-focus-gold flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold transition ${selected ? "bg-[#d7a94a]/12 text-[#f2c765]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}>
+      return <Link key={item.id} href={item.href} aria-current={selected ? "page" : undefined} className={`ip-focus-gold flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-bold transition ${selected ? "bg-[#e3b75c]/12 text-[#f4cf85]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}>
         <Icon size={16} aria-hidden="true" /><span className="truncate">{item.label}</span>
       </Link>;
     })}

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search, Video } from "lucide-react";
 import { auth } from "@auth";
 import { ArchiveList } from "@/components/archive/ArchiveList";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { db } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
 import { listArchivedServices } from "@/lib/archive";
@@ -23,25 +24,21 @@ export default async function ArchivePage({ searchParams }: Props) {
     if (!context) redirect("/");
     const result = await listArchivedServices(client, session.user.id, { organizationId: context.organizationId, search, limit: 50, offset: 0 });
     return (
-      <main className="min-h-screen bg-[#080b10] text-white">
-        <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-          <section className="rounded-3xl border border-white/[.07] bg-[radial-gradient(circle_at_top_right,rgba(215,169,74,.11),transparent_34%),#0c1017] p-5 sm:p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-xs font-black uppercase tracking-[.16em] text-[#d7a94a]">Service Archive</div>
-                <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Completed services</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/40">Review final rundowns, Scripture history, transcript/caption evidence, and retained recording or media metadata from completed services.</p>
-              </div>
-              <form className="flex w-full max-w-md items-center gap-2" action="/archive" method="get">
-                <div className="relative min-w-0 flex-1"><Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/25" /><input name="q" defaultValue={search ?? ""} placeholder="Search service or church" className="h-11 w-full rounded-xl border border-white/[.09] bg-black/20 pl-9 pr-3 text-sm outline-none placeholder:text-white/20 focus:border-[#d7a94a]/35" /></div>
-                <button className="min-h-11 cursor-pointer rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#171005] hover:brightness-110">Search</button>
-              </form>
-            </div>
-          </section>
+      <WorkspaceShell
+        capabilities={context.navigationCapabilities}
+        icon={Video}
+        title="Service Archive"
+        subtitle="Completed services · rundowns, Scripture history, transcript evidence"
+      >
+        <div className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+          <form className="flex w-full max-w-md items-center gap-2" action="/archive" method="get">
+            <div className="relative min-w-0 flex-1"><Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/25" /><input name="q" defaultValue={search ?? ""} placeholder="Search service or church" className="h-11 w-full rounded-xl border border-white/[.09] bg-black/20 pl-9 pr-3 text-sm outline-none placeholder:text-white/20 focus:border-[#e3b75c]/35" /></div>
+            <button className="ip-focus-gold min-h-11 cursor-pointer rounded-xl bg-gold px-4 text-sm font-black text-gold-ink hover:bg-[#e6ba5e]">Search</button>
+          </form>
 
           <ArchiveList services={result.services} />
         </div>
-      </main>
+      </WorkspaceShell>
     );
   } finally {
     client.release();

@@ -28,7 +28,7 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
   return (
     <form action={action} className="space-y-4">
       {demoAccounts.length ? (
-        <div className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.055] p-3.5">
+        <div className="rounded-2xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.055] p-3.5">
           <label className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[.15em] text-[#e3bd6a]">
             <UsersRound size={15} />
             Demo account
@@ -37,7 +37,7 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
             <select
               value={selectedRole}
               onChange={handleDemoChange}
-              className="h-12 w-full appearance-none rounded-xl border border-white/[.09] bg-[#0d1118] px-3 pr-10 text-sm font-semibold text-white outline-none transition focus:border-[#d7a94a]/50"
+              className="h-12 w-full appearance-none rounded-xl border border-white/[.09] bg-[#0a0f17] px-3 pr-10 text-sm font-semibold text-white outline-none transition focus:border-[#e3b75c]/50"
               aria-label="Choose a demo account"
             >
               <option value="">Choose a demo role…</option>
@@ -54,16 +54,16 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-bold text-white/75">{selectedDemo.label}</span>
                 {selectedDemo.futureModule ? (
-                  <span className="rounded-full border border-amber-300/20 bg-amber-300/[.08] px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] text-amber-200">
+                  <span className="rounded-full border border-amber-300/20 bg-amber-300/[.08] px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] text-amber-200">
                     Module in progress
                   </span>
                 ) : null}
               </div>
               <div className="mt-1 text-[11px] leading-5 text-white/40">{selectedDemo.description}</div>
-              <div className="mt-1 truncate text-[11px] font-semibold text-[#d7a94a]">{selectedDemo.email}</div>
+              <div className="mt-1 truncate text-[11px] font-semibold text-[#e3b75c]">{selectedDemo.email}</div>
             </div>
           ) : (
-            <div className="mt-2 text-[10px] leading-4 text-white/35">
+            <div className="mt-2 text-[11px] leading-4 text-white/35">
               Choose a role to fill its demo credentials automatically. You can still enter another account manually.
             </div>
           )}
@@ -118,7 +118,7 @@ export function LoginForm({ demoAccounts = [] }: LoginFormProps) {
       <button
         type="submit"
         disabled={pending}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] transition hover:bg-[#e6ba5e] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#e3b75c] text-sm font-black text-[#171109] transition hover:bg-[#e6ba5e] disabled:cursor-not-allowed disabled:opacity-50"
       >
         <LogIn size={16} />
         {pending ? "Signing in…" : "Sign in to Control Room"}

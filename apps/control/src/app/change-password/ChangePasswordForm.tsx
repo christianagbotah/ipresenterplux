@@ -8,7 +8,7 @@ export function ChangePasswordForm() {
   const [error, action, pending] = useActionState(changePassword, undefined);
 
   const fieldClass =
-    "h-12 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#d7a94a]/35";
+    "h-12 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm text-white outline-none placeholder:text-white/20 focus:border-[#e3b75c]/35";
 
   return (
     <form action={action} className="space-y-4">
@@ -69,7 +69,7 @@ export function ChangePasswordForm() {
       <button
         type="submit"
         disabled={pending}
-        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] transition hover:bg-[#e6ba5e] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#e3b75c] text-sm font-black text-[#171109] transition hover:bg-[#e6ba5e] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {pending ? <LockKeyhole size={16} /> : <KeyRound size={16} />}
         {pending ? "Updating password…" : "Change password"}

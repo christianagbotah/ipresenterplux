@@ -1,5 +1,6 @@
 export type StudioNavigationCapabilities = {
   canMedia: boolean;
+  canViewPlanner: boolean;
   canCameras: boolean;
   canAIDirector: boolean;
   canTranslations: boolean;
@@ -12,6 +13,7 @@ export type StudioIconKey =
   | "dashboard"
   | "scripture"
   | "media"
+  | "planner"
   | "theme"
   | "camera"
   | "ai"
@@ -33,6 +35,7 @@ export const studioRoutes: readonly StudioRoute[] = [
   { label: "Control Room", href: "/", icon: "dashboard", placement: "primary" },
   { label: "Scripture", href: "/scripture", icon: "scripture", placement: "primary" },
   { label: "Songs & Media", href: "/media", icon: "media", capability: "canMedia", placement: "primary" },
+  { label: "Service Planner", href: "/planner", icon: "planner", capability: "canViewPlanner", placement: "primary" },
   { label: "Theme Studio", href: "/themes", icon: "theme", capability: "canMedia", placement: "primary" },
   { label: "Cameras", href: "/cameras", icon: "camera", capability: "canCameras", placement: "primary" },
   { label: "AI Director", href: "/ai-director", icon: "ai", capability: "canAIDirector", placement: "primary" },

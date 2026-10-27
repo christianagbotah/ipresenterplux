@@ -13,6 +13,6 @@ export function MobileFindBar() {
   >
     <Search size={16} className="shrink-0 text-[#e2b85f]" aria-hidden="true" />
     <span className="min-w-0 flex-1 truncate">What do you need next?</span>
-    <span className="shrink-0 text-[9px] font-black uppercase tracking-[.12em] text-white/30">Find</span>
+    <span className="shrink-0 text-[11px] font-black uppercase tracking-[.12em] text-white/30">Find</span>
   </button>;
 }

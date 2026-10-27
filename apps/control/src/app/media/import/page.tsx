@@ -45,7 +45,7 @@ export default async function MediaImportPage() {
     const bridges = await listConfiguredCoexistenceBridges(client, context.organizationId);
     const organizationId = context.organizationId;
     return (
-      <main className="min-h-screen bg-[#080b10] text-white">
+      <main className="min-h-screen bg-[#05080d] text-white">
         <StudioMobileNav capabilities={context.capabilities} />
         <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
           <StudioSidebar capabilities={context.capabilities} />
@@ -53,7 +53,7 @@ export default async function MediaImportPage() {
             <header className="border-b border-white/[.07] bg-[#090c12]/90 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
               <div className="mx-auto flex max-w-[1700px] flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-[#d7a94a]"><Sparkles size={14}/>Switching assistant</div>
+                  <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.18em] text-[#e3b75c]"><Sparkles size={14}/>Switching assistant</div>
                   <div className="mt-1 text-sm text-white/42">Portable, preview-first migration into {context.organizationName}</div>
                 </div>
                 <Link href="/media" className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-white/[.09] px-4 text-sm font-bold text-white/60 transition hover:bg-white/[.05] hover:text-white"><ArrowLeft size={15}/>Back to Songs & Media</Link>

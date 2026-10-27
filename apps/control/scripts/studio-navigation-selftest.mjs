@@ -20,6 +20,7 @@ const expectedRoutes = [
   ["Control Room", "/"],
   ["Scripture", "/scripture"],
   ["Songs & Media", "/media"],
+  ["Service Planner", "/planner"],
   ["Theme Studio", "/themes"],
   ["Cameras", "/cameras"],
   ["AI Director", "/ai-director"],
@@ -50,6 +51,7 @@ assert.equal(isStudioRouteActive("/streaming-health", "/streaming"), false);
 
 const noPremium = visibleStudioRoutes({
   canMedia: false,
+  canViewPlanner: false,
   canCameras: false,
   canAIDirector: false,
   canTranslations: false,
@@ -61,9 +63,22 @@ assert.equal(noPremium.some((route) => route.href === "/translations"), false);
 assert.equal(noPremium.some((route) => route.href === "/streaming"), false);
 assert.equal(noPremium.some((route) => route.href === "/settings"), false);
 assert.equal(noPremium.some((route) => route.href === "/scripture"), true);
+assert.equal(noPremium.some((route) => route.href === "/planner"), false, "Service Planner must stay hidden for members without planner view authority");
+const plannerOnly = visibleStudioRoutes({
+  canMedia: false,
+  canViewPlanner: true,
+  canCameras: false,
+  canAIDirector: false,
+  canTranslations: false,
+  canStreaming: false,
+  canArchive: false,
+  canSettings: false
+});
+assert.equal(plannerOnly.some((route) => route.href === "/planner"), true, "Service Planner must be reachable in primary navigation for planner-capable operators");
 
 const allCapabilities = visibleStudioRoutes({
   canMedia: true,
+  canViewPlanner: true,
   canCameras: true,
   canAIDirector: true,
   canTranslations: true,

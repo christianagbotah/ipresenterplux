@@ -11,7 +11,18 @@ public sealed record DesktopSettings(
     int? ProgramDisplayX = null,
     int? ProgramDisplayY = null,
     int? ProgramDisplayWidth = null,
-    int? ProgramDisplayHeight = null)
+    int? ProgramDisplayHeight = null,
+    double? OperatorSidebarColumn = null,
+    double? OperatorPreviewColumn = null,
+    double? OperatorProgramColumn = null,
+    double? OperatorStageRow = null,
+    double? OperatorDeckRow = null,
+    bool OperatorSidebarCollapsed = false,
+    bool OperatorResourceDeckCollapsed = false,
+    string OperatorLayoutPreset = "production",
+    double? OperatorDeckLeftColumn = null,
+    double? OperatorDeckRightColumn = null,
+    string OperatorSidebarMode = "schedule")
 {
     public static DesktopSettings CreateDefault() => new(
         "",
@@ -68,6 +79,13 @@ public sealed record DesktopSettings(
              ProgramDisplayWidth <= 0 || ProgramDisplayHeight <= 0))
             throw new InvalidOperationException("Program display placement requires a valid position and positive dimensions.");
 
+        var operatorLayoutPreset = OperatorWorkspaceLayouts.IsValidPreset(OperatorLayoutPreset)
+            ? OperatorLayoutPreset!
+            : OperatorWorkspaceLayouts.Production;
+        var operatorSidebarMode = OperatorWorkspaceLayouts.IsValidSidebarMode(OperatorSidebarMode)
+            ? OperatorSidebarMode!
+            : OperatorWorkspaceLayouts.ProductionSidebarMode;
+
         return this with {
             ControlPlaneUrl = ControlPlaneUrl.Trim().TrimEnd('/'),
             DeviceName = deviceName,
@@ -78,9 +96,23 @@ public sealed record DesktopSettings(
             ProgramDisplayX = programDisplayId is null ? null : ProgramDisplayX,
             ProgramDisplayY = programDisplayId is null ? null : ProgramDisplayY,
             ProgramDisplayWidth = programDisplayId is null ? null : ProgramDisplayWidth,
-            ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight
+            ProgramDisplayHeight = programDisplayId is null ? null : ProgramDisplayHeight,
+            OperatorSidebarColumn = ClampStar(OperatorSidebarColumn),
+            OperatorPreviewColumn = ClampStar(OperatorPreviewColumn),
+            OperatorProgramColumn = ClampStar(OperatorProgramColumn),
+            OperatorStageRow = ClampStar(OperatorStageRow),
+            OperatorDeckRow = ClampStar(OperatorDeckRow),
+            OperatorSidebarCollapsed = OperatorSidebarCollapsed,
+            OperatorResourceDeckCollapsed = OperatorResourceDeckCollapsed,
+            OperatorLayoutPreset = operatorLayoutPreset,
+            OperatorDeckLeftColumn = ClampStar(OperatorDeckLeftColumn),
+            OperatorDeckRightColumn = ClampStar(OperatorDeckRightColumn),
+            OperatorSidebarMode = operatorSidebarMode
         };
     }
+
+    private static double? ClampStar(double? value) =>
+        value is null ? null : Math.Clamp(value.Value, 0.2, 4.0);
 
     public DesktopSettings NormalizeUpdateSettings()
     {

@@ -58,7 +58,7 @@ export function SpeakerVoiceBindings({ serviceId, serviceStatus, speakers, profi
   if (!speakers.length) {
     return (
       <div className="rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-3">
-        <div className="flex items-center gap-2 text-xs font-bold text-white/85"><AudioWaveform size={15} className="text-[#d7a94a]" /> Detected speaker voices</div>
+        <div className="flex items-center gap-2 text-xs font-bold text-white/85"><AudioWaveform size={15} className="text-[#e3b75c]" /> Detected speaker voices</div>
         <div className="mt-1 text-[11px] leading-4 text-white/50">No diarized speaker label has been observed in this service yet. Bindings appear only after ASR returns a service-scoped speaker ID.</div>
       </div>
     );
@@ -68,7 +68,7 @@ export function SpeakerVoiceBindings({ serviceId, serviceStatus, speakers, profi
     <div className="rounded-xl border border-white/[.06] bg-white/[.025] px-3 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#d7a94a]/10 text-[#e7bd65]"><AudioWaveform size={15} /></div>
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#e3b75c]/10 text-[#e7bd65]"><AudioWaveform size={15} /></div>
           <div>
             <div className="text-xs font-bold text-white/85">Detected speaker voice bindings</div>
             <div className="mt-0.5 text-[11px] text-white/50">Anonymous labels are valid only for this service. Unbound speakers always use the generic voice.</div>
@@ -91,7 +91,7 @@ export function SpeakerVoiceBindings({ serviceId, serviceStatus, speakers, profi
                   value={value}
                   disabled={!enabled || busy === speaker.speakerId}
                   onChange={(event) => void updateBinding(speaker.speakerId, event.target.value)}
-                  className="min-w-[200px] rounded-lg border border-white/[.08] bg-[#080b10] px-3 py-2 text-xs text-white/75 outline-none transition ip-focus-gold disabled:opacity-45"
+                  className="min-w-[200px] rounded-lg border border-white/[.08] bg-[#05080d] px-3 py-2 text-xs text-white/75 outline-none transition ip-focus-gold disabled:opacity-45"
                   aria-label={`Synthetic voice for ${speaker.speakerId}`}
                 >
                   <option value="">Generic voice</option>

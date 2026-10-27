@@ -109,7 +109,6 @@ function formatSignal(source: VisualSource) {
 
 export function VisualSourcesWorkspace({
   organizationId,
-  organizationName,
   initialSources,
   edgeDevices,
   hasPairedEdge,
@@ -245,26 +244,16 @@ export function VisualSourcesWorkspace({
   }
 
   return (
-    <main className="min-h-screen bg-[#080b10] text-white">
-      <a href="#visual-sources-content" className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl">
-        Skip to Visual Sources content
-      </a>
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#090c12]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-[#d7a94a]"><Monitor size={14} />Visual Sources</div>
-            <h1 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">{organizationName}</h1>
-            <p className="mt-1 text-xs text-white/45">Edge-owned camera, screen and window truth. Physical capture stays on the church production computer.</p>
-          </div>
-          <Link href="/settings/devices" className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
+    <div className="min-h-screen text-white">
+      <div id="visual-sources-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-white/45">Edge-owned camera, screen and window truth · capture stays on the church production computer</p>
+          <Link href="/settings/devices" className="ip-focus-gold inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/70 transition hover:bg-white/[.06] hover:text-white"><RefreshCw size={16} />Manage Edge Devices</Link>
         </div>
-      </header>
-
-      <div id="visual-sources-content" tabIndex={-1} className="mx-auto max-w-[1600px] space-y-5 px-4 py-5 focus:outline-none sm:px-6 lg:px-8 lg:py-7">
         <section className="rounded-2xl border border-white/[.07] bg-white/[.02] p-2" aria-label="Visual source categories">
           <div className="grid gap-2 sm:grid-cols-3">
             {categories.map(({ kind, label: categoryLabel, icon: Icon }) => (
-              <button key={kind} type="button" onClick={() => setActiveKind(kind)} className={`ip-focus-gold flex min-h-11 items-center justify-between gap-3 rounded-xl px-4 text-left text-xs font-black transition ${activeKind === kind ? "border border-[#d7a94a]/30 bg-[#d7a94a]/[.09] text-[#f1d595]" : "border border-white/[.06] bg-black/15 text-white/60 hover:bg-white/[.04]"}`} aria-pressed={activeKind === kind}>
+              <button key={kind} type="button" onClick={() => setActiveKind(kind)} className={`ip-focus-gold flex min-h-11 items-center justify-between gap-3 rounded-xl px-4 text-left text-xs font-black transition ${activeKind === kind ? "border border-[#e3b75c]/30 bg-[#e3b75c]/[.09] text-[#f1d595]" : "border border-white/[.06] bg-black/15 text-white/60 hover:bg-white/[.04]"}`} aria-pressed={activeKind === kind}>
                 <span className="flex items-center gap-2"><Icon size={16} />{categoryLabel}</span><span>{counts[kind]}</span>
               </button>
             ))}
@@ -273,17 +262,17 @@ export function VisualSourcesWorkspace({
 
         {!hasPairedEdge ? (
           <section className="rounded-3xl border border-amber-300/20 bg-amber-300/[.05] p-6">
-            <div className="flex items-start gap-4"><ShieldAlert size={24} className="mt-1 shrink-0 text-amber-200" /><div><h2 className="text-lg font-black text-amber-100">Pair a production computer first</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-white/50">Visual source discovery and capture truth come from the Windows/macOS Edge application. This browser never requests sanctuary camera, screen or window capture.</p><Link href="/settings/devices" className="ip-focus-gold mt-4 inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#17120a] hover:brightness-110">Manage Edge Devices</Link></div></div>
+            <div className="flex items-start gap-4"><ShieldAlert size={24} className="mt-1 shrink-0 text-amber-200" /><div><h2 className="text-lg font-black text-amber-100">Pair a production computer first</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-white/50">Visual source discovery and capture truth come from the Windows/macOS Edge application. This browser never requests sanctuary camera, screen or window capture.</p><Link href="/settings/devices" className="ip-focus-gold mt-4 inline-flex min-h-11 cursor-pointer items-center rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#17120a] hover:brightness-110">Manage Edge Devices</Link></div></div>
           </section>
         ) : null}
 
-        <section className="rounded-3xl border border-white/[.07] bg-[#0c1017]/80 p-4 sm:p-5 lg:p-6">
+        <section className="rounded-3xl border border-white/[.07] bg-[#0c121b]/80 p-4 sm:p-5 lg:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#d7a94a]">Edge-confirmed source truth</div><h2 className="mt-1 text-xl font-black tracking-tight">{categories.find((item) => item.kind === activeKind)?.label}</h2><p className="mt-1 text-sm text-white/45">Confirmed route badges disappear when source telemetry is stale. Sources become disconnected after {staleAfterSeconds}s without a fresh report.</p></div>
+            <div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#e3b75c]">Visual Sources · Edge-confirmed truth</div><h2 className="mt-1 text-xl font-black tracking-tight">{categories.find((item) => item.kind === activeKind)?.label}</h2><p className="mt-1 text-sm text-white/45">Confirmed route badges disappear when source telemetry is stale. Sources become disconnected after {staleAfterSeconds}s without a fresh report.</p></div>
             <div className="text-xs text-white/40">{edgeDevices.length} paired/non-revoked Edge device{edgeDevices.length === 1 ? "" : "s"}</div>
           </div>
 
-          {message ? <div className="mt-4 rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.06] px-4 py-3 text-sm text-[#f2dca9]">{message}</div> : null}
+          {message ? <div className="mt-4 rounded-xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.06] px-4 py-3 text-sm text-[#f2dca9]">{message}</div> : null}
 
           {canLiveControl && edgeDevices.length ? (
             <div className="mt-4 grid gap-2 xl:grid-cols-2">
@@ -312,14 +301,14 @@ export function VisualSourcesWorkspace({
               return (
                 <article key={source.id} className="flex min-h-72 min-w-0 flex-col rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
                   <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-black/20 text-[#d7a94a]"><SourceIcon size={18} /></div><div className="min-w-0"><div className="break-words text-base font-black leading-5">{source.displayName}</div><div className="mt-1 text-xs uppercase tracking-[.12em] text-white/40">{source.kind === "camera" ? "Camera" : source.kind === "display" ? "Screen" : source.kind === "window" ? "Window" : source.sourceType}</div></div></div>
+                    <div className="flex min-w-0 items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/[.07] bg-black/20 text-[#e3b75c]"><SourceIcon size={18} /></div><div className="min-w-0"><div className="break-words text-base font-black leading-5">{source.displayName}</div><div className="mt-1 text-xs uppercase tracking-[.12em] text-white/40">{source.kind === "camera" ? "Camera" : source.kind === "display" ? "Screen" : source.kind === "window" ? "Window" : source.sourceType}</div></div></div>
                     <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] ${state.className}`}><StatusIcon size={12} />{state.label}</span>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {source.previewActive ? <span className="rounded-full border border-sky-300/20 bg-sky-300/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-sky-100">Preview · confirmed</span> : null}
                     {source.programActive ? <span className="rounded-full border border-red-300/20 bg-red-300/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-red-100">Program · confirmed</span> : null}
-                    {source.reportingDevice && requestedPreviewByDevice[source.reportingDevice.id] === source.id && !source.previewActive ? <span className="rounded-full border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-[#efd28b]">Preview requested · waiting for Edge</span> : null}
+                    {source.reportingDevice && requestedPreviewByDevice[source.reportingDevice.id] === source.id && !source.previewActive ? <span className="rounded-full border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-[#efd28b]">Preview requested · waiting for Edge</span> : null}
                     {source.reportingDevice && requestedClearByDevice[source.reportingDevice.id] && source.previewActive ? <span className="rounded-full border border-amber-300/20 bg-amber-300/[.07] px-2.5 py-1 text-xs font-black uppercase tracking-[.06em] text-amber-100">Clear requested · waiting for Edge</span> : null}
                   </div>
 
@@ -334,11 +323,11 @@ export function VisualSourcesWorkspace({
                   </dl>
 
                   {source.kind === "camera" && isEditing && canManage ? (
-                    <div className="mt-4 rounded-xl border border-white/[.08] bg-black/20 p-3"><label className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Operator label</label><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={160} className="ip-focus-gold mt-2 min-h-11 w-full rounded-lg border border-white/[.08] bg-white/[.04] px-3 text-sm text-white outline-none focus:border-[#d7a94a]/50" placeholder={source.name} /><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => savePreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] disabled:cursor-not-allowed disabled:opacity-40">Save label</button><button type="button" onClick={() => clearPreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Clear preference</button></div></div>
+                    <div className="mt-4 rounded-xl border border-white/[.08] bg-black/20 p-3"><label className="text-xs font-bold uppercase tracking-[.12em] text-white/45">Operator label</label><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={160} className="ip-focus-gold mt-2 min-h-11 w-full rounded-lg border border-white/[.08] bg-white/[.04] px-3 text-sm text-white outline-none focus:border-[#e3b75c]/50" placeholder={source.name} /><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => savePreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg bg-[#e3b75c] px-3 text-xs font-black text-[#17120a] disabled:cursor-not-allowed disabled:opacity-40">Save label</button><button type="button" onClick={() => clearPreference(source)} disabled={busy === source.id} className="ip-focus-gold min-h-11 cursor-pointer rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-40">Clear preference</button></div></div>
                   ) : null}
 
                   <div className="mt-auto flex flex-wrap gap-2 pt-4">
-                    {canLiveControl && source.reportingDevice?.id && source.sourceKey ? <button type="button" onClick={() => runVisualAction(source.reportingDevice!.id, "preview", source)} disabled={!sourceAssignedToService || Boolean(busyDevices[source.reportingDevice.id]) || source.status === "disconnected" || source.status === "unsupported" || source.status === "permission_required"} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-[#d7a94a] px-3 text-xs font-black text-[#17120a] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">{busyDevices[source.reportingDevice.id] === "preview" ? "Preparing…" : "Preview"}</button> : null}
+                    {canLiveControl && source.reportingDevice?.id && source.sourceKey ? <button type="button" onClick={() => runVisualAction(source.reportingDevice!.id, "preview", source)} disabled={!sourceAssignedToService || Boolean(busyDevices[source.reportingDevice.id]) || source.status === "disconnected" || source.status === "unsupported" || source.status === "permission_required"} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg bg-[#e3b75c] px-3 text-xs font-black text-[#17120a] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">{busyDevices[source.reportingDevice.id] === "preview" ? "Preparing…" : "Preview"}</button> : null}
                   {source.kind === "camera" && canManage ? (
                     <>
                       <button type="button" onClick={() => { setEditing(isEditing ? null : source.id); setLabel(source.operatorLabel || ""); }} className="ip-focus-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-lg border border-white/[.08] px-3 text-xs font-bold text-white/65 hover:bg-white/[.05] hover:text-white"><Pencil size={13} />{isEditing ? "Close" : "Label"}</button>
@@ -356,6 +345,6 @@ export function VisualSourcesWorkspace({
           ) : null}
         </section>
       </div>
-    </main>
+    </div>
   );
 }

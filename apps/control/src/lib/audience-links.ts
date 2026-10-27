@@ -21,7 +21,7 @@ export async function audienceQrSvg(url: string) {
     type: "svg",
     errorCorrectionLevel: "M",
     margin: 1,
-    color: { dark: "#080b10", light: "#ffffff" }
+    color: { dark: "#05080d", light: "#ffffff" }
   });
   return svg.replace(">", `><desc>${escapeXml(url)}</desc>`);
 }

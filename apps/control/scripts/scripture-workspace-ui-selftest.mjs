@@ -42,6 +42,8 @@ assert.match(workspace, /To verse/, "workspace must expose verse-range end");
 assert.match(workspace, /\/api\/v1\/scriptures\/library/, "workspace must use the read-only local library API");
 assert.match(workspace, /\/api\/v1\/scriptures\/manual/, "workspace must explicitly add a chosen passage to the service");
 assert.match(workspace, /\/api\/v1\/scriptures\/\$\{id\}\/state/, "workspace must reuse the existing Scripture state API");
+assert.match(workspace, /previewBrowseVerse/, "clicking a chapter verse must stage it directly into Preview");
+assert.match(workspace, /onClick=\{\(\) => void previewBrowseVerse\(item\)\}/, "Bible verse rows must be interactive Preview controls");
 assert.match(workspace, /selected\.state !== "preview"/, "Take Live must remain disabled until the selected item is in Preview");
 assert.match(workspace, /Take Live/, "workspace must expose explicit Take Live");
 assert.match(workspace, /Clear Program/, "workspace must expose explicit Program clear");
@@ -60,6 +62,6 @@ console.log(JSON.stringify({
   route: "/scripture",
   search: "local-reference",
   browse: "version-book-chapter-range",
-  workflow: "find -> add -> preview -> take-live",
+  workflow: "click-verse -> preview -> explicit-take-live",
   endedServiceBrowsing: true
 }));

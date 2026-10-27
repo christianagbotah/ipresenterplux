@@ -50,7 +50,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-3.5 text-sm font-black text-[#171107] transition hover:bg-[#e5ba61] disabled:cursor-wait disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#e3b75c] px-4 py-3.5 text-sm font-black text-[#171107] transition hover:bg-[#e5ba61] disabled:cursor-wait disabled:opacity-60"
       >
         {pending ? "Signing in…" : "Open Control Room"}
         {!pending ? <ArrowRight size={16} /> : null}

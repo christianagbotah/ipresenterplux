@@ -19,7 +19,10 @@ assert.doesNotMatch(workspace, /grid-cols-4[^\n]*(KPI|Metric|Stats)/i, "default 
 
 const programSurface = stage.indexOf('kind === "program"');
 assert.ok(programSurface >= 0, "Program surface must be explicitly distinguished from Preview");
-assert.match(stage, /md:grid-cols-2/, "Preview and Program must remain equal-size production monitors from desktop layouts onward");
+assert.match(stage, /ip-stage-split/, "Preview and Program must share ONE resizable side-by-side stage row");
+assert.match(stage, /--ip-stage-columns/, "the operator-owned PGM|PST split must drive the stage grid template");
+assert.match(stage, /role="separator"/, "the resizable divider must be an accessible separator");
+assert.match(stage, /DEFAULT_PREVIEW_SHARE = 60/, "the stage split must default to a 60/40 preview|program layout");
 assert.doesNotMatch(stage, /1\.35fr/, "Program must not be wider than Preview");
 assert.match(stage, /min-h-14/, "TAKE must expose a touch-sized primary target");
 assert.match(stage, /min-h-12/, "Clear Program must expose a touch-sized primary target");

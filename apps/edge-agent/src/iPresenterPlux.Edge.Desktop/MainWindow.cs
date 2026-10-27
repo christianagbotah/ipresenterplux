@@ -6,6 +6,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Controls.Primitives;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using iPresenterPlux.Edge.Core.Contracts;
@@ -19,13 +21,18 @@ public sealed class MainWindow : Window
     private const int OperatorTabIndex = 0;
     private const int ActivationTabIndex = 1;
     private const int SetupTabIndex = 2;
-    private static readonly IBrush Surface = Brush("#0D121A");
-    private static readonly IBrush SurfaceRaised = Brush("#121925");
-    private static readonly IBrush Gold = Brush("#D7A94A");
-    private static readonly IBrush Muted = Brush("#8B95A5");
-    private static readonly IBrush Good = Brush("#55D38A");
-    private static readonly IBrush Warning = Brush("#F0B75E");
-    private static readonly IBrush Danger = Brush("#F47B7B");
+
+    // Design tokens live in OperatorTheme; these aliases keep the window code readable.
+    private static IBrush Surface => OperatorTheme.Surface;
+    private static IBrush SurfaceRaised => OperatorTheme.SurfaceRaised;
+    private static IBrush Gold => OperatorTheme.Gold;
+    private static IBrush Muted => OperatorTheme.Muted;
+    private static IBrush Good => OperatorTheme.Good;
+    private static IBrush Warning => OperatorTheme.Warning;
+    private static IBrush Danger => OperatorTheme.Danger;
+    private static IBrush Live => OperatorTheme.Live;
+
+    private static readonly string[] LayoutPresetCodes = OperatorWorkspaceLayouts.PresetNames.ToArray();
 
     private readonly ShellPaths _paths = ShellPaths.CreateDefault();
     private readonly DesktopSettingsStore _settingsStore;
@@ -41,23 +48,21 @@ public sealed class MainWindow : Window
     private readonly TabControl _tabs = new();
     private readonly TextBox _operatorSearch = Input("Search scripture, songs, slides or media", false);
     private readonly TextBox _scriptureReference = Input("John 3:16 or Psalm 23", false);
-    private readonly ComboBox _bibleVersion = new() { MinHeight = 38, MinWidth = 96 };
+    private readonly ComboBox _bibleVersion = new() { MinHeight = 36, MinWidth = 96 };
     private readonly Button _resolveScripture = ActionButton("Find & Preview", true);
     private readonly Button _manageBibleVersions = ActionButton("Bible Versions", false);
-    private readonly TextBlock _rundownEyebrow = Label("LIBRARY", 10, FontWeight.Bold, Gold);
-    private readonly TextBlock _rundownTitle = Label("Search & browse", 19, FontWeight.Bold);
     private readonly TextBlock _rundownCurrent = Label("CURRENT · Program clear", 10, FontWeight.SemiBold, Muted);
     private readonly TextBlock _catalogStatus = Label("LOCAL REHEARSAL", 10, FontWeight.Bold, Warning);
     private readonly TextBlock _catalogService = Label("Demo content · no synced service yet", 11, FontWeight.Normal, Muted);
     private readonly ListBox _libraryResults = new();
     private ListBox _rundown => _libraryResults;
     private readonly ListBox _schedule = new();
-    private readonly ComboBox _browserBook = new() { MinHeight = 36, MinWidth = 150 };
-    private readonly ComboBox _browserChapter = new() { MinHeight = 36, MinWidth = 76 };
-    private readonly ComboBox _browserFromVerse = new() { MinHeight = 36, MinWidth = 76 };
-    private readonly ComboBox _browserToVerse = new() { MinHeight = 36, MinWidth = 76 };
-    private readonly ListBox _browserVerses = new() { MinHeight = 110, MaxHeight = 210 };
-    private readonly StackPanel _scriptureBrowserPanel = new() { Spacing = 8, IsVisible = false };
+    private readonly ComboBox _browserBook = new() { MinHeight = 30, MinWidth = 140 };
+    private readonly ComboBox _browserChapter = new() { MinHeight = 30, MinWidth = 64 };
+    private readonly ComboBox _browserFromVerse = new() { MinHeight = 30, MinWidth = 64 };
+    private readonly ComboBox _browserToVerse = new() { MinHeight = 30, MinWidth = 64 };
+    private readonly ListBox _browserVerses = new() { MinHeight = 96, MaxHeight = 210 };
+    private readonly StackPanel _scriptureBrowserPanel = new() { Spacing = 6, IsVisible = false };
     private readonly Button _browserPreviewRange = ActionButton("Preview Verse Range", true);
     private readonly Button _addSelectedToSchedule = ActionButton("Add Selected", false);
     private readonly Button _removeScheduled = ActionButton("Remove", false);
@@ -68,14 +73,32 @@ public sealed class MainWindow : Window
     private readonly TextBlock _previewFooter = Label("PREVIEW", 11, FontWeight.Bold, Gold);
     private readonly TextBlock _programTitle = Label("Program is clear", 22, FontWeight.Bold);
     private readonly TextBlock _programBody = Label("Nothing live.", 16, FontWeight.Normal, Muted);
-    private readonly TextBlock _programFooter = Label("PROGRAM", 11, FontWeight.Bold, Good);
-    private readonly TextBlock _operatorRuntime = Label("EDGE OFFLINE", 11, FontWeight.Bold, Muted);
+    private readonly TextBlock _programFooter = Label("PROGRAM", 11, FontWeight.Bold, Live);
+    private readonly Border _programLiveBadge = BuildLiveBadge();
+    private readonly TextBlock _operatorRuntime = Label("EDGE OFFLINE", 10, FontWeight.Bold, Muted);
     private readonly TextBlock _operatorService = Label("LOCAL REHEARSAL", 11, FontWeight.Bold, Warning);
-    private readonly TextBlock _operatorRecording = Label("RECORDING OFF", 11, FontWeight.Bold, Muted);
+    private readonly TextBlock _operatorRecording = Label("RECORDING OFF", 10, FontWeight.Bold, Muted);
     private readonly TextBlock _microphoneStatus = Label("MIC · WAITING", 10, FontWeight.Bold, Muted);
     private readonly TextBlock _asrStatus = Label("ASR · CHECKING", 10, FontWeight.Bold, Muted);
     private readonly TextBlock _voiceScriptureStatus = Label("VOICE SCRIPTURE · DETECT", 10, FontWeight.Bold, Gold);
     private readonly TextBlock _operatorFeedback = Label("Local operator channel is waiting for Edge.", 12, FontWeight.Normal, Muted);
+    private readonly TextBlock _libraryEmptyHint = Label("No cues match this search.", 12, FontWeight.Normal, OperatorTheme.Faint);
+    private readonly TextBlock _scheduleEmptyHint = Label("Schedule is empty. Add cues from the Resource Deck.", 12, FontWeight.Normal, OperatorTheme.Faint);
+    private readonly ComboBox _layoutPreset = new() { MinHeight = 28, MinWidth = 108 };
+    private readonly Button _goLive = ActionButton("GO LIVE", true);
+    private readonly TextBlock _studioClock = Label("--:--:--", 12, FontWeight.Bold);
+    private readonly ListBox _upNext = new();
+    private readonly TextBlock _upNextEmptyHint = Label("Nothing is queued after the current cue.", 12, FontWeight.Normal, OperatorTheme.Faint);
+    private string _sidebarMode = "schedule";
+    private Grid? _bodyGrid;
+    private Grid? _sidebarHostField;
+    private Border? _libraryCard;
+    private Border? _scriptureCard;
+    private StackPanel? _sidebarModeButtons;
+    private Border? _scheduleCard;
+    private Grid? _playoutDeck;
+    private GridSplitter? _schedulePreviewSplitterField;
+    private GridSplitter? _productionResourceSplitterField;
     private readonly Button _prepare = ActionButton("Preview Selected", false);
     private readonly Button _take = ActionButton("TAKE → PROGRAM", true);
     private readonly Button _clear = ActionButton("Clear Program", false);
@@ -160,7 +183,8 @@ public sealed class MainWindow : Window
         CanMinimize = true;
         CanMaximize = true;
         ExtendClientAreaToDecorationsHint = false;
-        Background = Brush("#070A0F");
+        Background = OperatorTheme.WindowBackground;
+        ApplyConsoleChrome();
         _mediaPause.IsVisible = false;
         _mediaResume.IsVisible = false;
         _mediaSeek.IsVisible = false;
@@ -204,6 +228,13 @@ public sealed class MainWindow : Window
         _take.Click += async (_, _) => await TakeAsync();
         _clear.Click += async (_, _) => await ClearProgramAsync();
         _record.Click += async (_, _) => await ToggleRecordingAsync();
+        _goLive.Click += async (_, _) => await ToggleOutputAsync();
+        ToolTip.SetTip(_prepare, "Load the selected cue into Preview (F6). Single-click any cue to preview it.");
+        ToolTip.SetTip(_take, "Preview is safe · Take is explicit (F8) · Clear never stops Edge (F7).");
+        ToolTip.SetTip(_clear, "Clear Program output. The Edge runtime keeps running (F7).");
+        ToolTip.SetTip(_record, "Start or stop local recording. Requires an active service.");
+        ToolTip.SetTip(_goLive, "Start or stop the program output — screens and stream. Output never changes what is staged.");
+        ToolTip.SetTip(_scriptureReference, "Type a reference and press Enter to preview it locally.");
         _mediaPause.Click += async (_, _) => await PauseProgramMediaAsync();
         _mediaResume.Click += async (_, _) => await ResumeProgramMediaAsync();
         _mediaSeekApply.Click += async (_, _) => await SeekProgramMediaAsync();
@@ -221,6 +252,7 @@ public sealed class MainWindow : Window
         _browserBook.SelectionChanged += async (_, _) => await LoadBibleBookChaptersAsync();
         _browserChapter.SelectionChanged += async (_, _) => await LoadBibleChapterAsync();
         _browserFromVerse.SelectionChanged += (_, _) => NormalizeBrowserVerseRange();
+        _browserVerses.PointerPressed += OnBibleVersePointerPressed;
         _browserPreviewRange.Click += async (_, _) => await PreviewBrowserVerseRangeAsync();
         _addSelectedToSchedule.Click += async (_, _) => await AddSelectedToScheduleAsync();
         _removeScheduled.Click += async (_, _) => await RemoveScheduledAsync();
@@ -245,9 +277,59 @@ public sealed class MainWindow : Window
         Screens.Changed += (_, _) => Dispatcher.UIThread.Post(() => RefreshProgramDisplays(topologyChanged: true));
     }
 
+    /// <summary>
+    /// Applies the compact production-console chrome: gold system accent,
+    /// tight control radii and dense list/tab metrics. Purely presentational —
+    /// no behavior is attached here.
+    /// </summary>
+    private void ApplyConsoleChrome()
+    {
+        Resources["ControlCornerRadius"] = new CornerRadius(OperatorTheme.RadiusControl);
+        Resources["SystemAccentColor"] = Color.Parse("#E3B75C");
+        Resources["SystemAccentColorLight1"] = Color.Parse("#EFC97E");
+        Resources["SystemAccentColorLight2"] = Color.Parse("#F4D89E");
+        Resources["SystemAccentColorLight3"] = Color.Parse("#F9E7C2");
+        Resources["SystemAccentColorDark1"] = Color.Parse("#C09445");
+        Resources["SystemAccentColorDark2"] = Color.Parse("#A17C33");
+        Resources["ListBoxItemBackgroundSelected"] = OperatorTheme.Brush("#2A2312");
+        Resources["ListBoxItemBackgroundPointerover"] = OperatorTheme.Brush("#1A2230");
+
+        var listItem = new Style(x => x.OfType<ListBoxItem>())
+        {
+            Setters =
+            {
+                new Setter(ListBoxItem.PaddingProperty, new Thickness(0)),
+                new Setter(ListBoxItem.MarginProperty, new Thickness(0)),
+                new Setter(ListBoxItem.CornerRadiusProperty, new CornerRadius(OperatorTheme.RadiusChip)),
+            }
+        };
+        var listItemSelected = new Style(x => x.OfType<ListBoxItem>().Class(":selected"))
+        {
+            Setters = { new Setter(ListBoxItem.BackgroundProperty, OperatorTheme.Brush("#2A2312")) }
+        };
+        var listItemSelectedPointer = new Style(x => x.OfType<ListBoxItem>().Class(":selected").Class(":pointerover"))
+        {
+            Setters = { new Setter(ListBoxItem.BackgroundProperty, OperatorTheme.Brush("#332A15")) }
+        };
+        var tabItem = new Style(x => x.OfType<TabStripItem>())
+        {
+            Setters =
+            {
+                new Setter(TemplatedControl.FontSizeProperty, 12.5),
+                new Setter(TemplatedControl.FontWeightProperty, FontWeight.SemiBold),
+                new Setter(TemplatedControl.PaddingProperty, new Thickness(16, 7)),
+                new Setter(TemplatedControl.MinHeightProperty, 34.0),
+            }
+        };
+        Styles.Add(listItem);
+        Styles.Add(listItemSelected);
+        Styles.Add(listItemSelectedPointer);
+        Styles.Add(tabItem);
+    }
+
     private Control BuildContent()
     {
-        _tabs.Background = Brush("#070A0F");
+        _tabs.Background = Brush("#060B12");
         _tabs.ItemsSource = new object[]
         {
             new TabItem { Header = "Operator", Content = BuildOperatorContent() },
@@ -264,7 +346,44 @@ public sealed class MainWindow : Window
         _entitlementDetail.TextWrapping = TextWrapping.Wrap;
         _entitlementDevice.TextWrapping = TextWrapping.Wrap;
         _entitlementFeedback.TextWrapping = TextWrapping.Wrap;
+        _entitlementStatus.FontSize = 22;
 
+        // Product identity strip — commercial, quiet, no marketing paragraphs.
+        var identityMark = new Border
+        {
+            Width = 40,
+            Height = 40,
+            CornerRadius = new CornerRadius(9),
+            Background = Gold,
+            Child = new TextBlock
+            {
+                Text = "iP",
+                FontSize = 16,
+                FontWeight = FontWeight.Bold,
+                Foreground = OperatorTheme.GoldInk,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        var identity = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 14 };
+        var identityText = new StackPanel
+        {
+            Spacing = 2,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = {
+                Label("iPresenterPlux · Church Edge", 20, FontWeight.Bold),
+                Label("Lightworld Technologies · online product activation", 11, FontWeight.Normal, Muted)
+            }
+        };
+        identity.Children.Add(identityMark);
+        Grid.SetColumn(identityText, 1);
+        identity.Children.Add(identityText);
+        var licenseBadge = OperatorTheme.Chip("PRODUCT LICENSING", Muted, SurfaceRaised);
+        licenseBadge.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(licenseBadge, 2);
+        identity.Children.Add(licenseBadge);
+
+        // Activation form.
         var form = new Grid { ColumnSpacing = 12, RowSpacing = 12 };
         form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         form.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -273,6 +392,8 @@ public sealed class MainWindow : Window
         form.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         form.Children.Add(Field("Control Plane URL", _activationControlUrl, 0, 0, 2));
         form.Children.Add(Field("Product key", _productKey, 1, 0, 2));
+        ToolTip.SetTip(_activationControlUrl, "The church Control Plane URL supplied with your subscription.");
+        ToolTip.SetTip(_productKey, "Product keys are validated online and never saved by the desktop app.");
 
         var actions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var button in new[] { _activate, _renewEntitlement })
@@ -287,33 +408,36 @@ public sealed class MainWindow : Window
         Grid.SetColumnSpan(actions, 2);
         form.Children.Add(actions);
 
+        // Subscription truth: state, plan, expiry, device identity.
         var status = new StackPanel {
             Spacing = 8,
             Children = {
                 Label("SUBSCRIPTION STATUS", 10, FontWeight.Bold, Gold),
                 _entitlementStatus,
                 _entitlementDetail,
-                _entitlementDevice,
                 Separator(),
+                _entitlementDevice,
                 Label("Settings remain available even when a subscription needs attention. Existing local work is not force-stopped solely because online validation is temporarily unavailable.", 11, FontWeight.Normal, Muted)
             }
         };
 
+        var columns = new Grid { ColumnSpacing = 16, RowSpacing = 16 };
+        columns.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.05, GridUnitType.Star)));
+        columns.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        var activationCard = Card("Activate this computer", form);
+        Grid.SetColumn(activationCard, 0);
+        columns.Children.Add(activationCard);
+        var subscriptionCard = Card("Subscription", status);
+        Grid.SetColumn(subscriptionCard, 1);
+        columns.Children.Add(subscriptionCard);
+
         var panel = new StackPanel {
-            Spacing = 18,
-            MaxWidth = 780,
+            Spacing = 16,
+            MaxWidth = 1060,
             HorizontalAlignment = HorizontalAlignment.Center,
             Children = {
-                new StackPanel {
-                    Spacing = 5,
-                    Children = {
-                        Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
-                        Label("Activate this production computer", 30, FontWeight.Bold),
-                        Label("Use the online subscription key issued for this church. Product keys are never saved by the desktop app.", 13, FontWeight.Normal, Muted)
-                    }
-                },
-                Card("Activation", form),
-                Card("Subscription", status),
+                identity,
+                columns,
                 _entitlementFeedback
             }
         };
@@ -327,73 +451,198 @@ public sealed class MainWindow : Window
 
     private Control BuildOperatorContent()
     {
-        var root = new Grid { Margin = new Thickness(4), MinHeight = 420 };
+        var root = new Grid { Margin = new Thickness(6, 4, 6, 4), MinHeight = 420 };
         root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(4)));
         root.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        root.RowDefinitions.Add(new RowDefinition(new GridLength(4)));
+        root.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-        var operatorStatus = new StackPanel {
+        // --- Studio command bar: brand, service truth, live controls, clock ---
+        var brandMark = new Border
+        {
+            Width = 24,
+            Height = 24,
+            CornerRadius = new CornerRadius(6),
+            Background = Gold,
+            Child = new TextBlock
+            {
+                Text = "iP",
+                FontSize = 11,
+                FontWeight = FontWeight.Bold,
+                Foreground = OperatorTheme.GoldInk,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+        brandMark.VerticalAlignment = VerticalAlignment.Center;
+        var brandTitle = Label("iPresenterPlux", 14, FontWeight.Bold);
+        brandTitle.VerticalAlignment = VerticalAlignment.Center;
+        var studioChip = OperatorTheme.Chip("STUDIO", Gold, ColorFade(Gold, 0.14), "Studio Shell — Preview-first operator console");
+        studioChip.VerticalAlignment = VerticalAlignment.Center;
+        var serviceStatus = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
-            Spacing = 9,
+            Spacing = 10,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        foreach (var status in new[] { _operatorRuntime, _operatorService, _operatorRecording, _microphoneStatus, _asrStatus })
-        {
-            status.FontSize = 9;
-            operatorStatus.Children.Add(status);
-        }
+        _operatorService.FontSize = 12;
+        _operatorService.VerticalAlignment = VerticalAlignment.Center;
+        serviceStatus.Children.Add(_operatorService);
+        var serviceDivider = new Border { Width = 1, Height = 14, Background = OperatorTheme.Line };
+        serviceDivider.VerticalAlignment = VerticalAlignment.Center;
+        serviceStatus.Children.Add(serviceDivider);
+        _catalogStatus.VerticalAlignment = VerticalAlignment.Center;
+        serviceStatus.Children.Add(_catalogStatus);
 
-        var headerActions = new StackPanel {
+        _studioClock.VerticalAlignment = VerticalAlignment.Center;
+        _goLive.MinHeight = 32;
+        _goLive.Padding = new Thickness(16, 5);
+        _goLive.FontSize = 12;
+        _goLive.Background = Live;
+        _goLive.Foreground = OperatorTheme.LiveInk;
+        _goLive.CornerRadius = new CornerRadius(6);
+        _record.MinHeight = 32;
+        _record.Padding = new Thickness(12, 5);
+        _record.FontSize = 11;
+
+        var headerActions = new StackPanel
+        {
             Orientation = Orientation.Horizontal,
             Spacing = 5,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Center
         };
-        foreach (var aiLink in new[]
+        var paneToggles = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        var sidebarToggle = OperatorTheme.IconToggle("◧", "Collapse library sidebar");
+        sidebarToggle.Click += (_, _) => SetSidebarPaneCollapsed(!_settings.OperatorSidebarCollapsed);
+        var deckToggle = OperatorTheme.IconToggle("▤", "Collapse playout deck");
+        deckToggle.Click += (_, _) => SetResourceDeckCollapsed(!_settings.OperatorResourceDeckCollapsed);
+        _sidebarPaneToggle = sidebarToggle;
+        _deckPaneToggle = deckToggle;
+        _layoutPreset.ItemsSource = LayoutPresetCodes.Select(OperatorWorkspaceLayouts.PresetLabel).ToArray();
+        _layoutPreset.SelectedIndex = 0;
+        _layoutPreset.SelectionChanged += (_, _) =>
         {
-            LinkButton("AI Director", () => CloudUri("/ai-director")),
-            LinkButton("Translations", () => CloudUri("/translations"))
-        })
-        {
-            aiLink.MinWidth = 0;
-            aiLink.MinHeight = 28;
-            aiLink.Padding = new Thickness(8, 3);
-            headerActions.Children.Add(aiLink);
-        }
+            var index = _layoutPreset.SelectedIndex;
+            if (index < 0 || index >= LayoutPresetCodes.Length) return;
+            ApplyWorkspacePreset(LayoutPresetCodes[index]);
+        };
+        ToolTip.SetTip(_layoutPreset, "Studio layout preset. Splitter adjustments are remembered automatically.");
+        var resetLayout = OperatorTheme.IconToggle("⟲", "Reset the workspace to the Studio layout");
+        resetLayout.Click += (_, _) => ResetWorkspaceLayout();
+        paneToggles.Children.Add(sidebarToggle);
+        paneToggles.Children.Add(deckToggle);
+        paneToggles.Children.Add(_layoutPreset);
+        paneToggles.Children.Add(resetLayout);
+        headerActions.Children.Add(paneToggles);
+        var actionDivider = new Border { Width = 1, Height = 16, Background = OperatorTheme.Line, Margin = new Thickness(6, 0, 4, 0) };
+        headerActions.Children.Add(actionDivider);
+        headerActions.Children.Add(_goLive);
+        headerActions.Children.Add(_record);
+        var clockDivider = new Border { Width = 1, Height = 16, Background = OperatorTheme.Line, Margin = new Thickness(6, 0, 4, 0) };
+        headerActions.Children.Add(clockDivider);
+        headerActions.Children.Add(_studioClock);
 
         var headerGrid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 12 };
-        var liveProduction = Label("LIVE PRODUCTION", 16, FontWeight.Bold);
-        liveProduction.VerticalAlignment = VerticalAlignment.Center;
-        headerGrid.Children.Add(liveProduction);
-        Grid.SetColumn(operatorStatus, 1);
-        headerGrid.Children.Add(operatorStatus);
+        var brandCluster = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 9,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { brandMark, brandTitle, studioChip }
+        };
+        headerGrid.Children.Add(brandCluster);
+        Grid.SetColumn(serviceStatus, 1);
+        headerGrid.Children.Add(serviceStatus);
         Grid.SetColumn(headerActions, 2);
         headerGrid.Children.Add(headerActions);
-        var header = new Border {
+        var commandBar = new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(12, 6),
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 5),
             Child = headerGrid
         };
-        root.Children.Add(header);
+        root.Children.Add(commandBar);
 
-        var workspace = new Grid();
-        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(1.38, GridUnitType.Star)) { MinHeight = 230 });
-        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(5)));
-        workspace.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)) { MinHeight = 180 });
-        Grid.SetRow(workspace, 2);
-        root.Children.Add(workspace);
+        // --- Studio body: 64px rail | library sidebar | PREVIEW · TAKE seam · PROGRAM stage over the playout deck ---
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(64)));
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)) { MinWidth = 220 });
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(2.15, GridUnitType.Star)) { MinWidth = 240 });
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(64)));
+        body.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.45, GridUnitType.Star)) { MinWidth = 240 });
+        body.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)) { MinHeight = 230 });
+        body.RowDefinitions.Add(new RowDefinition(new GridLength(5)));
+        body.RowDefinitions.Add(new RowDefinition(new GridLength(1.32, GridUnitType.Star)) { MinHeight = 180 });
+        Grid.SetRow(body, 2);
+        root.Children.Add(body);
+        _bodyGrid = body;
 
-        var production = new Grid();
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(0.72, GridUnitType.Star)) { MinWidth = 180 });
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.14, GridUnitType.Star)) { MinWidth = 240 });
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
-        production.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.14, GridUnitType.Star)) { MinWidth = 240 });
+        // --- 64px command rail: icon-first mode buttons, AI links, setup ---
+        // Labels are deliberately short caps under a glyph; tooltips carry the
+        // full meaning. The old 11px word labels clipped mid-word ("Sched",
+        // "Librar", "Trc") and a 52px rail could not fit "SCHEDULE" under its
+        // glyph either — 64px does, with room to spare on Windows' Segoe UI.
+        var railButtons = new StackPanel { Orientation = Orientation.Vertical, Spacing = 4 };
+        _sidebarModeButtons = railButtons;
+        foreach (var (mode, glyph, caption, tooltip) in new[]
+        {
+            ("schedule", "☰", "SCHEDULE", "Today's service schedule and current-cue truth."),
+            ("library", "▤", "LIBRARY", "Scripture, songs, slides, media and announcements library."),
+            ("scripture", "✝", "BIBLE", "Offline Bible browser and installed versions."),
+            ("media", "▶", "MEDIA", "Media library cues — playback stays desktop-authoritative.")
+        })
+        {
+            var railButton = RailButton(glyph, caption, tooltip);
+            railButton.Tag = mode;
+            railButton.Click += (_, _) => ShowSidebarMode(mode);
+            railButtons.Children.Add(railButton);
+        }
+        railButtons.Children.Add(new Border { Height = 8 });
+        var aiDirector = RailButton("✦", "AI DIR", "AI Director workspace on the Control Plane");
+        aiDirector.Click += (_, _) => LaunchExternalUri(() => CloudUri("/ai-director"));
+        var translations = RailButton("⇄", "TRANS", "AI translations workspace on the Control Plane");
+        translations.Click += (_, _) => LaunchExternalUri(() => CloudUri("/translations"));
+        railButtons.Children.Add(aiDirector);
+        railButtons.Children.Add(translations);
+        railButtons.Children.Add(new Border { Height = 8 });
+        var setupButton = RailButton("⚙", "SETUP", "Activation and runtime setup tab");
+        setupButton.Click += (_, _) => _tabs.SelectedIndex = SetupTabIndex;
+        railButtons.Children.Add(setupButton);
+        var rail = new Border
+        {
+            Background = Surface,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(4, 6),
+            Child = railButtons
+        };
+        Grid.SetColumn(rail, 0);
+        Grid.SetRowSpan(rail, 3);
+        body.Children.Add(rail);
 
-        _schedule.Background = SurfaceRaised;
+        // --- Library sidebar: schedule / library / scripture cards, one visible at a time ---
+        var sidebarHost = new Grid();
+        _sidebarHostField = sidebarHost;
+        Grid.SetColumn(sidebarHost, 1);
+        Grid.SetRowSpan(sidebarHost, 3);
+        body.Children.Add(sidebarHost);
+
+        var sidebarPreviewSplitter = ProductionSplitter(GridResizeDirection.Columns);
+        Grid.SetColumn(sidebarPreviewSplitter, 2);
+        Grid.SetRowSpan(sidebarPreviewSplitter, 3);
+        body.Children.Add(sidebarPreviewSplitter);
+        _schedulePreviewSplitterField = sidebarPreviewSplitter;
+
+        _schedule.Background = OperatorTheme.Brush("#090E15");
         _schedule.MinHeight = 140;
+        _schedule.ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate(BuildScheduleContextMenu);
         _schedule.SelectionChanged += (_, _) =>
         {
             if (!_rebuildingOperatorCollections && _schedule.SelectedItem is OperatorRundownRow row)
@@ -408,72 +657,109 @@ public sealed class MainWindow : Window
         foreach (var button in new[] { _removeScheduled, _moveScheduledUp, _moveScheduledDown })
         {
             button.MinWidth = 0;
-            button.MinHeight = 32;
-            button.Padding = new Thickness(8, 4);
-            button.Margin = new Thickness(0, 0, 5, 4);
+            button.MinHeight = 28;
+            button.Padding = new Thickness(8, 3);
+            button.Margin = new Thickness(0, 0, 5, 3);
+            button.FontSize = 11;
             scheduleActions.Children.Add(button);
         }
-        var scheduleLayout = new Grid { RowSpacing = 6 };
+        ToolTip.SetTip(_removeScheduled, "Remove the selected cue from the local schedule.");
+        ToolTip.SetTip(_moveScheduledUp, "Move the selected cue earlier (Ctrl+Up when the schedule has focus).");
+        ToolTip.SetTip(_moveScheduledDown, "Move the selected cue later (Ctrl+Down when the schedule has focus).");
+        _scheduleEmptyHint.IsHitTestVisible = false;
+        _scheduleEmptyHint.HorizontalAlignment = HorizontalAlignment.Center;
+        _scheduleEmptyHint.VerticalAlignment = VerticalAlignment.Center;
+        _scheduleEmptyHint.TextWrapping = TextWrapping.Wrap;
+        var scheduleWell = new Grid { Children = { _schedule, _scheduleEmptyHint } };
+        var scheduleLayout = new Grid { RowSpacing = 5 };
         scheduleLayout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         scheduleLayout.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
         scheduleLayout.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        var scheduleHeader = new StackPanel {
-            Spacing = 2,
-            Children = {
-                Label("SERVICE SCHEDULE", 9, FontWeight.Bold, Gold),
-                _rundownCurrent
-            }
-        };
+        var scheduleHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
+        scheduleHeader.Children.Add(Label("SERVICE SCHEDULE", 9, FontWeight.Bold, Gold));
+        _rundownCurrent.HorizontalAlignment = HorizontalAlignment.Right;
+        _rundownCurrent.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(_rundownCurrent, 1);
+        scheduleHeader.Children.Add(_rundownCurrent);
+        var scheduleCount = Label(string.Empty, 9, FontWeight.Bold, OperatorTheme.Faint);
+        scheduleCount.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(scheduleCount, 2);
+        scheduleHeader.Children.Add(scheduleCount);
         scheduleLayout.Children.Add(scheduleHeader);
-        Grid.SetRow(_schedule, 1);
-        scheduleLayout.Children.Add(_schedule);
+        Grid.SetRow(scheduleWell, 1);
+        scheduleLayout.Children.Add(scheduleWell);
         Grid.SetRow(scheduleActions, 2);
         scheduleLayout.Children.Add(scheduleActions);
         var scheduleCard = new Border {
             Background = Surface,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(8),
+            Padding = new Thickness(7),
             Child = scheduleLayout
         };
-        production.Children.Add(scheduleCard);
+        _scheduleCard = scheduleCard;
+        sidebarHost.Children.Add(scheduleCard);
+        _scheduleCountLabel = scheduleCount;
 
-        var schedulePreviewSplitter = ProductionSplitter(GridResizeDirection.Columns);
-        Grid.SetColumn(schedulePreviewSplitter, 1);
-        production.Children.Add(schedulePreviewSplitter);
-
+        // --- Stage row: PREVIEW | TAKE seam | PROGRAM — one row, resizable, deck below ---
         var previewActions = new WrapPanel { Orientation = Orientation.Horizontal };
-        _prepare.MinHeight = 34;
-        _prepare.Padding = new Thickness(10, 5);
+        _prepare.Content = "Preview · F6";
+        _prepare.MinHeight = 30;
+        _prepare.Padding = new Thickness(10, 4);
         _prepare.Margin = new Thickness(0, 0, 6, 0);
+        _take.Content = "TAKE";
         _take.MinHeight = 34;
-        _take.Padding = new Thickness(12, 5);
+        _take.Padding = new Thickness(10, 4);
+        _take.FontSize = 13;
+        // NOTE: the physical TAKE button lives ONLY on the central seam below.
+        // Never add _take to previewActions as well — an Avalonia control can
+        // only have one visual parent, and double-parenting crashes MainWindow
+        // construction at startup (see MainWindowVisualTreeTests).
         previewActions.Children.Add(_prepare);
-        previewActions.Children.Add(_take);
         var previewPane = BuildProductionPane(
             "PREVIEW",
             BuildStage("PREVIEW", _previewTitle, _previewBody, _previewFooter, Gold),
             previewActions,
             Gold);
-        Grid.SetColumn(previewPane, 2);
-        production.Children.Add(previewPane);
+        Grid.SetColumn(previewPane, 3);
+        body.Children.Add(previewPane);
 
-        var previewProgramSplitter = ProductionSplitter(GridResizeDirection.Columns);
-        Grid.SetColumn(previewProgramSplitter, 3);
-        production.Children.Add(previewProgramSplitter);
+        // The TAKE seam: a real resizable splitter with the physical TAKE on it,
+        // so the eye travels Preview → TAKE → Program along one straight line.
+        var seamSplitter = ProductionSplitter(GridResizeDirection.Columns);
+        // The seam column is a fixed 64px; the button's desired width must stay
+        // below that or the final letter clips (observed as "TAK" in QA).
+        _take.MinWidth = 48;
+        var takeHint = Label("F8", 9, FontWeight.Bold, OperatorTheme.Faint);
+        takeHint.HorizontalAlignment = HorizontalAlignment.Center;
+        var takeStack = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Spacing = 3,
+            Children = { _take, takeHint }
+        };
+        var seam = new Grid { MinWidth = 64, Children = { seamSplitter, takeStack } };
+        Grid.SetColumn(seam, 4);
+        body.Children.Add(seam);
 
         var programActions = new WrapPanel { Orientation = Orientation.Horizontal };
-        _clear.MinHeight = 34;
-        _clear.Padding = new Thickness(10, 5);
+        _clear.Content = "Clear · F7";
+        _clear.MinHeight = 30;
+        _clear.Padding = new Thickness(10, 4);
         _clear.Margin = new Thickness(0, 0, 6, 0);
         var openProgram = LocalOutputButton("Open Program", "program");
-        openProgram.MinHeight = 34;
-        openProgram.Padding = new Thickness(10, 5);
+        openProgram.MinHeight = 30;
+        openProgram.Padding = new Thickness(10, 4);
         openProgram.Margin = new Thickness(0, 0, 6, 0);
+        openProgram.Content = "Open Program";
         programActions.Children.Add(_clear);
         programActions.Children.Add(openProgram);
-        _record.MinHeight = 34;
-        _record.Padding = new Thickness(10, 5);
-        programActions.Children.Add(_record);
+        // NOTE: _record lives ONLY in the command bar (headerActions, next to
+        // GO LIVE). Adding it here as well double-parents the button and crashes
+        // MainWindow construction at startup — same defect class as the TAKE
+        // seam bug guarded by MainWindowVisualTreeTests.
         var mediaActions = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var control in new Control[] { _mediaPause, _mediaResume, _mediaSeek, _mediaSeekApply })
         {
@@ -483,16 +769,17 @@ public sealed class MainWindow : Window
         var programActionStack = new StackPanel { Spacing = 4, Children = { programActions, mediaActions } };
         var programPane = BuildProductionPane(
             "PROGRAM · LIVE",
-            BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Good),
+            BuildStage("PROGRAM", _programTitle, _programBody, _programFooter, Live, _programLiveBadge),
             programActionStack,
-            Good);
-        Grid.SetColumn(programPane, 4);
-        production.Children.Add(programPane);
+            Live);
+        Grid.SetColumn(programPane, 5);
+        body.Children.Add(programPane);
 
-        workspace.Children.Add(production);
-
-        _operatorSearch.MinHeight = 36;
+        // --- Playout deck below the stage: UP NEXT | TITLES & SCRIPTURE ---
+        _operatorSearch.MinHeight = 34;
+        _operatorSearch.FontSize = 12;
         _scriptureReference.MinHeight = 36;
+        _scriptureReference.FontSize = 12;
         _scriptureReference.IsEnabled = true;
         _bibleVersion.Background = SurfaceRaised;
         _bibleVersion.Foreground = Brushes.White;
@@ -502,34 +789,126 @@ public sealed class MainWindow : Window
         _manageBibleVersions.MinHeight = 36;
         _manageBibleVersions.Padding = new Thickness(10, 5);
 
-        var categoryBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        // Overflow strip: at narrow pane widths the categories scroll inside the
+        // strip instead of overlapping the toolbar actions. Labels keep their
+        // readable size; the active category is always scrolled into view.
+        var categoryBar = new OperatorOverflowStrip();
         foreach (var category in OperatorWorkspaceCatalog.Categories)
         {
             var button = ActionButton(category, false);
             button.MinWidth = 0;
-            button.MinHeight = 30;
-            button.Padding = new Thickness(9, 4);
+            button.MinHeight = 28;
+            button.Padding = new Thickness(9, 3);
             button.Margin = new Thickness(0);
+            button.FontSize = 11;
             var captured = category;
-            button.Click += (_, _) => { _activeCategory = captured; RefreshRundown(); };
-            categoryBar.Children.Add(button);
+            var capturedButton = button;
+            button.Click += (_, _) =>
+            {
+                _activeCategory = captured;
+                RefreshRundown();
+                categoryBar.EnsureVisible(capturedButton);
+            };
+            categoryBar.Items.Add(button);
         }
+        _activeCategoryButtons = categoryBar.ItemHost;
+        _categoryStrip = categoryBar;
 
-        var scriptureLookup = new Grid { ColumnSpacing = 6 };
-        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(110)));
+        // Two rows: version + reference on top, actions below. A single row
+        // collides with the Find/Manage buttons once the deck pane narrows
+        // (expanded sidebar, 1366-wide laptops); two rows never overlap.
+        var scriptureLookup = new Grid { RowSpacing = 6, ColumnSpacing = 6 };
+        scriptureLookup.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scriptureLookup.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(104)));
         scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        scriptureLookup.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         scriptureLookup.Children.Add(_bibleVersion);
         Grid.SetColumn(_scriptureReference, 1);
         scriptureLookup.Children.Add(_scriptureReference);
-        Grid.SetColumn(_resolveScripture, 2);
-        scriptureLookup.Children.Add(_resolveScripture);
-        Grid.SetColumn(_manageBibleVersions, 3);
-        scriptureLookup.Children.Add(_manageBibleVersions);
+        var lookupActions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        lookupActions.Children.Add(_resolveScripture);
+        lookupActions.Children.Add(_manageBibleVersions);
+        Grid.SetRow(lookupActions, 1);
+        Grid.SetColumnSpan(lookupActions, 2);
+        scriptureLookup.Children.Add(lookupActions);
 
-        _rundown.Background = SurfaceRaised;
+        var titlesHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
+        titlesHeader.Children.Add(Label("TITLES & SCRIPTURE", 9, FontWeight.Bold, Gold));
+        var titlesHint = Label("stages into Preview — never Program", 9, FontWeight.SemiBold, OperatorTheme.Faint);
+        titlesHint.VerticalAlignment = VerticalAlignment.Center;
+        titlesHint.TextAlignment = TextAlignment.Right;
+        titlesHint.TextTrimming = TextTrimming.CharacterEllipsis;
+        Grid.SetColumn(titlesHint, 1);
+        titlesHeader.Children.Add(titlesHint);
+        var titlesGrid = new Grid { RowSpacing = 6 };
+        titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        titlesGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        titlesGrid.Children.Add(titlesHeader);
+        Grid.SetRow(scriptureLookup, 1);
+        titlesGrid.Children.Add(scriptureLookup);
+        var titlesCard = OperatorTheme.ConsolePanel(titlesGrid);
+
+        // UP NEXT queue: the rundown after the current cue, kept aligned by the navigator.
+        _upNext.Background = OperatorTheme.Brush("#090E15");
+        _upNext.MinHeight = 110;
+        _upNext.ItemTemplate = OperatorRowTemplates.ScheduleRowTemplate(BuildUpNextContextMenu);
+        _upNext.PointerPressed += OnUpNextPointerPressed;
+        _upNextEmptyHint.IsHitTestVisible = false;
+        _upNextEmptyHint.HorizontalAlignment = HorizontalAlignment.Center;
+        _upNextEmptyHint.VerticalAlignment = VerticalAlignment.Center;
+        _upNextEmptyHint.TextWrapping = TextWrapping.Wrap;
+        var upNextWell = new Grid { Children = { _upNext, _upNextEmptyHint } };
+        var upNextHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
+        upNextHeader.Children.Add(Label("UP NEXT", 9, FontWeight.Bold, Gold));
+        var upNextTag = OperatorTheme.Chip("AUTO-FOLLOW", OperatorTheme.TypeNotice, ColorFade(OperatorTheme.TypeNotice, 0.12), "The rundown navigator keeps this queue aligned with the current cue.");
+        upNextTag.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(upNextTag, 2);
+        upNextHeader.Children.Add(upNextTag);
+        var upNextGrid = new Grid { RowSpacing = 6 };
+        upNextGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        upNextGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        upNextGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        upNextGrid.Children.Add(upNextHeader);
+        Grid.SetRow(upNextWell, 1);
+        upNextGrid.Children.Add(upNextWell);
+        var upNextFooter = Label("Single-click stages into Preview · double-click takes it live.", 9, FontWeight.SemiBold, OperatorTheme.Faint);
+        upNextFooter.TextWrapping = TextWrapping.Wrap;
+        Grid.SetRow(upNextFooter, 2);
+        upNextGrid.Children.Add(upNextFooter);
+        var upNextCard = OperatorTheme.ConsolePanel(upNextGrid);
+
+        // Resizable deck columns: UP NEXT | splitter | TITLES & SCRIPTURE. The
+        // operator decides how much of the deck goes to the queue vs. titles,
+        // and the ratio persists like every other workspace region.
+        var playoutDeck = new Grid();
+        playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(OperatorWorkspaceLayouts.ProductionShape.DeckLeftColumn, GridUnitType.Star)));
+        playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(5)));
+        playoutDeck.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(OperatorWorkspaceLayouts.ProductionShape.DeckRightColumn, GridUnitType.Star)));
+        playoutDeck.Children.Add(upNextCard);
+        var deckColumnSplitter = ProductionSplitter(GridResizeDirection.Columns);
+        Grid.SetColumn(deckColumnSplitter, 1);
+        playoutDeck.Children.Add(deckColumnSplitter);
+        _deckColumnSplitterField = deckColumnSplitter;
+        Grid.SetColumn(titlesCard, 2);
+        playoutDeck.Children.Add(titlesCard);
+        Grid.SetRow(playoutDeck, 2);
+        Grid.SetColumn(playoutDeck, 3);
+        Grid.SetColumnSpan(playoutDeck, 3);
+        body.Children.Add(playoutDeck);
+        _playoutDeck = playoutDeck;
+
+        var deckSplitter = ProductionSplitter(GridResizeDirection.Rows);
+        Grid.SetRow(deckSplitter, 1);
+        Grid.SetColumn(deckSplitter, 3);
+        Grid.SetColumnSpan(deckSplitter, 3);
+        body.Children.Add(deckSplitter);
+        _productionResourceSplitterField = deckSplitter;
+
+        BuildScriptureBrowserPanel();
+
+        _rundown.Background = OperatorTheme.Brush("#090E15");
         _rundown.MinHeight = 130;
+        _rundown.ItemTemplate = OperatorRowTemplates.LibraryRowTemplate(BuildLibraryContextMenu);
         _rundown.SelectionChanged += (_, _) =>
         {
             if (!_rebuildingOperatorCollections && _rundown.SelectedItem is OperatorRundownRow row)
@@ -543,49 +922,508 @@ public sealed class MainWindow : Window
         };
         _rundown.PointerPressed += OnLibraryPointerPressed;
 
-        var categoryToolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
+        // The category strip owns its row outright. Sharing the row with the
+        // fixed-width action buttons starved it at the sidebar floor (the
+        // strip viewport collapsed to ~4px and no category was visible);
+        // the actions join the search row instead, where the star-sized
+        // search absorbs the narrow-pane squeeze.
+        var categoryToolbar = new Grid();
         categoryToolbar.Children.Add(categoryBar);
-        _addSelectedToSchedule.MinHeight = 30;
-        _addSelectedToSchedule.Padding = new Thickness(9, 4);
+        _addSelectedToSchedule.MinHeight = 28;
+        _addSelectedToSchedule.Padding = new Thickness(9, 3);
+        _addSelectedToSchedule.FontSize = 11;
+        ToolTip.SetTip(_addSelectedToSchedule, "Append the selected library cue to the local service schedule.");
+        // Icon-only at this width: the glyph + tooltip keeps the destination
+        // obvious and the row compact. The AI link itself is unchanged.
+        var aiScripture = LinkButton("✦", () => CloudUri("/scripture"));
+        aiScripture.MinHeight = 28;
+        aiScripture.MinWidth = 34;
+        aiScripture.Padding = new Thickness(6, 3);
+        aiScripture.Margin = new Thickness(0);
+        aiScripture.FontSize = 13;
+        ToolTip.SetTip(aiScripture, "AI Scripture — opens the scripture workspace on the Control Plane.");
+        var searchRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
+        searchRow.Children.Add(_operatorSearch);
         Grid.SetColumn(_addSelectedToSchedule, 1);
-        categoryToolbar.Children.Add(_addSelectedToSchedule);
-        var aiScripture = LinkButton("AI Scripture", () => CloudUri("/scripture"));
-        aiScripture.MinHeight = 30;
-        aiScripture.Padding = new Thickness(9, 4);
+        searchRow.Children.Add(_addSelectedToSchedule);
         Grid.SetColumn(aiScripture, 2);
-        categoryToolbar.Children.Add(aiScripture);
+        searchRow.Children.Add(aiScripture);
+
+        var deckHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
+        deckHeader.Children.Add(Label("RESOURCE DECK", 9, FontWeight.Bold, Gold));
+        _catalogService.HorizontalAlignment = HorizontalAlignment.Right;
+        _catalogService.VerticalAlignment = VerticalAlignment.Center;
+        _catalogService.FontSize = 10;
+        _catalogService.TextTrimming = TextTrimming.CharacterEllipsis;
+        Grid.SetColumn(_catalogService, 1);
+        deckHeader.Children.Add(_catalogService);
+        var deckSearchHint = Label("Single-click previews · double-click goes live", 9, FontWeight.SemiBold, OperatorTheme.Faint);
+        deckSearchHint.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(deckSearchHint, 2);
+        deckHeader.Children.Add(deckSearchHint);
+
+        _libraryEmptyHint.IsHitTestVisible = false;
+        _libraryEmptyHint.HorizontalAlignment = HorizontalAlignment.Center;
+        _libraryEmptyHint.VerticalAlignment = VerticalAlignment.Center;
+        _libraryEmptyHint.TextWrapping = TextWrapping.Wrap;
+        var libraryWell = new Grid { Children = { _rundown, _libraryEmptyHint } };
 
         var libraryPanel = new Grid { RowSpacing = 6 };
         libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        libraryPanel.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         libraryPanel.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
-        libraryPanel.Children.Add(Label("RESOURCE DECK", 9, FontWeight.Bold, Gold));
+        libraryPanel.Children.Add(deckHeader);
         Grid.SetRow(categoryToolbar, 1);
         libraryPanel.Children.Add(categoryToolbar);
-        Grid.SetRow(_operatorSearch, 2);
-        libraryPanel.Children.Add(_operatorSearch);
-        Grid.SetRow(scriptureLookup, 3);
-        libraryPanel.Children.Add(scriptureLookup);
-        Grid.SetRow(_rundown, 4);
-        libraryPanel.Children.Add(_rundown);
+        Grid.SetRow(searchRow, 2);
+        libraryPanel.Children.Add(searchRow);
+        Grid.SetRow(libraryWell, 3);
+        libraryPanel.Children.Add(libraryWell);
 
-        var resourceDeckCard = new Border {
+        var libraryCard = new Border {
             Background = Surface,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(8),
             Child = libraryPanel
         };
-        var productionResourceSplitter = ProductionSplitter(GridResizeDirection.Rows);
-        Grid.SetRow(productionResourceSplitter, 1);
-        workspace.Children.Add(productionResourceSplitter);
-        Grid.SetRow(resourceDeckCard, 2);
-        workspace.Children.Add(resourceDeckCard);
+        _libraryCard = libraryCard;
+        sidebarHost.Children.Add(libraryCard);
+
+        // --- Scripture sidebar card: offline Bible browser + installed versions ---
+        var scriptureToggle = OperatorTheme.ToolButton("Browse ▴", false, "Show or hide the offline Bible browser.");
+        scriptureToggle.MinHeight = 34;
+        scriptureToggle.Click += (_, _) =>
+        {
+            _scriptureBrowserPanel.IsVisible = !_scriptureBrowserPanel.IsVisible;
+            scriptureToggle.Content = _scriptureBrowserPanel.IsVisible ? "Browse ▴" : "Browse ▾";
+        };
+        _scriptureBrowserPanel.IsVisible = true;
+        var scriptureHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
+        scriptureHeader.Children.Add(Label("SCRIPTURE", 9, FontWeight.Bold, Gold));
+        var scriptureHint = Label("quick find lives in TITLES & SCRIPTURE below the stage", 9, FontWeight.SemiBold, OperatorTheme.Faint);
+        scriptureHint.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(scriptureHint, 1);
+        scriptureHeader.Children.Add(scriptureHint);
+        Grid.SetColumn(scriptureToggle, 2);
+        scriptureHeader.Children.Add(scriptureToggle);
+        var scriptureGrid = new Grid { RowSpacing = 6 };
+        scriptureGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+        scriptureGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        scriptureGrid.Children.Add(scriptureHeader);
+        Grid.SetRow(_scriptureBrowserPanel, 1);
+        scriptureGrid.Children.Add(_scriptureBrowserPanel);
+        var scriptureCard = new Border {
+            Background = Surface,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(8),
+            Child = scriptureGrid
+        };
+        _scriptureCard = scriptureCard;
+        sidebarHost.Children.Add(scriptureCard);
+
+        UpdateSidebarModeVisibility();
+        HighlightSidebarMode();
+
+        // --- Status strip: operator feedback + runtime truth, always visible ---
+        var statusChips = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 12,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        foreach (var status in new[] { _operatorRuntime, _operatorRecording, _microphoneStatus, _asrStatus, _voiceScriptureStatus })
+        {
+            status.FontSize = 10;
+            statusChips.Children.Add(status);
+        }
+        ToolTip.SetTip(_operatorRuntime, "Edge runtime output state — GO LIVE starts and stops the program output.");
+        ToolTip.SetTip(_operatorRecording, "Local recording state. Start Recording lives in the command bar.");
+        ToolTip.SetTip(_microphoneStatus, "Audio capture input used for voice scripture and interpretation.");
+        ToolTip.SetTip(_asrStatus, "Speech recognition readiness for voice scripture.");
+        ToolTip.SetTip(_voiceScriptureStatus, "Voice scripture listens once audio capture and ASR are both ready.");
+        _operatorFeedback.TextTrimming = TextTrimming.CharacterEllipsis;
+        _operatorFeedback.VerticalAlignment = VerticalAlignment.Center;
+        var statusStrip = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12 };
+        statusStrip.Children.Add(_operatorFeedback);
+        Grid.SetColumn(statusChips, 1);
+        statusStrip.Children.Add(statusChips);
+        var statusBar = new Border
+        {
+            Background = Surface,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(10, 4),
+            Child = statusStrip
+        };
+        Grid.SetRow(statusBar, 4);
+        root.Children.Add(statusBar);
 
         RefreshRundown();
         return root;
     }
+
+    private TextBlock? _scheduleCountLabel;
+    private StackPanel? _activeCategoryButtons;
+    private OperatorOverflowStrip? _categoryStrip;
+    private Button? _sidebarPaneToggle;
+    private Button? _deckPaneToggle;
+
+    /// <summary>Builds the collapsible offline-Bible verse browser revealed by the Browse toggle.</summary>
+    private void BuildScriptureBrowserPanel()
+    {
+        if (_scriptureBrowserPanel.Children.Count > 0) return;
+        var selectors = new Grid { ColumnSpacing = 6 };
+        selectors.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        selectors.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        selectors.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        selectors.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        selectors.Children.Add(_browserBook);
+        Grid.SetColumn(_browserChapter, 1);
+        selectors.Children.Add(_browserChapter);
+        Grid.SetColumn(_browserFromVerse, 2);
+        selectors.Children.Add(_browserFromVerse);
+        Grid.SetColumn(_browserToVerse, 3);
+        selectors.Children.Add(_browserToVerse);
+        ToolTip.SetTip(_browserBook, "Bible book");
+        ToolTip.SetTip(_browserChapter, "Chapter");
+        ToolTip.SetTip(_browserFromVerse, "First verse of the range");
+        ToolTip.SetTip(_browserToVerse, "Last verse of the range");
+
+        _browserVerses.Background = OperatorTheme.Brush("#090E15");
+        _browserVerses.MinHeight = 96;
+        _browserPreviewRange.MinHeight = 30;
+        _browserPreviewRange.Padding = new Thickness(10, 4);
+        _browserPreviewRange.FontSize = 12;
+
+        var browserChrome = new Border
+        {
+            Background = OperatorTheme.SurfaceRaised,
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(OperatorTheme.RadiusPanel),
+            Padding = new Thickness(8),
+            Child = new StackPanel
+            {
+                Spacing = 6,
+                Children =
+                {
+                    Label("OFFLINE BIBLE BROWSER", 9, FontWeight.Bold, OperatorTheme.Faint),
+                    selectors,
+                    _browserVerses,
+                    _browserPreviewRange
+                }
+            }
+        };
+        _scriptureBrowserPanel.Children.Add(browserChrome);
+    }
+
+    private static Border BuildLiveBadge()
+    {
+        var badge = new Border
+        {
+            Background = OperatorTheme.Live,
+            CornerRadius = new CornerRadius(OperatorTheme.RadiusChip),
+            Padding = new Thickness(7, 2),
+            IsVisible = false,
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = "● LIVE",
+                FontSize = 11,
+                FontWeight = FontWeight.Bold,
+                Foreground = OperatorTheme.LiveInk
+            }
+        };
+        ToolTip.SetTip(badge, "Program is live to the congregation output.");
+        return badge;
+    }
+
+    // --- Workspace layout: collapse toggles, presets and persistence ---
+
+    /// <summary>Collapses or restores the library sidebar column.</summary>
+    private void SetSidebarPaneCollapsed(bool collapsed)
+    {
+        if (_bodyGrid is null || _sidebarHostField is null || _schedulePreviewSplitterField is null) return;
+        var column = _bodyGrid.ColumnDefinitions[1];
+        if (collapsed)
+        {
+            _sidebarPaneSavedWidth = column.Width;
+            column.MinWidth = 0;
+            column.Width = new GridLength(0);
+            _sidebarHostField.IsVisible = false;
+            _schedulePreviewSplitterField.IsVisible = false;
+        }
+        else
+        {
+            column.MinWidth = 220;
+            column.Width = _sidebarPaneSavedWidth ?? new GridLength(OperatorWorkspaceLayouts.ProductionShape.SidebarColumn, GridUnitType.Star);
+            _sidebarHostField.IsVisible = true;
+            _schedulePreviewSplitterField.IsVisible = true;
+        }
+        _settings = _settings with { OperatorSidebarCollapsed = collapsed };
+        PersistWorkspaceSettings();
+        RefreshPaneToggleStates();
+    }
+
+    /// <summary>Collapses or restores the playout deck row.</summary>
+    private void SetResourceDeckCollapsed(bool collapsed)
+    {
+        if (_bodyGrid is null || _playoutDeck is null || _productionResourceSplitterField is null) return;
+        var row = _bodyGrid.RowDefinitions[2];
+        if (collapsed)
+        {
+            _resourceDeckSavedHeight = row.Height;
+            row.MinHeight = 0;
+            row.Height = new GridLength(0);
+            _playoutDeck.IsVisible = false;
+            _productionResourceSplitterField.IsVisible = false;
+        }
+        else
+        {
+            row.MinHeight = 180;
+            row.Height = _resourceDeckSavedHeight ?? new GridLength(OperatorWorkspaceLayouts.ProductionShape.DeckRow, GridUnitType.Star);
+            _playoutDeck.IsVisible = true;
+            _productionResourceSplitterField.IsVisible = true;
+        }
+        _settings = _settings with { OperatorResourceDeckCollapsed = collapsed };
+        PersistWorkspaceSettings();
+        RefreshPaneToggleStates();
+    }
+
+    /// <summary>
+    /// Keeps the command-bar pane toggles truthful: the glyph and tooltip always
+    /// describe the action the toggle will perform next.
+    /// </summary>
+    private void RefreshPaneToggleStates()
+    {
+        if (_sidebarPaneToggle is { } sidebarToggle)
+        {
+            var sidebarCollapsed = _settings.OperatorSidebarCollapsed;
+            if (sidebarToggle.Content is TextBlock sidebarGlyph)
+                sidebarGlyph.Text = sidebarCollapsed ? "◨" : "◧";
+            ToolTip.SetTip(sidebarToggle, sidebarCollapsed
+                ? "Expand library sidebar (rail buttons also restore it)"
+                : "Collapse library sidebar");
+        }
+        if (_deckPaneToggle is { } deckToggle)
+        {
+            var deckCollapsed = _settings.OperatorResourceDeckCollapsed;
+            if (deckToggle.Content is TextBlock deckGlyph)
+                deckGlyph.Text = deckCollapsed ? "▤" : "▤";
+            ToolTip.SetTip(deckToggle, deckCollapsed
+                ? "Expand playout deck"
+                : "Collapse playout deck");
+        }
+    }
+
+    /// <summary>
+    /// Applies a named preset: star geometry for every workspace region plus the
+    /// sidebar mode that makes that preset useful, and clears manual overrides.
+    /// </summary>
+    private void ApplyWorkspacePreset(string preset)
+    {
+        if (!OperatorWorkspaceLayouts.IsValidPreset(preset)) return;
+        var shape = OperatorWorkspaceLayouts.Shape(preset);
+        if (_bodyGrid is not null)
+        {
+            var sidebar = _bodyGrid.ColumnDefinitions[1];
+            var preview = _bodyGrid.ColumnDefinitions[3];
+            var program = _bodyGrid.ColumnDefinitions[5];
+            if (sidebar.MinWidth > 0) sidebar.MinWidth = 220;
+            sidebar.Width = new GridLength(shape.SidebarColumn, GridUnitType.Star);
+            preview.Width = new GridLength(shape.PreviewColumn, GridUnitType.Star);
+            program.Width = new GridLength(shape.ProgramColumn, GridUnitType.Star);
+            var stage = _bodyGrid.RowDefinitions[0];
+            var deck = _bodyGrid.RowDefinitions[2];
+            stage.Height = new GridLength(shape.StageRow, GridUnitType.Star);
+            if (deck.MinHeight > 0) deck.MinHeight = 180;
+            deck.Height = new GridLength(shape.DeckRow, GridUnitType.Star);
+        }
+        if (_playoutDeck is not null && _playoutDeck.ColumnDefinitions.Count >= 3)
+        {
+            _playoutDeck.ColumnDefinitions[0].Width = new GridLength(shape.DeckLeftColumn, GridUnitType.Star);
+            _playoutDeck.ColumnDefinitions[2].Width = new GridLength(shape.DeckRightColumn, GridUnitType.Star);
+        }
+        _settings = _settings with
+        {
+            OperatorLayoutPreset = preset,
+            OperatorSidebarColumn = null,
+            OperatorPreviewColumn = null,
+            OperatorProgramColumn = null,
+            OperatorStageRow = null,
+            OperatorDeckRow = null,
+            OperatorDeckLeftColumn = null,
+            OperatorDeckRightColumn = null
+        };
+        ShowSidebarMode(OperatorWorkspaceLayouts.SidebarModeForPreset(preset));
+        PersistWorkspaceSettings();
+    }
+
+    /// <summary>
+    /// Restores the recommended Studio layout: both panes expanded, schedule
+    /// sidebar, default geometry. No settings files need to be deleted.
+    /// </summary>
+    private void ResetWorkspaceLayout()
+    {
+        if (_settings.OperatorSidebarCollapsed) SetSidebarPaneCollapsed(false);
+        if (_settings.OperatorResourceDeckCollapsed) SetResourceDeckCollapsed(false);
+        _sidebarPaneSavedWidth = null;
+        _resourceDeckSavedHeight = null;
+        _layoutPreset.SelectedIndex = 0;
+        ApplyWorkspacePreset(OperatorWorkspaceLayouts.Production);
+        SetOperatorFeedback("Workspace reset to the Studio layout.", false);
+    }
+
+    /// <summary>
+    /// Restores splitter positions, deck column ratios, sidebar mode and
+    /// collapsed panes saved from the last session. Star values arrive already
+    /// clamped by DesktopSettings.Normalize, so a stale or hand-edited settings
+    /// file cannot produce an unusable workspace.
+    /// </summary>
+    private void ApplySavedWorkspaceLayout()
+    {
+        if (_settings.OperatorSidebarColumn is { } sidebar &&
+            _settings.OperatorPreviewColumn is { } preview &&
+            _settings.OperatorProgramColumn is { } program &&
+            _bodyGrid is not null)
+        {
+            _bodyGrid.ColumnDefinitions[1].Width = new GridLength(sidebar, GridUnitType.Star);
+            _bodyGrid.ColumnDefinitions[3].Width = new GridLength(preview, GridUnitType.Star);
+            _bodyGrid.ColumnDefinitions[5].Width = new GridLength(program, GridUnitType.Star);
+        }
+        if (_settings.OperatorStageRow is { } stage &&
+            _settings.OperatorDeckRow is { } deck &&
+            _bodyGrid is not null)
+        {
+            _bodyGrid.RowDefinitions[0].Height = new GridLength(stage, GridUnitType.Star);
+            _bodyGrid.RowDefinitions[2].Height = new GridLength(deck, GridUnitType.Star);
+        }
+        if (_settings.OperatorDeckLeftColumn is { } deckLeft &&
+            _settings.OperatorDeckRightColumn is { } deckRight &&
+            _playoutDeck is not null &&
+            _playoutDeck.ColumnDefinitions.Count >= 3)
+        {
+            _playoutDeck.ColumnDefinitions[0].Width = new GridLength(deckLeft, GridUnitType.Star);
+            _playoutDeck.ColumnDefinitions[2].Width = new GridLength(deckRight, GridUnitType.Star);
+        }
+        if (_settings.OperatorSidebarCollapsed) SetSidebarPaneCollapsed(true);
+        if (_settings.OperatorResourceDeckCollapsed) SetResourceDeckCollapsed(true);
+        if (OperatorWorkspaceLayouts.IsValidSidebarMode(_settings.OperatorSidebarMode))
+            ShowSidebarMode(_settings.OperatorSidebarMode);
+        else
+            ShowSidebarMode(OperatorWorkspaceLayouts.ProductionSidebarMode);
+        var presetIndex = Array.IndexOf(LayoutPresetCodes, _settings.OperatorLayoutPreset);
+        if (presetIndex >= 0) _layoutPreset.SelectedIndex = presetIndex;
+        RefreshPaneToggleStates();
+    }
+
+    /// <summary>
+    /// Persists the current splitter geometry. Star ratios are derived from the
+    /// panes' actual rendered bounds so a saved layout survives future window
+    /// size changes; collapsed panes keep their previous saved ratios.
+    /// </summary>
+    private void PersistWorkspaceLayout()
+    {
+        if (_bodyGrid is null || _sidebarHostField is null || _playoutDeck is null)
+            return;
+
+        var previewBounds = PaneBoundsAtColumn(_bodyGrid, 3);
+        var programBounds = PaneBoundsAtColumn(_bodyGrid, 5);
+        if (_sidebarHostField.IsVisible &&
+            _sidebarHostField.Bounds.Width > 1 &&
+            previewBounds is { } preview &&
+            programBounds is { } program)
+        {
+            var shape = OperatorWorkspaceLayouts.FromActualBounds(
+                _sidebarHostField.Bounds.Width,
+                preview.Width,
+                program.Width,
+                1,
+                1);
+            _settings = _settings with
+            {
+                OperatorSidebarColumn = shape.SidebarColumn,
+                OperatorPreviewColumn = shape.PreviewColumn,
+                OperatorProgramColumn = shape.ProgramColumn
+            };
+        }
+
+        var stageBounds = PaneBoundsAtRow(_bodyGrid, 0);
+        if (_playoutDeck.IsVisible &&
+            _playoutDeck.Bounds.Height > 1 &&
+            stageBounds is { } stageArea)
+        {
+            var shape = OperatorWorkspaceLayouts.FromActualBounds(
+                1,
+                1,
+                1,
+                stageArea.Height,
+                _playoutDeck.Bounds.Height);
+            _settings = _settings with
+            {
+                OperatorStageRow = shape.StageRow,
+                OperatorDeckRow = shape.DeckRow
+            };
+        }
+
+        var deckLeftBounds = PaneBoundsAtColumn(_playoutDeck, 0);
+        var deckRightBounds = PaneBoundsAtColumn(_playoutDeck, 2);
+        if (_playoutDeck.IsVisible &&
+            deckLeftBounds is { Width: > 1 } deckLeft &&
+            deckRightBounds is { Width: > 1 } deckRight)
+        {
+            var (deckLeftStar, deckRightStar) = OperatorWorkspaceLayouts.DeckColumnsFromActualBounds(deckLeft.Width, deckRight.Width);
+            _settings = _settings with
+            {
+                OperatorDeckLeftColumn = deckLeftStar,
+                OperatorDeckRightColumn = deckRightStar
+            };
+        }
+
+        PersistWorkspaceSettings();
+    }
+
+    private static Rect? PaneBoundsAtColumn(Grid grid, int column) =>
+        grid.Children
+            .Where(child => Grid.GetColumn(child) == column && child is GridSplitter == false)
+            .Select(child => child.Bounds)
+            .FirstOrDefault(bounds => bounds.Width > 1);
+
+    private static Rect? PaneBoundsAtRow(Grid grid, int row) =>
+        grid.Children
+            .Where(child => Grid.GetRow(child) == row && child is GridSplitter == false)
+            .Select(child => child.Bounds)
+            .FirstOrDefault(bounds => bounds.Height > 1);
+
+    /// <summary>Writes settings through the normal store. Layout persistence must never block shutdown.</summary>
+    private void PersistWorkspaceSettings()
+    {
+        try
+        {
+            // The save is marshalled to the thread pool on purpose: this runs
+            // on the UI thread (pane collapse, preset switch, window close),
+            // and the store's awaits would otherwise capture the UI dispatcher
+            // — blocking that dispatcher on the result deadlocks shutdown
+            // whenever the file write goes genuinely asynchronous.
+            SettingsPersistence.RunBlockingWithoutCapture(
+                () => _settingsStore.SaveAsync(_settings, CancellationToken.None));
+        }
+        catch
+        {
+            // Layout persistence is best-effort; a failed save (for example before
+            // first-run setup completes) must not affect operation.
+        }
+    }
+
+    private GridLength? _sidebarPaneSavedWidth;
+    private GridLength? _resourceDeckSavedHeight;
+    private GridSplitter? _deckColumnSplitterField;
 
     private static Border BuildProductionPane(
         string title,
@@ -593,17 +1431,25 @@ public sealed class MainWindow : Window
         Control actions,
         IBrush accent)
     {
-        var grid = new Grid { RowSpacing = 4 };
+        var grid = new Grid { RowSpacing = 5 };
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        grid.Children.Add(Label(title, 10, FontWeight.Bold, accent));
+        var headerRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { Label(title, 10, FontWeight.Bold, accent) }
+        };
+        grid.Children.Add(headerRow);
         Grid.SetRow(stage, 1);
         grid.Children.Add(stage);
         Grid.SetRow(actions, 2);
         grid.Children.Add(actions);
         return new Border {
             Background = Surface,
+            BorderBrush = ColorFade(accent, 0.35),
+            BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(6),
             HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -612,12 +1458,20 @@ public sealed class MainWindow : Window
         };
     }
 
+    private static IBrush ColorFade(IBrush source, double alpha)
+    {
+        if (source is not SolidColorBrush solid) return source;
+        var color = solid.Color;
+        return new SolidColorBrush(Color.FromArgb(
+            (byte)Math.Clamp((int)(alpha * 255), 0, 255), color.R, color.G, color.B));
+    }
+
     private static GridSplitter ProductionSplitter(GridResizeDirection direction) => new()
     {
         ResizeDirection = direction,
         ResizeBehavior = GridResizeBehavior.PreviousAndNext,
         ShowsPreview = false,
-        Background = Brush("#263142"),
+        Background = OperatorTheme.Splitter,
         HorizontalAlignment = HorizontalAlignment.Stretch,
         VerticalAlignment = VerticalAlignment.Stretch
     };
@@ -649,6 +1503,79 @@ public sealed class MainWindow : Window
         else await PreviewItemAsync(row.Item);
     }
 
+    private async void OnUpNextPointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(_upNext).Properties.IsLeftButtonPressed) return;
+        var row = FindPointerRundownRow(args);
+        if (row is null) return;
+        args.Handled = true;
+        if (args.ClickCount >= 2) await PreviewItemAndTakeAsync(row.Item);
+        else await PreviewItemAsync(row.Item);
+    }
+
+    private async void OnBibleVersePointerPressed(object? sender, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(_browserVerses).Properties.IsLeftButtonPressed) return;
+        var verse = FindPointerBibleVerse(args);
+        if (verse is null) return;
+
+        _browserVerses.SelectedItem = verse;
+        _browserFromVerse.SelectedItem = verse.Verse;
+        _browserToVerse.SelectedItem = verse.Verse;
+        args.Handled = true;
+
+        if (args.ClickCount >= 2) await PreviewBrowserVerseAndTakeAsync(verse);
+        else await PreviewBrowserVerseAsync(verse);
+    }
+
+    /// <summary>GO LIVE / END LIVE — explicit output start and stop from the command bar.</summary>
+    private async Task ToggleOutputAsync()
+    {
+        var starting = !_operatorSnapshot.OutputRunning;
+        var command = starting ? LocalOperatorCommands.OutputStart : LocalOperatorCommands.OutputStop;
+        await SendOperatorAsync(command, null, starting
+            ? "Program output started. Staging is unchanged."
+            : "Program output stopped. The Edge runtime keeps running.");
+    }
+
+    private void ShowSidebarMode(string mode)
+    {
+        _sidebarMode = mode;
+        if (mode == "media")
+        {
+            _activeCategory = "Media";
+            RefreshRundown();
+        }
+        // A collapsed sidebar is restored by its rail buttons — the compact
+        // rail is the restore mechanism, so no dead rectangle is left behind.
+        if (_settings.OperatorSidebarCollapsed) SetSidebarPaneCollapsed(false);
+        UpdateSidebarModeVisibility();
+        HighlightSidebarMode();
+        _settings = _settings with { OperatorSidebarMode = mode };
+        PersistWorkspaceSettings();
+    }
+
+    private void UpdateSidebarModeVisibility()
+    {
+        if (_scheduleCard is null || _libraryCard is null || _scriptureCard is null) return;
+        _scheduleCard.IsVisible = _sidebarMode == "schedule";
+        _libraryCard.IsVisible = _sidebarMode is "library" or "media";
+        _scriptureCard.IsVisible = _sidebarMode == "scripture";
+    }
+
+    private void HighlightSidebarMode()
+    {
+        if (_sidebarModeButtons is null) return;
+        foreach (var child in _sidebarModeButtons.Children)
+        {
+            if (child is not Button button || button.Tag is not string mode) continue;
+            var isActive = string.Equals(mode, _sidebarMode, StringComparison.Ordinal);
+            button.Foreground = isActive ? OperatorTheme.GoldInk : OperatorTheme.Ink;
+            button.Background = isActive ? Gold : SurfaceRaised;
+            button.FontWeight = isActive ? FontWeight.Bold : FontWeight.SemiBold;
+        }
+    }
+
     private static OperatorRundownRow? FindPointerRundownRow(PointerPressedEventArgs args)
     {
         if (args.Source is not Visual visual) return null;
@@ -656,23 +1583,65 @@ public sealed class MainWindow : Window
         return container?.Content as OperatorRundownRow ?? container?.DataContext as OperatorRundownRow;
     }
 
-    private static Control TransitionHint()
+    private static DesktopBibleVerse? FindPointerBibleVerse(PointerPressedEventArgs args)
     {
-        var hint = Label("Preview is safe · Take is explicit · Clear never stops Edge", 10, FontWeight.SemiBold, Muted);
-        hint.VerticalAlignment = VerticalAlignment.Center;
-        hint.HorizontalAlignment = HorizontalAlignment.Center;
-        return hint;
+        if (args.Source is not Visual visual) return null;
+        var container = visual.FindAncestorOfType<ListBoxItem>(includeSelf: true);
+        return container?.Content as DesktopBibleVerse ?? container?.DataContext as DesktopBibleVerse;
     }
 
-    private static Control StatusLine(string label, string value)
+    // --- Compact context menus: secondary actions stay out of the toolbars ---
+
+    /// <summary>
+    /// Schedule row menu: Preview, Take, reorder and remove — exactly the
+    /// commands the schedule toolbar already exposes, nothing invented.
+    /// </summary>
+    private ContextMenu BuildScheduleContextMenu(OperatorRundownRow row) =>
+        OperatorRowTemplates.Menu(
+            OperatorRowTemplates.MenuEntry.Item("Preview", "Stage this cue into Preview (F6).",
+                () => { SelectScheduleRow(row); _ = PreviewItemAsync(row.Item); }),
+            OperatorRowTemplates.MenuEntry.Item("Take", "Preview then TAKE this cue to Program (F8).",
+                () => { SelectScheduleRow(row); _ = PreviewItemAndTakeAsync(row.Item); }),
+            OperatorRowTemplates.MenuEntry.Separator(),
+            OperatorRowTemplates.MenuEntry.Item("Move Up", "Move this cue earlier in the schedule.",
+                () => { SelectScheduleRow(row); _ = MoveScheduledAsync(-1); }),
+            OperatorRowTemplates.MenuEntry.Item("Move Down", "Move this cue later in the schedule.",
+                () => { SelectScheduleRow(row); _ = MoveScheduledAsync(1); }),
+            OperatorRowTemplates.MenuEntry.Item("Remove", "Remove this cue from the service schedule.",
+                () => { SelectScheduleRow(row); _ = RemoveScheduledAsync(); }));
+
+    /// <summary>UP NEXT row menu: the two playout actions that make sense mid-service.</summary>
+    private ContextMenu BuildUpNextContextMenu(OperatorRundownRow row) =>
+        OperatorRowTemplates.Menu(
+            OperatorRowTemplates.MenuEntry.Item("Preview", "Stage this cue into Preview (F6).",
+                () => { SelectScheduleRow(row); _ = PreviewItemAsync(row.Item); }),
+            OperatorRowTemplates.MenuEntry.Item("Take", "Preview then TAKE this cue to Program (F8).",
+                () => { SelectScheduleRow(row); _ = PreviewItemAndTakeAsync(row.Item); }));
+
+    /// <summary>Resource row menu: Preview, Add to Schedule, Take — existing commands only.</summary>
+    private ContextMenu BuildLibraryContextMenu(OperatorRundownRow row) =>
+        OperatorRowTemplates.Menu(
+            OperatorRowTemplates.MenuEntry.Item("Preview", "Stage this cue into Preview (single click).",
+                () => { SelectLibraryRow(row); _ = PreviewItemAsync(row.Item); }),
+            OperatorRowTemplates.MenuEntry.Item("Add to Schedule", "Append this cue to the local service schedule.",
+                () => { SelectLibraryRow(row); _ = AddSelectedToScheduleAsync(); }),
+            OperatorRowTemplates.MenuEntry.Item("Take", "Preview then TAKE this cue to Program (double click).",
+                () => { SelectLibraryRow(row); _ = PreviewItemAndTakeAsync(row.Item); }));
+
+    private void SelectScheduleRow(OperatorRundownRow row)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 8 };
-        grid.Children.Add(Label(label.ToUpperInvariant(), 9, FontWeight.Bold, Muted));
-        var v = Label(value, 11, FontWeight.SemiBold);
-        v.HorizontalAlignment = HorizontalAlignment.Right;
-        Grid.SetColumn(v, 1);
-        grid.Children.Add(v);
-        return grid;
+        _activeSelectionSurface = "schedule";
+        _selectedScheduleItemId = row.Item.Id;
+        _schedule.SelectedItem = row;
+        RefreshScheduleActionState();
+    }
+
+    private void SelectLibraryRow(OperatorRundownRow row)
+    {
+        _activeSelectionSurface = "library";
+        _selectedRundownItemId = row.Item.Id;
+        _rundown.SelectedItem = row;
+        RememberSelectedItem(row.Item);
     }
 
     private static Control BuildStage(
@@ -680,40 +1649,61 @@ public sealed class MainWindow : Window
         TextBlock title,
         TextBlock body,
         TextBlock footer,
-        IBrush accent)
+        IBrush accent,
+        Control? liveBadge = null)
     {
         title.TextAlignment = TextAlignment.Center;
-        title.FontSize = 28;
+        title.FontSize = 26;
+        title.TextWrapping = TextWrapping.Wrap;
         body.TextAlignment = TextAlignment.Center;
         body.TextWrapping = TextWrapping.Wrap;
-        body.FontSize = 18;
-        footer.TextAlignment = TextAlignment.Center;
-        footer.FontSize = 12;
+        body.FontSize = 17;
+        footer.TextAlignment = TextAlignment.Left;
+        footer.FontSize = 11;
 
         var grid = new Grid();
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        var topBar = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
         var stageLabel = Label(label, 12, FontWeight.Bold, accent);
-        Grid.SetRow(stageLabel, 0);
-        grid.Children.Add(stageLabel);
+        Grid.SetColumn(stageLabel, 0);
+        topBar.Children.Add(stageLabel);
+        if (liveBadge is not null)
+        {
+            Grid.SetColumn(liveBadge, 2);
+            topBar.Children.Add(liveBadge);
+        }
+        grid.Children.Add(topBar);
+
         var content = new StackPanel {
             Spacing = 12,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 520,
-            Children = { title, body, footer }
+            MaxWidth = 560,
+            Children = { title, body }
         };
         Grid.SetRow(content, 1);
         grid.Children.Add(content);
 
+        var bottomBar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Children = { footer }
+        };
+        Grid.SetRow(bottomBar, 2);
+        grid.Children.Add(bottomBar);
+
         var frame = new Border {
             Width = 640,
             Height = 360,
-            Background = Brush("#06090E"),
+            Background = OperatorTheme.StageCanvas,
             BorderBrush = accent,
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(12),
+            Padding = new Thickness(14, 10, 14, 8),
             Child = grid
         };
 
@@ -733,24 +1723,28 @@ public sealed class MainWindow : Window
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(18)));
         root.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
-        var sidebar = new StackPanel { Spacing = 16 };
+        // Sidebar: identity, live runtime truth, outputs.
+        var sidebar = new StackPanel { Spacing = 14 };
         sidebar.Children.Add(new Border {
             Background = Surface,
-            CornerRadius = new CornerRadius(22),
-            Padding = new Thickness(20),
+            BorderBrush = OperatorTheme.LineSoft,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(16),
             Child = new StackPanel {
-                Spacing = 6,
+                Spacing = 4,
                 Children = {
-                    Label("IPRESENTERPLUX", 10, FontWeight.Bold, Gold),
-                    Label("Church Edge", 26, FontWeight.Bold),
-                    Label("Local presentation, audio, recording and resilient broadcast runtime.", 12, FontWeight.Normal, Muted)
+                    Label("IPRESENTERPLUX · CHURCH EDGE", 9, FontWeight.Bold, Gold),
+                    Label("Setup & Runtime", 22, FontWeight.Bold),
+                    Label("Configure once. Pairing is write-only and never saved by the shell.", 11, FontWeight.Normal, Muted)
                 }
             }
         });
 
         _statusDetail.TextWrapping = TextWrapping.Wrap;
+        _statusTitle.FontSize = 18;
         sidebar.Children.Add(Card("Runtime status", new StackPanel {
-            Spacing = 12,
+            Spacing = 10,
             Children = {
                 new StackPanel {
                     Orientation = Orientation.Horizontal,
@@ -765,7 +1759,7 @@ public sealed class MainWindow : Window
             }
         }));
 
-        var quickLinks = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = 138, ItemHeight = 44 };
+        var quickLinks = new WrapPanel { Orientation = Orientation.Horizontal, ItemWidth = 150, ItemHeight = 40 };
         quickLinks.Children.Add(LocalOutputButton("Preview", "preview"));
         quickLinks.Children.Add(LocalOutputButton("Program", "program"));
         quickLinks.Children.Add(LinkButton("Control Room", () => CloudUri("/")));
@@ -780,15 +1774,16 @@ public sealed class MainWindow : Window
         Grid.SetColumn(sidebarScroll, 0);
         root.Children.Add(sidebarScroll);
 
-        var main = new StackPanel { Spacing = 18 };
+        var main = new StackPanel { Spacing = 14 };
         main.Children.Add(new StackPanel {
-            Spacing = 4,
+            Spacing = 3,
             Children = {
-                Label("Edge setup", 30, FontWeight.Bold),
-                Label("Configure this production computer once. Pairing is write-only and never saved by the desktop shell.", 13, FontWeight.Normal, Muted)
+                Label("Edge setup", 26, FontWeight.Bold),
+                Label("Connection, displays and runtime control for this production computer.", 12, FontWeight.Normal, Muted)
             }
         });
 
+        // Connection & enrollment (pinned field grid).
         var setupGrid = new Grid { ColumnSpacing = 14, RowSpacing = 12 };
         setupGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         setupGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -804,21 +1799,36 @@ public sealed class MainWindow : Window
             Children = { _programDisplay, _programDisplayHint }
         };
         setupGrid.Children.Add(Field("Program output display", displayPicker, 1, 1));
+        var saveActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        _save.Margin = new Thickness(0, 0, 10, 0);
+        saveActions.Children.Add(_save);
+        ToolTip.SetTip(_save, "Persist the Control Plane URL, device name and Program display. The pairing code is never stored.");
+        Grid.SetRow(saveActions, 2);
+        Grid.SetColumnSpan(saveActions, 2);
+        setupGrid.Children.Add(saveActions);
+        main.Children.Add(Card("Connection & enrollment", setupGrid));
 
-        var actions = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var button in new[] { _save, _start, _restart, _stop })
+        // Runtime control — the operator's start/stop surface.
+        var runtimeActions = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var button in new[] { _start, _restart, _stop })
         {
             button.Margin = new Thickness(0, 0, 10, 0);
-            actions.Children.Add(button);
+            runtimeActions.Children.Add(button);
         }
-        Grid.SetRow(actions, 2);
-        Grid.SetColumnSpan(actions, 2);
-        setupGrid.Children.Add(actions);
-        main.Children.Add(Card("Connection & enrollment", setupGrid));
+        ToolTip.SetTip(_start, "Start the supervised Edge runtime. Requires a valid subscription and pairing when enrollment is needed.");
+        ToolTip.SetTip(_restart, "Restart Edge (F5). Reuses the saved settings; a fresh pairing code is used only if enrollment is required.");
+        ToolTip.SetTip(_stop, "Request a graceful runtime shutdown. Force termination is only a timeout fallback.");
+        main.Children.Add(Card("Runtime control", new StackPanel {
+            Spacing = 8,
+            Children = {
+                runtimeActions,
+                Label("F5 restarts Edge at any time. Program output and local recording keep running when the Control Plane is unreachable.", 11, FontWeight.Normal, Muted)
+            }
+        }));
 
         main.Children.Add(Card("Platform capabilities", BuildCapabilities()));
         main.Children.Add(Card("Safety & offline behavior", new StackPanel {
-            Spacing = 9,
+            Spacing = 8,
             Children = {
                 Bullet("Projector/Program output and local recording continue when the Control Plane or Internet is unavailable."),
                 Bullet("The shell never receives RTMPS keys, provider OAuth tokens, device bearer credentials or recording contents."),
@@ -908,11 +1918,64 @@ public sealed class MainWindow : Window
             _rebuildingOperatorCollections = false;
         }
 
+        var currentIndex = -1;
+        for (var i = 0; i < scheduleState.Rows.Count; i++)
+        {
+            if (scheduleState.Rows[i].IsCurrent)
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+        var upcoming = (currentIndex >= 0
+                ? scheduleState.Rows.Skip(currentIndex + 1)
+                : scheduleState.Rows.AsEnumerable())
+            .Take(8)
+            .ToList();
+        _upNext.ItemsSource = upcoming;
+        _upNextEmptyHint.IsVisible = upcoming.Count == 0;
+
         _prepare.IsEnabled = _rundown.SelectedItem is OperatorRundownRow;
         _addSelectedToSchedule.IsEnabled = _selectedDetailItem is not null || _rundown.SelectedItem is OperatorRundownRow;
         _rundownCurrent.Text = $"CURRENT · {scheduleState.CurrentLabel}";
-        _rundownCurrent.Foreground = scheduleState.ProgramIsAdHoc ? Warning : scheduleState.CurrentItemId is null ? Muted : Good;
+        _rundownCurrent.Foreground = scheduleState.ProgramIsAdHoc ? Warning : scheduleState.CurrentItemId is null ? Muted : Live;
+        _libraryEmptyHint.IsVisible = libraryState.Rows.Count == 0;
+        _scheduleEmptyHint.IsVisible = scheduleState.Rows.Count == 0;
+        if (_scheduleCountLabel is not null)
+            _scheduleCountLabel.Text = scheduleState.Rows.Count == 0 ? string.Empty : $"{scheduleState.Rows.Count} cues";
+        HighlightActiveCategory();
+        EnsureActiveCategoryVisible();
         RefreshScheduleActionState();
+    }
+
+    /// <summary>
+    /// Keeps the active Resource Deck category scrolled into view — including
+    /// after a preset or sidebar-mode switch restored it from settings.
+    /// </summary>
+    private void EnsureActiveCategoryVisible()
+    {
+        if (ActiveCategoryButton() is { } active)
+            _categoryStrip?.EnsureVisible(active);
+    }
+
+    private Button? ActiveCategoryButton() =>
+        _activeCategoryButtons?.Children
+            .OfType<Button>()
+            .FirstOrDefault(button => button.Content is string label &&
+                string.Equals(label, _activeCategory, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Marks the active Resource Deck category with the accent treatment.</summary>
+    private void HighlightActiveCategory()
+    {
+        if (_activeCategoryButtons is null) return;
+        foreach (var child in _activeCategoryButtons.Children)
+        {
+            if (child is not Button button || button.Content is not string label) continue;
+            var isActive = string.Equals(label, _activeCategory, StringComparison.OrdinalIgnoreCase);
+            button.Foreground = isActive ? Gold : Muted;
+            button.Background = isActive ? ColorFade(Gold, 0.16) : SurfaceRaised;
+            button.FontWeight = isActive ? FontWeight.Bold : FontWeight.SemiBold;
+        }
     }
 
     private void MoveRundownSelection(int delta)
@@ -934,6 +1997,7 @@ public sealed class MainWindow : Window
         _operatorBusy = true;
         try
         {
+            _studioClock.Text = DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
             var response = await _operatorClient.QueryAsync(CancellationToken.None);
             RenderOperatorSnapshot(response.Snapshot);
 
@@ -982,8 +2046,6 @@ public sealed class MainWindow : Window
             RefreshRundown();
         }
 
-        _rundownEyebrow.Text = "LIBRARY";
-        _rundownTitle.Text = "Search & browse";
         _catalogStatus.Text = _workspace.StatusLabel;
         _catalogStatus.Foreground = _workspace.IsRehearsal || _workspace.IsStale ? Warning : Good;
         _catalogService.Text = _workspace.ServiceTitle is { Length: > 0 } title
@@ -1148,30 +2210,58 @@ public sealed class MainWindow : Window
 
     private async Task PreviewBrowserVerseRangeAsync()
     {
-        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
-            _browserChapter.SelectedItem is not int chapter ||
-            _browserFromVerse.SelectedItem is not int from ||
-            _browserToVerse.SelectedItem is not int to)
+        if (_browserFromVerse.SelectedItem is not int from || _browserToVerse.SelectedItem is not int to)
         {
             SetOperatorFeedback("Choose a Bible book, chapter and verse range first.", true);
             return;
+        }
+
+        var item = await ResolveBrowserRangeItemAsync(from, to);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewBrowserVerseAsync(DesktopBibleVerse verse)
+    {
+        var item = await ResolveBrowserRangeItemAsync(verse.Verse, verse.Verse);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAsync(item);
+    }
+
+    private async Task PreviewBrowserVerseAndTakeAsync(DesktopBibleVerse verse)
+    {
+        var item = await ResolveBrowserRangeItemAsync(verse.Verse, verse.Verse);
+        if (item is null) return;
+        _activeSelectionSurface = "library";
+        RememberSelectedItem(item);
+        await PreviewItemAndTakeAsync(item);
+    }
+
+    private async Task<OperatorWorkspaceItem?> ResolveBrowserRangeItemAsync(int from, int to)
+    {
+        if (_browserBook.SelectedItem is not DesktopBibleBookDescriptor book ||
+            _browserChapter.SelectedItem is not int chapter)
+        {
+            SetOperatorFeedback("Choose a Bible book and chapter first.", true);
+            return null;
         }
         var version = BrowserBibleVersion();
         if (version is null)
         {
             SetOperatorFeedback("Download the selected Bible version before browsing verses offline.", true);
-            return;
+            return null;
         }
         var passage = await _desktopBibleLibrary.ResolveRangeAsync(version, book.Code, chapter, from, to, CancellationToken.None);
         if (passage is null)
         {
             SetOperatorFeedback("That verse range is not available in the downloaded Bible.", true);
-            return;
+            return null;
         }
-        var item = LocalScriptureItem(passage);
-        _activeSelectionSurface = "library";
-        RememberSelectedItem(item);
-        await PreviewItemAsync(item);
+        return LocalScriptureItem(passage);
     }
 
     private async Task AddSelectedToScheduleAsync()
@@ -1549,8 +2639,10 @@ public sealed class MainWindow : Window
     {
         var previousSnapshot = _operatorSnapshot;
         _operatorSnapshot = snapshot;
-        RenderStage(snapshot.Preview, _previewTitle, _previewBody, _previewFooter, "Preview is clear", "Select a cue and press Preview Selected.", "PREVIEW", Gold);
-        RenderStage(snapshot.Program, _programTitle, _programBody, _programFooter, "Program is clear", "Nothing is currently live on Program.", "PROGRAM", Good);
+        RenderStage(snapshot.Preview, _previewTitle, _previewBody, _previewFooter, "Preview is clear", "Select a cue and press F6, or single-click any cue.", "PREVIEW · SAFE", Gold);
+        RenderStage(snapshot.Program, _programTitle, _programBody, _programFooter, "Program is clear", "Nothing is currently live on Program.", "PROGRAM", Live);
+        _programLiveBadge.IsVisible = snapshot.Program is not null;
+        _programFooter.Foreground = snapshot.Program is null ? Muted : Live;
 
         _operatorRuntime.Text = snapshot.OutputRunning ? "EDGE OUTPUT READY" : "EDGE ACTIVE · OUTPUT STOPPED";
         _operatorRuntime.Foreground = snapshot.OutputRunning ? Good : Warning;
@@ -1573,6 +2665,7 @@ public sealed class MainWindow : Window
         _voiceScriptureStatus.Foreground = voiceReady ? Good : Gold;
         _record.Content = snapshot.IsRecording ? "Stop Recording" : "Start Recording";
         _record.IsEnabled = snapshot.ActiveServiceId is not null;
+        _goLive.Content = snapshot.OutputRunning ? "END LIVE" : "GO LIVE";
         _take.IsEnabled = OperatorWorkspaceCatalog.CanTakePreview(snapshot);
         _clear.IsEnabled = snapshot.Program is not null;
         var dynamicProgram = IsDynamicProgramMedia(snapshot.Program);
@@ -1671,6 +2764,7 @@ public sealed class MainWindow : Window
         _operatorRecording.Foreground = Muted;
         _operatorFeedback.Text = "Start Edge to enable local Preview, Program and recording controls.";
         _operatorFeedback.Foreground = Muted;
+        _programLiveBadge.IsVisible = false;
         _recordingActive = false;
         _record.Content = "Start Recording";
         _record.IsEnabled = false;
@@ -1784,6 +2878,7 @@ public sealed class MainWindow : Window
         _activationControlUrl.Text = _settings.ControlPlaneUrl;
         _deviceName.Text = _settings.DeviceName;
         RefreshProgramDisplays();
+        ApplySavedWorkspaceLayout();
         _localSchedule = (await _scheduleStore.LoadAsync(CancellationToken.None)).ToList();
         _selectedScheduleItemId = _localSchedule.FirstOrDefault()?.Id;
         RefreshRundown();
@@ -1818,7 +2913,18 @@ public sealed class MainWindow : Window
             display?.X,
             display?.Y,
             display?.Width,
-            display?.Height).Normalize();
+            display?.Height,
+            _settings.OperatorSidebarColumn,
+            _settings.OperatorPreviewColumn,
+            _settings.OperatorProgramColumn,
+            _settings.OperatorStageRow,
+            _settings.OperatorDeckRow,
+            _settings.OperatorSidebarCollapsed,
+            _settings.OperatorResourceDeckCollapsed,
+            _settings.OperatorLayoutPreset,
+            _settings.OperatorDeckLeftColumn,
+            _settings.OperatorDeckRightColumn,
+            _settings.OperatorSidebarMode).Normalize();
     }
 
     private async Task SaveAsync()
@@ -2116,6 +3222,7 @@ public sealed class MainWindow : Window
         args.Cancel = true;
         _operatorTimer.Stop();
         _start.IsEnabled = _stop.IsEnabled = _restart.IsEnabled = false;
+        PersistWorkspaceLayout();
         try { await _supervisor.DisposeAsync(); } catch { }
         _licensingHttpClient.Dispose();
         _allowClose = true;
@@ -2174,6 +3281,56 @@ public sealed class MainWindow : Window
         return button;
     }
 
+    private async void LaunchExternalUri(Func<Uri> uriFactory)
+    {
+        try
+        {
+            var launcher = TopLevel.GetTopLevel(this)?.Launcher;
+            if (launcher is null || !await launcher.LaunchUriAsync(uriFactory()))
+                SetFeedback("The operating system could not open that destination.", true);
+        }
+        catch (Exception error) { SetFeedback(error.Message, true); }
+    }
+
+    /// <summary>
+    /// 52px command-rail button: glyph over a compact caps label. Icon-first so
+    /// nothing ever clips mid-word; the tooltip carries the full meaning and
+    /// the active mode is encoded with the gold accent.
+    /// </summary>
+    private static Button RailButton(string glyph, string caption, string tooltip)
+    {
+        var icon = new TextBlock
+        {
+            Text = glyph,
+            FontSize = 15,
+            FontWeight = FontWeight.Bold,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        var label = new TextBlock
+        {
+            Text = caption,
+            FontSize = 8,
+            FontWeight = FontWeight.SemiBold,
+            LetterSpacing = 0.5,
+            HorizontalAlignment = HorizontalAlignment.Center
+        };
+        var button = new Button
+        {
+            Content = new StackPanel { Spacing = 2, Children = { icon, label } },
+            MinHeight = 44,
+            MinWidth = 0,
+            Padding = new Thickness(2, 5),
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Background = OperatorTheme.SurfaceRaised,
+            Foreground = OperatorTheme.Ink,
+            FontWeight = FontWeight.SemiBold,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(OperatorTheme.RadiusChip)
+        };
+        ToolTip.SetTip(button, tooltip);
+        return button;
+    }
+
     private void SetFeedback(string message, bool failed)
     {
         _feedback.Text = message;
@@ -2182,11 +3339,13 @@ public sealed class MainWindow : Window
 
     private static Border Card(string title, Control content) => new() {
         Background = Surface,
-        CornerRadius = new CornerRadius(18),
-        Padding = new Thickness(18),
+        BorderBrush = OperatorTheme.LineSoft,
+        BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(8),
+        Padding = new Thickness(14),
         Child = new StackPanel {
-            Spacing = 12,
-            Children = { Label(title, 14, FontWeight.Bold), content }
+            Spacing = 10,
+            Children = { Label(title, 13, FontWeight.Bold), content }
         }
     };
 
@@ -2226,7 +3385,7 @@ public sealed class MainWindow : Window
         return block;
     }
 
-    private static Border Separator() => new() { Height = 1, Background = Brush("#222B39"), Margin = new Thickness(0, 2) };
+    private static Border Separator() => new() { Height = 1, Background = Brush("#222C39"), Margin = new Thickness(0, 2) };
 
     private static TextBlock Label(string text, double size, FontWeight weight, IBrush? foreground = null) => new() {
         Text = text,

@@ -121,8 +121,8 @@ export function LiveAudience({
             : "Translated audio is queued for synthesis.";
 
   return (
-    <main className="min-h-screen bg-[#07090d] text-white">
-      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080b10]/92 backdrop-blur-xl">
+    <main className="min-h-screen bg-[#04070c] text-white">
+      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#05080d]/92 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-black tracking-tight">iPresenterPlux Live</div>
@@ -148,13 +148,13 @@ export function LiveAudience({
                 {selected?.mode.replaceAll("_", " ") ?? "original"}
               </div>
             </div>
-            <Headphones size={18} className="text-[#d7a94a]" />
+            <Headphones size={18} className="text-[#e3b75c]" />
           </div>
         </section>
 
         <section className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-4">
           <div className="mb-3 flex items-center gap-2">
-            <Languages size={16} className="text-[#d7a94a]" />
+            <Languages size={16} className="text-[#e3b75c]" />
             <div>
               <div className="text-sm font-bold">Listen in your language</div>
               <div className="text-xs text-white/55">Choose a channel for this device</div>
@@ -179,7 +179,7 @@ export function LiveAudience({
                   className={
                     "ip-focus-gold min-h-11 flex items-center justify-between rounded-xl border px-3 py-3 text-left transition " +
                     (active
-                      ? "border-[#d7a94a]/35 bg-[#d7a94a]/10 text-[#f0c66b]"
+                      ? "border-[#e3b75c]/35 bg-[#e3b75c]/10 text-[#f0c66b]"
                       : "border-white/[.06] bg-white/[.025] text-white/70 hover:bg-white/[.045]")
                   }
                 >
@@ -188,7 +188,7 @@ export function LiveAudience({
                     <div className="mt-1 text-xs uppercase tracking-[.11em] opacity-65">
                       {language.mode.replaceAll("_", " ")}
                     </div>
-                    <div className={`mt-1 text-xs ${readiness.tone === "healthy" ? "text-emerald-300" : readiness.tone === "warning" ? "text-amber-200" : readiness.tone === "working" ? "text-[#efc86f]" : "text-white/50"}`}>
+                    <div className={`mt-1 text-xs ${readiness.tone === "healthy" ? "text-emerald-300" : readiness.tone === "warning" ? "text-amber-200" : readiness.tone === "working" ? "text-[#f0ca80]" : "text-white/50"}`}>
                       {readiness.label}
                     </div>
                     {readiness.text ? <div className="mt-1 text-xs text-white/60">Text · {readiness.text.label}</div> : null}
@@ -203,7 +203,7 @@ export function LiveAudience({
         <section className="grid gap-4 md:grid-cols-2">
           <div className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-4">
             <div className="mb-3 flex items-center gap-2">
-              <BookOpen size={16} className="text-[#d7a94a]" />
+              <BookOpen size={16} className="text-[#e3b75c]" />
               <div className="text-xs font-bold uppercase tracking-[.12em] text-white/65">Current scripture</div>
             </div>
             {scriptureReference ? (
@@ -222,7 +222,7 @@ export function LiveAudience({
 
           <div className="rounded-[22px] border border-white/[.08] bg-[#0d121a] p-4">
             <div className="mb-3 flex items-center gap-2">
-              <Captions size={16} className="text-[#d7a94a]" />
+              <Captions size={16} className="text-[#e3b75c]" />
               <div className="text-xs font-bold uppercase tracking-[.12em] text-white/65">Live captions</div>
             </div>
             <p className="text-sm leading-6 text-white/75">

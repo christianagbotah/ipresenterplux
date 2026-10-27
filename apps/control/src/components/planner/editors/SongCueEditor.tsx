@@ -68,7 +68,7 @@ export function SongCueEditor({ value, disabled = false, onChange }: Props) {
           type="button"
           disabled={disabled || sections.length >= 64}
           onClick={() => replaceSections([...sections, { label: `Section ${sections.length + 1}`, text: "" }])}
-          className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 px-3 text-xs font-bold text-[#f2c765] transition hover:bg-[#d7a94a]/[.16] ip-focus-gold disabled:opacity-35"
+          className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 px-3 text-xs font-bold text-[#f4cf85] transition hover:bg-[#e3b75c]/[.16] ip-focus-gold disabled:opacity-35"
         >
           <Plus size={14} /> Add section
         </button>

@@ -56,7 +56,7 @@ async function scripturePageData(userId: string) {
     return {
       service: null,
       capabilities: { canLiveControl:false, canStreaming:false, canTranslations:false, canSettings:false, canViewPlanner:false, canPlanServices:false },
-      navigationCapabilities: { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
+      navigationCapabilities: { canMedia:false, canViewPlanner:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false },
       versions: [], books: [], detections: [], hasActiveEdge: false,
       libraryError: "No church organization is assigned to this account."
     };
@@ -139,7 +139,7 @@ export default async function ScripturePage() {
     <main className="min-h-screen bg-[#070a0f] text-white">
       <a
         href="#scripture-content"
-        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#d7a94a]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#efc86f] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
+        className="ip-focus-gold sr-only z-[200] rounded-lg border border-[#e3b75c]/40 bg-[#0a0f17] px-4 py-2.5 text-sm font-bold text-[#f0ca80] focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:shadow-2xl"
       >
         Skip to Scripture content
       </a>
@@ -148,9 +148,9 @@ export default async function ScripturePage() {
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <StudioSidebar capabilities={data.navigationCapabilities} />
         <section id="scripture-content" className="min-w-0 pb-20 md:pb-0 focus:outline-none" tabIndex={-1}>
-          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#05080d]/92 px-4 backdrop-blur-xl lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#f0ca80]">
                 <BookOpen size={19} />
               </div>
               <div className="min-w-0">

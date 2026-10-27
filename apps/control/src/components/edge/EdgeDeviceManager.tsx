@@ -199,7 +199,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
       <section className="grid gap-3 sm:grid-cols-3">
         {summaryCards.map(([label, value, Icon]) => (
           <div key={String(label)} className="ip-card flex items-center gap-4 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.04] text-[#d7a94a]"><Icon size={18} /></div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/[.04] text-[#e3b75c]"><Icon size={18} /></div>
             <div><div className="text-2xl font-black">{String(value)}</div><div className="text-xs text-white/55">{String(label)}</div></div>
           </div>
         ))}
@@ -212,7 +212,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
             <div className="mt-1 text-xs text-white/55">{devices.length} registered for {organizationName}</div>
           </div>
           {canManage ? (
-            <button onClick={openNew} className="ip-focus-gold min-h-11 flex items-center gap-2 rounded-xl bg-[#d7a94a] px-4 py-2.5 text-xs font-black text-[#171109] transition hover:bg-[#e6ba5e]">
+            <button onClick={openNew} className="ip-focus-gold min-h-11 flex items-center gap-2 rounded-xl bg-[#e3b75c] px-4 py-2.5 text-xs font-black text-[#171109] transition hover:bg-[#e6ba5e]">
               <Plus size={15} /> Pair a device
             </button>
           ) : null}
@@ -237,7 +237,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                   </div>
 
                   <div>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.12em] ${state.className}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] ${state.className}`}>
                       {state.online ? <Wifi size={11} /> : <WifiOff size={11} />}{state.label}
                     </span>
                     <div className="mt-2 text-[11px] text-white/50">Last seen {timeLabel(device.lastSeenAt)}</div>
@@ -283,7 +283,7 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-white/[.05] pt-2 text-[11px]">
                         <span className="text-white/50">Last command</span>
                         <code className="font-semibold text-white/80">{device.recentCommand.type}</code>
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
+                        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.1em] ${commandStateClass(device.recentCommand.state)}`}>{device.recentCommand.state}</span>
                         {device.recentCommand.resultingState ? <span className="text-white/55">{device.recentCommand.resultingState}</span> : null}
                         {device.recentCommand.errorCode ? <span className="text-red-200/80">{device.recentCommand.errorCode}</span> : null}
                         <span className="ml-auto text-white/50">{timeLabel(device.recentCommand.completedAt ?? device.recentCommand.issuedAt)}</span>
@@ -320,21 +320,21 @@ export function EdgeDeviceManager({ organizationId, organizationName, campuses, 
                 <>
                   <div>
                     <label className="mb-2 block text-xs font-semibold text-white/65">Computer name</label>
-                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Main Auditorium PC" className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm outline-none placeholder:text-white/40 focus:border-[#d7a94a]/40" />
+                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Main Auditorium PC" className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-white/[.035] px-3 text-sm outline-none placeholder:text-white/40 focus:border-[#e3b75c]/40" />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Platform</label><select value={platform} onChange={(event) => setPlatform(event.target.value as "windows" | "macos")} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="windows">Windows</option><option value="macos">macOS</option></select></div>
-                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Campus</label><select value={campusId} onChange={(event) => setCampusId(event.target.value)} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#111722] px-3 text-sm outline-none"><option value="">Organization-wide</option>{campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select></div>
+                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Platform</label><select value={platform} onChange={(event) => setPlatform(event.target.value as "windows" | "macos")} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#0E141F] px-3 text-sm outline-none"><option value="windows">Windows</option><option value="macos">macOS</option></select></div>
+                    <div><label className="mb-2 block text-xs font-semibold text-white/65">Campus</label><select value={campusId} onChange={(event) => setCampusId(event.target.value)} className="ip-focus-gold min-h-11 w-full rounded-xl border border-white/[.08] bg-[#0E141F] px-3 text-sm outline-none"><option value="">Organization-wide</option>{campuses.map((campus) => <option key={campus.id} value={campus.id}>{campus.name}</option>)}</select></div>
                   </div>
                   {reprovisionRevoked ? <div className="rounded-xl border border-amber-300/15 bg-amber-300/[.06] px-3 py-2.5 text-xs leading-5 text-amber-100/85">This creates a fresh credential for this revoked computer. Previously revoked credentials remain invalid.</div> : null}
                   {error ? <div className="rounded-xl border border-red-400/15 bg-red-400/[.06] px-3 py-2.5 text-xs text-red-200">{error}</div> : null}
-                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="ip-focus-gold min-h-11 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7a94a] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : reprovisionRevoked ? "Generate re-provision code" : "Generate pairing code"}</button>
+                  <button disabled={busy || name.trim().length < 2} onClick={generatePairing} className="ip-focus-gold min-h-11 flex w-full items-center justify-center gap-2 rounded-xl bg-[#e3b75c] text-sm font-black text-[#171109] disabled:opacity-40"><MonitorUp size={15} />{busy ? "Generating…" : reprovisionRevoked ? "Generate re-provision code" : "Generate pairing code"}</button>
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.07] p-5 text-center">
-                    <div className="text-[11px] font-bold uppercase tracking-[.2em] text-[#d7a94a]">One-time pairing code</div>
-                    <div className="mt-3 font-mono text-3xl font-black tracking-[.13em] text-[#f3ce74]">{pairing.pairingCode}</div>
+                  <div className="rounded-2xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.07] p-5 text-center">
+                    <div className="text-[11px] font-bold uppercase tracking-[.2em] text-[#e3b75c]">One-time pairing code</div>
+                    <div className="mt-3 font-mono text-3xl font-black tracking-[.13em] text-[#f2cd82]">{pairing.pairingCode}</div>
                     <div className="mt-3 text-xs text-white/55">Expires {timeLabel(pairing.expiresAt)}</div>
                     <button onClick={copyCode} className="ip-focus-gold min-h-9 mx-auto mt-4 flex items-center gap-2 rounded-lg border border-white/[.08] bg-white/[.04] px-3 py-2 text-xs font-bold text-white/75 hover:text-white">{copied ? <Check size={13} /> : <Clipboard size={13} />}{copied ? "Copied" : "Copy code"}</button>
                   </div>

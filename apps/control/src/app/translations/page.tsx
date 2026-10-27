@@ -1,8 +1,9 @@
-import { Languages, ShieldCheck } from "lucide-react";
+import { Languages } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@auth";
 import { AutoRefresh } from "@/components/AutoRefresh";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
 import { TranslationDesk } from "@/components/translations/TranslationDesk";
 import { query } from "@/lib/db";
 import { getCurrentServiceForUser } from "@/lib/current-service";
@@ -93,29 +94,14 @@ export default async function TranslationsPage({
   );
 
   return (
-    <main className="min-h-screen bg-[#07090d] text-white">
+    <WorkspaceShell
+      capabilities={context.navigationCapabilities}
+      icon={Languages}
+      title="Translation Desk"
+      subtitle={`${service?.title ?? "Recent authorized services"} · human + machine translation queue`}
+    >
       {service ? <RealtimeRefresh serviceId={service.id} /> : <AutoRefresh intervalMs={10_000} />}
-      <header className="sticky top-0 z-30 border-b border-white/[.07] bg-[#080b10]/92 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc76e]">
-              <Languages size={18} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-lg font-black tracking-tight">Translation Desk</h1>
-              <p className="truncate text-xs text-white/35">{service?.title ?? "Recent authorized services"} · human + machine translation queue</p>
-            </div>
-          </div>
-          <div className="hidden items-center gap-2 rounded-xl border border-emerald-400/15 bg-emerald-400/[.06] px-3 py-2 text-[11px] text-emerald-200/75 sm:flex">
-            <ShieldCheck size={14} /> Authorized translator workspace
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-7xl p-4 lg:p-6">
-        <div className="mb-5 rounded-2xl border border-white/[.07] bg-white/[.025] px-4 py-3 text-xs leading-5 text-white/38">
-          Manual translations use the same queue as the machine worker. Publishing here safely takes over any active machine lease and immediately refreshes the matching audience channel. Translation-audio channels still require the separate TTS stage before audio playback.
-        </div>
         <TranslationDesk
           jobs={jobs.rows}
           serviceTitle={service?.title ?? null}
@@ -125,6 +111,6 @@ export default async function TranslationsPage({
           totalPages={totalPages}
         />
       </div>
-    </main>
+    </WorkspaceShell>
   );
 }

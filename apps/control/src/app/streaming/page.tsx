@@ -1,22 +1,19 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  ArrowLeft,
   CheckCircle2,
   CircleDot,
   Cloud,
-  MonitorPlay,
   RadioTower,
-  Settings2,
   ShieldCheck,
   ShieldAlert,
   Signal,
   WifiOff
 } from "lucide-react";
 import { auth } from "@auth";
-import { LogoutButton } from "@/components/auth/LogoutButton";
 import { LiveProgramVideo } from "@/components/audience/LiveProgramVideo";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { WorkspaceShell } from "@/components/navigation/WorkspaceShell";
+import { getCurrentServiceForUser } from "@/lib/current-service";
 import { StreamingBroadcastControl } from "@/components/StreamingBroadcastControl";
 import { StreamingDestinationControl } from "@/components/StreamingDestinationControl";
 import { StreamingDestinationCredentials } from "@/components/StreamingDestinationCredentials";
@@ -222,6 +219,7 @@ export default async function StreamingPage() {
 
   const data = await streamingData(session.user.id);
   if (!data.service) redirect("/");
+  const navigationContext = await getCurrentServiceForUser(session.user.id);
   const youtubeProviderLinkingAvailable = youtubeOAuthConfigured() && providerSecretKeyConfigured();
 
   const master = data.streamSession;
@@ -237,54 +235,34 @@ export default async function StreamingPage() {
   ).length;
 
   return (
-    <main className="min-h-screen bg-[#070a0f] text-white">
+    <WorkspaceShell
+      capabilities={navigationContext?.navigationCapabilities ?? {
+        canMedia: false, canViewPlanner: false, canCameras: false, canAIDirector: false,
+        canTranslations: false, canStreaming: false, canArchive: false, canSettings: false
+      }}
+      icon={RadioTower}
+      title="Streaming Studio"
+      subtitle={`${data.service.title} · authoritative master & destination transport`}
+    >
       <RealtimeRefresh serviceId={data.service.id} />
-
-      <header className="sticky top-0 z-40 border-b border-white/[.07] bg-[#080b10]/92 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-16 max-w-[1800px] items-center justify-between gap-3 px-3 sm:px-5 lg:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link href="/" aria-label="Back to Control Room" className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[.08] bg-white/[.03] text-white/55 transition hover:bg-white/[.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e5b95e]">
-              <ArrowLeft size={18} />
-            </Link>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]">
-              <RadioTower size={19} />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-black sm:text-base">Streaming Studio</h1>
-              <div className="mt-0.5 truncate text-[11px] text-white/34">{data.service.title} · authoritative master & destination transport</div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/operator" className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white md:flex">
-              <MonitorPlay size={15} /> Operator
-            </Link>
-            <Link href="/settings" className="hidden min-h-10 items-center gap-2 rounded-xl border border-white/[.08] bg-white/[.025] px-3 text-xs font-bold text-white/45 transition hover:text-white lg:flex">
-              <Settings2 size={15} /> Settings
-            </Link>
-            <LogoutButton />
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-[1800px] space-y-4 p-3 sm:p-4 lg:p-6">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Master stream</span><Signal size={16} className={masterLive ? "text-red-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black capitalize">{masterStatus}</div>
             <div className="mt-1 text-xs text-white/35">{master?.video_profile ?? "1080p30 target"}</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Enabled outputs</span><CheckCircle2 size={16} className="text-emerald-300" /></div>
             <div className="mt-3 text-2xl font-black">{enabledCount}</div>
             <div className="mt-1 text-xs text-white/35">{eligibleOutputCount} eligible for broadcast</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Live outputs</span><RadioTower size={16} className={liveCount ? "text-red-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black">{liveCount}</div>
             <div className="mt-1 text-xs text-white/35">Session transport evidence only</div>
           </div>
-          <div className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-4">
+          <div className="rounded-2xl border border-white/[.08] bg-panel p-4">
             <div className="flex items-center justify-between"><span className="text-xs font-black uppercase tracking-[.13em] text-white/35">Warnings</span><ShieldAlert size={16} className={errorCount ? "text-amber-300" : "text-white/25"} /></div>
             <div className="mt-3 text-2xl font-black">{errorCount}</div>
             <div className="mt-1 text-xs text-white/35">Transport or provider evidence</div>
@@ -292,7 +270,7 @@ export default async function StreamingPage() {
         </section>
 
         <section className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-[#0a0e15]">
+          <div className="overflow-hidden rounded-2xl border border-white/[.08] bg-panel">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[.07] px-4 py-4 sm:px-5">
               <div>
                 <h2 className="text-base font-black">Broadcast Destinations</h2>
@@ -317,13 +295,13 @@ export default async function StreamingPage() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="truncate text-sm font-black text-white/80">{output.name}</h3>
-                          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(status)}`}>{status}</span>
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${statusClasses(status)}`}>{status}</span>
                           {social ? (
                             <>
-                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${output.credential_configured ? "border-emerald-400/20 bg-emerald-400/[.07] text-emerald-100" : "border-white/10 bg-white/[.03] text-white/35"}`}>
                                 {output.credential_configured ? "credentials set" : "credentials needed"}
                               </span>
-                              <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[.12em] ${statusClasses(output.provider_health_state ?? "unverified")}`}>
+                              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-black uppercase tracking-[.12em] ${statusClasses(output.provider_health_state ?? "unverified")}`}>
                                 {providerEvidenceLabel(output)}
                               </span>
                             </>
@@ -386,7 +364,7 @@ export default async function StreamingPage() {
           </div>
 
           <aside className="space-y-4">
-            <section className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-3">
+            <section className="rounded-2xl border border-white/[.08] bg-panel p-3">
               <div className="mb-3 px-2 pt-1">
                 <div className="text-xs font-black uppercase tracking-[.14em] text-white/35">Program preview</div>
                 <p className="mt-1 text-xs leading-5 text-white/35">This is the authoritative service Program transport used by the public audience experience.</p>
@@ -397,8 +375,8 @@ export default async function StreamingPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.055] p-5">
-              <div className="flex items-center gap-2 text-[#efc86f]"><ShieldCheck size={17} /><span className="text-xs font-black uppercase tracking-[.14em]">Broadcast authority</span></div>
+            <section className="rounded-2xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.055] p-5">
+              <div className="flex items-center gap-2 text-[#f0ca80]"><ShieldCheck size={17} /><span className="text-xs font-black uppercase tracking-[.14em]">Broadcast authority</span></div>
               <h2 className="mt-3 text-xl font-black">Master transport is authoritative</h2>
               <p className="mt-2 text-sm leading-6 text-white/50">Start selects one assigned Edge publisher. The master becomes live only when MediaMTX sees the service path. Social destinations then establish and report their RTMPS transports independently.</p>
               <div className="mt-4">
@@ -414,15 +392,11 @@ export default async function StreamingPage() {
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-white/[.08] bg-[#0a0e15] p-5">
+            <section className="rounded-2xl border border-white/[.08] bg-panel p-5">
               <div className="flex items-center gap-2"><WifiOff size={16} className="text-white/35" /><span className="text-sm font-black">Failure isolation</span></div>
               <ul className="mt-3 space-y-2 text-xs leading-5 text-white/38">
-                <li>• Local projector and recording continue if Internet streaming fails.</li>
-                <li>• One destination failure does not stop the master or healthy destinations.</li>
-                <li>• Stream keys stay encrypted/server-side and never enter this page.</li>
-                <li>• Destination topology and credentials are locked while a broadcast is starting, live or stopping.</li>
-                <li>• Transport live does not by itself claim provider viewer health or audience analytics.</li>
-                <li>• Provider API failures degrade provider evidence only; they do not stop RTMPS fan-out.</li>
+                <li>• Local projector and recording continue if Internet streaming fails; one destination failure does not stop the master or healthy destinations.</li>
+                <li>• Stream keys stay server-side · credentials lock while a broadcast is starting, live or stopping · transport live does not imply provider viewer health.</li>
               </ul>
             </section>
 
@@ -434,6 +408,6 @@ export default async function StreamingPage() {
           </aside>
         </section>
       </div>
-    </main>
+    </WorkspaceShell>
   );
 }

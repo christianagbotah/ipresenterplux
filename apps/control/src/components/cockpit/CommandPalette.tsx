@@ -256,7 +256,7 @@ export function CommandPalette() {
           </div>
           <div className="mt-2 flex items-center justify-between gap-3 px-1 text-xs text-white/50">
             <span>Find first · explicit action second · Program authority unchanged</span>
-            <button type="submit" disabled={pending || !query.trim()} className="ip-focus-gold min-h-11 rounded-lg bg-[#d7a94a] px-4 font-black text-[#171107] disabled:opacity-35">{pending ? "Working…" : "Run command"}</button>
+            <button type="submit" disabled={pending || !query.trim()} className="ip-focus-gold min-h-11 rounded-lg bg-[#e3b75c] px-4 font-black text-[#171107] disabled:opacity-35">{pending ? "Working…" : "Run command"}</button>
           </div>
         </form>
         <div className="max-h-[62vh] overflow-y-auto p-4">
@@ -276,7 +276,7 @@ export function CommandPalette() {
                     onMouseEnter={() => setActiveIndex(index)}
                     onFocus={() => setActiveIndex(index)}
                     onClick={() => activateSearchItem(item)}
-                    className={`ip-focus-gold flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition ${selected ? "border-[#d7a94a]/35 bg-[#d7a94a]/[.08]" : "border-white/[.07] bg-white/[.018] hover:bg-white/[.04]"}`}
+                    className={`ip-focus-gold flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition ${selected ? "border-[#e3b75c]/35 bg-[#e3b75c]/[.08]" : "border-white/[.07] bg-white/[.018] hover:bg-white/[.04]"}`}
                   >
                     <span className="min-w-0"><span className="block truncate text-sm font-bold text-white/80">{item.title}</span>{item.subtitle ? <span className="mt-0.5 block truncate text-xs text-white/45">{item.subtitle}</span> : null}</span>
                     <ArrowRight size={15} className="shrink-0 text-white/35"/>
@@ -290,11 +290,11 @@ export function CommandPalette() {
           </div> : <div className="text-sm leading-6 text-white/55">Search Scripture, Songs, Media, the current Service, Archive memory, Visual Sources, or safe Actions.</div>}
 
           {response?.resolution ? <div className="mt-4 rounded-xl border border-white/[.07] bg-white/[.02] p-3"><div className="text-xs font-black uppercase tracking-[.18em] text-[#e2b85f]">Interpreted action</div><div className="mt-1 text-sm font-bold text-white/80">{response.resolution.summary}</div>{response.resolution.status !== "ready" ? <div className="mt-2 text-xs text-amber-200/80">Use the explicit live control for consequential actions that are not registered here.</div> : null}</div> : null}
-          {response?.result?.kind === "prepared" ? <div className="mt-3 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.06] p-3"><div className="text-sm font-bold text-white/75">{response.result.message}</div><button type="button" disabled={pending} onClick={previewPrepared} className="ip-focus-gold mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-xs font-black text-[#171107]"><Eye size={15}/>Preview {response.result.followUp.reference}</button></div> : null}
+          {response?.result?.kind === "prepared" ? <div className="mt-3 rounded-xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.06] p-3"><div className="text-sm font-bold text-white/75">{response.result.message}</div><button type="button" disabled={pending} onClick={previewPrepared} className="ip-focus-gold mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-xs font-black text-[#171107]"><Eye size={15}/>Preview {response.result.followUp.reference}</button></div> : null}
           {response?.result?.kind === "scripture_search" ? <div className="mt-3 rounded-xl border border-white/[.07] p-3"><div className="text-sm font-black text-white/75">{response.result.reference} · {response.result.version}</div><p className="mt-2 text-sm leading-6 text-white/52">{response.result.passageText}</p></div> : null}
           {response?.result?.kind === "media_search" ? <div className="mt-3 space-y-2">{response.result.items.length ? response.result.items.map((item) => <Link key={item.id} href={`/media?item=${encodeURIComponent(item.id)}`} onClick={close} className="ip-focus-gold flex min-h-11 items-center justify-between rounded-xl border border-white/[.07] px-3 text-sm text-white/65 hover:bg-white/[.04]"><span>{item.title}</span><span className="text-xs uppercase text-white/30">{item.itemType}</span></Link>) : <div className="text-xs text-white/35">No matching media found.</div>}</div> : null}
           {response?.result?.kind === "status" ? <Link href={response.result.href} onClick={close} className="ip-focus-gold mt-3 flex min-h-11 items-center justify-between rounded-xl border border-white/[.07] px-3 text-sm text-white/65 hover:bg-white/[.04]"><span>{response.result.message}</span><span className="text-[#e2b85f]">Open</span></Link> : null}
-          {response?.result?.kind === "updated" ? <div role="status" className="mt-3 rounded-xl border border-[#d7a94a]/20 bg-[#d7a94a]/[.05] px-3 py-2 text-xs text-[#efd28b]">{response.result.message}</div> : null}
+          {response?.result?.kind === "updated" ? <div role="status" className="mt-3 rounded-xl border border-[#e3b75c]/20 bg-[#e3b75c]/[.05] px-3 py-2 text-xs text-[#efd28b]">{response.result.message}</div> : null}
           {message ? <div role="status" aria-live="polite" className="mt-3 rounded-xl border border-white/[.07] bg-white/[.025] px-3 py-2 text-xs text-white/65">{message}</div> : null}
         </div>
         <footer className="border-t border-white/[.07] bg-[#070a0f]/60 px-4 py-2.5">

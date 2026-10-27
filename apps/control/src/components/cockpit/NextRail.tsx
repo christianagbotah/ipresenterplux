@@ -18,16 +18,16 @@ function freshnessLabel(item: { observedAt: string | null; freshUntil: string | 
 
 export function NextRail({ model }: { model: CockpitViewModel }) {
   return (
-    <aside className="flex min-w-0 flex-col rounded-2xl border border-white/[.08] bg-[#10151e] p-4">
+    <aside className="flex min-w-0 flex-col rounded-2xl border border-white/[.08] bg-[#121a26] p-4">
       <div className="flex items-center justify-between gap-3">
         <div><h2 className="flex items-center gap-2 text-sm font-bold text-white/85">Next <span className="rounded-md bg-white/[.06] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-white/50">{model.next.length}</span></h2><div className="mt-1 text-xs text-white/50">Prepare what comes next.</div></div>
         <ListEnd size={18} className="text-[#e1b75e]" aria-hidden="true" />
       </div>
       <div className="mt-4 space-y-2">
         {model.next.length ? model.next.map((item, index) => (
-          <div key={item.id} className={`ip-ai-arrive rounded-xl border p-3 ${index === 0 ? "border-[#d7a94a]/25 bg-[#d7a94a]/[.045]" : "border-white/[.06] bg-black/15"}`}>
+          <div key={item.id} className={`ip-ai-arrive rounded-xl border p-3 ${index === 0 ? "border-[#e3b75c]/25 bg-[#e3b75c]/[.045]" : "border-white/[.06] bg-black/15"}`}>
             <div className="flex items-start gap-3">
-              <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${index === 0 ? "bg-[#d7a94a]/15 text-[#efc86f]" : "bg-white/[.045] text-white/45"}`}>{String(index + 1).padStart(2, "0")}</div>
+              <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold tabular-nums ${index === 0 ? "bg-[#e3b75c]/15 text-[#f0ca80]" : "bg-white/[.045] text-white/45"}`}>{String(index + 1).padStart(2, "0")}</div>
               <div className="min-w-0 flex-1">
                 <div className="break-words text-sm font-semibold leading-5 text-white/90">{item.title}</div>
                 <div className="mt-1 break-words text-xs leading-5 text-white/55">{item.reason ?? (item.source === "pinned" ? "Your priority" : item.source === "recommendation" ? "AI suggestion" : "From your service plan")}</div>
@@ -41,7 +41,7 @@ export function NextRail({ model }: { model: CockpitViewModel }) {
             </div>
             {model.service ? <NextItemActions item={item} organizationId={model.organization.id} serviceId={model.service.id} canControl={model.capabilities.canLiveControl} /> : null}
           </div>
-        )) : <div className="rounded-xl border border-dashed border-white/[.1] px-4 py-6 text-center"><ListEnd size={24} className="mx-auto mb-3 text-[#efc86f]/60" aria-hidden="true"/><div className="text-sm font-semibold text-white/75">Your next moment starts here</div><p className="mt-2 text-xs leading-5 text-white/55">Add items to your service plan or find a scripture to prepare.</p></div>}
+        )) : <div className="rounded-xl border border-dashed border-white/[.1] px-4 py-6 text-center"><ListEnd size={24} className="mx-auto mb-3 text-[#f0ca80]/60" aria-hidden="true"/><div className="text-sm font-semibold text-white/75">Your next moment starts here</div><p className="mt-2 text-xs leading-5 text-white/55">Add items to your service plan or find a scripture to prepare.</p></div>}
       </div>
       {model.service ? <Link href={`/planner/${model.service.id}`} className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[.08] text-xs font-bold text-white/55 transition hover:bg-white/[.04] hover:text-white/85 ip-focus-gold">Open Plan <ArrowUpRight size={14}/></Link> : <Link href="/planner" className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[.08] text-xs font-bold text-white/55">Open Plan <ArrowUpRight size={14}/></Link>}
     </aside>

@@ -104,7 +104,7 @@ export function ServicePlannerList({ services, timeZone, canPlanServices }: Prop
               className={
                 "shrink-0 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition ip-focus-gold " +
                 (filter === key
-                  ? "border-[#d7a94a]/35 bg-[#d7a94a]/12 text-[#f2c765]"
+                  ? "border-[#e3b75c]/35 bg-[#e3b75c]/12 text-[#f4cf85]"
                   : "border-white/[.07] bg-white/[.025] text-white/60 hover:bg-white/[.05] hover:text-white/85")
               }
             >
@@ -114,7 +114,7 @@ export function ServicePlannerList({ services, timeZone, canPlanServices }: Prop
           ))}
         </div>
 
-        <label className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[.08] bg-black/20 px-3.5 py-2.5 transition focus-within:border-[#d7a94a]/40 xl:w-72">
+        <label className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[.08] bg-black/20 px-3.5 py-2.5 transition focus-within:border-[#e3b75c]/40 xl:w-72">
           <Search size={16} className="shrink-0 text-white/45" />
           <input
             value={search}
@@ -131,7 +131,7 @@ export function ServicePlannerList({ services, timeZone, canPlanServices }: Prop
             <Link
               key={service.id}
               href={`/planner/${service.id}`}
-              className="group ip-ai-arrive min-w-0 rounded-2xl border border-white/[.07] bg-white/[.025] p-4 transition hover:border-[#d7a94a]/30 hover:bg-white/[.04] ip-focus-gold"
+              className="group ip-ai-arrive min-w-0 rounded-2xl border border-white/[.07] bg-white/[.025] p-4 transition hover:border-[#e3b75c]/30 hover:bg-white/[.04] ip-focus-gold"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -145,7 +145,7 @@ export function ServicePlannerList({ services, timeZone, canPlanServices }: Prop
 
               <div className="mt-4 space-y-2.5 text-xs text-white/60">
                 <div className="flex min-w-0 items-center gap-2">
-                  <CalendarClock size={14} className="shrink-0 text-[#d7a94a]/85" />
+                  <CalendarClock size={14} className="shrink-0 text-[#e3b75c]/85" />
                   <span className="truncate">{formatSchedule(service.scheduledStart, timeZone)}</span>
                 </div>
                 <div className="flex min-w-0 items-center gap-2">
@@ -171,7 +171,7 @@ export function ServicePlannerList({ services, timeZone, canPlanServices }: Prop
 
               <div className="mt-4 flex items-center justify-between border-t border-white/[.06] pt-3 text-xs">
                 <span className="text-white/50">{canPlanServices && ["draft", "ready"].includes(service.status) ? "Open & edit plan" : "Open service plan"}</span>
-                <span className="flex items-center gap-1 font-semibold text-[#d7a94a]/85 transition group-hover:text-[#f2c765]">Open <ChevronRight size={14} /></span>
+                <span className="flex items-center gap-1 font-semibold text-[#e3b75c]/85 transition group-hover:text-[#f4cf85]">Open <ChevronRight size={14} /></span>
               </div>
             </Link>
           ))}

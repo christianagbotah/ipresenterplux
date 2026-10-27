@@ -8,7 +8,7 @@ type ReuseTargets=Awaited<ReturnType<typeof listArchiveReuseTargets>>;
 function when(value:string|null|undefined){if(!value)return "Unavailable";const d=new Date(value);return Number.isFinite(d.getTime())?d.toLocaleString():"Unavailable";}
 export function ArchiveServiceDetail({detail,reuseTargets}:{detail:Detail;reuseTargets:ReuseTargets}){
   const {service,rundown,scriptureHistory,transcript,artifacts,memory,memoryChapters}=detail;
-  return <main className="min-h-screen bg-[#080b10] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-6xl">
+  return <main className="min-h-screen bg-[#05080d] px-4 py-8 text-white sm:px-6"><div className="mx-auto max-w-6xl">
     <Link href="/archive" className="ip-focus-gold inline-flex min-h-11 items-center text-xs font-bold text-amber-300/85 hover:text-amber-200">← Back to Archive</Link>
     <div className="mt-4 rounded-3xl border border-white/[.08] bg-white/[.025] p-6"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.18em] text-white/55"><Archive className="h-4 w-4"/>Ended service</div><h1 className="mt-2 text-3xl font-black">{service.title}</h1><p className="mt-2 text-sm text-white/55">{service.organizationName}{service.campusName?` · ${service.campusName}`:""}</p></div><div className="rounded-xl border border-white/[.07] bg-black/20 px-4 py-3 text-xs text-white/60"><div>Started: {when(service.startedAt)}</div><div className="mt-1">Ended: {when(service.endedAt)}</div></div></div></div>
     <div className="mt-5 space-y-5">

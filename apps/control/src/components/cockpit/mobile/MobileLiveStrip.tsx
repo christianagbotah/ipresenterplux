@@ -6,7 +6,7 @@ import type { CockpitRoleProjection } from "@/lib/cockpit/role-projection";
 
 function LiveCell({ label, value, live = false }: { label: "PROGRAM" | "PREVIEW" | "NEXT"; value: string; live?: boolean }) {
   return <div className="min-w-0 rounded-xl border border-white/[.07] bg-black/25 px-2.5 py-2">
-    <div className={`text-[9px] font-black tracking-[.14em] ${live ? "text-red-300" : "text-white/40"}`}>{label}</div>
+    <div className={`text-[11px] font-black tracking-[.14em] ${live ? "text-red-300" : "text-white/40"}`}>{label}</div>
     <div className="mt-1 truncate text-[11px] font-bold text-white/80">{value}</div>
   </div>;
 }
@@ -22,7 +22,7 @@ export function MobileLiveStrip({ model, projection }: { model: CockpitViewModel
       <LiveCell label="PREVIEW" value={preview} />
       <LiveCell label="NEXT" value={next} />
     </div>
-    {armed ? <div className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/30 bg-red-400/[.08] px-3 text-[10px] font-black tracking-[.12em] text-red-100">
+    {armed ? <div className="flex min-h-11 items-center gap-2 rounded-xl border border-red-400/30 bg-red-400/[.08] px-3 text-[11px] font-black tracking-[.12em] text-red-100">
       <Radio size={13} className="shrink-0 text-red-300" aria-hidden="true" />
       <span>AUTO SCRIPTURE LIVE ARMED</span>
     </div> : null}

@@ -38,7 +38,7 @@ export async function StudioReadinessPage({
   if (session.user.forcePasswordChange) redirect("/change-password");
 
   const context = await readinessContext(session.user.id);
-  const capabilities = context?.navigationCapabilities ?? { canMedia:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false };
+  const capabilities = context?.navigationCapabilities ?? { canMedia:false, canViewPlanner:false, canCameras:false, canAIDirector:false, canTranslations:false, canStreaming:false, canArchive:false, canSettings:false };
 
   return (
     <main className="min-h-screen bg-[#070a0f] text-white">
@@ -46,9 +46,9 @@ export async function StudioReadinessPage({
       <div className="min-h-screen md:grid md:grid-cols-[86px_1fr] xl:grid-cols-[240px_1fr]">
         <StudioSidebar capabilities={capabilities} />
         <section className="min-w-0 pb-20 md:pb-0">
-          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#080b10]/92 px-4 backdrop-blur-xl lg:px-6">
+          <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-white/[.07] bg-[#05080d]/92 px-4 backdrop-blur-xl lg:px-6">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc86f]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#f0ca80]">
                 <Icon size={19} />
               </div>
               <div className="min-w-0">
@@ -60,11 +60,11 @@ export async function StudioReadinessPage({
           </header>
 
           <div className="mx-auto max-w-5xl p-4 lg:p-8">
-            <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#0b0f16]">
+            <section className="overflow-hidden rounded-3xl border border-white/[.08] bg-[#090e15]">
               <div className="border-b border-white/[.06] p-6 sm:p-8">
                 <div className="flex items-center gap-2 text-[#e5b95e]">
                   <CheckCircle2 size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-[.16em]">Route connected · readiness workspace</span>
+                  <span className="text-[11px] font-black uppercase tracking-[.16em]">Route connected · readiness workspace</span>
                 </div>
                 <h2 className="mt-4 text-2xl font-black tracking-tight sm:text-3xl">{description}</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-7 text-white/48">{detail}</p>
@@ -72,19 +72,19 @@ export async function StudioReadinessPage({
 
               <div className="grid gap-3 p-6 sm:grid-cols-2 sm:p-8">
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Current service</div>
+                  <div className="text-[11px] font-black uppercase tracking-[.14em] text-white/30">Current service</div>
                   <div className="mt-2 text-base font-black text-white/75">{context?.service?.title ?? "No service selected"}</div>
                   <div className="mt-1 text-xs capitalize text-white/35">{context?.service?.status ?? "Create or prepare a service to continue"}</div>
                 </div>
                 <div className="rounded-2xl border border-white/[.07] bg-white/[.025] p-4">
-                  <div className="text-[10px] font-black uppercase tracking-[.14em] text-white/30">Production truth</div>
+                  <div className="text-[11px] font-black uppercase tracking-[.14em] text-white/30">Production truth</div>
                   <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white/65"><MonitorPlay size={15} /> Existing live controls remain authoritative</div>
                   <div className="mt-1 text-xs leading-5 text-white/35">This screen does not claim hardware, AI, archive, or media capabilities that are not connected yet.</div>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2 border-t border-white/[.06] p-6 sm:p-8">
-                <Link href={actionHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#d7a94a] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
+                <Link href={actionHref} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#e3b75c] px-4 text-sm font-black text-[#17120a] transition hover:bg-[#e7bd63]">
                   {actionLabel} <ArrowRight size={15} />
                 </Link>
                 <Link href={secondaryHref} className="inline-flex min-h-11 items-center rounded-xl border border-white/[.09] bg-white/[.03] px-4 text-sm font-bold text-white/60 transition hover:bg-white/[.06] hover:text-white">

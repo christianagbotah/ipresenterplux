@@ -61,7 +61,7 @@ export function MotionPreferences() {
   return (
     <section className="ip-ai-arrive rounded-[22px] border border-white/[.08] bg-[#0d121a] p-5">
       <div className="flex items-start gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#d7a94a]/15 bg-[#d7a94a]/[.07] text-[#efc76e]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#e3b75c]/15 bg-[#e3b75c]/[.07] text-[#f0ca80]">
           {enabled ? <Sparkles size={19} /> : <Zap size={19} />}
         </div>
         <div className="min-w-0 flex-1">
@@ -80,7 +80,7 @@ export function MotionPreferences() {
               type="checkbox"
               checked={enabled}
               onChange={(event) => commit(event.target.checked)}
-              className="h-5 w-5 cursor-pointer accent-[#d7a94a]"
+              className="h-5 w-5 cursor-pointer accent-[#e3b75c]"
               aria-label="Reduce motion on this machine"
             />
           </label>

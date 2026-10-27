@@ -114,7 +114,7 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
               key={itemStatus}
               type="button"
               onClick={() => router.push(`/translations?status=${itemStatus}&page=1`)}
-              className={"ip-focus-gold min-h-11 rounded-2xl border p-4 text-left transition " + (active ? "border-[#d7a94a]/30 bg-[#d7a94a]/10" : "border-white/[.07] bg-white/[.025] hover:bg-white/[.04]")}
+              className={"ip-focus-gold min-h-11 rounded-2xl border p-4 text-left transition " + (active ? "border-[#e3b75c]/30 bg-[#e3b75c]/10" : "border-white/[.07] bg-white/[.025] hover:bg-white/[.04]")}
             >
               <div className="flex items-center justify-between">
                 <Icon size={16} className={itemStatus === "failed" ? "text-red-300" : itemStatus === "succeeded" ? "text-emerald-300" : "text-[#e5b85c]"} />
@@ -148,7 +148,7 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
               <article key={job.id} className="ip-ai-arrive grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full border border-[#d7a94a]/20 bg-[#d7a94a]/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-[#efc76e]">{job.language_name}</span>
+                    <span className="rounded-full border border-[#e3b75c]/20 bg-[#e3b75c]/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-[#f0ca80]">{job.language_name}</span>
                     <span className="text-[11px] uppercase tracking-[.12em] text-white/50">{job.target_language_code}</span>
                     {audio ? <span className={`flex items-center gap-1 text-[11px] ${audio.tone}`}><Volume2 size={11} /> {audio.label}</span> : null}
                   </div>
@@ -169,7 +169,7 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
                     onChange={(event) => setDrafts((current) => ({ ...current, [job.id]: event.target.value }))}
                     rows={4}
                     placeholder={`Translate into ${job.language_name}…`}
-                    className="ip-focus-gold w-full resize-y rounded-xl border border-white/[.08] bg-black/25 px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/40 focus:border-[#d7a94a]/35"
+                    className="ip-focus-gold w-full resize-y rounded-xl border border-white/[.08] bg-black/25 px-3 py-3 text-sm leading-6 text-white outline-none placeholder:text-white/40 focus:border-[#e3b75c]/35"
                   />
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[11px] text-white/50">
@@ -200,7 +200,7 @@ export function TranslationDesk({ jobs, serviceTitle, counts, status, page, tota
                         type="button"
                         disabled={saving === job.id || !value.trim()}
                         onClick={() => void complete(job)}
-                        className="ip-focus-gold min-h-11 rounded-xl bg-[#d7a94a] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
+                        className="ip-focus-gold min-h-11 rounded-xl bg-[#e3b75c] px-4 py-2 text-xs font-extrabold text-[#171109] disabled:cursor-not-allowed disabled:opacity-35"
                       >
                         {saving === job.id ? "Saving…" : job.status === "succeeded" ? "Save correction" : "Publish translation"}
                       </button>

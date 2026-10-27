@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   Bot,
+  CalendarRange,
   Camera,
   Languages,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const icons: Record<StudioIconKey, LucideIcon> = {
   dashboard: LayoutDashboard,
   scripture: BookOpen,
   media: Music2,
+  planner: CalendarRange,
   theme: Palette,
   camera: Camera,
   ai: Bot,
@@ -51,7 +53,7 @@ function StudioRouteLink({ route, pathname }: { route: StudioRoute; pathname: st
       className={
         "ip-focus-gold group flex w-full items-center justify-center gap-3 rounded-xl border px-3 py-3 text-left transition xl:justify-start " +
         (active
-          ? "border-[#d7a94a]/20 bg-[#d7a94a]/10 text-[#f2c765]"
+          ? "border-[#e3b75c]/20 bg-[#e3b75c]/10 text-[#f4cf85]"
           : "border-transparent text-white/45 hover:bg-white/[.04] hover:text-white/80")
       }
     >
@@ -68,9 +70,9 @@ export function StudioSidebar({ capabilities }: { capabilities: StudioNavigation
   const settingsRoute = routes.find((route) => route.placement === "settings");
 
   return (
-    <aside className="sticky top-0 hidden h-dvh min-h-0 flex-col border-r border-white/[.07] bg-[#080b10]/95 px-3 py-4 backdrop-blur-xl md:flex xl:px-4">
+    <aside className="sticky top-0 hidden h-dvh min-h-0 flex-col border-r border-white/[.07] bg-[#05080d]/95 px-3 py-4 backdrop-blur-xl md:flex xl:px-4">
       <div className="mb-7 flex shrink-0 items-center gap-3 px-1 xl:px-2">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#d7a94a]/30 bg-[#d7a94a]/10 text-[#f2c765] shadow-[0_0_35px_rgba(215,169,74,.08)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#e3b75c]/30 bg-[#e3b75c]/10 text-[#f4cf85] shadow-[0_0_35px_rgba(215,169,74,.08)]">
           <MonitorPlay size={22} />
         </div>
         <div className="hidden min-w-0 xl:block">

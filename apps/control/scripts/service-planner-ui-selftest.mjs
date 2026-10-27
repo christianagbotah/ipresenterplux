@@ -27,8 +27,12 @@ async function readRequired(path, label) {
 }
 
 const dashboard = await readRequired("../src/app/page.tsx", "dashboard");
-assert.match(dashboard, /href=\{?"\/planner"\}?|"\/planner"/, "dashboard must link to /planner");
-assert.match(dashboard, /capabilities\.canViewPlanner/, "dashboard Planner link must use canViewPlanner");
+assert.match(dashboard, /DashboardPage/, "dashboard must render the cockpit workspace");
+const studioRoutes = await readRequired("../src/components/navigation/studio-routes.ts", "studio routes");
+assert.match(studioRoutes, /label: "Service Planner", href: "\/planner"/, "primary navigation must link to /planner");
+assert.match(studioRoutes, /capability: "canViewPlanner"/, "Service Planner navigation must be gated by canViewPlanner");
+const cockpitWorkspace = await readRequired("../src/components/cockpit/CockpitWorkspace.tsx", "cockpit workspace");
+assert.match(cockpitWorkspace, /StudioSidebar/, "dashboard cockpit must render the shared sidebar that exposes Service Planner");
 
 const plannerPage = await readRequired("../src/app/planner/page.tsx", "Planner page");
 assert.match(plannerPage, /ServicePlannerList/, "Planner page must render service list");

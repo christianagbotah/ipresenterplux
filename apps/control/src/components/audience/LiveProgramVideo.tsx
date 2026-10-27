@@ -32,9 +32,9 @@ export function LiveProgramVideo({ serviceId, mode = "audience", transportStatus
           <div className="mt-0.5 text-[11px] text-white/55">{operatorMode ? "Authoritative service Program · WebRTC low-latency · HLS fallback" : videoStatus === "live" ? "WebRTC low-latency · HLS fallback" : "Video becomes available when the church starts the Program stream"}</div>
         </div>
         {operatorMode ? (
-          <span className="rounded-full border border-white/[.09] bg-white/[.035] px-2 py-1 text-[10px] font-bold uppercase tracking-[.12em] text-white/65">{transportStatus}</span>
+          <span className="rounded-full border border-white/[.09] bg-white/[.035] px-2 py-1 text-[11px] font-bold uppercase tracking-[.12em] text-white/65">{transportStatus}</span>
         ) : (
-          <span className={"rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[.12em] " + (videoStatus === "live" ? "border-red-300/20 bg-red-300/[.07] text-red-100" : "border-white/[.09] bg-white/[.035] text-white/55")}>{audienceBadge}</span>
+          <span className={"rounded-full border px-2 py-1 text-[11px] font-bold uppercase tracking-[.12em] " + (videoStatus === "live" ? "border-red-300/20 bg-red-300/[.07] text-red-100" : "border-white/[.09] bg-white/[.035] text-white/55")}>{audienceBadge}</span>
         )}
       </div>
       <div className="grid gap-3 p-3">

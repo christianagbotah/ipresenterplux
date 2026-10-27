@@ -69,7 +69,7 @@ export function ServiceControls({
   const operatorLink = showOperatorLink ? (
     <Link
       href="/operator"
-      className="flex min-h-11 items-center gap-2 rounded-xl border border-[#d7a94a]/25 bg-[#d7a94a]/[.08] px-3.5 py-2.5 text-sm font-bold text-[#efc86f] transition hover:bg-[#d7a94a]/[.13] ip-focus-gold"
+      className="flex min-h-11 items-center gap-2 rounded-xl border border-[#e3b75c]/25 bg-[#e3b75c]/[.08] px-3.5 py-2.5 text-sm font-bold text-[#f0ca80] transition hover:bg-[#e3b75c]/[.13] ip-focus-gold"
     >
       <MonitorPlay size={16} aria-hidden="true" />
       <span className="hidden lg:inline">Operator</span>

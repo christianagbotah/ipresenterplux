@@ -8,12 +8,12 @@ export default async function ChangePasswordPage() {
   if (!session?.user) redirect("/login");
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#07090d] px-4 py-10 text-white">
-      <section className="w-full max-w-lg rounded-[28px] border border-white/[.08] bg-[#0b0f16] p-6 shadow-[0_35px_120px_rgba(0,0,0,.45)] sm:p-9">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#d7a94a]/25 bg-[#d7a94a]/10 text-[#efc464]">
+    <main className="grid min-h-screen place-items-center bg-[#04070c] px-4 py-10 text-white">
+      <section className="w-full max-w-lg rounded-[28px] border border-white/[.08] bg-[#090e15] p-6 shadow-[0_35px_120px_rgba(0,0,0,.45)] sm:p-9">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e3b75c]/25 bg-[#e3b75c]/10 text-[#efc464]">
           <KeyRound size={22} />
         </div>
-        <div className="mt-6 text-xs font-bold uppercase tracking-[.16em] text-[#d7a94a]">
+        <div className="mt-6 text-xs font-bold uppercase tracking-[.16em] text-[#e3b75c]">
           Account security
         </div>
         <h1 className="mt-2 text-2xl font-black tracking-tight">

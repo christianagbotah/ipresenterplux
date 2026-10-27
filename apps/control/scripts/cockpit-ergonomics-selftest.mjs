@@ -21,7 +21,12 @@ assert.match(stage, /(?:aspect-video[^\"]*w-full|w-full[^\"]*aspect-video)/, "Pr
 for (const forcedHeight of ["min-h-60", "lg:min-h-[300px]", "lg:min-h-[360px]"]) {
   assert.equal(stage.includes(forcedHeight), false, `stage geometry must not include competing ${forcedHeight}`);
 }
-assert.match(stage, /md:grid-cols-2/, "Preview and Program monitors must have equal desktop width");
+assert.match(stage, /ip-stage-split/, "Preview and Program must share one resizable side-by-side stage row");
+assert.match(stage, /--ip-stage-columns/, "the operator-owned PGM|PST split must drive the stage grid template");
+assert.match(stage, /DEFAULT_PREVIEW_SHARE = 60/, "the stage split must default to a 60/40 preview|program layout");
+assert.match(stage, /STAGE_SPLIT_STORAGE_KEY/, "the stage split must persist per device");
+assert.match(stage, /role="separator"/, "the resizable divider must be an accessible separator");
+assert.match(stage, /onDoubleClick=\{\(\) => applyPreviewShare\(DEFAULT_PREVIEW_SHARE\)\}/, "double-clicking the divider must reset the 60/40 split");
 assert.equal(stage.includes("1.35fr"), false, "Program must not be wider than Preview");
 assert.doesNotMatch(stage, /program \? [^\n]*text-3xl[^\n]*text-2xl/, "Preview and Program titles must use the same typography scale");
 assert.doesNotMatch(stage, /program \? [^\n]*text-lg[^\n]*text-base/, "Preview and Program bodies must use the same typography scale");
