@@ -39,9 +39,14 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("apps", "edge-agent", "src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("var categoryToolbar = new Grid", source, StringComparison.Ordinal);
+        // The category strip owns its toolbar row; the fixed-width actions
+        // share the search row so the strip keeps a usable viewport even at
+        // the sidebar floor.
+        Assert.Contains("var categoryToolbar = new Grid()", source, StringComparison.Ordinal);
         Assert.Contains("categoryToolbar.Children.Add(categoryBar)", source, StringComparison.Ordinal);
-        Assert.Contains("categoryToolbar.Children.Add(_addSelectedToSchedule)", source, StringComparison.Ordinal);
+        Assert.Contains("var searchRow = new Grid", source, StringComparison.Ordinal);
+        Assert.Contains("searchRow.Children.Add(_operatorSearch)", source, StringComparison.Ordinal);
+        Assert.Contains("searchRow.Children.Add(_addSelectedToSchedule)", source, StringComparison.Ordinal);
         Assert.Contains("Child = libraryPanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("var resourceDeckScroll = new ScrollViewer", source, StringComparison.Ordinal);
         Assert.DoesNotContain("var detailsScroll = new ScrollViewer", source, StringComparison.Ordinal);

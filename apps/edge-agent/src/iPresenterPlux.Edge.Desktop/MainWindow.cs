@@ -922,18 +922,19 @@ public sealed class MainWindow : Window
         };
         _rundown.PointerPressed += OnLibraryPointerPressed;
 
-        var categoryToolbar = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
+        // The category strip owns its row outright. Sharing the row with the
+        // fixed-width action buttons starved it at the sidebar floor (the
+        // strip viewport collapsed to ~4px and no category was visible);
+        // the actions join the search row instead, where the star-sized
+        // search absorbs the narrow-pane squeeze.
+        var categoryToolbar = new Grid();
         categoryToolbar.Children.Add(categoryBar);
         _addSelectedToSchedule.MinHeight = 28;
         _addSelectedToSchedule.Padding = new Thickness(9, 3);
         _addSelectedToSchedule.FontSize = 11;
-        Grid.SetColumn(_addSelectedToSchedule, 1);
-        categoryToolbar.Children.Add(_addSelectedToSchedule);
         ToolTip.SetTip(_addSelectedToSchedule, "Append the selected library cue to the local service schedule.");
-        // Icon-only at this width: the fixed text labels were starving the
-        // category strip on a default-width sidebar (only ~1.5 categories
-        // stayed visible); the glyph + tooltip keeps the destination obvious
-        // and returns ~90px to the strip. The AI link itself is unchanged.
+        // Icon-only at this width: the glyph + tooltip keeps the destination
+        // obvious and the row compact. The AI link itself is unchanged.
         var aiScripture = LinkButton("✦", () => CloudUri("/scripture"));
         aiScripture.MinHeight = 28;
         aiScripture.MinWidth = 34;
@@ -941,8 +942,12 @@ public sealed class MainWindow : Window
         aiScripture.Margin = new Thickness(0);
         aiScripture.FontSize = 13;
         ToolTip.SetTip(aiScripture, "AI Scripture — opens the scripture workspace on the Control Plane.");
+        var searchRow = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 6 };
+        searchRow.Children.Add(_operatorSearch);
+        Grid.SetColumn(_addSelectedToSchedule, 1);
+        searchRow.Children.Add(_addSelectedToSchedule);
         Grid.SetColumn(aiScripture, 2);
-        categoryToolbar.Children.Add(aiScripture);
+        searchRow.Children.Add(aiScripture);
 
         var deckHeader = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8 };
         deckHeader.Children.Add(Label("RESOURCE DECK", 9, FontWeight.Bold, Gold));
@@ -971,8 +976,8 @@ public sealed class MainWindow : Window
         libraryPanel.Children.Add(deckHeader);
         Grid.SetRow(categoryToolbar, 1);
         libraryPanel.Children.Add(categoryToolbar);
-        Grid.SetRow(_operatorSearch, 2);
-        libraryPanel.Children.Add(_operatorSearch);
+        Grid.SetRow(searchRow, 2);
+        libraryPanel.Children.Add(searchRow);
         Grid.SetRow(libraryWell, 3);
         libraryPanel.Children.Add(libraryWell);
 
