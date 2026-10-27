@@ -87,6 +87,18 @@ public sealed class OperatorOverflowStrip : Grid
     /// <summary>True when the right arrow can scroll (content after the viewport).</summary>
     public bool NextArrowEnabled => _next.IsEnabled;
 
+    /// <summary>
+    /// True when the left edge is faded (content exists before the viewport —
+    /// the subtle overflow indication in place of a hard label cut).
+    /// </summary>
+    internal bool LeftFadeActive => _fadeLeft;
+
+    /// <summary>True when the right edge is faded (content beyond the viewport).</summary>
+    internal bool RightFadeActive => _fadeRight;
+
+    private bool _fadeLeft;
+    private bool _fadeRight;
+
     /// <summary>Current horizontal scroll offset (content coordinates).</summary>
     public double ScrollOffset => _scroller.Offset.X;
 
@@ -180,8 +192,9 @@ public sealed class OperatorOverflowStrip : Grid
 
     /// <summary>
     /// Recomputes arrow enabled states from the current extent, viewport and
-    /// offset. Cheap; wired to scroll/size/layout events and safe to call
-    /// anywhere (the harness tests drive it directly).
+    /// offset, and keeps the edge fades in step. Cheap; wired to scroll/size/
+    /// layout events and safe to call anywhere (the harness tests drive it
+    /// directly).
     /// </summary>
     public void UpdateNavigationState()
     {
@@ -191,6 +204,57 @@ public sealed class OperatorOverflowStrip : Grid
         var offset = _scroller.Offset.X;
         _previous.IsEnabled = overflow && offset > 0.5;
         _next.IsEnabled = overflow && offset < extent - viewport - 0.5;
+        UpdateEdgeFades(overflow, offset, extent, viewport);
+    }
+
+    /// <summary>
+    /// Applies a short opacity fade to the scrolling viewport on every edge
+    /// that has content beyond it. A hard pixel cut through the middle of a
+    /// category label reads as a broken layout; the fade is the standard
+    /// professional overflow indication and pairs with the ‹ › arrows.
+    /// </summary>
+    private void UpdateEdgeFades(bool overflow, double offset, double extent, double viewport)
+    {
+        var fadeLeft = overflow && offset > 0.5;
+        var fadeRight = overflow && offset < extent - viewport - 0.5;
+        if (fadeLeft == _fadeLeft && fadeRight == _fadeRight) return;
+        _fadeLeft = fadeLeft;
+        _fadeRight = fadeRight;
+        if (!fadeLeft && !fadeRight)
+        {
+            _scroller.OpacityMask = null;
+            return;
+        }
+
+        // Fade spans ~16px of the viewport, expressed in the brush's relative
+        // mapping units; clamped so very narrow viewports never lose more than
+        // a quarter of their width to the fade.
+        var fade = Math.Clamp(16.0 / Math.Max(viewport, 1.0), 0.02, 0.25);
+        var stops = new GradientStops();
+        if (fadeLeft)
+        {
+            stops.Add(new GradientStop(Colors.Transparent, 0));
+            stops.Add(new GradientStop(Colors.White, fade));
+        }
+        else
+        {
+            stops.Add(new GradientStop(Colors.White, 0));
+        }
+        if (fadeRight)
+        {
+            stops.Add(new GradientStop(Colors.White, 1 - fade));
+            stops.Add(new GradientStop(Colors.Transparent, 1));
+        }
+        else
+        {
+            stops.Add(new GradientStop(Colors.White, 1));
+        }
+        _scroller.OpacityMask = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+            GradientStops = stops
+        };
     }
 
     /// <summary>

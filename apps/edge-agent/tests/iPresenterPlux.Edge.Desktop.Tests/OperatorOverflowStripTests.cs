@@ -27,6 +27,37 @@ public sealed class OperatorOverflowStripTests
     }
 
     [AvaloniaFact]
+    public void OverflowedEdgesFadeInsteadOfCuttingLabelsHard()
+    {
+        var (window, strip) = CreateStrip(width: 200, buttons: 12);
+
+        // At offset 0 only the right side has content beyond the viewport:
+        // the right edge fades (the subtle overflow indication), the left
+        // edge does not.
+        Assert.False(strip.LeftFadeActive);
+        Assert.True(strip.RightFadeActive);
+
+        // Scroll to the end: the fade flips to the left edge.
+        for (var i = 0; i < 12; i++)
+        {
+            strip.ApplyWheelDelta(new Vector(0, -20));
+            Dispatcher.UIThread.RunJobs();
+        }
+        strip.UpdateNavigationState();
+        Assert.True(strip.LeftFadeActive);
+        Assert.False(strip.RightFadeActive);
+    }
+
+    [AvaloniaFact]
+    public void NoEdgeFadesWhenEverythingFits()
+    {
+        var (window, strip) = CreateStrip(width: 400, buttons: 2);
+
+        Assert.False(strip.LeftFadeActive);
+        Assert.False(strip.RightFadeActive);
+    }
+
+    [AvaloniaFact]
     public void RightArrowEnablesWhenContentExtendsBeyondTheViewport()
     {
         var (window, strip) = CreateStrip(width: 200, buttons: 12);

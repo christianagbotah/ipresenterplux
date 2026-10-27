@@ -280,7 +280,10 @@ public sealed class MainWindowLayoutTests
     {
         var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
 
-        Assert.Contains("LinkButton(\"AI Scripture\", () => CloudUri(\"/scripture\"))", source, StringComparison.Ordinal);
+        // Compact glyph in the deck toolbar (returns width to the category
+        // strip); the tooltip carries the full destination text.
+        Assert.Contains("LinkButton(\"✦\", () => CloudUri(\"/scripture\"))", source, StringComparison.Ordinal);
+        Assert.Contains("AI Scripture — opens the scripture workspace on the Control Plane.", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AI Scripture · Manual · Auto Preview · guarded Auto Live", source, StringComparison.Ordinal);
     }
 

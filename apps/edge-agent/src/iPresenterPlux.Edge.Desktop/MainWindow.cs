@@ -930,9 +930,17 @@ public sealed class MainWindow : Window
         Grid.SetColumn(_addSelectedToSchedule, 1);
         categoryToolbar.Children.Add(_addSelectedToSchedule);
         ToolTip.SetTip(_addSelectedToSchedule, "Append the selected library cue to the local service schedule.");
-        var aiScripture = LinkButton("AI Scripture", () => CloudUri("/scripture"));
+        // Icon-only at this width: the fixed text labels were starving the
+        // category strip on a default-width sidebar (only ~1.5 categories
+        // stayed visible); the glyph + tooltip keeps the destination obvious
+        // and returns ~90px to the strip. The AI link itself is unchanged.
+        var aiScripture = LinkButton("✦", () => CloudUri("/scripture"));
         aiScripture.MinHeight = 28;
-        aiScripture.Padding = new Thickness(9, 3);
+        aiScripture.MinWidth = 34;
+        aiScripture.Padding = new Thickness(6, 3);
+        aiScripture.Margin = new Thickness(0);
+        aiScripture.FontSize = 13;
+        ToolTip.SetTip(aiScripture, "AI Scripture — opens the scripture workspace on the Control Plane.");
         Grid.SetColumn(aiScripture, 2);
         categoryToolbar.Children.Add(aiScripture);
 
