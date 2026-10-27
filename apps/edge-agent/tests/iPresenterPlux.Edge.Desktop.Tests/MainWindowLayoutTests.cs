@@ -622,6 +622,26 @@ public sealed class MainWindowLayoutTests
         Assert.Contains("_ = PreviewItemAndTakeAsync(row.Item);", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void WorkspacePersistenceSavesThroughTheContextFreeMarshallingHelper()
+    {
+        var source = File.ReadAllText(FindSourceFile("src", "iPresenterPlux.Edge.Desktop", "MainWindow.cs"));
+
+        // The shutdown path persists geometry synchronously on the UI thread;
+        // the save must go through SettingsPersistence (thread-pool marshalling,
+        // no captured UI dispatcher) or a genuinely asynchronous file write can
+        // deadlock window close. See SettingsPersistenceTests and the
+        // PersistingWorkspaceGeometryNeverCapturesTheBlockedUiThread guard.
+        Assert.Contains(
+            "SettingsPersistence.RunBlockingWithoutCapture(",
+            source,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "_settingsStore.SaveAsync(_settings, CancellationToken.None).GetAwaiter().GetResult()",
+            source,
+            StringComparison.Ordinal);
+    }
+
     private static string FindSourceFile(params string[] pathParts)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

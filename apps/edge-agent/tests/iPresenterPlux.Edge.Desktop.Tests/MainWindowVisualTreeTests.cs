@@ -148,6 +148,53 @@ public sealed class MainWindowVisualTreeTests
         Assert.Contains("already has a visual parent", crash.Message);
     }
 
+    [AvaloniaFact]
+    public void PersistingWorkspaceGeometryNeverCapturesTheBlockedUiThread()
+    {
+        SkipWhereEntitlementVaultIsUnavailable();
+
+        // Regression shape discovered while capturing v2.2 renders: the window
+        // close path persists geometry synchronously on the UI thread. If the
+        // settings save captured the UI dispatcher there, a genuinely
+        // asynchronous file write would post its continuation to the very
+        // dispatcher that is blocking on the result — the window closes but
+        // the process lingers. The poison context below makes that shape
+        // deterministic: any captured continuation never runs, so a capture
+        // hangs this test instead of a production booth machine.
+        var window = new MainWindow();
+
+        var poison = new NeverPumpedSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(poison);
+        try
+        {
+            var persist = typeof(MainWindow).GetMethod(
+                "PersistWorkspaceLayout",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            Assert.NotNull(persist);
+            persist.Invoke(window, null);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        // The save ran on the thread pool: nothing was routed through the
+        // blocked context, and the call returned instead of deadlocking.
+        Assert.Equal(0, poison.PostCount);
+    }
+
+    /// <summary>
+    /// A synchronization context that accepts posts but never runs them — the
+    /// deterministic stand-in for a UI dispatcher blocked on the save result.
+    /// </summary>
+    private sealed class NeverPumpedSynchronizationContext : SynchronizationContext
+    {
+        public int PostCount { get; private set; }
+
+        public override void Post(SendOrPostCallback callback, object? state) => PostCount++;
+    }
+
     /// <summary>
     /// MainWindow construction goes through DesktopEntitlementStore.CreateDefault(),
     /// which requires Windows Credential Manager or macOS Keychain. The Edge desktop

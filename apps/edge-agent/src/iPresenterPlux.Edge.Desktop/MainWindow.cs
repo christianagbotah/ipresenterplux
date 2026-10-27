@@ -1393,7 +1393,13 @@ public sealed class MainWindow : Window
     {
         try
         {
-            _settingsStore.SaveAsync(_settings, CancellationToken.None).GetAwaiter().GetResult();
+            // The save is marshalled to the thread pool on purpose: this runs
+            // on the UI thread (pane collapse, preset switch, window close),
+            // and the store's awaits would otherwise capture the UI dispatcher
+            // — blocking that dispatcher on the result deadlocks shutdown
+            // whenever the file write goes genuinely asynchronous.
+            SettingsPersistence.RunBlockingWithoutCapture(
+                () => _settingsStore.SaveAsync(_settings, CancellationToken.None));
         }
         catch
         {
